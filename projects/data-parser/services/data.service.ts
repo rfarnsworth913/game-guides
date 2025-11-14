@@ -2,7 +2,7 @@ import chalk from "chalk";
 import * as dotenv from "dotenv";
 import * as mongoDB from "mongodb";
 
-import { Events, RootDocument } from "../lib/types";
+import { Event, RootDocument } from "../lib/types";
 
 
 export class DataService {
@@ -103,7 +103,7 @@ export class DataService {
      * @param topic        - The topic within the document to clean.
      * @param filterFn     - A function that determines whether an item should be retained (returns true) or removed (returns false).
      */
-    async cleanupExpiredItems(documentName: string, topic: string, filterFn: (item: Events) => boolean): Promise<void> {
+    async cleanupExpiredItems(documentName: string, topic: string, filterFn: (item: Event) => boolean): Promise<void> {
         try {
 
             // Get document to be cleaned -------------------------------------
@@ -116,7 +116,7 @@ export class DataService {
             }
 
             // Extract topic data ---------------------------------------------
-            const items: Array<Events> = (document[topic] as Array<Events>) ?? [];
+            const items: Array<Event> = (document[topic] as Array<Event>) ?? [];
             const filteredItems = items.filter(filterFn);
 
             // Update database if any items were removed ----------------------
@@ -141,7 +141,7 @@ export class DataService {
      * Adds only new records to the specified sub-document of the root document.
      *
      * @param rootDocumentName - The name of the root document (e.g., "Genshin Impact").
-     * @param subDocumentName  - The name of the sub-document (e.g., "Events").
+     * @param subDocumentName  - The name of the sub-document (e.g., "Event").
      * @param records          - The array of records to add.
      */
     async addRecords<T extends { title: string }>(

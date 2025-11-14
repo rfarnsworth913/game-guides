@@ -1,3 +1,3 @@
 import { Event } from "./data-collections.type";
 
-export type GenshinEvent = Event;
+export type HonkaiStarRailEvent = Event;

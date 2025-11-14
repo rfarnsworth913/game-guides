@@ -6,7 +6,7 @@ export type RootDocument = {
     [key: string]: unknown;
 };
 
-export type Events = {
+export type Event = {
     title: string;
     startDate: string;
     endDate: string;

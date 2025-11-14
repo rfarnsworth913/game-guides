@@ -2,14 +2,14 @@
 import chalk from "chalk";
 import * as puppeteer from "puppeteer";
 
-import { DataFile, DataSource, GenshinEvent } from "../lib/types";
-import { DataService } from "../services";
+import { DataFile, DataSource, HonkaiStarRailEvent } from "../lib/types";
+import { DataService } from "../services/data.service";
 
-export class GenshinImpactParser {
+export class HonkaiStarRailParser {
 
     // Internal Properties ----------------------------------------------------
     private readonly data: DataFile;
-    private readonly documentID = "Genshin Impact";
+    private readonly documentID = "Honkai Star Rail";
 
 
     // Constructor ------------------------------------------------------------
@@ -63,7 +63,7 @@ export class GenshinImpactParser {
         this.dataService.cleanupExpiredItems(
             this.documentID,
             "events",
-            (event: GenshinEvent) => {
+            (event: HonkaiStarRailEvent) => {
                 const endDate = new Date(event.endDate);
                 return endDate >= new Date();
             }
