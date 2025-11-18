@@ -3,7 +3,7 @@ import chalk from "chalk";
 import * as puppeteer from "puppeteer";
 
 import { DataFile, DataSource, ZenlessEvent } from "../lib/types";
-import { DataService } from "../services";
+import { DataService, timeout } from "../services";
 
 export class ZenlessZoneZeroParser {
 
@@ -77,6 +77,7 @@ export class ZenlessZoneZeroParser {
         const page = await browser.newPage();
         await page.setViewport({ width: 1920, height: 1080 });
         await page.goto(eventsURL, { waitUntil: "domcontentloaded" });
+        await timeout(10000); // Wait for dynamic content to load
 
         console.warn(chalk.yellow("Extracting event data from: "), eventsURL);
 
@@ -100,6 +101,10 @@ export class ZenlessZoneZeroParser {
             const thirdColumn = columns[2]?.textContent?.trim() || "";
             const eventType = thirdColumn.toLowerCase().includes("indefinite") ? "permanent" : "temporary";
 
+            if (startDate === "TBA" || title.startsWith("File:")) {
+                return null;
+            }
+
             return {
                 title,
                 url,
@@ -109,11 +114,15 @@ export class ZenlessZoneZeroParser {
                 eventType,
                 completed: false
             };
+
         }));
 
         await browser.close();
 
-        // Add events to the database
-        await this.dataService.addRecords(this.documentID, "events", events);
+        // Add events to the database (filter out nulls)
+        const filteredEvents = (events as Array<ZenlessEvent | null>).filter(
+            (e): e is ZenlessEvent => e !== null
+        );
+        await this.dataService.addRecords(this.documentID, "events", filteredEvents);
     }
 }

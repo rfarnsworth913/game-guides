@@ -3,7 +3,7 @@ import chalk from "chalk";
 import * as puppeteer from "puppeteer";
 
 import { DataFile, DataSource, GenshinEvent } from "../lib/types";
-import { DataService } from "../services";
+import { DataService, timeout } from "../services";
 
 export class GenshinImpactParser {
 
@@ -77,6 +77,7 @@ export class GenshinImpactParser {
         const page = await browser.newPage();
         await page.setViewport({ width: 1920, height: 1080 });
         await page.goto(eventsURL, { waitUntil: "domcontentloaded" });
+        await timeout(10000); // Wait for dynamic content to load
 
         console.warn(chalk.yellow("Extracting event data from: "), eventsURL);
 
