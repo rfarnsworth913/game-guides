@@ -47,6 +47,12 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/data");
                 break;
             }
 
+            case "Zenless Zone Zero": {
+                const parser = new Parsers.ZenlessZoneZeroParser(dataFile);
+                await parser.parseData();
+                break;
+            }
+
             default:
                 console.warn(chalk.yellow("No parser available for data file: "), id);
                 break;
