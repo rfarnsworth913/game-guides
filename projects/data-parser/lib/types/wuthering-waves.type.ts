@@ -1,3 +1,3 @@
-import { Events } from "./data-collections.type";
+import { Event } from "./data-collections.type";
 
-export type WutheringEvent = Events;
+export type WutheringEvent = Event;

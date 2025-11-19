@@ -47,6 +47,12 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/data");
                 break;
             }
 
+            case "Wuthering Waves": {
+                const parser = new Parsers.WutheringWavesParser(dataFile);
+                await parser.parseData();
+                break;
+            }
+
             case "Zenless Zone Zero": {
                 const parser = new Parsers.ZenlessZoneZeroParser(dataFile);
                 await parser.parseData();
