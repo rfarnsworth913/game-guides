@@ -35,6 +35,12 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/data");
 
         try {
             switch (id) {
+            case "Fate Grand Order": {
+                const parser = new Parsers.FateGrandOrderParser(dataFile);
+                await parser.parseData();
+                break;
+            }
+
             case "Genshin Impact": {
                 const parser = new Parsers.GenshinImpactParser(dataFile);
                 await parser.parseData();
