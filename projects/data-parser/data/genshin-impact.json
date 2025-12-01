@@ -4,6 +4,14 @@
         {
             "id": "Events",
             "url": "https://genshin-impact.fandom.com/wiki/Event"
+        },
+        {
+            "id": "Spiral Abyss",
+            "url": "https://genshin-impact.fandom.com/wiki/Spiral_Abyss"
+        },
+        {
+            "id": "Imaginarium Theater",
+            "url": "https://genshin-impact.fandom.com/wiki/Imaginarium_Theater/Seasons"
         }
     ]
 }

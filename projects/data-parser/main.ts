@@ -25,7 +25,6 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/data");
     }
 
     // Handle Files Processing ------------------------------------------------
-    /* eslint-disable no-await-in-loop */
     for (const file of files) {
         console.info(chalk.blue("Processing file: "), file);
 
@@ -73,7 +72,7 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/data");
             console.error(chalk.red(`Error parsing ${id} data: `), parserError);
         }
     }
-    /* eslint-enable no-await-in-loop */
+
 })().catch((e) => {
     console.error(chalk.red("Unexpected error while processing files: "), e);
     process.exit(1);

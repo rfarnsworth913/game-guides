@@ -39,7 +39,7 @@ export default tseslint.config(
 
             // ESLint: Possible Problems (https://eslint.org/docs/latest/rules/#possible-problems) ------------------------------
             "array-callback-return":        ["error"],
-            "no-await-in-loop":             ["error"],
+            "no-await-in-loop":             ["off"],
             "no-constructor-return":        ["error"],
             "no-duplicate-imports":         ["error"],
             "no-inner-declarations":        ["error"],
@@ -391,7 +391,7 @@ export default tseslint.config(
             "@typescript-eslint/require-await": ["warn"],
 
             "no-return-await": ["off"],
-            "@typescript-eslint/return-await": ["error"],
+            "@typescript-eslint/return-await": ["off"],
 
             // Import Plugin: Helpful Warnings (https://github.com/import-js/eslint-plugin-import?tab=readme-ov-file#helpful-warnings) ------------------------
             "import/export":                     ["error"],
