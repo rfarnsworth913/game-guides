@@ -412,7 +412,7 @@ describe("Genshin Impact Parser", () => {
             const source: DataSource = { id: "Events", url: "https://example.com/events" };
             await parser["parseEvents"](source);
 
-            expect(jest.mocked(puppeteer.launch)).toHaveBeenCalledWith({ headless: true });
+            expect(jest.mocked(puppeteer.launch)).toHaveBeenCalledWith({ headless: false });
             expect(mockPage.setViewport).toHaveBeenCalledWith({ width: 1920, height: 1080 });
             expect(mockPage.goto).toHaveBeenCalledWith(
                 "https://example.com/events",

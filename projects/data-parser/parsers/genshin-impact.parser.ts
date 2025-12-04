@@ -13,7 +13,8 @@ export class GenshinImpactParser {
     private readonly data: DataFile;
     private readonly documentID = "Genshin Impact";
 
-    private readonly headless = true;
+    // Seems to help with getting dynamic content
+    private readonly headless = false;
 
 
     // Constructor ------------------------------------------------------------
@@ -35,7 +36,7 @@ export class GenshinImpactParser {
             throw new Error("No data provided for parsing.");
         }
 
-        this.cleanupExpiredEvents();
+        await this.cleanupExpiredEvents();
 
         for (const source of this.data.sourceList) {
             console.info(chalk.blueBright("Parsing source: "), source.id);
@@ -67,17 +68,21 @@ export class GenshinImpactParser {
     /**
      * Cleans up expired events from the database.
      */
-    private cleanupExpiredEvents(): void {
-        this.dataService.cleanupExpiredItems(
-            this.documentID,
-            "events",
-            (event: GenshinEvent) => {
-                const endDate = new Date(event.endDate);
-                return endDate >= new Date();
-            }
-        ).catch((err) => {
+    private async cleanupExpiredEvents(): Promise<void> {
+        try {
+            await Promise.resolve(
+                this.dataService.cleanupExpiredItems(
+                    this.documentID,
+                    "events",
+                    (event: GenshinEvent) => {
+                        const endDate = new Date(event.endDate);
+                        return endDate >= new Date();
+                    }
+                )
+            );
+        } catch (err) {
             console.error(chalk.red("Error handling events: "), err);
-        });
+        }
     }
 
     /**
