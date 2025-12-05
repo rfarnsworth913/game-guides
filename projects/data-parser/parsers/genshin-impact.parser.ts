@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { addDays, format } from "date-fns";
+import { addDays, format, isFuture } from "date-fns";
 import * as puppeteer from "puppeteer";
 
 import { dateFormat } from "../lib/constants";
@@ -76,7 +76,7 @@ export class GenshinImpactParser {
                     "events",
                     (event: GenshinEvent) => {
                         const endDate = new Date(event.endDate);
-                        return endDate >= new Date();
+                        return isFuture(endDate) || event.eventType === "permanent";
                     }
                 )
             );
