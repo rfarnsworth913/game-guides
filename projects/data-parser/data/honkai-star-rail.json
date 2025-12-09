@@ -4,6 +4,26 @@
         {
             "id": "Events",
             "url": "https://honkai-star-rail.fandom.com/wiki/Events"
+        },
+        {
+            "id": "Anomaly Arbitration",
+            "url": "https://honkai-star-rail.fandom.com/wiki/Anomaly_Arbitration/Stages",
+            "image": "https://static.wikia.nocookie.net/houkai-star-rail/images/7/7f/Location_Context_Game_System_Anomaly_Arbitration.png/revision/latest/scale-to-width-down/1000?cb=20251021130007"
+        },
+        {
+            "id": "Apocalyptic Shadow",
+            "url": "https://honkai-star-rail.fandom.com/wiki/Apocalyptic_Shadow/Stages",
+            "image": "https://static.wikia.nocookie.net/houkai-star-rail/images/6/63/Location_Context_Game_System_Apocalyptic_Shadow.png/revision/latest/scale-to-width-down/1000?cb=20250211000946"
+        },
+        {
+            "id": "Forgotten Hall",
+            "url": "https://honkai-star-rail.fandom.com/wiki/Forgotten_Hall/Stages",
+            "image": "https://static.wikia.nocookie.net/houkai-star-rail/images/4/47/Location_Context_Game_System_Forgotten_Hall.png/revision/latest/scale-to-width-down/1000?cb=20230215030132"
+        },
+        {
+            "id": "Pure Fiction",
+            "url": "https://honkai-star-rail.fandom.com/wiki/Pure_Fiction/Stages",
+            "image": "https://static.wikia.nocookie.net/houkai-star-rail/images/f/f3/Location_Context_Game_System_Pure_Fiction.png/revision/latest/scale-to-width-down/1000?cb=20240821110018"
         }
     ]
 }

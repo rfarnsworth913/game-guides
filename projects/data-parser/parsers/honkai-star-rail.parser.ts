@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { addDays, format } from "date-fns";
+import { format, isFuture } from "date-fns";
 import * as puppeteer from "puppeteer";
 
 import { dateFormat } from "../lib/constants";
@@ -46,6 +46,13 @@ export class HonkaiStarRailParser {
                 await this.parseEvents(source);
                 break;
 
+            case "Anomaly Arbitration":
+            case "Apocalyptic Shadow":
+            case "Forgotten Hall":
+            case "Pure Fiction":
+                await this.parseTreasuresLightward(source);
+                break;
+
             default:
                 console.warn(chalk.yellowBright("Unknown source ID: "), source.id);
                 break;
@@ -68,7 +75,7 @@ export class HonkaiStarRailParser {
                     "events",
                     (event: HonkaiStarRailEvent) => {
                         const endDate = new Date(event.endDate);
-                        return endDate >= new Date();
+                        return isFuture(endDate) || event.eventType === "permanent";
                     }
                 )
             );
@@ -155,4 +162,88 @@ export class HonkaiStarRailParser {
         // Add events to the database
         await this.dataService.addRecords(this.documentID, "events", events);
     }
+
+    /**
+     * Parses the Treasures Lightward category of events and stores them in the database.
+     *
+     * @param sourceData - The data source containing event information.
+     * @returns          Promise that resolves when the records have been stored.
+     */
+    private async parseTreasuresLightward(sourceData: DataSource): Promise<void> {
+
+        const events = await this.parserController(sourceData.url, async page => await page.$$eval(
+            "h2, h3", (headings) => {
+                // Locate the H2 or H3 with text containing "History"
+                const historyHeading = headings.find(h => h.textContent?.trim().includes("History"));
+                if (!historyHeading) {
+                    return [] as Array<HonkaiStarRailEvent>;
+                }
+
+                // Find the table that follows the History heading ------------
+                let nextEl: Element | null = historyHeading.nextElementSibling;
+                let table: HTMLTableElement | null = null;
+                while (nextEl) {
+                    if (nextEl.tagName === "TABLE") {
+                        table = nextEl as HTMLTableElement;
+                        break;
+                    }
+                    nextEl = nextEl.nextElementSibling;
+                }
+
+                if (!table) {
+                    return [] as Array<HonkaiStarRailEvent>;
+                }
+
+                const tbody = table.querySelector("tbody") ?? table;
+                const rows = Array.from(tbody.querySelectorAll("tr")).filter(r => !r.querySelector("th"));
+                if (rows.length === 0) {
+                    return [] as Array<HonkaiStarRailEvent>;
+                }
+
+                const lastRow = rows[rows.length - 1];
+                const cells = lastRow.querySelectorAll("td");
+
+                const startDate = (cells[1]?.textContent ?? "").replace("(Server Time)", "").trim();
+                const endDate = (cells[2]?.textContent ?? "").replace("(Server Time)", "").trim();
+
+                return [{
+                    title: "",
+                    url: "",
+                    banner: "",
+                    startDate,
+                    endDate,
+                    eventType: "end-game",
+                    completed: false
+                }];
+            }
+        ));
+
+        // Guard: no rows found -> nothing to update ---------------------------
+        if (events.length === 0) {
+            console.warn(chalk.yellow("No Treasures Lightward rows found; skipping update."));
+            return;
+        }
+
+        // Update event details -----------------------------------------------
+        const [event] = events;
+        const formatted = this.formatTreasuresEvent(event, sourceData);
+
+        // Add events to the database
+        await this.dataService.addRecords(this.documentID, "events", [formatted]);
+    }
+
+    /**
+     * Formats a Treasures Lightward event with source metadata and date formatting.
+     */
+    private formatTreasuresEvent(event: HonkaiStarRailEvent, sourceData: DataSource): HonkaiStarRailEvent {
+        return {
+            ...event,
+            title: sourceData.id,
+            banner: sourceData.banner ?? "",
+            url: sourceData.url,
+            startDate: format(new Date(event.startDate), dateFormat),
+            endDate: format(new Date(event.endDate), dateFormat)
+        };
+    }
+
 }

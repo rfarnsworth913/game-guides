@@ -6,4 +6,5 @@ export type DataFile = {
 export type DataSource = {
     id: string;
     url: string;
+    banner?: string;
 };
