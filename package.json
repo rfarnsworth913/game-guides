@@ -8,18 +8,19 @@
     "db:start": "projects\\database\\mongod --config projects\\database\\mongod.cfg",
 
     "parser:start": "tsx projects/data-parser/main.ts",
-    "parser:lint": "npx eslint 'projects/data-parser/**/*.ts'",
+    "parser:lint": "npx eslint \"projects/data-parser/**/*.ts\"",
     "parser:test": "npx jest --config projects/data-parser/jest.config.ts",
 
     "server:start": "nodemon --watch server --exec ts-node-dev server/index.ts",
 
     "ui:build": "ng build guide",
     "ui:start": "ng serve guide",
-    "ui:lint": "npx eslint 'projects/guide/**/*.ts'",
+    "ui:lint": "npx eslint \"projects/guide/**/*.ts\"",
     "ui:e2e": "",
     "ui:test": "npx jest --config projects/guide/jest.config.ts"
   },
   "private": true,
+  "type": "module",
   "dependencies": {
     "@angular/animations": "21.0.5",
     "@angular/common": "21.0.5",
@@ -56,7 +57,6 @@
     "angular-eslint": "21.1.0",
     "babel-jest": "29.7.0",
     "eslint": "9.39.2",
-    "eslint-plugin-import-x": "4.16.1",
     "eslint-plugin-jest": "29.5.0",
     "eslint-plugin-jsdoc": "61.5.0",
     "jest": "30.2.0",

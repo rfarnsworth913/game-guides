@@ -1,14 +1,14 @@
 // @ts-check
 import angular from "angular-eslint";
-import eslint from "@eslint/js";
+import js from "@eslint/js";
 import stylistic from "@stylistic/eslint-plugin"
 import tseslint from "typescript-eslint";
 
-import eslintPluginImportX from "eslint-plugin-import-x";
+import { defineConfig  } from "eslint/config";
 import jsdoc from "eslint-plugin-jsdoc";
 import jest from "eslint-plugin-jest";
 
-export default tseslint.config(
+export default defineConfig([
 
     // TypeScript Files Configuration -----------------------------------------
     {
@@ -16,7 +16,7 @@ export default tseslint.config(
 
         files: ["**/*.ts"],
         extends: [
-            eslint.configs.recommended,
+            js.configs.recommended,
             ...tseslint.configs.recommended,
             ...tseslint.configs.stylistic,
             ...angular.configs.tsRecommended,
@@ -30,7 +30,6 @@ export default tseslint.config(
         },
 
         plugins: {
-            import: eslintPluginImportX,
             jsdoc,
             "@stylistic": stylistic
         },
@@ -393,84 +392,6 @@ export default tseslint.config(
             "no-return-await": ["off"],
             "@typescript-eslint/return-await": ["off"],
 
-            // Import Plugin: Helpful Warnings (https://github.com/import-js/eslint-plugin-import?tab=readme-ov-file#helpful-warnings) ------------------------
-            "import/export":                     ["error"],
-            "import/no-deprecated":              ["warn"],
-            "import/no-empty-named-blocks":      ["error"],
-            "import/no-extraneous-dependencies": ["error"],
-            "import/no-mutable-exports":         ["error"],
-            "import/no-unused-modules":          ["error"],
-
-            // Import Plugin: Static Analysis (https://github.com/import-js/eslint-plugin-import?tab=readme-ov-file#static-analysis) --------------------------
-            "import/default":                  ["error"],
-            "import/no-absolute-path":         ["error"],
-            "import/no-cycle":                 ["warn", {
-                "ignoreExternal": true
-            }],
-            "import/no-self-import":           ["error"],
-            "import/no-useless-path-segments": ["warn"],
-            "import/no-webpack-loader-syntax": ["error"],
-
-            // Import Plugin: Style Guide (https://github.com/import-js/eslint-plugin-import?tab=readme-ov-file#style-guide) ----------------------------------
-            "import/first":                ["warn"],
-            "import/newline-after-import": ["warn"],
-            "import/no-duplicates":        ["error"],
-            "import/no-unassigned-import": ["warn"],
-            "import/order":                ["warn", {
-                "groups": [
-                    ["builtin", "external"],
-                    ["internal", "parent", "sibling", "index"]
-                ],
-                "pathGroups": [
-                    {
-                        "pattern": "@angular/**",
-                        "group": "external",
-                      },
-                      {
-                        "pattern": "@ngrx/**",
-                        "group": "external",
-                      },
-                      {
-                        "pattern": "lodash",
-                        "group": "external",
-                      },
-                      {
-                        "pattern": "rxjs/**",
-                        "group": "external",
-                      },
-                      {
-                        "pattern": "@core/**",
-                        "group": "internal"
-                      },
-                      {
-                        "pattern": "@environment/**",
-                        "group": "internal"
-                      },
-                      {
-                        "pattern": "@forms/**",
-                        "group": "internal"
-                      },
-                      {
-                        "pattern": "@lib/**",
-                        "group": "internal"
-                      },
-                      {
-                        "pattern": "@shared/**",
-                        "group": "internal"
-                      },
-                      {
-                        "pattern": "@store/**",
-                        "group": "internal"
-                      }
-                ],
-                "alphabetize": {
-                    "order": "asc",
-                    "caseInsensitive": true
-                },
-                "pathGroupsExcludedImportTypes": ["builtin"],
-                "newlines-between": "always-and-inside-groups"
-            }],
-
             // JSDocs Plugin (https://github.com/gajus/eslint-plugin-jsdoc) -----------------------------------------------------
             "jsdoc/check-alignment": ["warn"],
             "jsdoc/check-line-alignment": ["warn", "always"],
@@ -579,7 +500,7 @@ export default tseslint.config(
     {
         files: ["**/*.spec.ts", "**/*.e2e-spec.ts"],
         extends: [
-            eslint.configs.recommended,
+            js.configs.recommended,
             ...tseslint.configs.recommended,
             ...tseslint.configs.stylistic,
             ...angular.configs.tsRecommended
@@ -593,7 +514,6 @@ export default tseslint.config(
         },
 
         plugins: {
-            import: eslintPluginImportX,
             jest
         },
 
@@ -689,4 +609,4 @@ export default tseslint.config(
             "@angular-eslint/template/valid-aria":                   ["warn"],
         }
     }
-);
+]);
