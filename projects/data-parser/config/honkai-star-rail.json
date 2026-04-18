@@ -1,0 +1,37 @@
+{
+  "id": "Honkai Star Rail",
+  "sourceList": [
+    {
+      "id": "Events",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Events"
+    },
+    {
+      "id": "Anomaly Arbitration",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Anomaly_Arbitration/Stages"
+    },
+    {
+      "id": "Apocalyptic Shadow",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Apocalyptic_Shadow/Stages"
+    },
+    {
+      "id": "Forgotten Hall",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Forgotten_Hall/Stages"
+    },
+    {
+      "id": "Pure Fiction",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Pure_Fiction/Stages"
+    },
+    {
+      "id": "Version",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Version"
+    }
+  ],
+  "configuration": {
+    "currency-wars": {
+      "startDate": "2026-02-15"
+    },
+    "simulated-universe": {
+      "startDate": "2026-02-23"
+    }
+  }
+}

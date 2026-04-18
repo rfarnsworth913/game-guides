@@ -3,6 +3,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "rootDir": "./",
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -13,7 +14,11 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "preserve",
+    "paths": {
+      "@common/*": ["./projects/common/*"],
+      "@guides-app/*": ["./projects/guides-app/src/app/*"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
@@ -21,5 +26,19 @@
     "strictInputAccessModifiers": true,
     "strictTemplates": true
   },
-  "files": []
+  "files": [],
+  "include": [
+    "constants/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "./projects/guides-app/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/guides-app/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/common/tsconfig.common.json"
+    }
+  ]
 }
