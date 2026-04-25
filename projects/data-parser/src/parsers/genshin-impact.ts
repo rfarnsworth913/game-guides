@@ -1,20 +1,21 @@
 import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
-
 import * as puppeteer from "puppeteer";
 
 import { formatDate, formatMonthName } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
+
 import { DataService, getDateFromString, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
 
 export class GenshinImpactParser extends AbstractDataParser {
 
+
     // Constructor ------------------------------------------------------------
     constructor (data: DataFile, private readonly service: DataService = new DataService()) {
         super(data, service);
-        this.documentID = "Genshin Impact";
+        this.documentID = data.id;
         this.data = data;
     }
 
@@ -129,12 +130,14 @@ export class GenshinImpactParser extends AbstractDataParser {
     private async getVersionInfo (sourceData: DataSource): Promise<void> {
         const versionInfo = await this.browserController(sourceData.url, async (page) => {
 
+            // Get versions table ---------------------------------------------
             const versionTable = await this.getTableByHeaderText(page, "h2", "Version History");
             if (!versionTable) {
                 Logger.warn("Could not find Version information.");
                 return [];
             }
 
+            // Extract version data -------------------------------------------
             const versionData = await page.evaluate((table) => {
                 const rows = Array.from(table.querySelectorAll("tbody > tr"));
                 const firstDataRow = rows.find(row => row.querySelectorAll("td").length >= 3);
@@ -144,20 +147,22 @@ export class GenshinImpactParser extends AbstractDataParser {
                 }
 
                 const columns = firstDataRow.querySelectorAll("td");
-                const firstColumn = columns[0]?.textContent?.trim() || "";
-                const secondColumn = columns[1]?.textContent?.trim() || "";
-                const thirdColumn = columns[2]?.textContent?.trim() || "";
+                const pathID = columns[0]?.textContent?.trim() || "";
+                const patchName = columns[1]?.textContent?.trim() || "";
+                const releaseDate = columns[2]?.textContent?.trim() || "";
 
                 const href = columns[1]?.querySelector("a")?.getAttribute("href") ?? "";
                 const url = href ? new URL(href, window.location.origin).toString() : "";
 
                 return {
-                    title: `${firstColumn}: ${secondColumn}`,
-                    releaseDate: thirdColumn,
+                    title: `${pathID}: ${patchName}`,
+                    releaseDate,
                     url
                 };
             }, versionTable);
 
+
+            // Validate and format version data -------------------------------
             if (!versionData) {
                 Logger.warn("Could not find Version row data.");
                 return [];
