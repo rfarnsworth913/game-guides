@@ -1,8 +1,8 @@
-import chalk from "chalk";
 import fs from "fs";
 import path from "path";
 
 import { DataFile } from "@common/types";
+import { Logger } from "./services";
 import * as Parsers from "./parsers";
 
 
@@ -23,14 +23,14 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
     try {
         files = fs.readdirSync(dataSourceFolder);
     } catch (err) {
-        console.error(chalk.red("Error reading data source folder: "), err);
+        Logger.error("Error reading data source folder: ", err);
         process.exit(1);
         return; // for type-narrowing
     }
 
     // Handle Files Processing ------------------------------------------------
     for (const file of files) {
-        console.info(chalk.blue("Processing file: "), file);
+        Logger.info("Processing file: ", file);
 
         const fileContent = fs.readFileSync(path.join(dataSourceFolder, file), "utf-8");
         const dataFile = JSON.parse(fileContent) as DataFile;
@@ -58,15 +58,15 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
                 }
 
                 default:
-                    console.warn(chalk.yellow("No parser available for data file: "), id);
+                    Logger.warn("No parser available for data file: ", id);
                     break;
             }
         } catch (parserError) {
-            console.error(chalk.red(`Error parsing ${id} data: `), parserError);
+            Logger.error(`Error parsing ${id} data: `, parserError);
         }
     }
 
 })().catch((e) => {
-    console.error(chalk.red("Unexpected error while processing files: "), e);
+    Logger.error("Unexpected error while processing files: ", e);
     process.exit(1);
 });

@@ -29,7 +29,10 @@
                 "input": "projects/guides-app/public"
               }
             ],
-            "styles": ["projects/guides-app/src/styles.scss"]
+            "styles": [
+              "./node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "projects/guides-app/styles/styles.scss"
+            ]
           },
           "configurations": {
             "production": {

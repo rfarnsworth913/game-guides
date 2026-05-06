@@ -1,0 +1,58 @@
+/* Global styles and theme system */
+@use "./themes/variables" as vars;
+@use "./themes/theme-mixin" as mixin;
+@use "./themes/light-theme";
+@use "./themes/dark-theme";
+
+/* Set default light theme and smooth transitions */
+:root {
+  color-scheme: light;
+  /* Theme variables are set by _light-theme.scss by default */
+}
+
+html.theme-dark {
+  color-scheme: dark;
+}
+
+/* Smooth transition when switching themes */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Bootstrap overrides using theme variables */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a {
+  color: var(--color-primary);
+
+  &:hover {
+    color: var(--color-primary-light);
+  }
+}
+
+/* Utility classes for theme colors */
+.btn-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+
+  &:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+}
+
+.border {
+  border-color: var(--color-border) !important;
+}
+
+.text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+.text-secondary {
+  color: var(--color-text-secondary) !important;
+}

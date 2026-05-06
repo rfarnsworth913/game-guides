@@ -1,0 +1,55 @@
+// GitHub Light Theme Colors
+$light-theme: (
+  // Primary colors
+  primary: rgba(9, 105, 218, 1),
+  primary-light: rgba(84, 163, 255, 1),
+  primary-dark: rgba(3, 61, 139, 1),
+
+  // Background colors
+  bg-primary: rgba(255, 255, 255, 1),
+  bg-secondary: rgba(246, 248, 250, 1),
+  bg-tertiary: rgba(234, 238, 242, 1),
+
+  // Text colors
+  text-primary: rgba(36, 41, 47, 1),
+  text-secondary: rgba(87, 96, 106, 1),
+  text-muted: rgba(110, 118, 129, 1),
+
+  // UI elements colors
+  border-color: rgba(208, 215, 222, 1),
+  shadow-color: rgba(0, 0, 0, 0.12),
+
+  // Status colors
+  success: rgba(26, 127, 55, 1),
+  warning: rgba(212, 165, 116, 1),
+  error: rgba(209, 36, 47, 1),
+  info: rgba(9, 105, 218, 1),
+);
+
+// GitHub Dark Theme Colors
+$dark-theme: (
+  // Primary colors
+  primary: rgba(88, 166, 255, 1),
+  primary-light: rgba(121, 192, 255, 1),
+  primary-dark: rgba(31, 111, 235, 1),
+
+  // Background colors
+  bg-primary: rgba(13, 17, 23, 1),
+  bg-secondary: rgba(22, 27, 34, 1),
+  bg-tertiary: rgba(33, 38, 45, 1),
+
+  // Text colors
+  text-primary: rgba(201, 209, 217, 1),
+  text-secondary: rgba(139, 148, 158, 1),
+  text-muted: rgba(110, 118, 129, 1),
+
+  // UI elements colors
+  border-color: rgba(48, 54, 61, 1),
+  shadow-color: rgba(0, 0, 0, 0.36),
+
+  // Status colors
+  success: rgba(63, 185, 80, 1),
+  warning: rgba(210, 153, 34, 1),
+  error: rgba(248, 81, 73, 1),
+  info: rgba(88, 166, 255, 1),
+);

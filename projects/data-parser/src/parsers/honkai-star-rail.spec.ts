@@ -14,6 +14,8 @@ type ParserFixture = {
     };
 };
 
+type ParserMethod = | "parseEvents" | "parseTreasuresLightward" | "parseSourceData" | "createStaticEvents";
+
 const createParser = (sourceList: Array<DataSource> = []): ParserFixture => {
     const dataFile: DataFile = {
         id: "Honkai Star Rail",
@@ -29,17 +31,8 @@ const createParser = (sourceList: Array<DataSource> = []): ParserFixture => {
     return { parser, service };
 };
 
-type ParserMethod
-    = | "parseEvents"
-    | "parseTreasuresLightward"
-    | "parseSourceData"
-    | "createStaticEvents";
-
-const invokeParserMethod = async (
-    parser: HonkaiStarRailParser,
-    method: ParserMethod,
-    ...args: Array<unknown>
-): Promise<unknown> => {
+// eslint-disable-next-line @stylistic/max-len
+const invokeParserMethod = async (parser: HonkaiStarRailParser, method: ParserMethod, ...args: Array<unknown>): Promise<unknown> => {
     const parserRecord = parser as unknown as Record<string, unknown>;
     const targetMethod = parserRecord[method];
 
@@ -50,18 +43,12 @@ const invokeParserMethod = async (
     return (targetMethod as (...methodArgs: Array<unknown>) => Promise<unknown>).apply(parser, args);
 };
 
-const spyOnParserMethod = (
-    parser: HonkaiStarRailParser,
-    methodName: string
-) => {
+const spyOnParserMethod = (parser: HonkaiStarRailParser, methodName: string) => {
     const parserRecord = parser as unknown as Record<string, (...methodArgs: Array<unknown>) => unknown>;
     return jest.spyOn(parserRecord, methodName);
 };
 
-const mockBrowserController = (
-    parser: HonkaiStarRailParser,
-    pageMock: unknown
-): void => {
+const mockBrowserController = (parser: HonkaiStarRailParser, pageMock: unknown): void => {
     spyOnParserMethod(parser, "browserController")
         .mockImplementation(async (_url: string, callback: (page: unknown) => Promise<unknown>) => callback(pageMock));
 };
@@ -76,7 +63,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
     });
 
     describe("Events Handling", () => {
-        it("parseEvents parses event rows successfully", async () => {
+        it("should parse events successfully", async () => {
             expect.hasAssertions();
 
             const source: DataSource = { id: "Events", url: "https://example.com/events" };
@@ -111,7 +98,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             ]);
         });
 
-        it("parseEvents handles invalid and open-ended date content", async () => {
+        it("should handle invalid data", async () => {
             expect.hasAssertions();
 
             const source: DataSource = { id: "Events", url: "https://example.com/events" };
@@ -169,7 +156,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             };
 
             mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(async () => tableElementMock as never);
+            spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(() => tableElementMock as never);
 
             await invokeParserMethod(parser, "parseTreasuresLightward", source);
 
@@ -194,7 +181,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
 
             mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(async () => null);
+            spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(() => null);
 
             await invokeParserMethod(parser, "parseTreasuresLightward", source);
 
@@ -210,14 +197,14 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
 
             const tableElementMock = {
-                evaluate: jest.fn(async () => ({
+                evaluate: jest.fn(() => ({
                     startDate: "not-a-date",
                     endDate: "also-not-a-date"
                 }))
             };
 
             mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(async () => tableElementMock as never);
+            spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(() => tableElementMock as never);
 
             await invokeParserMethod(parser, "parseTreasuresLightward", source);
 

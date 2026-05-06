@@ -1,13 +1,32 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>GuidesApp</title>
-    <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  </head>
-  <body>
-    <gg-root></gg-root>
-  </body>
+    <head>
+        <meta charset="utf-8" />
+
+        <title>GuidesApp</title>
+
+        <base href="/" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+        <script>
+        // Preload theme to prevent white flash on page load
+        (function () {
+            const savedTheme = localStorage.getItem("gg-theme");
+            const theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+            document.documentElement.classList.add("theme-" + theme);
+            document.documentElement.setAttribute("data-theme", theme);
+
+            if (theme === "dark") {
+                document.documentElement.style.colorScheme = "dark";
+            }
+        })();
+        </script>
+    </head>
+
+    <body>
+        <gg-root></gg-root>
+    </body>
 </html>

@@ -1,0 +1,8 @@
+@use "./variables" as *;
+@use "./theme-mixin" as *;
+
+// Dark theme class
+:root.theme-dark,
+[data-theme="dark"] {
+  @include apply-theme($dark-theme);
+}

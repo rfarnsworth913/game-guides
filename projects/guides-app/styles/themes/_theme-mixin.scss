@@ -1,0 +1,34 @@
+@use "sass:map";
+
+// Mixin to apply theme colors as CSS custom properties
+@mixin apply-theme($theme-map) {
+  /* Primary colors */
+  --color-primary: #{map.get($theme-map, primary)};
+  --color-primary-light: #{map.get($theme-map, primary-light)};
+  --color-primary-dark: #{map.get($theme-map, primary-dark)};
+
+  /* Background colors */
+  --color-bg-primary: #{map.get($theme-map, bg-primary)};
+  --color-bg-secondary: #{map.get($theme-map, bg-secondary)};
+  --color-bg-tertiary: #{map.get($theme-map, bg-tertiary)};
+
+  /* Text colors */
+  --color-text-primary: #{map.get($theme-map, text-primary)};
+  --color-text-secondary: #{map.get($theme-map, text-secondary)};
+  --color-text-muted: #{map.get($theme-map, text-muted)};
+
+  /* UI element colors */
+  --color-border: #{map.get($theme-map, border-color)};
+  --color-shadow: #{map.get($theme-map, shadow-color)};
+
+  /* Status colors */
+  --color-success: #{map.get($theme-map, success)};
+  --color-warning: #{map.get($theme-map, warning)};
+  --color-error: #{map.get($theme-map, error)};
+  --color-info: #{map.get($theme-map, info)};
+}
+
+// Mixin to use CSS custom properties in components
+@mixin theme-colors($property, $color-var) {
+  #{$property}: var(--color-#{$color-var});
+}

@@ -9,10 +9,11 @@ import { AbstractDataParser } from "./abstract-data-parser";
 
 export class HonkaiStarRailParser extends AbstractDataParser {
 
+
     // Constructor ------------------------------------------------------------
     constructor (data: DataFile, private readonly service: DataService = new DataService()) {
         super(data, service);
-        this.documentID = "Honkai Star Rail";
+        this.documentID = data.id;
         this.data = data;
     }
 
@@ -153,7 +154,7 @@ export class HonkaiStarRailParser extends AbstractDataParser {
      *
      * @param sourceData - The data source containing version information.
      */
-    private async getVersionInfo (sourceData: DataSource): Promise<void> {
+    private async getVersionInfo(sourceData: DataSource): Promise<void> {
         const versionInfo = await this.browserController(sourceData.url, async (page) => {
 
             const versionTable = await this.getTableByHeaderText(page, "h2", "Version History");
@@ -171,16 +172,16 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 }
 
                 const columns = firstDataRow.querySelectorAll("td");
-                const firstColumn = columns[0]?.textContent?.trim() || "";
-                const secondColumn = columns[1]?.textContent?.trim() || "";
-                const thirdColumn = columns[2]?.textContent?.trim() || "";
+                const patchID = columns[0]?.textContent?.trim() || "";
+                const patchName = columns[1]?.textContent?.trim() || "";
+                const releaseDate = columns[2]?.textContent?.trim() || "";
 
                 const href = columns[1]?.querySelector("a")?.getAttribute("href") ?? "";
                 const url = href ? new URL(href, window.location.origin).toString() : "";
 
                 return {
-                    title: `${firstColumn}: ${secondColumn}`,
-                    releaseDate: thirdColumn,
+                    title: `${patchID}: ${patchName}`,
+                    releaseDate,
                     url
                 };
             }, versionTable);
@@ -204,6 +205,7 @@ export class HonkaiStarRailParser extends AbstractDataParser {
         this.versionInfo = versionInfo[0] as Version;
         this.isNewVersion = await this.service.updateVersion(this.documentID, versionInfo[0] as Version);
     }
+
 
     /**
      * Handles parsing data for the Treasures Lightward type of events.  These include:
