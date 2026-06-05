@@ -140,7 +140,18 @@ export class GenshinImpactParser extends AbstractDataParser {
             // Extract version data -------------------------------------------
             const versionData = await page.evaluate((table) => {
                 const rows = Array.from(table.querySelectorAll("tbody > tr"));
-                const firstDataRow = rows.find(row => row.querySelectorAll("td").length >= 3);
+                const firstDataRow = rows.find((row) => {
+                    const columns = row.querySelectorAll("td");
+
+                    if (columns.length < 3) {
+                        return false;
+                    }
+
+                    const releaseDate = columns[2]?.textContent?.trim() || "";
+                    const parsedReleaseDate = new Date(releaseDate);
+
+                    return !Number.isNaN(parsedReleaseDate.getTime()) && parsedReleaseDate <= new Date();
+                });
 
                 if (!firstDataRow) {
                     return null;
