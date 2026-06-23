@@ -1,6 +1,8 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ThemeService, type Theme } from '../../services/theme.service';
+import { ThemeService } from '../../services/theme.service';
+
+import { Theme } from "@lib/types";
 
 /**
  * Example component demonstrating how to use the theme system.
@@ -169,7 +171,7 @@ export class ThemeExampleComponent {
   private readonly themeService = inject(ThemeService);
 
   get currentTheme(): Theme {
-    return this.themeService.getCurrentTheme();
+    return this.themeService.getTheme();
   }
 
   toggleTheme(): void {
