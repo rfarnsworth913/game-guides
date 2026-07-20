@@ -1,8 +1,6 @@
-import { effect, Injectable, signal } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { Injectable, signal } from "@angular/core";
 
 import { Theme } from "@lib/types";
-
 
 @Injectable({
     providedIn: "root"
@@ -10,22 +8,8 @@ import { Theme } from "@lib/types";
 export class ThemeService {
 
     // Internal properties ----------------------------------------------------
-    private readonly themeSignal = signal<Theme>(this.getInitialTheme());
-    private readonly themeSubject: BehaviorSubject<Theme> = new BehaviorSubject(this.themeSignal());
-
     private readonly themeID = "gg-theme";
-
-    readonly theme$: Observable<Theme> = this.themeSubject.asObservable();
-
-
-    // Constructor ------------------------------------------------------------
-    constructor () {
-        // Update the observable when signal changes
-        effect(() => {
-            const currentTheme = this.themeSignal();
-            this.themeSubject.next(currentTheme);
-        });
-    }
+    private readonly activeTheme = signal<Theme>(this.getInitialTheme());
 
 
     // Public API -------------------------------------------------------------
@@ -34,7 +18,7 @@ export class ThemeService {
      * Get the current theme
      */
     getTheme (): Theme {
-        return this.themeSignal();
+        return this.activeTheme();
     }
 
     /**
@@ -43,7 +27,7 @@ export class ThemeService {
      * @param theme - The theme to be set (light or dark)
      */
     setTheme (theme: Theme): void {
-        this.themeSignal.set(theme);
+        this.activeTheme.set(theme);
         this.applyTheme(theme);
         localStorage.setItem("gg-theme", theme);
     }
@@ -52,7 +36,7 @@ export class ThemeService {
      * Toggle between light and dark themes
      */
     toggleTheme (): void {
-        const currentTheme = this.themeSignal();
+        const currentTheme = this.activeTheme();
         const newTheme: Theme = currentTheme === "light" ? "dark" : "light";
         this.setTheme(newTheme);
     }
@@ -62,7 +46,7 @@ export class ThemeService {
      */
     initializeTheme (): void {
         const theme = this.getInitialTheme();
-        this.themeSignal.set(theme);
+        this.activeTheme.set(theme);
         this.applyTheme(theme);
     }
 

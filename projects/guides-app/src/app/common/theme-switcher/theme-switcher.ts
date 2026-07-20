@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 
 import { Theme } from "@lib/types";
-import { ThemeService } from "../../services/theme.service";
+import { ThemeService } from "../../services/theme-switcher/theme.service";
 
 @Component({
     selector: "gg-theme-switcher",
