@@ -2,6 +2,10 @@
   "id": "Honkai Star Rail",
   "sourceList": [
     {
+      "id": "Version",
+      "url": "https://honkai-star-rail.fandom.com/wiki/Version"
+    },
+    {
       "id": "Events",
       "url": "https://honkai-star-rail.fandom.com/wiki/Events"
     },
@@ -25,13 +29,5 @@
       "id": "Version",
       "url": "https://honkai-star-rail.fandom.com/wiki/Version"
     }
-  ],
-  "configuration": {
-    "currency-wars": {
-      "startDate": "2026-02-15"
-    },
-    "simulated-universe": {
-      "startDate": "2026-02-23"
-    }
-  }
+  ]
 }

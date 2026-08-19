@@ -38,6 +38,11 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
 
         try {
             switch (id) {
+                // case "Arknights: Endfield": {
+                //     const parser = new Parsers.ArknightsEndfield(dataFile);
+                //     await parser.parseData();
+                //     break;
+                // }
 
                 case "Genshin Impact": {
                     const parser = new Parsers.GenshinImpactParser(dataFile);
@@ -51,11 +56,17 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
                     break;
                 }
 
-                case "Wuthering Waves": {
-                    const parser = new Parsers.WutheringWavesParser(dataFile);
-                    await parser.parseData();
-                    break;
-                }
+                // case "Wuthering Waves": {
+                //     const parser = new Parsers.WutheringWavesParser(dataFile);
+                //     await parser.parseData();
+                //     break;
+                // }
+
+                // case "Zenless Zone Zero": {
+                //     const parser = new Parsers.ZenlessZoneZeroParser(dataFile);
+                //     await parser.parseData();
+                //     break;
+                // }
 
                 default:
                     Logger.warn("No parser available for data file: ", id);

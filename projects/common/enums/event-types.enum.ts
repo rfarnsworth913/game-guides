@@ -9,5 +9,6 @@ export enum EventType {
     TCG = "tcg",
     Temporary = "temporary",
     Web = "web",
-    Weekly = "weekly"
+    Weekly = "weekly",
+    WeeklyLinked = "weekly-linked"      // Special weekly event linked to another event of the same type
 }

@@ -11,7 +11,6 @@ import { AbstractDataParser } from "./abstract-data-parser";
 
 export class GenshinImpactParser extends AbstractDataParser {
 
-
     // Constructor ------------------------------------------------------------
     constructor (data: DataFile, private readonly service: DataService = new DataService()) {
         super(data, service);
@@ -27,11 +26,15 @@ export class GenshinImpactParser extends AbstractDataParser {
      * and hands those tasks off to the appropriate parsing methods.
      */
     protected override async parseSourceData (): Promise<void> {
-        await this.getVersionInfo(this.data.sourceList.find(source => source.id === "Version")!);
-        await this.createStaticEvents();
+        // await this.createStaticEvents();
 
         for (const source of this.data.sourceList) {
             switch (source.id) {
+
+                case "Version":
+                    await this.getVersionInfo(source);
+                    await this.createStaticEvents();
+                    break;
 
                 case "Banners":
                     await this.parseSummonBanners(source);

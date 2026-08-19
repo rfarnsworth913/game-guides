@@ -1,14 +1,14 @@
-import { addDays, endOfISOWeek, endOfMonth, endOfWeek, format, isValid, startOfISOWeek, startOfMonth, startOfWeek } from "date-fns";
+import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
+import * as puppeteer from "puppeteer";
 
-import { formatDate } from "@common/constants";
+import { formatDate, formatMonthName } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
 
-import { DataService, Logger } from "../services";
+import { DataService, getDateFromString, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
-
-export class HonkaiStarRailParser extends AbstractDataParser {
+export class ZenlessZoneZeroParser extends AbstractDataParser {
 
     // Constructor ------------------------------------------------------------
     constructor (data: DataFile, private readonly service: DataService = new DataService()) {
@@ -17,15 +17,13 @@ export class HonkaiStarRailParser extends AbstractDataParser {
         this.data = data;
     }
 
-
     // Processing Controllers -------------------------------------------------
 
     /**
-     * Parser controller for the Honkai Star Rail parser.  Determines what items need to be parsed,
+     * Parser controller for the Zenless Zone Zero parser.  Determines what items need to be parsed,
      * and hands those tasks off to the appropriate parsing methods.
      */
     protected override async parseSourceData (): Promise<void> {
-
         for (const source of this.data.sourceList) {
             switch (source.id) {
 
@@ -34,18 +32,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                     await this.createStaticEvents();
                     break;
 
-                case "Anomaly Arbitration":
-                case "Apocalyptic Shadow":
-                case "Pure Fiction":
-                    await this.parseTreasuresLightward(source);
-                    break;
-
                 case "Events":
                     await this.parseEvents(source);
-                    break;
-
-                case "Forgotten Hall":
-                    await this.parseTreasuresLightward(source, "h3");
                     break;
 
                 default:
@@ -59,18 +47,16 @@ export class HonkaiStarRailParser extends AbstractDataParser {
      * Creates events that are static and do not require parsing.
      *
      * There events are:
-     * - Daily Training
-     * - Echo of War
-     * - Embers Exchange
-     * - Currency Wars
-     * - Simulated Universe
+     * - Errands
+     * - Notorious Hunt
+     * - Signal Shop
      */
     private async createStaticEvents (): Promise<void> {
         const staticEvents: Array<Event> = [
             {
-                title: "Daily Training",
-                url: "https://honkai-star-rail.fandom.com/wiki/Interastral_Peace_Guide/Daily_Training",
-                icon: "icons/honkai-star-rail/daily-training.svg",
+                title: "Errands",
+                url: "https://zenless-zone-zero.fandom.com/wiki/Compendium#Errands",
+                icon: "icons/zenless-zone-zero/errands.svg",
                 startDate: format(new Date(), formatDate),
                 endDate: format(new Date(), formatDate),
                 eventType: EventType.Daily,
@@ -78,42 +64,22 @@ export class HonkaiStarRailParser extends AbstractDataParser {
             },
 
             {
-                title: "Echo of War",
-                url: "https://honkai-star-rail.fandom.com/wiki/Echo_of_War",
-                icon: "icons/honkai-star-rail/echo-of-war.svg",
-                startDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), formatDate),
-                endDate: format(endOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }), formatDate),
+                title: "Notorious Hunt",
+                url: "https://zenless-zone-zero.fandom.com/wiki/Notorious_Hunt",
+                icon: "icons/zenless-zone-zero/notorious-hunt.svg",
+                startDate: format(startOfISOWeek(new Date()), formatDate),
+                endDate: format(endOfISOWeek(new Date()), formatDate),
                 eventType: EventType.Weekly,
                 completed: false
             },
 
             {
-                title: "Embers Exchange",
-                url: "https://honkai-star-rail.fandom.com/wiki/Embers_Exchange",
-                icon: "icons/honkai-star-rail/embers-exchange.svg",
+                title: "Signal Shop",
+                url: "https://zenless-zone-zero.fandom.com/wiki/Signal_Shop",
+                icon: "icons/zenless-zone-zero/signal-shop.svg",
                 startDate: format(startOfMonth(new Date()), formatDate),
                 endDate: format(endOfMonth(new Date()), formatDate),
                 eventType: EventType.Monthly,
-                completed: false
-            },
-
-            {
-                title: "Currency Wars",
-                url: "https://honkai-star-rail.fandom.com/wiki/Currency_Wars",
-                icon: "icons/honkai-star-rail/currency-wars.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
-                eventType: EventType.WeeklyLinked,
-                completed: false
-            },
-
-            {
-                title: "Simulated Universe",
-                url: "https://honkai-star-rail.fandom.com/wiki/Simulated_Universe",
-                icon: "icons/honkai-star-rail/simulated-universe.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
-                eventType: EventType.WeeklyLinked,
                 completed: false
             }
         ];
@@ -129,22 +95,35 @@ export class HonkaiStarRailParser extends AbstractDataParser {
     private async getVersionInfo (sourceData: DataSource): Promise<void> {
         const versionInfo = await this.browserController(sourceData.url, async (page) => {
 
+            // Get versions table ---------------------------------------------
             const versionTable = await this.getTableByHeaderText(page, "h2", "Version History");
             if (!versionTable) {
                 Logger.warn("Could not find Version information.");
                 return [];
             }
 
+            // Extract version data -------------------------------------------
             const versionData = await page.evaluate((table) => {
                 const rows = Array.from(table.querySelectorAll("tbody > tr"));
-                const firstDataRow = rows.find(row => row.querySelectorAll("td").length >= 3);
+                const firstDataRow = rows.find((row) => {
+                    const columns = row.querySelectorAll("td");
+
+                    if (columns.length < 3) {
+                        return false;
+                    }
+
+                    const releaseDate = columns[2]?.textContent?.trim() || "";
+                    const parsedReleaseDate = new Date(releaseDate);
+
+                    return !Number.isNaN(parsedReleaseDate.getTime()) && parsedReleaseDate <= new Date();
+                });
 
                 if (!firstDataRow) {
                     return null;
                 }
 
                 const columns = firstDataRow.querySelectorAll("td");
-                const patchID = columns[0]?.textContent?.trim() || "";
+                const pathID = columns[0]?.textContent?.trim() || "";
                 const patchName = columns[1]?.textContent?.trim() || "";
                 const releaseDate = columns[2]?.textContent?.trim() || "";
 
@@ -152,12 +131,14 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 const url = href ? new URL(href, window.location.origin).toString() : "";
 
                 return {
-                    title: `${patchID}: ${patchName}`,
+                    title: `${pathID}: ${patchName}`,
                     releaseDate,
                     url
                 };
             }, versionTable);
 
+
+            // Validate and format version data -------------------------------
             if (!versionData) {
                 Logger.warn("Could not find Version row data.");
                 return [];
@@ -179,75 +160,7 @@ export class HonkaiStarRailParser extends AbstractDataParser {
     }
 
     /**
-     * Handles parsing data for the Treasures Lightward type of events.  These include:
-     *
-     * - Anomaly Arbitration
-     * - Apocalyptic Shadow
-     * - Forgotten Hall
-     * - Pure Fiction
-     *
-     * @param sourceData - Source data for the Treasures Lightward event.
-     * @param headerTag  - Header tag to locate the event table (default: h2).
-     */
-    private async parseTreasuresLightward (sourceData: DataSource, headerTag = "h2"): Promise<void> {
-        const events = await this.browserController(sourceData.url, async (page) => {
-
-            // Get table that contains the event dates
-            const tableElement = await this.getTableByHeaderText(page, headerTag, "History");
-            if (!tableElement) {
-                Logger.warn(`Could not find ${sourceData.id} history table.`);
-                return [];
-            }
-
-            // Extract date information from table (last row)
-            const rawDateData = await tableElement.evaluate((table) => {
-                const targetRow = table.querySelector("tbody tr:last-child");
-
-                if (!targetRow) {
-                    return null;
-                }
-
-                const cells = targetRow.querySelectorAll("td");
-                const startDate = cells[1]?.textContent?.trim() || "";
-                const endDate = cells[2]?.textContent?.trim() || "";
-
-                return { startDate, endDate };
-            });
-
-            if (!rawDateData?.startDate || !rawDateData?.endDate) {
-                Logger.warn(`Could not extract ${sourceData.id} dates from table.`);
-                return [];
-            }
-
-            // Parse date content
-            const normalizeDateString = (value: string): string => value.replace(/GMT([+-])(\d{1,2})\b/i, (_, sign: string, hour: string) => `GMT${sign}${hour.padStart(2, "0")}00`);
-
-            const parsedStartDate = new Date(normalizeDateString(rawDateData.startDate));
-            const parsedEndDate = new Date(normalizeDateString(rawDateData.endDate));
-
-            if (!isValid(parsedStartDate) || !isValid(parsedEndDate)) {
-                Logger.warn(`Could not parse ${sourceData.id} dates into valid Date objects.`);
-                return [];
-            }
-
-            // Create event object
-            return [{
-                title: sourceData.id,
-                url: sourceData.url,
-                icon: `icons/honkai-star-rail/${sourceData.id.toLowerCase().replace(/ /g, "-")}.svg`,
-                startDate: format(parsedStartDate, formatDate),
-                endDate: format(parsedEndDate, formatDate),
-                eventType: EventType.EndGame,
-                completed: false
-            }];
-        });
-
-        // Add events to the database
-        await this.service.addRecords(this.documentID, "events", events);
-    }
-
-    /**
-     * Handles parsing the standard events listing of Honkai Star Rail.
+     * Handles parsing the standard events listing of Genshin Impact.
      *
      * @param sourceData - The data source containing event information.
      */
@@ -259,7 +172,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 const columns = row.querySelectorAll("td");
 
                 const [firstColumn] = columns;
-                const title = firstColumn?.textContent?.trim() || "";
+                const rawTitle = firstColumn?.textContent?.trim() || "";
+                const title = rawTitle.replace(/\b(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}|\d{4}-\d{2}-\d{2})\b/g, "").trim();
                 const href = firstColumn?.querySelector("a")?.getAttribute("href") ?? "";
                 const url = href ? new URL(href, window.location.origin).toString() : "";
 
@@ -276,7 +190,7 @@ export class HonkaiStarRailParser extends AbstractDataParser {
             return tableData.map(row => ({
                 title: row.title,
                 url: row.url,
-                icon: `icons/honkai-star-rail/${this.getEventType(row.thirdColumn, row.endDate)}.svg`,
+                icon: `icons/genshin-impact/${this.getEventType(row.thirdColumn, row.endDate)}.svg`,
                 startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), formatDate) : "",
                 endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), formatDate) : "",
                 eventType: this.getEventType(row.thirdColumn, row.endDate),
