@@ -470,7 +470,6 @@ export default defineConfig([
         "prefix": "gg",
         "style": "camelCase"
       }],
-      "@angular-eslint/no-conflicting-lifecycle": ["error"],
       "@angular-eslint/no-duplicates-in-metadata-arrays": ["error"],
       "@angular-eslint/no-empty-lifecycle-method": ["error"],
       "@angular-eslint/no-input-rename": ["error"],
