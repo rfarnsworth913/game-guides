@@ -1,86 +1,87 @@
 import { Injectable, signal } from "@angular/core";
 
-import { Theme } from "@lib/types";
+import { GameTheme, GlobalTheme } from "@lib/types";
 
-@Injectable({
-    providedIn: "root"
-})
+export const GAME_THEMES: ReadonlyArray<{ id: GameTheme; label: string }> = [
+    { id: "default", label: "All games" },
+    { id: "genshin", label: "Genshin Impact" },
+    { id: "hsr", label: "Honkai: Star Rail" },
+    { id: "zzz", label: "Zenless Zone Zero" },
+    { id: "wuwa", label: "Wuthering Waves" },
+    { id: "endfield", label: "Arknights: Endfield" },
+];
+
+@Injectable({ providedIn: "root" })
 export class ThemeService {
+    private readonly activeTheme = signal<GlobalTheme>(this.read("gg-theme") === "light" ? "light" : "dark");
+    private readonly activeGame = signal<GameTheme>(this.readGame());
 
-    // Internal properties ----------------------------------------------------
-    private readonly themeID = "gg-theme";
-    private readonly activeTheme = signal<Theme>(this.getInitialTheme());
+    readonly theme = this.activeTheme.asReadonly();
+    readonly game = this.activeGame.asReadonly();
 
-
-    // Public API -------------------------------------------------------------
-
-    /**
-     * Get the current theme
-     */
-    getTheme (): Theme {
-        return this.activeTheme();
+    /** Returns the selected shell appearance. */
+    getTheme (): GlobalTheme {
+        return this.theme();
     }
 
-    /**
-     * Set the theme and persist to localStorage
-     *
-     * @param theme - The theme to be set (light or dark)
-     */
-    setTheme (theme: Theme): void {
+    /** Changes the shell appearance while preserving the game accent. */
+    setTheme(theme: GlobalTheme): void {
         this.activeTheme.set(theme);
-        this.applyTheme(theme);
-        localStorage.setItem("gg-theme", theme);
+        this.applyTheme();
+        this.persist("gg-theme", theme);
     }
 
-    /**
-     * Toggle between light and dark themes
-     */
+    /** Changes only the game context and accent. */
+    setGame (game: GameTheme): void {
+        if (!GAME_THEMES.some(option => option.id === game)) {
+            return;
+        }
+        this.activeGame.set(game);
+        this.applyTheme();
+        this.persist("gg-game", game);
+    }
+
+    /** Toggles the shell between light and dark. */
     toggleTheme (): void {
-        const currentTheme = this.activeTheme();
-        const newTheme: Theme = currentTheme === "light" ? "dark" : "light";
-        this.setTheme(newTheme);
+        this.setTheme(this.theme() === "light" ? "dark" : "light");
     }
 
-    /**
-     * Initialize theme from localStorage or system preference
-     */
+    /** Applies restored appearance and game preferences to the document. */
     initializeTheme (): void {
-        const theme = this.getInitialTheme();
-        this.activeTheme.set(theme);
-        this.applyTheme(theme);
+        this.applyTheme();
     }
 
-
-    // Internal Theme Handling ------------------------------------------------
-
-    /**
-     * Get initial theme from localStorage or system preference
-     */
-    private getInitialTheme (): Theme {
-        // Check localStorage first
-        const saved = localStorage.getItem(this.themeID) as Theme | null;
-        if (saved && (saved === "light" || saved === "dark")) {
-            return saved;
-        }
-
-        // Check system preference
-        if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
-            return "dark";
-        }
-
-        // Default to light
-        return "light";
+    /** Restores a known game or the neutral application accent. */
+    private readGame (): GameTheme {
+        const saved = this.read("gg-game");
+        return GAME_THEMES.find(option => option.id === saved)?.id ?? "default";
     }
 
-    /**
-     * Apply theme by setting class on root element and applying CSS custom properties
-     */
-    private applyTheme (theme: Theme): void {
+    /** Reads a preference safely when browser storage is restricted. */
+    private read (key: string): string | null {
+        try {
+            return localStorage.getItem(key);
+        } catch {
+            return null;
+        }
+    }
+
+    /** Persists a preference when browser storage is available. */
+    private persist (key: string, value: string): void {
+        try {
+            localStorage.setItem(key, value);
+        } catch {
+            // Keep the session usable when browser storage is unavailable.
+        }
+    }
+
+    /** Synchronizes the document and native control appearance. */
+    private applyTheme (): void {
         const root = document.documentElement;
-        const oppositeTheme: Theme = theme === "light" ? "dark" : "light";
-
-        root.classList.remove(`theme-${oppositeTheme}`);
-        root.classList.add(`theme-${theme}`);
-        root.setAttribute("data-theme", theme);
+        root.classList.remove("theme-light", "theme-dark");
+        root.classList.add(`theme-${this.theme()}`);
+        root.dataset["theme"] = this.theme();
+        root.dataset["game"] = this.game();
+        root.style.colorScheme = this.theme();
     }
 }

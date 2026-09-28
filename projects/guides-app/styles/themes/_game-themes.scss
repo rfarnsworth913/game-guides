@@ -1,0 +1,33 @@
+@use "sass:list";
+
+// Each game only supplies accents; shell, text and status colors stay neutral.
+$games: (
+  default: (#8aa9ff, #345bbb),
+  genshin: (#e8c577, #896214),
+  hsr: (#afa2ff, #6952bc),
+  zzz: (#e1ef54, #637000),
+  wuwa: (#65d9ca, #14776c),
+  endfield: (#f5a768, #a24c13),
+);
+
+@mixin accent($color, $contrast) {
+  --color-primary: #{$color};
+  --color-on-primary: #{$contrast};
+  --color-primary-light: color-mix(in srgb, var(--color-primary), var(--color-text-primary) 15%);
+  --color-primary-dark: color-mix(in srgb, var(--color-primary), var(--color-bg-primary) 18%);
+  --color-accent-subtle: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-secondary));
+}
+
+:root {
+  @include accent(#8aa9ff, #0b0d12);
+}
+
+@each $game, $colors in $games {
+  :root[data-game="#{$game}"] {
+    @include accent(list.nth($colors, 1), #0b0d12);
+  }
+
+  :root[data-theme="light"][data-game="#{$game}"] {
+    @include accent(list.nth($colors, 2), #ffffff);
+  }
+}

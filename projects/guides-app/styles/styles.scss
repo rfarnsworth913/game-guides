@@ -1,18 +1,12 @@
 /* Global styles and theme system */
 @use "./themes/variables" as vars;
 @use "./themes/theme-mixin" as mixin;
-@use "./themes/light-theme";
 @use "./themes/dark-theme";
+@use "./themes/light-theme";
+@use "./themes/game-themes";
 
-/* Set default light theme and smooth transitions */
-:root {
-  color-scheme: light;
-  /* Theme variables are set by _light-theme.scss by default */
-}
-
-html.theme-dark {
-  color-scheme: dark;
-}
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
 
 /* Smooth transition when switching themes */
 html {
@@ -36,6 +30,7 @@ a {
 
 /* Utility classes for theme colors */
 .btn-primary {
+  color: var(--color-on-primary);
   background-color: var(--color-primary);
   border-color: var(--color-primary);
 
@@ -55,4 +50,33 @@ a {
 
 .text-secondary {
   color: var(--color-text-secondary) !important;
+}
+
+// Bootstrap components inherit the same neutral surfaces and text.
+:root {
+  --bs-body-bg: var(--color-bg-primary);
+  --bs-body-color: var(--color-text-primary);
+  --bs-secondary-color: var(--color-text-secondary);
+  --bs-tertiary-bg: var(--color-bg-tertiary);
+  --bs-border-color: var(--color-border);
+  --bs-link-color: var(--color-primary);
+}
+
+.btn-primary {
+  --bs-btn-color: var(--color-on-primary);
+  --bs-btn-hover-color: var(--color-on-primary);
+  --bs-btn-active-color: var(--color-on-primary);
+  --bs-btn-active-bg: var(--color-primary-dark);
+  --bs-btn-active-border-color: var(--color-primary-dark);
+  --bs-btn-disabled-bg: var(--color-primary);
+  --bs-btn-disabled-border-color: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { transition: none; }
 }

@@ -12,17 +12,22 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
 
         <script>
-        // Preload theme to prevent white flash on page load
+        // Match ThemeService defaults before first paint; storage can be blocked.
         (function () {
-            const savedTheme = localStorage.getItem("gg-theme");
-            const theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-
-            document.documentElement.classList.add("theme-" + theme);
-            document.documentElement.setAttribute("data-theme", theme);
-
-            if (theme === "dark") {
-                document.documentElement.style.colorScheme = "dark";
-            }
+            let theme = "dark";
+            let game = "default";
+            try {
+                theme = localStorage.getItem("gg-theme") === "light" ? "light" : "dark";
+                const savedGame = localStorage.getItem("gg-game");
+                if (["default", "genshin", "hsr", "zzz", "wuwa", "endfield"].includes(savedGame)) {
+                    game = savedGame;
+                }
+            } catch {}
+            const root = document.documentElement;
+            root.classList.add("theme-" + theme);
+            root.dataset.theme = theme;
+            root.dataset.game = game;
+            root.style.colorScheme = theme;
         })();
         </script>
     </head>

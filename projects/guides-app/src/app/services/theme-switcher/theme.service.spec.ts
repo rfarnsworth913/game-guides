@@ -66,7 +66,7 @@ describe("ThemeService", () => {
     function createService (savedTheme: string | null, prefersDark = false): ThemeService {
         setupLocalStorage();
         setupMatchMedia(prefersDark);
-        getItemMock.mockImplementation((key: string) => (key === themeID ? savedTheme : null));
+        getItemMock.mockImplementation((key: string) => new Map([[themeID, savedTheme]]).get(key) ?? null);
 
         return new ThemeService();
     }
@@ -96,9 +96,9 @@ describe("ThemeService", () => {
             expect(service.getTheme()).toBe("dark");
         });
 
-        it("falls back to light when localStorage has unknown theme and system prefers light", () => {
+        it("defaults to dark when no valid preference exists, independent of the OS", () => {
             const service = createService("unknown", false);
-            expect(service.getTheme()).toBe("light");
+            expect(service.getTheme()).toBe("dark");
         });
     });
 
@@ -151,10 +151,42 @@ describe("ThemeService", () => {
 
             service.initializeTheme();
 
-            expect(service.getTheme()).toBe("light");
-            expect(document.documentElement.classList.contains("theme-light")).toBe(true);
-            expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+            expect(service.getTheme()).toBe("dark");
+            expect(document.documentElement.classList.contains("theme-dark")).toBe(true);
+            expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
         });
+    });
+
+    it("keeps appearance and game selection independent", () => {
+        const service = createService("dark");
+        service.setGame("genshin");
+        expect(service.getTheme()).toBe("dark");
+        expect(setItemMock).toHaveBeenCalledWith("gg-game", "genshin");
+        service.setTheme("light");
+        expect(service.game()).toBe("genshin");
+        expect(document.documentElement.dataset["game"]).toBe("genshin");
+        expect(document.documentElement.style.colorScheme).toBe("light");
+    });
+
+    it("restores a valid game and ignores unknown games", () => {
+        createService("dark");
+        getItemMock.mockImplementation((key: string) => new Map([["gg-game", "wuwa"], ["gg-theme", "dark"]]).get(key));
+        expect(new ThemeService().game()).toBe("wuwa");
+        getItemMock.mockReturnValue("unknown");
+        expect(new ThemeService().game()).toBe("default");
+    });
+
+    it("still initializes and switches when storage is blocked", () => {
+        createService(null);
+        getItemMock.mockImplementation(() => { throw new Error("Blocked"); });
+        setItemMock.mockImplementation(() => { throw new Error("Blocked"); });
+        const service = new ThemeService();
+        expect(() => service.initializeTheme()).not.toThrow();
+        expect(service.theme()).toBe("dark");
+        expect(() => service.setTheme("light")).not.toThrow();
+        expect(() => service.setGame("zzz")).not.toThrow();
+        expect(document.documentElement.dataset["theme"]).toBe("light");
+        expect(document.documentElement.dataset["game"]).toBe("zzz");
     });
 
 });

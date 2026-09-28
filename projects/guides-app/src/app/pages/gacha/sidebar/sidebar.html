@@ -1,1 +1,6 @@
-<p>sidebar works!</p>
+<label for="current-game">Current game</label>
+<select id="current-game" #gameSelect [value]="themes.game()" (change)="selectGame(gameSelect.value)">
+    @for (game of games; track game.id) {
+        <option [value]="game.id">{{ game.label }}</option>
+    }
+</select>

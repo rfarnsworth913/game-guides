@@ -1,55 +1,32 @@
-// GitHub Light Theme Colors
+// Neutral surfaces stay independent of the selected game.
 $light-theme: (
-  // Primary colors
-  primary: rgba(9, 105, 218, 1),
-  primary-light: rgba(84, 163, 255, 1),
-  primary-dark: rgba(3, 61, 139, 1),
-
-  // Background colors
-  bg-primary: rgba(255, 255, 255, 1),
-  bg-secondary: rgba(246, 248, 250, 1),
-  bg-tertiary: rgba(234, 238, 242, 1),
-
-  // Text colors
-  text-primary: rgba(36, 41, 47, 1),
-  text-secondary: rgba(87, 96, 106, 1),
-  text-muted: rgba(110, 118, 129, 1),
-
-  // UI elements colors
-  border-color: rgba(208, 215, 222, 1),
-  shadow-color: rgba(0, 0, 0, 0.12),
-
-  // Status colors
-  success: rgba(26, 127, 55, 1),
-  warning: rgba(212, 165, 116, 1),
-  error: rgba(209, 36, 47, 1),
-  info: rgba(9, 105, 218, 1),
+  bg-primary: #f4f6fa,
+  bg-secondary: #ffffff,
+  bg-tertiary: #e9edf5,
+  bg-hover: #dfe5ef,
+  text-primary: #1c2333,
+  text-secondary: #4c586e,
+  text-muted: #626e82,
+  border-color: #cbd3e0,
+  shadow-color: rgba(11, 13, 18, 0.12),
+  success: #187b46,
+  warning: #946200,
+  error: #c52f43,
+  info: #2365bc,
 );
 
-// GitHub Dark Theme Colors
 $dark-theme: (
-  // Primary colors
-  primary: rgba(88, 166, 255, 1),
-  primary-light: rgba(121, 192, 255, 1),
-  primary-dark: rgba(31, 111, 235, 1),
-
-  // Background colors
-  bg-primary: rgba(13, 17, 23, 1),
-  bg-secondary: rgba(22, 27, 34, 1),
-  bg-tertiary: rgba(33, 38, 45, 1),
-
-  // Text colors
-  text-primary: rgba(201, 209, 217, 1),
-  text-secondary: rgba(139, 148, 158, 1),
-  text-muted: rgba(110, 118, 129, 1),
-
-  // UI elements colors
-  border-color: rgba(48, 54, 61, 1),
-  shadow-color: rgba(0, 0, 0, 0.36),
-
-  // Status colors
-  success: rgba(63, 185, 80, 1),
-  warning: rgba(210, 153, 34, 1),
-  error: rgba(248, 81, 73, 1),
-  info: rgba(88, 166, 255, 1),
+  bg-primary: #0b0d12,
+  bg-secondary: #12151d,
+  bg-tertiary: #181c26,
+  bg-hover: #202532,
+  text-primary: #f4f6fa,
+  text-secondary: #a5adbd,
+  text-muted: #6f788a,
+  border-color: #292f3d,
+  shadow-color: rgba(0, 0, 0, 0.35),
+  success: #4dcc88,
+  warning: #edb950,
+  error: #f47788,
+  info: #7baeff,
 );

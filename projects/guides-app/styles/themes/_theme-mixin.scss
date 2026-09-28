@@ -2,15 +2,12 @@
 
 // Mixin to apply theme colors as CSS custom properties
 @mixin apply-theme($theme-map) {
-  /* Primary colors */
-  --color-primary: #{map.get($theme-map, primary)};
-  --color-primary-light: #{map.get($theme-map, primary-light)};
-  --color-primary-dark: #{map.get($theme-map, primary-dark)};
-
   /* Background colors */
   --color-bg-primary: #{map.get($theme-map, bg-primary)};
   --color-bg-secondary: #{map.get($theme-map, bg-secondary)};
   --color-bg-tertiary: #{map.get($theme-map, bg-tertiary)};
+
+  --color-bg-hover: #{map.get($theme-map, bg-hover)};
 
   /* Text colors */
   --color-text-primary: #{map.get($theme-map, text-primary)};
