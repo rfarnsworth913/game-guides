@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 
-import { Theme } from "@lib/types";
+import { GlobalTheme } from "@lib/types";
 import { ThemeService } from "../../services/theme-switcher/theme.service";
 
 @Component({
@@ -23,7 +23,7 @@ export class ThemeSwitcherComponent {
     /**
      * Gets the current theme from the ThemeService.
      */
-    get currentTheme (): Theme {
+    get currentTheme (): GlobalTheme {
         return this.themeService.getTheme();
     }
 

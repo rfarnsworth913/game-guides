@@ -1,0 +1,367 @@
+<p class="sr-only" role="status">{{ moveNotice() }}</p>
+<div class="achievement-toolbar">
+    <p>Track each milestone and the rewards waiting at the end.</p>
+    <button class="primary" (click)="open()">+ Add category</button>
+</div>
+<div class="achievement-search">
+    <label for="achievement-search">Search achievements</label>
+    <input
+        id="achievement-search"
+        type="search"
+        placeholder="Search titles, descriptions, requirements, or rewards..."
+        [ngModel]="search()"
+        (ngModelChange)="setSearch($event)"
+    />
+</div>
+<div class="achievement-categories">
+    @for (category of visibleCategories(); track category.id) {
+        <section
+            class="panel achievement-category"
+            [attr.data-category-id]="category.id"
+            [class.dragging]="dragId() === category.id"
+            [class.drop-target]="dropId() === category.id && dragId() !== category.id"
+        >
+            <div class="category-heading">
+                <button
+                    class="drag-handle"
+                    (pointerdown)="startDrag($event, category)"
+                    (keydown)="moveWithKeyboard($event, category)"
+                    [attr.aria-label]="'Reorder ' + category.name"
+                    title="Drag to reorder; use arrow keys when focused"
+                >
+                    &#8942;&#8942;
+                </button>
+                <span class="category-icon" aria-hidden="true">
+                    @if (wikiLink(category.icon); as iconUrl) {
+                        @if (!failedIcons().includes(iconUrl)) {
+                            <img
+                                [src]="iconUrl"
+                                alt=""
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
+                                (error)="hideBrokenIcon(iconUrl)"
+                            />
+                        } @else {
+                            &#9734;
+                        }
+                    } @else {
+                        {{ category.icon || '☆' }}
+                    }
+                </span>
+                <div class="category-title">
+                    <h2>
+                        @if (wikiLink(category.wikiUrl); as url) {
+                            <a [href]="url" target="_blank" rel="noopener noreferrer">{{
+                                category.name
+                            }}</a>
+                        } @else {
+                            {{ category.name }}
+                        }
+                    </h2>
+                </div>
+                <div class="category-count">
+                    <strong
+                        >{{ completed(category.id) }} /
+                        {{ achievements(category.id).length }}</strong
+                    ><small>achievements completed</small>
+                </div>
+                <button
+                    class="category-toggle"
+                    (click)="toggleCategory(category.id)"
+                    [attr.aria-expanded]="!collapsed().includes(category.id)"
+                    [attr.aria-controls]="'achievements-' + category.id"
+                    [attr.aria-label]="
+                        (collapsed().includes(category.id) ? 'Expand ' : 'Collapse ') +
+                        category.name
+                    "
+                >
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                        [class.expanded]="!collapsed().includes(category.id)"
+                    >
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
+                </button>
+            </div>
+            <progress
+                [value]="progress(category.id)"
+                max="100"
+                [attr.aria-label]="category.name + ' completion'"
+            ></progress>
+            <div class="category-reward">
+                <span>Completion reward</span
+                ><strong class="reward-value"
+                    ><ng-container
+                        *ngTemplateOutlet="rewardIcon; context: { $implicit: category.rewardIcon }"
+                    />{{ category.reward || 'Not specified' }}</strong
+                >
+            </div>
+            <div class="category-actions">
+                <button (click)="open(category)">+ Add achievement</button
+                ><button (click)="open(undefined, category)">Edit category</button
+                ><button class="delete" (click)="deleting = category">Delete category</button>
+            </div>
+            <div
+                class="achievement-list"
+                [id]="'achievements-' + category.id"
+                [hidden]="collapsed().includes(category.id)"
+            >
+                @for (achievement of filteredAchievements(category); track achievement.id) {
+                    <article
+                        class="achievement-row"
+                        [class.is-complete]="achievement.completed"
+                        [attr.data-achievement-id]="achievement.id"
+                        [class.dragging]="dragId() === achievement.id"
+                        [class.drop-target]="
+                            dropId() === achievement.id && dragId() !== achievement.id
+                        "
+                    >
+                        <button
+                            class="drag-handle"
+                            (pointerdown)="startDrag($event, achievement)"
+                            (keydown)="moveWithKeyboard($event, achievement)"
+                            [attr.aria-label]="'Reorder ' + achievement.name"
+                            title="Drag to reorder or move to another category; use arrow keys when focused"
+                        >
+                            &#8942;&#8942;
+                        </button>
+                        <input
+                            type="checkbox"
+                            [checked]="achievement.completed"
+                            (change)="toggle(achievement, $event)"
+                            [attr.aria-label]="'Complete ' + achievement.name"
+                        />
+                        <div class="achievement-details">
+                            <h3>
+                                @if (wikiLink(achievement.wikiUrl); as url) {
+                                    <a [href]="url" target="_blank" rel="noopener noreferrer">{{
+                                        achievement.name
+                                    }}</a>
+                                } @else {
+                                    {{ achievement.name }}
+                                }
+                            </h3>
+                            @if (achievement.description) {
+                                <p class="achievement-description">{{ achievement.description }}</p>
+                            }
+                        </div>
+                        <div class="achievement-requirements">
+                            <span class="field-caption">Requirements</span>
+                            <p>{{ achievement.requirementText || 'No requirements specified.' }}</p>
+                        </div>
+                        <div class="achievement-rewards">
+                            <span class="field-caption">Rewards</span>
+                            <p class="reward-value">
+                                <ng-container
+                                    *ngTemplateOutlet="
+                                        rewardIcon;
+                                        context: { $implicit: achievement.rewardIcon }
+                                    "
+                                />{{ achievement.reward || 'Not specified' }}
+                            </p>
+                        </div>
+                        <div class="achievement-actions">
+                            <button
+                                (click)="open(category, achievement)"
+                                [attr.aria-label]="'Edit ' + achievement.name"
+                            >
+                                Edit</button
+                            ><button
+                                class="delete"
+                                (click)="deleting = achievement"
+                                [attr.aria-label]="'Delete ' + achievement.name"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </article>
+                } @empty {
+                    <p class="category-empty">
+                        No achievements yet. Add the first milestone to this category.
+                    </p>
+                }
+            </div>
+        </section>
+    } @empty {
+        @if (search().trim()) {
+            <section class="panel empty" role="status">
+                <h2>No matching achievements</h2>
+                <p>Try a different search.</p>
+                <button (click)="setSearch('')">Clear search</button>
+            </section>
+        } @else {
+            <section class="panel empty">
+                <span class="empty-symbol">☆</span>
+                <h2>Every achievement has a place</h2>
+                <p>Create a category, then add its achievements and rewards.</p>
+                <button class="primary" (click)="open()">+ Add category</button>
+            </section>
+        }
+    }
+</div>
+@if (editor; as entry) {
+    <div class="modal-backdrop">
+        <section
+            class="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="achievement-editor-title"
+            ggDialogFocus
+            (keydown.escape)="editor = null"
+        >
+            <div class="section-title">
+                <h2 id="achievement-editor-title">
+                    {{
+                        entry.kind === 'achievement-category'
+                            ? 'Achievement category'
+                            : 'Achievement'
+                    }}
+                </h2>
+                <button aria-label="Close editor" (click)="editor = null">×</button>
+            </div>
+            <form (ngSubmit)="save()">
+                <label
+                    >Title<input name="name" [(ngModel)]="entry.name" required maxlength="150"
+                /></label>
+                <label
+                    >Reference URL (optional)<input
+                        name="wikiUrl"
+                        type="url"
+                        [(ngModel)]="entry.wikiUrl"
+                        placeholder="https://…"
+                        maxlength="2000"
+                /></label>
+                <label
+                    >Reward icon (optional)<input
+                        name="rewardIcon"
+                        [(ngModel)]="entry.rewardIcon"
+                        maxlength="2000"
+                        placeholder="Emoji, symbol, or https:// image URL"
+                    /><small>Displayed before the reward.</small></label
+                >
+                @if (entry.kind === 'achievement-category') {
+                    <label
+                        >Icon<input
+                            name="icon"
+                            [(ngModel)]="entry.icon"
+                            maxlength="2000"
+                            placeholder="☆"
+                        /><small
+                            >Use an emoji, symbol, or a complete HTTP/HTTPS image URL.</small
+                        ></label
+                    >
+                    <label
+                        >Completion reward<textarea
+                            name="reward"
+                            [(ngModel)]="entry.reward"
+                            rows="2"
+                            maxlength="5000"
+                            placeholder="Reward for completing every achievement in this category"
+                        ></textarea>
+                    </label>
+                } @else {
+                    <label
+                        >Category<select name="category" [(ngModel)]="entry.category" required>
+                            @for (category of categories(); track category.id) {
+                                <option [value]="category.id">{{ category.name }}</option>
+                            }
+                        </select></label
+                    >
+                    <label
+                        >Description<textarea
+                            name="description"
+                            [(ngModel)]="entry.description"
+                            rows="3"
+                            maxlength="5000"
+                            placeholder="Describe this achievement"
+                        ></textarea>
+                    </label>
+                    <label
+                        >Requirements<textarea
+                            name="requirementText"
+                            [(ngModel)]="entry.requirementText"
+                            rows="4"
+                            maxlength="5000"
+                            placeholder="What needs to be done to complete this achievement?"
+                        ></textarea>
+                    </label>
+                    <label
+                        >Rewards<textarea
+                            name="reward"
+                            [(ngModel)]="entry.reward"
+                            rows="2"
+                            maxlength="5000"
+                        ></textarea>
+                    </label>
+                    <label class="checkbox"
+                        ><input
+                            name="completed"
+                            type="checkbox"
+                            [(ngModel)]="entry.completed"
+                        />Completed</label
+                    >
+                }
+                @if (error) {
+                    <p class="error" role="alert">{{ error }}</p>
+                }
+                <div class="modal-actions">
+                    <button type="button" (click)="editor = null">Cancel</button
+                    ><button class="primary" type="submit">Save changes</button>
+                </div>
+            </form>
+        </section>
+    </div>
+}
+@if (deleting; as entry) {
+    <div class="modal-backdrop">
+        <section
+            class="modal small"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="achievement-delete-title"
+            ggDialogFocus
+            (keydown.escape)="deleting = null"
+        >
+            <h2 id="achievement-delete-title">Delete {{ entry.name }}?</h2>
+            <p>
+                @if (entry.kind === 'achievement-category') {
+                    This deletes the category and its
+                    {{ achievements(entry.id).length }} achievements.
+                } @else {
+                    This deletes the achievement and its completion progress.
+                }
+            </p>
+            <div class="modal-actions">
+                <button (click)="deleting = null">Cancel</button
+                ><button class="danger" (click)="remove()">Delete</button>
+            </div>
+        </section>
+    </div>
+}
+<ng-template #rewardIcon let-icon>
+    @if (icon) {
+        <span class="reward-icon" aria-hidden="true">
+            @if (wikiLink(icon); as url) {
+                @if (!failedIcons().includes(url)) {
+                    <img
+                        [src]="url"
+                        alt=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        (error)="hideBrokenIcon(url)"
+                    />
+                } @else {
+                    &#9734;
+                }
+            } @else {
+                {{ icon }}
+            }
+        </span>
+    }
+</ng-template>
