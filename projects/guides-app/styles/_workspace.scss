@@ -1217,10 +1217,6 @@ gg-workspace {
         margin: 0;
         justify-self: center;
     }
-    .achievement-row .reward-value,
-    .achievement-actions {
-        justify-content: center;
-    }
     @media (max-width: 800px) {
         .category-heading {
             grid-template-columns: 24px 40px minmax(0, 1fr) 32px;

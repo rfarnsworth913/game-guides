@@ -237,14 +237,6 @@
                         placeholder="https://…"
                         maxlength="2000"
                 /></label>
-                <label
-                    >Reward icon (optional)<input
-                        name="rewardIcon"
-                        [(ngModel)]="entry.rewardIcon"
-                        maxlength="2000"
-                        placeholder="Emoji, symbol, or https:// image URL"
-                    /><small>Displayed before the reward.</small></label
-                >
                 @if (entry.kind === 'achievement-category') {
                     <label
                         >Icon<input
@@ -256,6 +248,13 @@
                             >Use an emoji, symbol, or a complete HTTP/HTTPS image URL.</small
                         ></label
                     >
+                    <label>Reward icon (optional)<input
+                            name="rewardIcon"
+                            [(ngModel)]="entry.rewardIcon"
+                            maxlength="2000"
+                            placeholder="Emoji, symbol, or https:// image URL"
+                        /><small>Displayed before the reward.</small>
+                    </label>
                     <label
                         >Completion reward<textarea
                             name="reward"
