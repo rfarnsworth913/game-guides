@@ -298,6 +298,13 @@
                             maxlength="5000"
                         ></textarea>
                     </label>
+                    <label>Reward icon (optional)<input
+                            name="rewardIcon"
+                            [(ngModel)]="entry.rewardIcon"
+                            maxlength="2000"
+                            placeholder="Emoji, symbol, or https:// image URL"
+                        /><small>Displayed before the reward.</small>
+                    </label>
                     <label class="checkbox"
                         ><input
                             name="completed"
