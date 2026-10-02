@@ -95,7 +95,15 @@
                 >
             </div>
             <div class="header-right">
-                <span class="device-status"><span class="dot"></span> Saved on this device</span
+                <span class="device-status"
+                    ><span class="dot"></span>
+                    {{
+                        store.saving()
+                            ? 'Saving...'
+                            : store.initialized()
+                              ? 'Database connected'
+                              : 'Database offline'
+                    }}</span
                 ><button (click)="theme.toggleTheme()" aria-label="Toggle light and dark theme">
                     &#9680;</button
                 ><button
@@ -114,7 +122,18 @@
         </header>
         <main id="main-content">
             @if (store.error()) {
-                <div class="alert" role="alert">{{ store.error() }}</div>
+                <div class="alert" role="alert">
+                    {{ store.error() }}
+                    <button
+                        (click)="store.initialize()"
+                        [disabled]="store.loading() || store.saving()"
+                    >
+                        Reload game data
+                    </button>
+                </div>
+            }
+            @if (store.loading()) {
+                <p role="status">Loading game data...</p>
             }
             @if (notice()) {
                 <div class="notice" role="status">
@@ -398,9 +417,9 @@
                 <section class="panel settings">
                     <h2>Your workspace, your data</h2>
                     <p>
-                        Collections are saved in this browser with localStorage. They stay on this
-                        device and are not synced to an account. Export a backup before clearing
-                        browser data.
+                        Game definitions are stored in MongoDB. Your completion status, owned
+                        quantities, and level targets stay in this browser. Export a backup before
+                        clearing browser data.
                     </p>
                     <h3>Appearance</h3>
                     <button class="secondary" (click)="theme.toggleTheme()">
@@ -408,8 +427,9 @@
                     </button>
                     <h3>Backup & restore</h3>
                     <p>
-                        Import merges a backup into your workspace. Entries with matching IDs are
-                        updated.
+                        Export includes shared game data and your local progress. Import updates
+                        shared game definitions in MongoDB and restores player progress on this
+                        device. Matching IDs are updated.
                     </p>
                     <div class="actions">
                         <button class="primary" (click)="exportData()">Export JSON backup</button

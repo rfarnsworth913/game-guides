@@ -40,6 +40,7 @@ export class Workspace {
     );
     readonly context = computed(() => this.games.find((g) => g.id === this.params()?.get('game')));
     constructor() {
+        this.store.initialize().catch(() => this.notice.set('Could not initialize game data.'));
         effect(() => {
             const game = this.params()?.get('game');
             if (game && !this.context()) {
@@ -237,7 +238,7 @@ export class Workspace {
             this.editor.requirements = this.editor.requirements.filter((r) => r.item !== id);
         }
     }
-    save(): void {
+    async save(): Promise<void> {
         if (!this.editor) {
             return;
         }
@@ -246,16 +247,16 @@ export class Workspace {
             this.formError = 'Enter a name and valid non-negative numbers.';
             return;
         }
-        if (this.store.save(this.editor)) {
+        if (await this.store.save(this.editor)) {
             this.editor = null;
-            this.notice.set('Saved on this device.');
+            this.notice.set('Game data saved. Player progress stays on this device.');
         }
     }
-    toggleDone(entry: Entry): void {
-        this.store.save({ ...entry, completed: !entry.completed });
+    async toggleDone(entry: Entry): Promise<void> {
+        await this.store.save({ ...entry, completed: !entry.completed });
     }
-    remove(): void {
-        if (this.pendingDelete && this.store.remove(this.pendingDelete.id)) {
+    async remove(): Promise<void> {
+        if (this.pendingDelete && (await this.store.remove(this.pendingDelete.id))) {
             this.pendingDelete = null;
         }
     }
@@ -284,7 +285,7 @@ export class Workspace {
             const entries = parseBackup(await file.text());
             const merged = new Map(this.store.entries().map((e) => [e.id, e]));
             entries.forEach((e) => merged.set(e.id, e));
-            if (this.store.replace([...merged.values()])) {
+            if (await this.store.replace([...merged.values()])) {
                 this.notice.set('Backup imported. Matching entries were updated.');
             }
         } catch {

@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import puppeteer from 'puppeteer';
 await mkdir('.angular/workspace-smoke', { recursive: true });
+if (!process.env.GUIDES_URL) {
+    throw new Error(
+        'Set GUIDES_URL to a disposable test stack, or run npm run ui:e2e for automatic isolated setup.',
+    );
+}
 const browser = await puppeteer.launch({ headless: true });
 try {
     const page = await browser.newPage();

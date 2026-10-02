@@ -102,7 +102,7 @@ export class Achievements {
         }
     }
     @HostListener('document:pointerup', ['$event'])
-    finishDrag(event: PointerEvent): void {
+    async finishDrag(event: PointerEvent): Promise<void> {
         if (!this.drag || event.pointerId !== this.drag.pointer) {
             return;
         }
@@ -124,7 +124,7 @@ export class Achievements {
                 const after = event.clientY > bounds.top + bounds.height / 2;
                 const index = siblings.findIndex((e) => e.id === targetId);
                 const beforeId = index < 0 ? null : siblings[index + (after ? 1 : 0)]?.id ?? null;
-                if (this.store.reorderAchievement(source.id, beforeId, categoryId)) {
+                if (await this.store.reorderAchievement(source.id, beforeId, categoryId)) {
                     this.moveNotice.set(`Moved ${source.name}.`);
                 }
             }
@@ -138,7 +138,7 @@ export class Achievements {
         this.dragId.set('');
         this.dropId.set('');
     }
-    moveWithKeyboard(event: KeyboardEvent, entry: Entry): void {
+    async moveWithKeyboard(event: KeyboardEvent, entry: Entry): Promise<void> {
         if (!['ArrowUp', 'ArrowDown'].includes(event.key)) {
             return;
         }
@@ -154,7 +154,7 @@ export class Achievements {
         }
         const beforeId =
             event.key === 'ArrowUp' ? siblings[next].id : siblings[next + 1]?.id ?? null;
-        if (this.store.reorderAchievement(entry.id, beforeId)) {
+        if (await this.store.reorderAchievement(entry.id, beforeId)) {
             this.moveNotice.set(`Moved ${entry.name} to position ${next + 1}.`);
         }
     }
@@ -220,7 +220,7 @@ export class Achievements {
                   requirements: [],
               };
     }
-    save(): void {
+    async save(): Promise<void> {
         const entry = this.editor;
         if (!entry) {
             return;
@@ -243,18 +243,18 @@ export class Achievements {
             this.error = 'Choose a category in this game.';
             return;
         }
-        if (this.store.save(entry)) {
+        if (await this.store.save(entry)) {
             this.editor = null;
         }
     }
-    toggle(entry: Entry, event: Event): void {
+    async toggle(entry: Entry, event: Event): Promise<void> {
         const checkbox = event.target as HTMLInputElement;
-        if (!this.store.save({ ...entry, completed: checkbox.checked })) {
+        if (!(await this.store.save({ ...entry, completed: checkbox.checked }))) {
             checkbox.checked = entry.completed;
         }
     }
-    remove(): void {
-        if (this.deleting && this.store.remove(this.deleting.id)) {
+    async remove(): Promise<void> {
+        if (this.deleting && (await this.store.remove(this.deleting.id))) {
             this.deleting = null;
         }
     }

@@ -1,11 +1,16 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer';
+if (!process.env.GUIDES_URL) {
+    throw new Error(
+        'Set GUIDES_URL to a disposable test stack, or run npm run ui:e2e for automatic isolated setup.',
+    );
+}
 const browser = await puppeteer.launch({ headless: true });
 try {
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    const url = 'http://127.0.0.1:4200/games/genshin/achievements';
+    const url = `${process.env.GUIDES_URL}/games/genshin/achievements`;
     await page.goto(url, { waitUntil: 'networkidle0' });
     const click = async (text) => {
         await page.evaluate(
@@ -33,10 +38,10 @@ try {
     };
     await click('+ Add category');
     await fill('name', 'World Explorer');
-    await fill('icon', 'http://127.0.0.1:4200/favicon.ico');
+    await fill('icon', `${process.env.GUIDES_URL}/favicon.ico`);
     await fill('wikiUrl', 'https://example.com/wiki');
     await fill('reward', 'Explorer namecard');
-    await fill('rewardIcon', 'http://127.0.0.1:4200/favicon.ico');
+    await fill('rewardIcon', `${process.env.GUIDES_URL}/favicon.ico`);
     await save();
     await click('+ Add achievement');
     await fill('name', 'First steps');

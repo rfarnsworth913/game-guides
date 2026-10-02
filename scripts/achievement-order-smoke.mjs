@@ -1,10 +1,15 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer';
+if (!process.env.GUIDES_URL) {
+    throw new Error(
+        'Set GUIDES_URL to a disposable test stack, or run npm run ui:e2e for automatic isolated setup.',
+    );
+}
 const browser = await puppeteer.launch({ headless: true });
 try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 1600 });
-    const url = 'http://127.0.0.1:4200/games/genshin/achievements';
+    const url = `${process.env.GUIDES_URL}/games/genshin/achievements`;
     await page.goto(url, { waitUntil: 'networkidle0' });
     await page.evaluate(() => {
         const make = (id, kind, category = '', order = 0) => ({
@@ -38,7 +43,7 @@ try {
     });
     await page.reload({ waitUntil: 'networkidle0' });
     const drag = async (handle, target, after = false) => {
-        await page.locator(handle).scroll();
+        await page.$eval(handle, (e) => e.scrollIntoView({ block: 'center' }));
         const h = await page.$(handle);
         const a = await h.boundingBox();
         const t = await page.$(target);
