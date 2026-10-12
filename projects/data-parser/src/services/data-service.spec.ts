@@ -1,203 +1,313 @@
 /* eslint-disable no-undefined */
 import { expect, jest } from "@jest/globals";
+import * as dotenv from "dotenv";
+import { MongoClient, ObjectId } from "mongodb";
 
-import { Event, Version } from "@common/types";
+import { EventType } from "@common/enums";
+import { Event, RootDocument, Version } from "@common/types";
 import { DataService } from "./data-service";
+import { Logger } from "./logger";
 
-
-// Mocks --------------------------------------------------------------------
-process.env["DB_CONN_STRING"] = "mongodb://localhost:27017";
-process.env["DB_NAME"] = "test-db";
-process.env["DB_COLLECTION"] = "game-guides";
-
-type ObjectId = { _id: string };
-type RootDocument = { _id: ObjectId; name: string; events: Array<Event>; [key: string]: unknown };
-
-const mockConnect = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-const mockClose = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-const mockDb = { collection: jest.fn() } as unknown as { collection: jest.Mock };
+const mockConnect = jest.fn<() => Promise<void>>();
+const mockClose = jest.fn<() => Promise<void>>();
+const mockFindOne = jest.fn<(filter: { name: string }) => Promise<RootDocument | null>>();
+const mockInsertOne = jest.fn<(document: RootDocument) => Promise<void>>();
+const mockUpdateOne = jest.fn<(filter: { name: string }, update: { $set: Record<string, unknown> }) => Promise<void>>();
+const mockCollection = { findOne: mockFindOne, insertOne: mockInsertOne, updateOne: mockUpdateOne };
+const mockDb = { collection: jest.fn<(name: string) => typeof mockCollection>() };
 const mockMongoClient = {
     connect: mockConnect,
     close: mockClose,
-    db: jest.fn().mockReturnValue(mockDb),
-} as unknown as { connect: jest.Mock; close: jest.Mock; db: jest.Mock };
+    db: jest.fn<(name?: string) => typeof mockDb>(),
+};
 
-const mockFindOne = jest.fn<() => Promise<RootDocument | null>>();
-const mockInsertOne = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-const mockUpdateOne = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
-
-// Mock dotenv to avoid real env loading
 jest.mock("dotenv", () => ({ config: jest.fn() }));
-
 jest.mock("mongodb", () => ({
     MongoClient: jest.fn().mockImplementation(() => mockMongoClient),
-    ObjectId: jest.fn().mockImplementation(() => ({ _id: "id" })),
+    ObjectId: jest.fn().mockImplementation(() => ({ toHexString: () => "test-id" })),
+}));
+jest.mock("./logger", () => ({
+    Logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+const documentName = "Genshin Impact";
+const version: Version = { title: "5.6", releaseDate: "2026-02-01", url: "https://example.com/5.6" };
 
-describe("DataService", () => {
+/** Creates a complete event fixture with deterministic dates. */
+function createEvent (title: string, endDate = "2026-02-01T00:00:00Z"): Event {
+    return { title, startDate: "2026-01-01T00:00:00Z", endDate, url: `https://example.com/${title}`, eventType: EventType.Temporary };
+}
 
+/** Creates a root fixture using the shared production type. */
+function createRoot (fields: Record<string, unknown> = {}): RootDocument {
+    return { _id: new ObjectId(), name: documentName, ...fields };
+}
+
+describe("DataService manages database connections and stored game data", () => {
     let service: DataService;
+    let originalEnv: NodeJS.ProcessEnv;
 
-    beforeEach(() => {
+    beforeEach(async () => {
+        originalEnv = { ...process.env };
+        process.env["DB_CONN_STRING"] = "mongodb://localhost:27017";
+        process.env["DB_NAME"] = "test-db";
+        process.env["DB_COLLECTION"] = "game-guides";
+        jest.clearAllMocks();
         mockConnect.mockReset().mockResolvedValue(undefined);
         mockClose.mockReset().mockResolvedValue(undefined);
-        mockFindOne.mockReset();
+        mockFindOne.mockReset().mockResolvedValue(null);
         mockInsertOne.mockReset().mockResolvedValue(undefined);
         mockUpdateOne.mockReset().mockResolvedValue(undefined);
-        jest.clearAllMocks();
-
-        jest.mocked(mockDb.collection).mockReturnValue({
-            findOne: mockFindOne,
-            insertOne: mockInsertOne,
-            updateOne: mockUpdateOne,
-        });
-        jest.spyOn(mockMongoClient, "db").mockReturnValue(mockDb);
-
+        mockDb.collection.mockReset().mockReturnValue(mockCollection);
+        mockMongoClient.db.mockReset().mockReturnValue(mockDb);
         service = new DataService();
+        // Let the constructor's automatic connection finish before exercising methods.
+        await Promise.resolve();
     });
 
     afterEach(() => {
+        process.env = originalEnv;
         jest.restoreAllMocks();
     });
 
+    describe("Database connections use configured settings and handle lifecycle failures", () => {
+        it("loads configuration and connects automatically", () => {
+            expect(dotenv.config).toHaveBeenCalledTimes(1);
+            expect(MongoClient).toHaveBeenCalledWith("mongodb://localhost:27017");
+            expect(mockMongoClient.db).toHaveBeenCalledWith("test-db");
+            expect(mockConnect).toHaveBeenCalledTimes(1);
+        });
 
-    it("connect/disconnect succeed", async () => {
-        expect.hasAssertions();
+        it("supports explicitly connecting and disconnecting", async () => {
+            expect.hasAssertions();
+            await expect(service.connect()).resolves.toBeUndefined();
+            await expect(service.disconnect()).resolves.toBeUndefined();
+            expect(mockConnect).toHaveBeenCalledTimes(2);
+            expect(mockClose).toHaveBeenCalledTimes(1);
+        });
 
-        await service.connect();
-        await service.disconnect();
+        it.each([
+            { method: "connect" as const, operation: mockConnect },
+            { method: "disconnect" as const, operation: mockClose },
+        ])("propagates $method failures", async ({ method, operation }) => {
+            expect.hasAssertions();
+            const error = new Error("Connection failure");
+            operation.mockRejectedValueOnce(error);
+            await expect(service[method]()).rejects.toBe(error);
+            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+        });
 
-        expect(mockConnect).toHaveBeenCalledTimes(2);
-        expect(mockClose).toHaveBeenCalledTimes(1);
+        it("handles and logs automatic connection failure", async () => {
+            expect.hasAssertions();
+            const error = new Error("Unavailable database");
+            mockConnect.mockRejectedValueOnce(error);
+            new DataService();
+            // Drain both connect's rejection and the constructor's catch callback.
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(Logger.error).toHaveBeenCalledWith("Failed to connect to the database:", error);
+        });
     });
 
-    it("cleanupExpiredItems handles existing doc and updates filtered items", async () => {
-        expect.hasAssertions();
+    describe("Expired events are removed while retained events are preserved", () => {
+        it("removes expired events, preserves order, and evaluates each event once", async () => {
+            expect.hasAssertions();
+            const expired = createEvent("Expired", "2026-01-15T00:00:00Z");
+            const active = createEvent("Active");
+            const later = createEvent("Later", "2026-03-01T00:00:00Z");
+            const events = [active, expired, later];
+            mockFindOne.mockResolvedValueOnce(createRoot({ events }));
+            const cutoff = new Date("2026-01-20T00:00:00Z");
+            const predicate = jest.fn((event: Event) => new Date(event.endDate as string) >= cutoff);
+            await service.cleanupExpiredItems(documentName, "events", predicate);
+            expect(mockDb.collection).toHaveBeenCalledWith("game-guides");
+            expect(mockFindOne).toHaveBeenCalledWith({ name: documentName });
+            expect(mockUpdateOne).toHaveBeenCalledTimes(1);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { events: [active, later] } });
+            expect(predicate).toHaveBeenCalledTimes(3);
+            expect(events).toStrictEqual([active, expired, later]);
+            expect(Logger.info).toHaveBeenCalledWith("Removed event: Expired");
+        });
 
-        const doc: RootDocument = {
-            _id: { _id: "id" },
-            name: "Genshin Impact",
-            events: [
-                { title: "A", endDate: new Date(Date.now() - 86400000).toISOString() } as unknown as Event,
-                { title: "B", endDate: new Date(Date.now() + 86400000).toISOString() } as unknown as Event,
-            ],
-        };
-        mockFindOne.mockResolvedValueOnce(doc);
+        it("persists an empty array when all events are removed", async () => {
+            expect.hasAssertions();
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("Expired")] }));
+            await service.cleanupExpiredItems(documentName, "events", () => false);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { events: [] } });
+        });
 
-        const filterFn = (item: Event) => new Date(item.endDate as string) >= new Date();
-        await service.cleanupExpiredItems("Genshin Impact", "events", filterFn);
+        it.each([
+            ["all events retained", { events: [createEvent("Active")] }],
+            ["empty topic", { events: [] }],
+            ["missing topic", {}],
+            ["null topic", { events: null }],
+        ])("skips writes for %s", async (_label, fields) => {
+            expect.hasAssertions();
+            mockFindOne.mockResolvedValueOnce(createRoot(fields));
+            await expect(service.cleanupExpiredItems(documentName, "events", () => true)).resolves.toBeUndefined();
+            expect(mockUpdateOne).not.toHaveBeenCalled();
+        });
 
-        expect(mockFindOne).toHaveBeenCalledWith({ name: "Genshin Impact" });
-        expect(mockUpdateOne).toHaveBeenCalledWith(
-            { name: "Genshin Impact" },
-            { $set: { events: [doc.events[1]] } }
-        );
+        it("warns and skips filtering and writes when the root is absent", async () => {
+            expect.hasAssertions();
+            const predicate = jest.fn(() => true);
+            await expect(service.cleanupExpiredItems(documentName, "events", predicate)).resolves.toBeUndefined();
+            expect(Logger.warn).toHaveBeenCalledWith(`No document found for '${documentName}'.`);
+            expect(predicate).not.toHaveBeenCalled();
+            expect(mockUpdateOne).not.toHaveBeenCalled();
+            expect(mockInsertOne).not.toHaveBeenCalled();
+        });
+
+        it("propagates predicate failure without writing", async () => {
+            expect.hasAssertions();
+            const error = new Error("Invalid event");
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("A")] }));
+            await expect(service.cleanupExpiredItems(documentName, "events", () => { throw error; })).rejects.toBe(error);
+            expect(mockUpdateOne).not.toHaveBeenCalled();
+            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+        });
+
+        it("propagates write failure without logging successful removal", async () => {
+            expect.hasAssertions();
+            const error = new Error("Write failed");
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("A")] }));
+            mockUpdateOne.mockRejectedValueOnce(error);
+            await expect(service.cleanupExpiredItems(documentName, "events", () => false)).rejects.toBe(error);
+            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+            expect(Logger.info).not.toHaveBeenCalledWith("Removed event: A");
+        });
     });
 
-    it("cleanupExpiredItems warns when document missing and does not throw", async () => {
-        expect.hasAssertions();
+    describe("New records are added by title while existing records are preserved", () => {
+        it("preserves existing records and appends only unseen titles in input order", async () => {
+            expect.hasAssertions();
+            const existing = { title: "Existing", value: 1 };
+            const first = { title: "First", value: 2 };
+            const second = { title: "Second", value: 3 };
+            const stored = [existing];
+            const incoming = [{ title: "Existing", value: 99 }, first, second];
+            mockFindOne.mockResolvedValueOnce(createRoot({ records: stored, events: [createEvent("Other")] }));
+            await service.addRecords(documentName, "records", incoming);
+            expect(mockFindOne).toHaveBeenCalledWith({ name: documentName });
+            expect(mockInsertOne).not.toHaveBeenCalled();
+            expect(mockUpdateOne).toHaveBeenCalledTimes(1);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { records: [existing, first, second] } });
+            expect(stored).toStrictEqual([existing]);
+            expect(incoming).toStrictEqual([{ title: "Existing", value: 99 }, first, second]);
+        });
 
-        mockFindOne.mockResolvedValueOnce(null);
+        it("keeps the first record for repeated new titles within a batch", async () => {
+            expect.hasAssertions();
+            const first = { title: "New", value: 1 };
+            mockFindOne.mockResolvedValueOnce(createRoot({ records: [] }));
+            await service.addRecords(documentName, "records", [first, { title: "New", value: 2 }]);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { records: [first] } });
+        });
 
-        await expect(
-            service.cleanupExpiredItems("MissingDoc", "events", () => true)
-        ).resolves.toBeUndefined();
+        it("creates a missing root with an empty topic before storing records", async () => {
+            expect.hasAssertions();
+            const records = [{ title: "New" }];
+            await service.addRecords(documentName, "records", records);
+            expect(mockFindOne).toHaveBeenCalledTimes(1);
+            expect(mockInsertOne).toHaveBeenCalledTimes(1);
+            expect(mockInsertOne).toHaveBeenCalledWith({ _id: expect.any(Object), name: documentName, records: [] });
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { records } });
+        });
 
-        expect(mockUpdateOne).not.toHaveBeenCalled();
+        it("initializes a missing topic without replacing unrelated fields", async () => {
+            expect.hasAssertions();
+            const root = createRoot({ version });
+            mockFindOne.mockResolvedValueOnce(root);
+            await service.addRecords(documentName, "records", [{ title: "New" }]);
+            expect(mockInsertOne).not.toHaveBeenCalled();
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { records: [{ title: "New" }] } });
+            expect(root["version"]).toStrictEqual(version);
+        });
+
+        it.each([
+            ["empty input", []],
+            ["existing titles only", [{ title: "Existing" }]],
+        ])("preserves stored records for %s", async (_label, records) => {
+            expect.hasAssertions();
+            const existing = { title: "Existing", value: 1 };
+            mockFindOne.mockResolvedValueOnce(createRoot({ records: [existing] }));
+            await service.addRecords(documentName, "records", records);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { records: [existing] } });
+        });
     });
 
-    it("addRecords only appends new items and updates collection", async () => {
-        expect.hasAssertions();
+    describe("Version information is stored when a new version title is detected", () => {
+        it.each([
+            ["changed version", { version: { ...version, title: "5.5" }, events: [] }],
+            ["missing version", { events: [] }],
+        ])("stores the supplied version and returns true for %s", async (_label, fields) => {
+            expect.hasAssertions();
+            mockFindOne.mockResolvedValueOnce(createRoot(fields));
+            await expect(service.updateVersion(documentName, version)).resolves.toBe(true);
+            expect(mockInsertOne).not.toHaveBeenCalled();
+            expect(mockUpdateOne).toHaveBeenCalledTimes(1);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version } });
+        });
 
-        const existing: RootDocument = {
-            _id: { _id: "id" },
-            name: "Genshin Impact",
-            events: [{ title: "Existing" } as unknown as Event],
-        };
+        it("creates a missing root and stores the first version", async () => {
+            expect.hasAssertions();
+            let insertedDocument: RootDocument | undefined;
+            mockInsertOne.mockImplementationOnce(async (document) => {
+                insertedDocument = { ...document };
+                await Promise.resolve();
+            });
+            await expect(service.updateVersion(documentName, version)).resolves.toBe(true);
+            expect(mockFindOne).toHaveBeenCalledTimes(1);
+            expect(mockInsertOne).toHaveBeenCalledTimes(1);
+            expect(insertedDocument).toStrictEqual({ _id: expect.any(Object), name: documentName });
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version } });
+        });
 
-        // getRootDocument path: first findOne returns null -> insertOne -> findOne returns created
-        mockFindOne
-            .mockResolvedValueOnce(null) // initial root not found
-            .mockResolvedValueOnce(existing); // after insert, return existing root
-
-        const records = ([{ title: "Existing" }, { title: "New" }] as unknown) as Array<Event>;
-        await service.addRecords("Genshin Impact", "events", records);
-
-        // Insert root when missing
-        expect(mockInsertOne).toHaveBeenCalledTimes(1);
-
-        // Update includes both existing + new
-        expect(mockUpdateOne).toHaveBeenCalledWith(
-            { name: "Genshin Impact" },
-            { $set: { events: [{ title: "Existing" }, { title: "New" }] } }
-        );
+        it.each([
+            ["identical version", version],
+            ["same title with changed metadata", { ...version, releaseDate: "2026-02-02", url: "https://example.com/revised" }],
+        ])("returns false and skips writes for %s", async (_label, incoming) => {
+            expect.hasAssertions();
+            mockFindOne.mockResolvedValueOnce(createRoot({ version }));
+            await expect(service.updateVersion(documentName, incoming)).resolves.toBe(false);
+            expect(mockInsertOne).not.toHaveBeenCalled();
+            expect(mockUpdateOne).not.toHaveBeenCalled();
+        });
     });
 
-    it("addRecords propagates DB errors gracefully by throwing", async () => {
-        expect.hasAssertions();
+    describe("Database failures are logged and propagated to callers", () => {
+        const operations = [
+            { name: "cleanupExpiredItems", run: async () => service.cleanupExpiredItems(documentName, "events", () => false) },
+            { name: "addRecords", run: async () => service.addRecords(documentName, "events", [createEvent("New")]) },
+            { name: "updateVersion", run: async () => service.updateVersion(documentName, version) },
+        ];
 
-        mockFindOne
-            .mockResolvedValueOnce({ _id: { _id: "id" }, name: "Genshin Impact", events: [] });
-        mockUpdateOne.mockRejectedValueOnce(new Error("DB write error"));
+        it.each(operations)("$name propagates lookup errors without writing", async ({ run }) => {
+            expect.hasAssertions();
+            const error = new Error("Lookup failed");
+            mockFindOne.mockRejectedValueOnce(error);
+            await expect(run()).rejects.toBe(error);
+            expect(mockInsertOne).not.toHaveBeenCalled();
+            expect(mockUpdateOne).not.toHaveBeenCalled();
+            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+        });
 
-        await expect(
-            service.addRecords("Genshin Impact", "events", [{ title: "X" }])
-        ).rejects.toThrow("DB write error");
-    });
+        it.each(operations.slice(1))("$name propagates insertion errors without updating", async ({ run }) => {
+            expect.hasAssertions();
+            const error = new Error("Insert failed");
+            mockInsertOne.mockRejectedValueOnce(error);
+            await expect(run()).rejects.toBe(error);
+            expect(mockUpdateOne).not.toHaveBeenCalled();
+            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+        });
 
-    it("updateVersion returns true and updates when version changed", async () => {
-        expect.hasAssertions();
-
-        const existing: RootDocument = {
-            _id: { _id: "id" },
-            name: "Genshin Impact",
-            events: [],
-            version: {
-                title: "5.5: Day of the Flame's Return",
-                releaseDate: "2026-01-01",
-                url: "https://example.com/v5-5"
-            }
-        };
-
-        mockFindOne.mockResolvedValueOnce(existing);
-
-        const nextVersion: Version = {
-            title: "5.6: Paralogism",
-            releaseDate: "2026-02-01",
-            url: "https://example.com/v5-6"
-        };
-
-        const isNewVersion = await service.updateVersion("Genshin Impact", nextVersion);
-
-        expect(isNewVersion).toBe(true);
-        expect(mockUpdateOne).toHaveBeenCalledWith(
-            { name: "Genshin Impact" },
-            { $set: { version: nextVersion } }
-        );
-    });
-
-    it("updateVersion returns false and skips update when version unchanged", async () => {
-        expect.hasAssertions();
-
-        const currentVersion: Version = {
-            title: "5.6: Paralogism",
-            releaseDate: "2026-02-01",
-            url: "https://example.com/v5-6"
-        };
-
-        const existing: RootDocument = {
-            _id: { _id: "id" },
-            name: "Genshin Impact",
-            events: [],
-            version: currentVersion
-        };
-
-        mockFindOne.mockResolvedValue(existing);
-
-        const isNewVersion = await service.updateVersion("Genshin Impact", currentVersion);
-
-        expect(isNewVersion).toBe(false);
-        expect(mockUpdateOne).not.toHaveBeenCalled();
+        it.each(operations.slice(1))("$name propagates update errors", async ({ run }) => {
+            expect.hasAssertions();
+            const error = new Error("Update failed");
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [] }));
+            mockUpdateOne.mockRejectedValueOnce(error);
+            await expect(run()).rejects.toBe(error);
+            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+        });
     });
 });

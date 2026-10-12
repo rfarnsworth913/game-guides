@@ -117,11 +117,18 @@ export class DataService {
 
             // Extract topic data ---------------------------------------------
             const items: Array<Event> = (document[topic] as Array<Event>) ?? [];
-            const retainedItems = items.filter(filterFn);
-            const removedItems = items.filter(item => !filterFn(item));
+            const retainedItems: Array<Event> = [];
+            const removedItems: Array<Event> = [];
+            items.forEach((item) => {
+                if (filterFn(item)) {
+                    retainedItems.push(item);
+                } else {
+                    removedItems.push(item);
+                }
+            });
 
             // Update database if any items were removed ----------------------
-            if (retainedItems.length > 0) {
+            if (removedItems.length > 0) {
                 await collection.updateOne(
                     { name: documentName },
                     { $set: { [topic]: retainedItems } }
@@ -163,13 +170,11 @@ export class DataService {
             // Add only new records to the sub-document -----------------------
             const existingRecords: Array<T> = rootDocument[subDocumentName] as Array<T>;
             const newRecords: Array<T> = [];
+            const knownTitles = new Set(existingRecords.map(record => record.title));
 
             records.forEach((record: T) => {
-                const exists = existingRecords.some(
-                    (existing: T) => existing.title === record.title
-                );
-
-                if (!exists) {
+                if (!knownTitles.has(record.title)) {
+                    knownTitles.add(record.title);
                     newRecords.push(record);
                     Logger.info(`Added new record: ${record.title}`);
                 }
