@@ -1,5 +1,7 @@
 import { BSON, Collection, Document } from 'mongodb';
-import { CATALOG_FIELDS, CatalogEntry, GAMES, GameSnapshot } from '../../common/workspace';
+import { CatalogEntry, GAMES, GameSnapshot } from '../../common/workspace';
+import { decodeEntries, mergeEntries, migrateDocument } from './game-document';
+import { normalizeStory } from './story-document';
 
 // Match parser source IDs exactly; the UI display name for HSR includes a colon.
 export const gameDocumentName = (id: string) =>
@@ -13,7 +15,10 @@ export class ApiError extends Error {
     }
 }
 export class GameRepository {
-    constructor(private readonly collection: Collection<Document>) {}
+    constructor(
+        private readonly collection: Collection<Document>,
+        private readonly backups: Collection<Document>,
+    ) {}
     async initialize(): Promise<void> {
         await this.collection.createIndex(
             { name: 1 },
@@ -25,17 +30,39 @@ export class GameRepository {
                 { $setOnInsert: { name: gameDocumentName(game.id) } },
                 { upsert: true },
             );
-            const emptyCatalog: Record<string, unknown> = {
-                schemaVersion: 1,
-                revision: 0,
-                updatedAt: new Date(),
-            };
-            for (const field of Object.values(CATALOG_FIELDS)) {
-                emptyCatalog[field] = [];
+        }
+        // Include parser-only games. Back up the original once, before any schema changes.
+        for await (const document of this.collection.find({
+            $or: [
+                { _schemaVersion: { $ne: 2 } },
+                { 'achievements.order': { $type: 'string' } },
+                { 'achievements.achievements.order': { $type: 'string' } },
+                { 'story.kind': 'story' },
+            ],
+        })) {
+            await this.backups.updateOne(
+                { _id: document['_id'] },
+                { $setOnInsert: document },
+                { upsert: true },
+            );
+            const fields = migrateDocument(document);
+            const migrated = { ...document, ...fields };
+            delete migrated['catalog'];
+            this.checkSize(migrated);
+            const result = await this.collection.updateOne(document, {
+                $set: fields,
+                $unset: { catalog: '' },
+            });
+            if (result.matchedCount !== 1) {
+                throw new Error('Game changed during migration. Restart middleware to retry.');
             }
-            await this.collection.updateOne(
-                { name: gameDocumentName(game.id), catalog: { $exists: false } },
-                { $set: { catalog: emptyCatalog } },
+        }
+    }
+    private checkSize(document: Document): void {
+        if (BSON.calculateObjectSize(document) > 15 * 1024 * 1024) {
+            throw new ApiError(
+                413,
+                'This game document is too large. Export/archive data before adding more.',
             );
         }
     }
@@ -52,47 +79,30 @@ export class GameRepository {
     }
     async read(id: string): Promise<GameSnapshot> {
         const document = await this.document(id);
-        const catalog = document['catalog'] as Record<string, unknown> | undefined;
-        const entries = Object.values(CATALOG_FIELDS).flatMap(
-            (field) => (catalog?.[field] ?? []) as CatalogEntry[],
-        );
+        const entries = decodeEntries(document, id);
         return {
             id,
             name: GAMES.find((g) => g.id === id)!.name,
-            revision: Number(catalog?.['revision'] ?? 0),
+            revision: Number(document['_revision'] ?? 0),
             entries,
         };
     }
     async parsed(id: string): Promise<Record<string, unknown>> {
         const document = await this.document(id);
         return Object.fromEntries(
-            Object.entries(document).filter(([key]) => !['_id', 'catalog'].includes(key)),
+            Object.entries(document).filter(
+                ([key]) => !['_id', '_schemaVersion', '_revision'].includes(key),
+            ),
         );
     }
     async write(id: string, entries: CatalogEntry[], revision: number): Promise<GameSnapshot> {
+        entries = normalizeStory(entries);
         const document = await this.document(id);
-        const catalog: Record<string, unknown> = {
-            schemaVersion: 1,
-            revision: revision + 1,
-            updatedAt: new Date(),
-        };
-        for (const [kind, field] of Object.entries(CATALOG_FIELDS)) {
-            catalog[field] = entries.filter((e) => e.kind === kind);
-        }
-        // Keep room below MongoDB's 16 MiB single-document limit, including existing parser data.
-        if (BSON.calculateObjectSize({ ...document, catalog }) > 15 * 1024 * 1024) {
-            throw new ApiError(
-                413,
-                'This game document is too large. Export/archive data before adding more.',
-            );
-        }
-        const expected =
-            revision === 0
-                ? { $or: [{ 'catalog.revision': 0 }, { 'catalog.revision': { $exists: false } }] }
-                : { 'catalog.revision': revision };
+        const fields = { ...mergeEntries(document, entries), _revision: revision + 1 };
+        this.checkSize({ ...document, ...fields });
         const result = await this.collection.updateOne(
-            { _id: document['_id'], ...expected },
-            { $set: { catalog } },
+            { _id: document['_id'], _revision: revision },
+            { $set: fields },
         );
         if (result.matchedCount !== 1) {
             throw new ApiError(

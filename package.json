@@ -16,7 +16,8 @@
     "ui:test": "ng test",
     "start": "node projects/middleware/start.mjs",
     "ui:only": "ng serve",
-    "middleware:start": "tsx projects/middleware/src/main.ts",
+    "middleware:migrate": "tsx projects/middleware/src/migrate.ts",
+    "middleware:start": "node --watch --watch-preserve-output --import tsx projects/middleware/src/main.ts",
     "middleware:check": "tsc -p projects/middleware/tsconfig.json",
     "middleware:test": "tsx --test projects/middleware/src/*.test.ts"
   },
@@ -33,6 +34,7 @@
     "bootstrap": "5.3.2",
     "chalk": "5.3.0",
     "date-fns": "3.3.1",
+    "marked": "^18.1.0",
     "mongodb": "6.4.0",
     "puppeteer": "25.11.0",
     "rxjs": "7.8.1",

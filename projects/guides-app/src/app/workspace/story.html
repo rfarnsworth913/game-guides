@@ -1,0 +1,360 @@
+<div class="story-navigation">
+    <div
+        class="story-tabs"
+        role="tablist"
+        aria-label="Story guide sections"
+        (keydown)="navigateTabs($event)"
+    >
+        @for (section of sections(); track section.id) {
+            <button
+                type="button"
+                role="tab"
+                [id]="'story-tab-' + section.id"
+                [attr.aria-selected]="active()?.id === section.id"
+                aria-controls="story-section-content"
+                [tabIndex]="active()?.id === section.id ? 0 : -1"
+                [class.active]="active()?.id === section.id"
+                (click)="selected.set(section.id)"
+            >
+                <ng-container
+                    *ngTemplateOutlet="sectionIcon; context: { $implicit: section.icon }"
+                />
+                {{ section.name }}
+            </button>
+        }
+    </div>
+    @if (editMode()) {
+        <button class="primary" type="button" [disabled]="busy()" (click)="open('story-category')">
+            + Add section
+        </button>
+    }
+    <button
+        class="story-mode-toggle"
+        type="button"
+        role="switch"
+        aria-label="Edit mode"
+        [attr.aria-checked]="editMode()"
+        [class.active]="editMode()"
+        [disabled]="busy() || editor !== null || deleting !== null"
+        (click)="toggleEditMode()"
+    >
+        Edit mode
+        <span class="story-switch-track" aria-hidden="true"
+            ><span class="story-switch-thumb"></span
+        ></span>
+    </button>
+</div>
+
+@if (active(); as section) {
+    <section
+        id="story-section-content"
+        role="tabpanel"
+        [attr.aria-labelledby]="'story-tab-' + section.id"
+        tabindex="0"
+    >
+        <header class="story-heading">
+            <div>
+                <h2>{{ section.name }}</h2>
+                <p>
+                    {{ subsections().length }}
+                    {{ subsections().length === 1 ? 'subsection' : 'subsections' }}
+                </p>
+            </div>
+            <div class="story-progress-circles">
+                @for (progress of progressCircles(); track progress.id) {
+                    <div class="story-progress-item" [attr.data-story-topic]="progress.id">
+                        <div class="story-progress-ring" role="progressbar"
+                            [attr.aria-label]="progress.title + ' completion'"
+                            aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progress.percent"
+                            [attr.aria-valuetext]="progress.total ? progress.completed + ' of ' + progress.total + ' completed' : 'No tracked items'"
+                            [style.--progress]="progress.percent + '%'">
+                            <span>{{ progress.percent }}%</span>
+                        </div>
+                        <strong>{{ progress.title }}</strong>
+                        <small>{{ progress.completed }} / {{ progress.total }}</small>
+                    </div>
+                }
+            </div>
+            @if (editMode()) {
+                <div class="story-actions">
+                    <button
+                        type="button"
+                        aria-label="Move section left"
+                        [disabled]="busy() || sections()[0].id === section.id"
+                        (click)="move(-1)"
+                    >
+                        &#8592;
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Move section right"
+                        [disabled]="busy() || sections()[sections().length - 1].id === section.id"
+                        (click)="move(1)"
+                    >
+                        &#8594;
+                    </button>
+                    <button
+                        type="button"
+                        [disabled]="busy()"
+                        (click)="open('story-category', section)"
+                    >
+                        Edit section
+                    </button>
+                    <button type="button" [disabled]="busy()" (click)="deleting = section">
+                        Delete section
+                    </button>
+                    <button
+                        class="primary"
+                        type="button"
+                        [disabled]="busy()"
+                        (click)="open('story')"
+                    >
+                        + Add subsection
+                    </button>
+                </div>
+            }
+        </header>
+        <div class="story-content-layout">
+            @if (subsections().length) {
+                <nav class="story-outline" aria-label="Guide contents">
+                    <h3>On this page</h3>
+                    @for (entry of displayedSubsections(); track entry.id) {
+                        <a
+                            [href]="encodeAnchor('story-content-' + entry.id)"
+                            [class.active]="activeOutline() === 'story-content-' + entry.id"
+                            (click)="jumpTo($event, 'story-content-' + entry.id)"
+                            >{{ entry.name }}</a
+                        >
+
+                    }
+                </nav>
+            }
+            <div class="story-subsections">
+                @for (entry of displayedSubsections(); track entry.id) {
+                    <article
+                        class="panel story-section"
+                        [class.patch-overview-section]="hasTemplate(entry)"
+                        [id]="'story-content-' + entry.id"
+                        tabindex="-1"
+                        [attr.data-story-topic]="topic(entry).id"
+                        [class.completed]="entry.completed"
+                    >
+                        @if (!hasTemplate(entry) || editMode()) {
+                            <header class="story-section-header">
+                                <div class="story-subsection-title">
+                                    @if (!hasTemplate(entry)) {
+                                        <input
+                                            type="checkbox"
+                                            [checked]="entry.completed"
+                                            [disabled]="busy()"
+                                            [attr.aria-label]="'Mark ' + entry.name + ' complete'"
+                                            (change)="toggle(entry)"
+                                        />
+                                    }
+                                    <div>
+                                        <span class="story-topic-label">{{
+                                            topic(entry).title
+                                        }}</span>
+                                        <h3>{{ entry.name }}</h3>
+                                    </div>
+                                </div>
+                                @if (editMode()) {
+                                    <div class="story-actions">
+                                        <button
+                                            type="button"
+                                            [disabled]="busy()"
+                                            (click)="open('story', entry)"
+                                            [attr.aria-label]="'Edit ' + entry.name"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            type="button"
+                                            [disabled]="busy()"
+                                            (click)="deleting = entry"
+                                            [attr.aria-label]="'Delete ' + entry.name"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                }
+                            </header>
+                        }
+                        @if (entry.category === 'world-quests') {
+                            <gg-world-quests [entry]="entry" />
+                        } @else if (hasTemplate(entry)) {
+                            <gg-patch-overview [entry]="entry" />
+                        }
+                        @for (quest of attachedQuests(entry); track quest.id) {
+                            <div class="attached-world-quests">
+                                <gg-world-quests [entry]="quest" />
+                                @if (quest.notes) { <p class="story-copy">{{ quest.notes }}</p> }
+                            </div>
+                        }
+                        @if (entry.notes) {
+                            <p class="story-copy">{{ entry.notes }}</p>
+                        }
+                    </article>
+                } @empty {
+                    <section class="panel empty">
+                        <h3>Start this section</h3>
+                        <p>
+                            {{
+                                editMode()
+                                    ? 'Add a subsection for an overview, quest, event, or other story topic.'
+                                    : 'No guide content yet. Turn on edit mode to add subsections.'
+                            }}
+                        </p>
+                    </section>
+                }
+            </div>
+        </div>
+    </section>
+} @else {
+    <section class="panel empty">
+        <h2>Organize your story guides</h2>
+        <p>
+            {{
+                editMode()
+                    ? 'Add your first navigation category for a region or patch version.'
+                    : 'No sections yet. Turn on edit mode to add a region or patch version.'
+            }}
+        </p>
+    </section>
+}
+
+@if (editor; as entry) {
+    <div class="modal-backdrop">
+        <section
+            class="modal"
+            [class.patch-modal]="hasTemplate(entry)"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="story-editor-title"
+            ggDialogFocus
+            (keydown.escape)="editor = null"
+        >
+            <div class="section-title">
+                <h2 id="story-editor-title">
+                    {{ entry.kind === 'story-category' ? 'Navigation Category' : 'Subsection' }}
+                </h2>
+                <button type="button" aria-label="Close editor" (click)="editor = null">
+                    &#215;
+                </button>
+            </div>
+            <form (ngSubmit)="save()">
+                <label
+                    >Title<input
+                        name="title"
+                        [(ngModel)]="entry.name"
+                        required
+                        maxlength="200"
+                        placeholder="e.g. Mondstadt or Version 6.0"
+                /></label>
+                @if (entry.kind === 'story-category') {
+                    <label
+                        >Icon or icon URL<input
+                            name="icon"
+                            [(ngModel)]="entry.icon"
+                            placeholder="Symbol, emoji, or https://…"
+                    /></label>
+                } @else {
+                    <label
+                        >Navigation Category<select name="section" [(ngModel)]="entry.storySection">
+                            @for (section of sections(); track section.id) {
+                                <option [value]="section.id">{{ section.name }}</option>
+                            }
+                        </select></label
+                    >
+                    <label
+                        >Content Template<select
+                            name="topic"
+                            [ngModel]="entry.category"
+                            (ngModelChange)="setTopic(entry, $event)"
+                        >
+                            @for (topic of topics(); track topic.id) {
+                                <option [value]="topic.id">{{ topic.title }}</option>
+                            }
+                            @if (topic(entry).id !== entry.category) {
+                                <option [value]="entry.category">
+                                    {{ entry.category || 'Main Story' }} (existing)
+                                </option>
+                            }
+                        </select></label
+                    >
+                    @if (entry.category === 'world-quests') {
+                        <p>In reading mode, this template follows the preceding Main Story or Patch Overview in this navigation category. Use Order to position it.</p>
+                        <gg-world-quests [entry]="entry" [editing]="true" />
+                    } @else if (hasTemplate(entry)) {
+                        <gg-patch-overview [entry]="entry" [editing]="true" />
+                    }
+                    <label
+                        >Content<textarea
+                            name="content"
+                            rows="6"
+                            [(ngModel)]="entry.notes"
+                            placeholder="Add guide notes for this subsection"
+                        ></textarea>
+                    </label>
+                }
+                <label
+                    >Order<input
+                        name="order"
+                        type="number"
+                        min="0"
+                        step="1"
+                        [(ngModel)]="entry.order"
+                        required
+                /></label>
+                @if (error) {
+                    <p class="error" role="alert">{{ error }}</p>
+                }
+                <div class="modal-actions">
+                    <button type="button" (click)="editor = null">Cancel</button
+                    ><button type="submit" class="primary" [disabled]="busy()">Save changes</button>
+                </div>
+            </form>
+        </section>
+    </div>
+}
+@if (deleting; as entry) {
+    <div class="modal-backdrop">
+        <section
+            class="modal small"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="story-delete-title"
+            ggDialogFocus
+            (keydown.escape)="deleting = null"
+        >
+            <h2 id="story-delete-title">Delete {{ entry.name }}?</h2>
+            <p>
+                {{
+                    entry.kind === 'story-category'
+                        ? 'This deletes the navigation category and every subsection inside it.'
+                        : 'This deletes the subsection.'
+                }}
+            </p>
+            @if (store.error()) {
+                <p class="error" role="alert">{{ store.error() }}</p>
+            }
+            <div class="modal-actions">
+                <button type="button" (click)="deleting = null">Cancel</button
+                ><button type="button" class="danger" [disabled]="busy()" (click)="remove()">
+                    Delete
+                </button>
+            </div>
+        </section>
+    </div>
+}
+<ng-template #sectionIcon let-icon>
+    @if (icon) {
+        <span class="story-nav-icon" aria-hidden="true">
+            @if (iconUrl(icon); as url) {
+                <img [src]="url" alt="" referrerpolicy="no-referrer" />
+            } @else {
+                {{ icon }}
+            }
+        </span>
+    }
+</ng-template>

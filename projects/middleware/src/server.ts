@@ -1,6 +1,7 @@
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { GAMES, validCatalog } from '../../common/workspace';
 import { ApiError, GameRepository } from './repository';
+import { handleGameImages, imageRoot } from './game-images';
 
 async function jsonBody(request: IncomingMessage): Promise<unknown> {
     if (!request.headers['content-type']?.startsWith('application/json')) {
@@ -25,6 +26,7 @@ export function createApi(
     repository: Pick<GameRepository, 'read' | 'write' | 'parsed'>,
     origins: string[],
     ping: () => Promise<unknown>,
+    assetsRoot = imageRoot,
 ) {
     const respond = (response: ServerResponse, status: number, body: unknown) => {
         response.writeHead(status, {
@@ -39,6 +41,11 @@ export function createApi(
             const path = new URL(request.url ?? '/', 'http://localhost').pathname;
             if (request.headers.origin && !origins.includes(request.headers.origin)) {
                 throw new ApiError(403, 'Origin is not allowed.');
+            }
+            const imageMatch = /^\/api\/games\/([a-z]+)\/images(?:\/([^/]+))?$/.exec(path);
+            if (imageMatch) {
+                await handleGameImages(request, response, imageMatch[1], imageMatch[2], assetsRoot);
+                return;
             }
             if (request.method === 'GET' && path === '/api/health') {
                 await ping();
@@ -93,7 +100,7 @@ export function createApi(
         handle().catch((error: unknown) => {
             const known = error instanceof ApiError;
             if (!known) {
-                console.error('Database request failed.');
+                console.error('Database request failed:', error instanceof Error ? error.name : 'Unknown error');
             }
             if (!response.headersSent) {
                 respond(response, known ? error.status : 503, {

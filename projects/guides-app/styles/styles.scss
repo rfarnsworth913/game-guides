@@ -4,7 +4,9 @@
 @use "./themes/dark-theme";
 @use "./themes/light-theme";
 @use "./themes/game-themes";
+@use "./themes/story-topics";
 @use "./workspace";
+@use "./story-layout";
 
 :root { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }

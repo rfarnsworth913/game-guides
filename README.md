@@ -34,8 +34,10 @@ reports configuration/startup failures rather than silently launching a partial 
 ## Data storage
 
 Each game has one document in the same MongoDB collection used by the parsers. The
-middleware adds a structured `catalog` field to that document; parser-owned fields such
-as events and version information are preserved. Honkai: Star Rail uses the parser's
+middleware stores `version`, nested achievement categories, and the characters, events,
+inventory, plans, story and teams arrays at the document root. Existing catalog documents
+migrate automatically at startup, with originals retained in `<DB_COLLECTION>_schema_v1_backup`.
+Parser events and version information are preserved. Honkai: Star Rail uses the parser's
 existing document name, `Honkai Star Rail`.
 
 - MongoDB stores game definitions: inventory items, characters, teams, plans, story steps,

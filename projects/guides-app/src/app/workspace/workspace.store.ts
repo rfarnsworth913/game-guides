@@ -1,4 +1,6 @@
 import { Injectable, signal } from '@angular/core';
+import { validRowCompletion } from '../../../../common/story-template';
+import type { PlayerState } from '../../../../common/workspace';
 
 import {
     Entry,
@@ -22,7 +24,7 @@ export class WorkspaceStore {
     readonly saving = signal(false);
     private snapshots = new Map<string, GameSnapshot>();
     private loadingPromise: Promise<boolean> | null = null;
-    private player: Record<string, { completed: boolean; quantity: number; target: number }> = {};
+    private player: Record<string, PlayerState> = {};
     private playerKey(entry: { game: string; id: string }): string {
         return `${entry.game}/${entry.id}`;
     }
@@ -115,7 +117,10 @@ export class WorkspaceStore {
                         Number(state.quantity) < 0 ||
                         !('target' in state) ||
                         !Number.isFinite(state.target) ||
-                        Number(state.target) < 0
+                        Number(state.target) < 0 ||
+                        !validRowCompletion(
+                            'storyRowCompletion' in state ? state.storyRowCompletion : undefined,
+                        )
                     ) {
                         throw new Error(
                             'Invalid local player data. Your stored data has not been overwritten.',
@@ -149,6 +154,9 @@ export class WorkspaceStore {
                         completed: entry.completed,
                         quantity: entry.quantity,
                         target: entry.target,
+                        ...(entry.storyRowCompletion
+                            ? { storyRowCompletion: entry.storyRowCompletion }
+                            : {}),
                     };
                 }
                 // Persist completion first; retain the original legacy key until every game has migrated.
@@ -210,6 +218,9 @@ export class WorkspaceStore {
                     completed: entry.completed,
                     quantity: entry.quantity,
                     target: entry.target,
+                    ...(entry.storyRowCompletion
+                        ? { storyRowCompletion: entry.storyRowCompletion }
+                        : {}),
                 };
             }
             // Fail before any database write if browser storage is unavailable.
@@ -221,7 +232,9 @@ export class WorkspaceStore {
                     .filter((entry) => entry.game === game.id)
                     .map(toCatalog)
                     .sort((a, b) => a.id.localeCompare(b.id));
-                const previous = [...snapshot.entries].sort((a, b) => a.id.localeCompare(b.id));
+                const previous = snapshot.entries
+                    .map((entry) => toCatalog(fromCatalog(entry)))
+                    .sort((a, b) => a.id.localeCompare(b.id));
                 if (JSON.stringify(catalog) === JSON.stringify(previous)) {
                     continue;
                 }
@@ -258,7 +271,12 @@ export class WorkspaceStore {
     async remove(id: string): Promise<boolean> {
         return this.replace(
             this.entries()
-                .filter((e) => e.id !== id && !(e.kind === 'achievements' && e.category === id))
+                .filter(
+                    (e) =>
+                        e.id !== id &&
+                        !(e.kind === 'achievements' && e.category === id) &&
+                        !(e.kind === 'story' && e.storySection === id),
+                )
                 .map((e) => ({
                     ...e,
                     members: e.members.filter((m) => m !== id),

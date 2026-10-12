@@ -50,6 +50,25 @@ describe('WorkspaceStore', () => {
         expect(data.has('gg-workspace-v1')).toBe(false);
         expect((await readyStore()).entries()[0]).toMatchObject({ id: 'legacy', quantity: 10 });
     });
+    it('does not save definitions when the API returns properties in a different order', async () => {
+        const { completed, quantity, target, ...shared } = item('remote');
+        const shuffled = Object.fromEntries(Object.entries(shared).reverse());
+        vi.mocked(fetch).mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                games: GAMES.map((game) => ({
+                    id: game.id,
+                    name: game.name,
+                    revision: 0,
+                    entries: game.id === 'genshin' ? [shuffled] : [],
+                })),
+            }),
+        } as Response);
+        const store = await readyStore();
+        vi.mocked(fetch).mockClear();
+        expect(await store.save({ ...store.entries()[0], completed: true })).toBe(true);
+        expect(fetch).not.toHaveBeenCalled();
+    });
     it('keeps the legacy catalog intact when middleware is unavailable', async () => {
         data.set('gg-workspace-v1', JSON.stringify({ version: 1, entries: [item('legacy')] }));
         vi.mocked(fetch).mockRejectedValue(new Error('Offline'));
@@ -177,6 +196,58 @@ describe('WorkspaceStore', () => {
         const store = await readyStore();
         expect(await store.save(item('material'))).toBe(true);
         expect((await readyStore()).entries()).toEqual([item('material')]);
+    });
+    it('persists patch row completion locally without writing definitions and restores it on reload', async () => {
+        const store = await readyStore();
+        const section = { ...item('section', 'story-category'), category: '' };
+        const patch = {
+            ...item('patch', 'story'),
+            category: 'patch-overview',
+            storySection: section.id,
+            patchOverview: {
+                imageUrl: '',
+                imageAlt: '',
+                sourceName: '',
+                sourceUrl: '',
+                rows: [
+                    {
+                        id: 'row-1',
+                        contentType: 'Story',
+                        content: 'Chapter',
+                        patch: '6.0',
+                        notes: '',
+                    },
+                ],
+            },
+        };
+        expect(await store.replace([section, patch])).toBe(true);
+        vi.mocked(fetch).mockClear();
+        expect(await store.save({ ...patch, storyRowCompletion: { 'row-1': true } })).toBe(true);
+        expect(fetch).not.toHaveBeenCalled();
+        const restored = await readyStore();
+        expect(restored.entries().find((entry) => entry.id === patch.id)).toMatchObject({
+            storyRowCompletion: { 'row-1': true },
+            completed: true,
+        });
+    });
+    it('migrates legacy story progress and removes a section together with its own subsections', async () => {
+        data.set(
+            'gg-workspace-v1',
+            JSON.stringify({
+                version: 1,
+                entries: [{ ...item('prologue', 'story'), completed: true }],
+            }),
+        );
+        const store = await readyStore();
+        const section = store.entries().find((entry) => entry.kind === 'story-category')!;
+        expect(section.name).toBe('General');
+        expect(store.entries().find((entry) => entry.id === 'prologue')).toMatchObject({
+            completed: true,
+            storySection: section.id,
+        });
+        await store.save(item('unrelated'));
+        expect(await store.remove(section.id)).toBe(true);
+        expect(store.entries().map((entry) => entry.id)).toEqual(['unrelated']);
     });
     it('aggregates shared requirements before subtracting inventory', async () => {
         const store = await readyStore();

@@ -98,7 +98,7 @@ try {
     await portAvailable(port);
     await portAvailable(uiPort);
     database = await startDatabase();
-    middleware = launch(['--import', 'tsx', 'projects/middleware/src/main.ts'], true);
+    middleware = launch(['--watch', '--watch-preserve-output', '--import', 'tsx', 'projects/middleware/src/main.ts'], true);
     let ready = false;
     for (let attempt = 0; attempt < 50 && !stopping; attempt++) {
         try {

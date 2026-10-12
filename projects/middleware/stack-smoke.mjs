@@ -5,6 +5,8 @@ import { createServer } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { MongoClient } from 'mongodb';
 import puppeteer from 'puppeteer';
+import { checkStory } from './story-smoke.mjs';
+import { checkPatch } from './patch-smoke.mjs';
 
 async function freePort() {
     const server = createServer();
@@ -62,11 +64,79 @@ try {
         { name: 'Genshin Impact' },
         {
             $set: {
-                Event: [{ title: 'Parser-owned event' }],
+                events: [{ title: 'Parser-owned event' }],
                 version: { title: 'Parser version' },
             },
         },
     );
+    // Migrate a real legacy catalog in the disposable collection, then verify idempotence.
+    const legacyCategory = {
+        id: 'old-category',
+        game: 'hsr',
+        kind: 'achievement-category',
+        name: 'Legacy category',
+        notes: '',
+        category: '',
+        rarity: 1,
+        members: [],
+        requirements: [],
+        order: 0,
+        day: '',
+    };
+    await collection.updateOne(
+        { name: 'Honkai Star Rail' },
+        {
+            $set: {
+                catalog: {
+                    revision: 7,
+                    achievementCategories: [legacyCategory],
+                    achievements: [
+                        {
+                            ...legacyCategory,
+                            id: 'old-achievement',
+                            kind: 'achievements',
+                            category: 'old-category',
+                            name: 'Legacy achievement',
+                            requirementText: 'Test requirement',
+                        },
+                    ],
+                },
+            },
+            $unset: { _schemaVersion: '' },
+        },
+    );
+    // The initial empty fixture backup is removed only inside this disposable test collection.
+    const backups = client.db(process.env.DB_NAME).collection(`${collectionName}_schema_v1_backup`);
+    await backups.deleteOne({ name: 'Honkai Star Rail' });
+    async function runScript(script = 'projects/middleware/src/migrate.ts') {
+        const child = spawn(process.execPath, ['--import', 'tsx', script], {
+            env: { ...process.env, DB_COLLECTION: collectionName },
+            windowsHide: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        let output = '';
+        child.stdout.on('data', (chunk) => {
+            output += chunk;
+        });
+        child.stderr.on('data', (chunk) => {
+            output += chunk;
+        });
+        const code = await new Promise((resolve, reject) => {
+            child.once('exit', resolve);
+            child.once('error', reject);
+        });
+        assert.equal(code, 0, output);
+    }
+    await runScript();
+    const migrated = await collection.findOne({ name: 'Honkai Star Rail' });
+    assert.ok(!('catalog' in migrated));
+    assert.equal(migrated._revision, 7);
+    assert.equal(migrated.achievements[0].achievements[0]._id, 'old-achievement');
+    assert.equal(migrated.achievements[0].achievements[0].requirements, 'Test requirement');
+    assert.equal((await backups.findOne({ name: 'Honkai Star Rail' })).catalog.revision, 7);
+    await runScript();
+    assert.deepEqual(await collection.findOne({ name: 'Honkai Star Rail' }), migrated);
+    await runScript('projects/middleware/parser-smoke.ts');
     browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     const runtimeErrors = [];
@@ -109,6 +179,14 @@ try {
                         category: 'legacy-category',
                         completed: true,
                     },
+                    {
+                        ...entry,
+                        id: 'legacy-story',
+                        kind: 'story',
+                        name: 'Legacy quest',
+                        category: 'Required',
+                        completed: true,
+                    },
                 ],
             }),
         );
@@ -118,9 +196,9 @@ try {
     assert.equal(await page.$eval('.achievement-row input[type=checkbox]', (e) => e.checked), true);
     assert.equal(await page.evaluate(() => localStorage.getItem('gg-workspace-v1')), null);
     const document = await collection.findOne({ name: 'Genshin Impact' });
-    assert.deepEqual(document.Event, [{ title: 'Parser-owned event' }]);
+    assert.deepEqual(document.events, [{ title: 'Parser-owned event' }]);
     assert.equal(document.version.title, 'Parser version');
-    const savedAchievement = document.catalog.achievements[0];
+    const savedAchievement = document.achievements[0].achievements[0];
     assert.ok(
         !('completed' in savedAchievement) &&
             !('quantity' in savedAchievement) &&
@@ -191,7 +269,7 @@ try {
         ).status,
         400,
     );
-    assert.deepEqual((await (await fetch(`${api}/api/games/genshin/parsed`)).json()).Event, [
+    assert.deepEqual((await (await fetch(`${api}/api/games/genshin/parsed`)).json()).events, [
         { title: 'Parser-owned event' },
     ]);
     const latest = await (await fetch(`${api}/api/games/genshin`)).json();
@@ -259,6 +337,8 @@ try {
         ),
         'second-category',
     );
+    await checkStory(page, base, collection);
+    await checkPatch(page, base, collection);
     assert.deepEqual(runtimeErrors, []);
     console.log(
         'Full-stack checks passed: automatic startup, MongoDB persistence, one document per game, parser preservation, legacy migration, local-only completion, independent browser progress, shared edits, revision conflicts, and persisted drag ordering.',
@@ -274,6 +354,10 @@ try {
     if (/^middleware_test_[a-f0-9]{32}$/.test(collectionName)) {
         try {
             await client.db(process.env.DB_NAME).collection(collectionName).drop();
+            await client
+                .db(process.env.DB_NAME)
+                .collection(`${collectionName}_schema_v1_backup`)
+                .drop();
         } catch {
             /* collection may not have been created */
         }

@@ -1,3 +1,4 @@
+import { PatchOverview, validPatchOverview, validRowCompletion } from './story-template';
 export type Kind =
     | 'inventory'
     | 'characters'
@@ -6,8 +7,15 @@ export type Kind =
     | 'story'
     | 'events'
     | 'achievements'
-    | 'achievement-category';
+    | 'achievement-category'
+    | 'story-category';
 export type Entry = {
+    patchOverview?: PatchOverview;
+    mainStory?: PatchOverview;
+    sideStories?: PatchOverview;
+    worldQuests?: PatchOverview;
+    storyRowCompletion?: Record<string, boolean>;
+    storySection?: string;
     icon?: string;
     wikiUrl?: string;
     reward?: string;
@@ -30,7 +38,7 @@ export type Entry = {
     day: string;
 };
 /** Only player-owned state stays in the browser; these fields never enter the catalog. */
-export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target'>;
+export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion'>;
 export type CatalogEntry = Omit<Entry, keyof PlayerState>;
 export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[] };
 export const CATALOG_FIELDS = {
@@ -42,14 +50,24 @@ export const CATALOG_FIELDS = {
     events: 'events',
     achievements: 'achievements',
     'achievement-category': 'achievementCategories',
+    'story-category': 'storyCategories',
 } as const;
 
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
+    const template = entry.category === 'side-stories' ? entry.sideStories : entry.category === 'world-quests' ? entry.worldQuests : entry.category === 'main-story' ? entry.mainStory : entry.category === 'patch-overview' ? entry.patchOverview : undefined;
+    const quests = template?.rows.filter((row) => !row.rowType || row.rowType === 'quest');
     return {
         ...entry,
-        completed: player?.completed ?? false,
+        completed:
+            entry.kind === 'story' && template
+                ? quests!.length > 0 &&
+                  quests!.every(
+                      (row) => player?.storyRowCompletion?.[row.id] === true,
+                  )
+                : player?.completed ?? false,
         quantity: player?.quantity ?? 0,
         target: player?.target ?? 90,
+        ...(player?.storyRowCompletion ? { storyRowCompletion: player.storyRowCompletion } : {}),
     };
 }
 /** Whitelist fields to keep browser-only state (and arbitrary imported properties) off the wire. */
@@ -66,6 +84,11 @@ export function toCatalog(entry: Entry): CatalogEntry {
         requirements: entry.requirements,
         order: entry.order,
         day: entry.day,
+        ...(entry.worldQuests !== undefined ? { worldQuests: entry.worldQuests } : {}),
+        ...(entry.sideStories !== undefined ? { sideStories: entry.sideStories } : {}),
+        ...(entry.mainStory !== undefined ? { mainStory: entry.mainStory } : {}),
+        ...(entry.patchOverview !== undefined ? { patchOverview: entry.patchOverview } : {}),
+        ...(entry.storySection !== undefined ? { storySection: entry.storySection } : {}),
         ...(entry.icon !== undefined ? { icon: entry.icon } : {}),
         ...(entry.wikiUrl !== undefined ? { wikiUrl: entry.wikiUrl } : {}),
         ...(entry.reward !== undefined ? { reward: entry.reward } : {}),
@@ -96,6 +119,11 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'rewardIcon',
         'description',
         'requirementText',
+        'storySection',
+        'patchOverview',
+        'mainStory',
+        'sideStories',
+        'worldQuests',
     ]);
     if (
         !value.every(
@@ -108,6 +136,9 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         return false;
     }
     const entries = (value as CatalogEntry[]).map((e) => fromCatalog(e));
+    if (entries.some((entry) => !Number.isSafeInteger(entry.order))) {
+        return false;
+    }
     if (!validEntries(entries) || entries.some((e) => e.game !== game || !e.id || !e.name.trim())) {
         return false;
     }
@@ -115,6 +146,9 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
     return entries.every(
         (e) =>
             (e.kind !== 'achievements' || ids.get(e.category)?.kind === 'achievement-category') &&
+            (e.kind !== 'story' ||
+                e.storySection === undefined ||
+                ids.get(e.storySection)?.kind === 'story-category') &&
             e.members.every((id) => ids.get(id)?.kind === 'characters') &&
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),
     );
@@ -174,15 +208,27 @@ export function validEntries(value: unknown): value is Entry[] {
                     'events',
                     'achievements',
                     'achievement-category',
+                    'story-category',
                 ].includes(e.kind) &&
                 typeof e.name === 'string' &&
                 typeof e.notes === 'string' &&
                 typeof e.category === 'string' &&
                 typeof e.day === 'string' &&
                 typeof e.completed === 'boolean' &&
-                [e.icon, e.wikiUrl, e.reward, e.requirementText, e.rewardIcon, e.description].every(
-                    (v) => typeof v === 'undefined' || typeof v === 'string',
-                ) &&
+                validPatchOverview(e.patchOverview) &&
+                validPatchOverview(e.mainStory) &&
+                validPatchOverview(e.sideStories) &&
+                validPatchOverview(e.worldQuests) &&
+                validRowCompletion(e.storyRowCompletion) &&
+                [
+                    e.icon,
+                    e.wikiUrl,
+                    e.reward,
+                    e.requirementText,
+                    e.rewardIcon,
+                    e.description,
+                    e.storySection,
+                ].every((v) => typeof v === 'undefined' || typeof v === 'string') &&
                 [e.quantity, e.target, e.rarity, e.order].every(
                     (n) => Number.isFinite(n) && n >= 0,
                 ) &&
@@ -252,5 +298,36 @@ export function parseBackup(raw: string): Entry[] {
     ) {
         throw new Error('Invalid workspace backup');
     }
-    return migrateAchievements(data.entries);
+    return migrateStory(migrateAchievements(data.entries));
+}
+
+/** Give legacy guide steps a stable parent without changing their player progress keys. */
+export function migrateStory(entries: Entry[]): Entry[] {
+    const result = entries.map((entry) => ({ ...entry }));
+    for (const entry of result.filter(
+        (value) => value.kind === 'story' && value.storySection === undefined,
+    )) {
+        const id = `story-category:${entry.game}:general`;
+        if (!result.some((value) => value.id === id)) {
+            result.push({
+                id,
+                game: entry.game,
+                kind: 'story-category',
+                name: 'General',
+                icon: '',
+                order: 0,
+                notes: '',
+                category: '',
+                rarity: 1,
+                members: [],
+                requirements: [],
+                day: '',
+                completed: false,
+                quantity: 0,
+                target: 0,
+            });
+        }
+        entry.storySection = id;
+    }
+    return result;
 }

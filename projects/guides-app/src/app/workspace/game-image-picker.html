@@ -1,0 +1,42 @@
+<div class="image-picker">
+    <label>{{ label() }} URL
+        <input type="text" [ngModel]="value()" (ngModelChange)="value.set($event)"
+            [ngModelOptions]="{ standalone: true }" placeholder="https://... or select an uploaded image" />
+    </label>
+    <div class="image-actions">
+        <label class="upload-label">Upload {{ label().toLowerCase() }}
+            <input type="file" accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif"
+                [disabled]="uploading()" (change)="upload($event)" />
+        </label>
+        <button type="button" (click)="browse()" [disabled]="loading() || uploading()">Browse game images</button>
+        @if (value()) {
+            <button type="button" (click)="value.set('')" [disabled]="uploading()">Clear image</button>
+        }
+    </div>
+    <p class="image-help">PNG, JPEG, WebP or GIF, up to 10 MB. Uploads remain in this game's library even if you cancel editing.</p>
+    @if (uploading()) { <p role="status">Uploading image…</p> }
+    @if (error()) { <p class="image-error" role="alert">{{ error() }}</p> }
+    @if (imageUrl(value()); as url) {
+        @if (failedPreview() !== url) {
+            <img class="image-preview" [src]="url" [alt]="label() + ' preview'" (error)="failedPreview.set(url)" />
+        } @else { <p>Image preview unavailable.</p> }
+    }
+    @if (open()) {
+        <div class="library-heading">
+            <strong>{{ label() }} — game image library</strong>
+            <button type="button" (click)="open.set(false)">Close library</button>
+        </div>
+        @if (loading()) { <p role="status">Loading images…</p> }
+        @else {
+            <div class="image-library">
+                @for (image of images(); track image.url) {
+                    <button type="button" [attr.aria-pressed]="value() === image.url"
+                        (click)="value.set(image.url); failedPreview.set(''); open.set(false)" [title]="image.name">
+                        <img [src]="image.url" alt="" loading="lazy" />
+                        <span>{{ image.name }}</span>
+                    </button>
+                } @empty { <p>No images uploaded for this game yet.</p> }
+            </div>
+        }
+    }
+</div>

@@ -91,7 +91,7 @@ describe("DataService", () => {
         expect(mockFindOne).toHaveBeenCalledWith({ name: "Genshin Impact" });
         expect(mockUpdateOne).toHaveBeenCalledWith(
             { name: "Genshin Impact" },
-            { $set: { events: [doc.events[1]] } }
+            { $pull: { events: { title: { $in: ["A"] }, kind: { $exists: false } } }, $inc: { _revision: 1 } }
         );
     });
 
@@ -127,10 +127,10 @@ describe("DataService", () => {
         // Insert root when missing
         expect(mockInsertOne).toHaveBeenCalledTimes(1);
 
-        // Update includes both existing + new
+        // Appends with an atomic pipeline rather than replacing a stale snapshot
         expect(mockUpdateOne).toHaveBeenCalledWith(
             { name: "Genshin Impact" },
-            { $set: { events: [{ title: "Existing" }, { title: "New" }] } }
+            expect.any(Array)
         );
     });
 
@@ -144,6 +144,36 @@ describe("DataService", () => {
         await expect(
             service.addRecords("Genshin Impact", "events", [{ title: "X" }])
         ).rejects.toThrow("DB write error");
+    });
+
+    it("strips player state and deduplicates incoming parser records", async () => {
+        expect.hasAssertions();
+        mockFindOne.mockResolvedValueOnce({ _id: { _id: "id" }, name: "Genshin Impact", events: [] });
+        await service.addRecords("Genshin Impact", "events", [
+            { title: "New", completed: false, quantity: 5, target: 10 },
+            { title: "New", completed: true, quantity: 6, target: 20 },
+        ]);
+        const write = JSON.stringify(mockUpdateOne.mock.calls);
+        expect(write).not.toContain('"completed"');
+        expect(write).not.toContain('"quantity"');
+        expect(write).not.toContain('"target"');
+        expect(write.match(/"title":"New"/g)).toHaveLength(1);
+        expect(write).toContain('"_revision"');
+    });
+
+    it("can remove every expired parser event while preserving manually authored events", async () => {
+        expect.hasAssertions();
+        mockFindOne.mockResolvedValueOnce({
+            _id: { _id: "id" }, name: "Genshin Impact",
+            events: [{ title: "Expired" }, { kind: "events", name: "Manual" }] as unknown as Array<Event>,
+        });
+        const filter = jest.fn(() => false);
+        await service.cleanupExpiredItems("Genshin Impact", "events", filter);
+        expect(filter).toHaveBeenCalledTimes(1);
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+            { name: "Genshin Impact" },
+            { $pull: { events: { title: { $in: ["Expired"] }, kind: { $exists: false } } }, $inc: { _revision: 1 } },
+        );
     });
 
     it("updateVersion returns true and updates when version changed", async () => {

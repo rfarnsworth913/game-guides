@@ -8,7 +8,10 @@ const client = new MongoClient(config.uri, { serverSelectionTimeoutMS: 5000 });
 try {
     await client.connect();
     const db = client.db(config.database);
-    const repository = new GameRepository(db.collection(config.collection));
+    const repository = new GameRepository(
+        db.collection(config.collection),
+        db.collection(`${config.collection}_schema_v1_backup`),
+    );
     await repository.initialize();
     const server = createApi(repository, config.origins, () => db.command({ ping: 1 }));
     server.on('error', async () => {

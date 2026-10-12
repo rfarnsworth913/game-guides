@@ -1,0 +1,362 @@
+@if (editing()) {
+    @if (!worldQuests()) {
+    <fieldset class="patch-image-editor">
+        <legend>{{ storyBanner() ? storyTemplateName() + ' Banner' : 'Patch Overview Banner' }}</legend>
+        <p>Recommended image: 1200 × 400 pixels (3:1). It scales to fit the guide.</p>
+        <gg-game-image-picker [game]="entry().game" label="Header image"
+            [(value)]="data().imageUrl" />
+        <label
+            >Image Description<input
+                name="patchImageAlt"
+                [ngModelOptions]="standalone"
+                [(ngModel)]="data().imageAlt"
+                placeholder="Describe the patch artwork"
+        /></label>
+        <label
+            >Image Source<input
+                name="patchSourceName"
+                [ngModelOptions]="standalone"
+                [(ngModel)]="data().sourceName"
+        /></label>
+        <label
+            >Image URL<input
+                name="patchSourceUrl"
+                [ngModelOptions]="standalone"
+                [(ngModel)]="data().sourceUrl"
+                type="url"
+                placeholder="https://…"
+        /></label>
+    </fieldset>
+    @if (!storyBanner()) {
+    <fieldset>
+        <legend>Patch Details</legend>
+        <div class="patch-fields">
+            <label
+                >Version<input
+                    name="patchVersion"
+                    [ngModelOptions]="standalone"
+                    [(ngModel)]="data().patchVersion"
+                    placeholder="e.g. 1.0"
+            /></label>
+            <label
+                >Release Date<input
+                    name="releaseDate"
+                    type="date"
+                    [ngModelOptions]="standalone"
+                    [(ngModel)]="data().releaseDate"
+            /></label>
+        </div>
+        <label
+            >Title<input
+                name="patchTitle"
+                [ngModelOptions]="standalone"
+                [(ngModel)]="data().patchTitle"
+        /></label>
+    </fieldset>
+    }
+    }
+    <fieldset class="patch-group-editor">
+        <legend>{{ worldQuests() ? 'Primary Sections' : 'Content Groups' }}</legend>
+        <p>Create the groups this guide needs. Removing a group keeps its rows in Overview.</p>
+        @for (group of data().groups; track group.id; let index = $index) {
+            <section class="patch-edit-group" [attr.aria-label]="group.title || 'New group'">
+            <div class="patch-group-edit-row">
+                <label
+                    >Group Name<input
+                        [attr.name]="'groupTitle-' + group.id"
+                        [ngModelOptions]="standalone"
+                        [(ngModel)]="group.title"
+                        placeholder="e.g. Trailers or EPs"
+                /></label>
+                <button
+                    type="button"
+                    [disabled]="index === 0"
+                    (click)="moveGroup(index, -1)"
+                    [attr.aria-label]="'Move group ' + (index + 1) + ' up'"
+                >
+                    &#8593;
+                </button>
+                <button
+                    type="button"
+                    [disabled]="index === (data().groups?.length ?? 0) - 1"
+                    (click)="moveGroup(index, 1)"
+                    [attr.aria-label]="'Move group ' + (index + 1) + ' down'"
+                >
+                    &#8595;
+                </button>
+                <button type="button" (click)="removeGroup(group.id)">Remove Group</button>
+            </div>
+            <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(group.id), groupId: group.id }" />
+            </section>
+        }
+        <button type="button" (click)="addGroup()">+ Add group</button>
+    </fieldset>
+    @if (!data().groups?.length || rowsForGroup('').length) {
+        <fieldset class="patch-group-editor">
+            <legend>Overview (ungrouped)</legend>
+            <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(''), groupId: '' }" />
+        </fieldset>
+    }
+    <ng-template #contentRows let-rows="rows" let-groupId="groupId">
+    <div class="patch-row-heading">
+        <h3>Content Rows</h3>
+    </div>
+    @for (row of rows; track row.id; let index = $index) {
+        <fieldset class="patch-row-editor">
+            <legend>Row {{ index + 1 }}</legend>
+            @if (worldQuests() && row.rowType === 'heading') {
+                <label>Secondary Heading<input [ngModelOptions]="standalone" [(ngModel)]="row.content" /></label>
+            } @else if (worldQuests() && row.rowType === 'note') {
+                <label>Global Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="3"></textarea></label>
+            } @else {
+            <label
+                >Content<textarea
+                    [attr.name]="'content-' + row.id"
+                    [ngModelOptions]="standalone"
+                    [(ngModel)]="row.content"
+                    rows="3"
+                ></textarea>
+            </label>
+            <label
+                >Content Link<input
+                    type="url"
+                    [attr.name]="'link-' + row.id"
+                    [ngModelOptions]="standalone"
+                    [(ngModel)]="row.contentUrl"
+                    placeholder="https://..."
+            /></label>
+            <label
+                >Patch<input
+                    [attr.name]="'patch-' + row.id"
+                    [ngModelOptions]="standalone"
+                    [(ngModel)]="row.patch"
+                    placeholder="e.g. 6.0"
+            /></label>
+            <label class="checkbox">
+                <input type="checkbox" [ngModelOptions]="standalone"
+                    [(ngModel)]="row.subQuest" />Sub-quest
+            </label>
+            <label class="checkbox"
+                ><input
+                    type="checkbox"
+                    [ngModelOptions]="standalone"
+                    [ngModel]="row.notesRight !== undefined"
+                    (ngModelChange)="splitNotes(row, $event)"
+                />Split Notes into two cells</label
+            >
+            <div [class.patch-fields]="row.notesRight !== undefined">
+                <label
+                    >{{ row.notesRight === undefined ? 'Notes' : 'Notes — left'
+                    }}<textarea
+                        [attr.name]="'notes-' + row.id"
+                        [ngModelOptions]="standalone"
+                        [(ngModel)]="row.notes"
+                        rows="3"
+                    ></textarea>
+                </label>
+                @if (row.notesRight !== undefined) {
+                    <label
+                        >Notes — right<textarea
+                            [attr.name]="'notesRight-' + row.id"
+                            [ngModelOptions]="standalone"
+                            [(ngModel)]="row.notesRight"
+                            rows="3"
+                        ></textarea>
+                    </label>
+                }
+            </div>
+            }
+            <div class="patch-row-actions">
+                <button
+                    type="button"
+                    [disabled]="rowTarget(data().rows.indexOf(row), -1) < 0"
+                    (click)="moveRow(data().rows.indexOf(row), -1)"
+                    [attr.aria-label]="'Move row ' + (index + 1) + ' up'"
+                >
+                    ↑
+                </button>
+                <button
+                    type="button"
+                    [disabled]="rowTarget(data().rows.indexOf(row), 1) < 0"
+                    (click)="moveRow(data().rows.indexOf(row), 1)"
+                    [attr.aria-label]="'Move row ' + (index + 1) + ' down'"
+                >
+                    ↓
+                </button>
+                <button type="button" (click)="removeRow(row.id)">Remove Row</button>
+            </div>
+        </fieldset>
+    } @empty {
+        <p>Add content rows to this group.</p>
+    }
+    <div class="patch-row-add">
+        <button type="button" (click)="addRow(groupId)">+ Add Row</button>
+        @if (worldQuests()) {
+            <button type="button" (click)="addRow(groupId, 'heading')">+ Secondary Heading</button>
+            <button type="button" (click)="addRow(groupId, 'note')">+ Global Notes</button>
+        }
+    </div>
+    </ng-template>
+} @else {
+    <div class="patch-overview-dashboard" [attr.data-story-topic]="entry().category" [class.main-story-template]="storyBanner()" [class.world-quest-template]="worldQuests()">
+        @if (!worldQuests()) {
+        <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate">
+            @if (imageUrl(data().imageUrl); as imageUrl) {
+                @if (failedImage() !== imageUrl) {
+                    <img
+                        class="patch-banner"
+                        [src]="imageUrl"
+                        [alt]="data().imageAlt || entry().name + ' patch artwork'"
+                        width="1200"
+                        height="400"
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        (error)="failedImage.set(imageUrl)"
+                    />
+                }
+            }
+            <div class="patch-hero-copy">
+                <span class="patch-game-name">{{ storyBanner() ? (data().region || gameName()) : gameName() }}</span>
+                <h3>{{ entry().name }}</h3>
+                @if (storyBanner()) {
+                    <p>{{ storyTemplateName() }}</p>
+                    @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
+                } @else { <p>Patch {{ data().patchVersion || data().rows[0]?.patch }}</p> }
+            </div>
+            @if (!storyBanner() && data().releaseDate) {
+                <div class="patch-banner-release">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.7">
+                        <rect x="3" y="5" width="18" height="16" rx="2" />
+                        <path d="M7 2v6M17 2v6M3 11h18M7 15h3M14 15h3M7 18h3" />
+                    </svg>
+                    <div>
+                    <span>Release Date</span>
+                    <time [attr.datetime]="data().releaseDate">{{ data().releaseDate | date: 'MMM d, y' }}</time>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="patch-source">
+            Source:
+            @if (httpUrl(data().sourceUrl); as sourceUrl) {
+                <a [href]="sourceUrl" target="_blank" rel="noopener noreferrer">{{
+                    data().sourceName || 'Image source'
+                }}</a>
+            } @else {
+                {{ data().sourceName || 'Not provided' }}
+            }
+            @if (data().imageUrl && failedImage() === imageUrl(data().imageUrl)) {
+                <span> &middot; Image unavailable</span>
+            }
+        </div>
+        }
+        <div class="patch-groups">
+            @for (group of groups(); track group.id; let index = $index) {
+                <section
+                    class="patch-content-group"
+                    [class.alternate]="index % 2 === 1"
+                    [id]="groupAnchor(group.id)"
+                    tabindex="-1"
+                    [attr.aria-labelledby]="groupAnchor(group.id) + '-title'"
+                >
+                    <div class="patch-group-heading">
+                        <h4 [id]="groupAnchor(group.id) + '-title'">{{ group.title }}</h4>
+                        <span>{{ groupCompleted(group.rows) }} / {{ questCount(group.rows) }}</span>
+                    </div>
+                    <div
+                        class="patch-table-scroll"
+                        tabindex="0"
+                        role="region"
+                        [attr.aria-label]="group.title + ' content'"
+                    >
+                        <table class="patch-table">
+                            <caption>
+                                {{
+                                    entry().name
+                                }}
+                                &mdash;
+                                {{
+                                    group.title
+                                }}
+                            </caption>
+                            <colgroup>
+                                <col class="completion-column" />
+                                <col class="content-column" />
+                                <col class="patch-column" />
+                            </colgroup>
+                            <colgroup>
+                                <col />
+                                <col />
+                            </colgroup>
+                            <thead>
+                                <tr class="patch-column-headings">
+                                    <th scope="col">Completed</th>
+                                    <th scope="col">Content</th>
+                                    <th scope="col">Patch</th>
+                                    <th scope="colgroup" colspan="2">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (row of group.rows; track row.id) {
+                                    @if (worldQuests() && row.rowType === 'heading') {
+                                        <tr class="world-secondary-heading"><th colspan="5" scope="rowgroup">{{ row.content }}</th></tr>
+                                    } @else if (worldQuests() && row.rowType === 'note') {
+                                        <tr><td colspan="5"><div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div></td></tr>
+                                    } @else {
+                                    <tr
+                                        [class.row-completed]="entry().storyRowCompletion?.[row.id]"
+                                    >
+                                        <td class="patch-completed">
+                                            <input
+                                                type="checkbox"
+                                                [checked]="
+                                                    entry().storyRowCompletion?.[row.id] ?? false
+                                                "
+                                                [disabled]="store.saving() || store.loading()"
+                                                [attr.aria-label]="
+                                                    'Mark ' + (row.content || 'row') + ' complete'
+                                                "
+                                                (change)="toggle(row)"
+                                            />
+                                        </td>
+                                        <td class="patch-content-cell" [class.sub-quest]="row.subQuest">
+                                            @if (row.subQuest) {
+                                                <span class="sub-quest-label">Sub-quest: </span>
+                                            }
+                                            @if (httpUrl(row.contentUrl || row.content); as url) {
+                                                <a
+                                                    [href]="url"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    >{{ row.content || url
+                                                    }}<span aria-hidden="true"> &#8599;</span></a
+                                                >
+                                            } @else {
+                                                {{ row.content }}
+                                            }
+                                        </td>
+                                        <td class="patch-version-cell">{{ row.patch }}</td>
+                                        <td [attr.colspan]="row.notesRight === undefined ? 2 : 1">
+                                            <div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div>
+                                        </td>
+                                        @if (row.notesRight !== undefined) {
+                                            <td><div class="notes-markdown" [innerHTML]="row.notesRight | notesMarkdown"></div></td>
+                                        }
+                                    </tr>
+                                    }
+                                } @empty {
+                                    <tr>
+                                        <td colspan="5" class="patch-empty">
+                                            No content in this group yet.
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+        </div>
+    </div>
+}
