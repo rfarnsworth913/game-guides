@@ -1,3 +1,4 @@
+<ng-template #storyNavigation>
 <div class="story-navigation">
     <div
         class="story-tabs"
@@ -14,7 +15,7 @@
                 aria-controls="story-section-content"
                 [tabIndex]="active()?.id === section.id ? 0 : -1"
                 [class.active]="active()?.id === section.id"
-                (click)="selected.set(section.id)"
+                (click)="selectSection(section.id)"
             >
                 <ng-container
                     *ngTemplateOutlet="sectionIcon; context: { $implicit: section.icon }"
@@ -45,6 +46,8 @@
     </button>
 </div>
 
+</ng-template>
+
 @if (active(); as section) {
     <section
         id="story-section-content"
@@ -52,29 +55,75 @@
         [attr.aria-labelledby]="'story-tab-' + section.id"
         tabindex="0"
     >
-        <header class="story-heading">
-            <div>
-                <h2>{{ section.name }}</h2>
-                <p>
-                    {{ subsections().length }}
-                    {{ subsections().length === 1 ? 'subsection' : 'subsections' }}
-                </p>
-            </div>
-            <div class="story-progress-circles">
-                @for (progress of progressCircles(); track progress.id) {
-                    <div class="story-progress-item" [attr.data-story-topic]="progress.id">
-                        <div class="story-progress-ring" role="progressbar"
-                            [attr.aria-label]="progress.title + ' completion'"
-                            aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progress.percent"
-                            [attr.aria-valuetext]="progress.total ? progress.completed + ' of ' + progress.total + ' completed' : 'No tracked items'"
-                            [style.--progress]="progress.percent + '%'">
-                            <span>{{ progress.percent }}%</span>
+        <div class="story-sticky-header" #stickyHeader>
+            <ng-container *ngTemplateOutlet="storyNavigation" />
+        <div class="story-overview" [class.collapsed]="!showCategoryProgress()">
+            <header class="story-heading">
+                <div class="story-overview-identity">
+                    @if (sectionImage(); as image) { <img [src]="image" alt="" class="story-overview-image" /> }
+                    <div><h2>{{ section.name }}</h2>
+                        <p>{{ subsections().length }} subsections &middot; {{ progressCircles()[0].total }} tracked items</p>
+                    </div>
+                </div>
+                @let overall = progressCircles()[0];
+                <div class="story-overall-progress">
+                    <div class="story-progress-ring" role="progressbar" aria-label="Overall completion"
+                        aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="overall.percent"
+                        [style.--progress]="overall.percent + '%'"><span>{{ overall.percent }}%</span></div>
+                    <div><h3>Overall Progress</h3><p>{{ overall.completed }} / {{ overall.total }} complete</p>
+                        <progress [value]="overall.completed" [max]="overall.total || 1" aria-label="Overall progress"></progress>
+                    </div>
+                </div>
+                <button type="button" class="story-category-toggle"
+                    [attr.aria-expanded]="showCategoryProgress()" aria-controls="story-category-progress"
+                    [attr.aria-label]="showCategoryProgress() ? 'Collapse category progress' : 'Expand category progress'"
+                    [title]="showCategoryProgress() ? 'Collapse category progress' : 'Expand category progress'"
+                    (click)="showCategoryProgress.set(!showCategoryProgress())">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        [class.expanded]="showCategoryProgress()"><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+            </header>
+            @if (showCategoryProgress()) {
+                <div id="story-category-progress" class="story-category-cards">
+                    @for (progress of progressCircles().slice(1); track progress.id) {
+                        <div class="story-category-card" [attr.data-story-topic]="progress.id">
+                            <div><span class="story-category-icon" aria-hidden="true">{{ topicIcon(progress.id) }}</span>
+                                <strong>{{ progress.title }}</strong><span>{{ progress.percent }}%</span></div>
+                            <progress [value]="progress.completed" [max]="progress.total || 1" [attr.aria-label]="progress.title + ' completion'"></progress>
+                            <small>{{ progress.completed }} / {{ progress.total }}</small>
                         </div>
-                        <strong>{{ progress.title }}</strong>
-                        <small>{{ progress.completed }} / {{ progress.total }}</small>
+                    }
+                </div>
+            }
+        </div>
+        <div class="story-overview-toolbar">
+            <div class="story-search">
+                <label class="story-search-input">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
+                    <input type="search" aria-label="Search all story guides for the current game"
+                        placeholder="Search guide..." [ngModelOptions]="{standalone:true}"
+                        [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
+                        (keydown.escape)="searchQuery.set(''); $event.stopPropagation()" />
+                </label>
+                @if (searchQuery().trim()) {
+                    <div class="story-search-results" aria-label="Story guide search results">
+                        <div class="story-search-results-heading"><span role="status">{{ searchResults().length }} results in this game</span>
+                            <button type="button" (click)="searchQuery.set('')">Clear</button></div>
+                        @for (result of searchResults(); track result.id) {
+                            <button type="button" class="story-search-result" (click)="openSearchResult(result)">
+                                <strong>{{ result.title }}</strong><small>{{ result.context }}</small>
+                                @if (result.excerpt) { <span>{{ result.excerpt }}</span> }
+                            </button>
+                        } @empty { <p>No matching content. Try another title, note, link, or patch.</p> }
                     </div>
                 }
             </div>
+<div class="story-progress-controls">
+    <label><input type="checkbox" role="switch" [checked]="incompleteOnly()"
+        [disabled]="editMode()" (change)="incompleteOnly.set(!incompleteOnly())" />Show incomplete only</label>
+    <button type="button" [disabled]="busy() || resetting()" (click)="confirmReset = true">Reset progress</button>
+</div>
+
             @if (editMode()) {
                 <div class="story-actions">
                     <button
@@ -113,7 +162,9 @@
                     </button>
                 </div>
             }
-        </header>
+
+        </div>
+        </div>
         <div class="story-content-layout">
             @if (subsections().length) {
                 <nav class="story-outline" aria-label="Guide contents">
@@ -129,7 +180,8 @@
                     }
                 </nav>
             }
-            <div class="story-subsections">
+            <div class="story-subsections" [class.reordering]="dragId()">
+                <span class="reorder-status" role="status" aria-live="polite">{{ reorderNotice() }}</span>
                 @for (entry of displayedSubsections(); track entry.id) {
                     <article
                         class="panel story-section"
@@ -138,10 +190,27 @@
                         tabindex="-1"
                         [attr.data-story-topic]="topic(entry).id"
                         [class.completed]="entry.completed"
+                        [attr.data-story-entry]="entry.id"
+                        [class.story-dragging]="dragId() === entry.id"
+                        [class.story-drop-before]="dropId() === entry.id && dragId() !== entry.id && !dropAfter()"
+                        [class.story-drop-after]="dropId() === entry.id && dragId() !== entry.id && dropAfter()"
                     >
                         @if (!hasTemplate(entry) || editMode()) {
                             <header class="story-section-header">
                                 <div class="story-subsection-title">
+                                    @if (editMode()) {
+                                        <button type="button" class="story-drag-handle" [disabled]="busy()"
+                                            [attr.aria-label]="'Reorder ' + entry.name"
+                                            title="Drag to reorder, or use the Up and Down arrow keys"
+                                            (pointerdown)="startReorder($event, entry)"
+                                            (keydown)="reorderWithKeyboard($event, entry)">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                                                <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
+                                                <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+                                                <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
+                                            </svg>
+                                        </button>
+                                    }
                                     @if (!hasTemplate(entry)) {
                                         <input
                                             type="checkbox"
@@ -180,20 +249,33 @@
                                 }
                             </header>
                         }
-                        @if (entry.category === 'world-quests') {
-                            <gg-world-quests [entry]="entry" />
+                        <div class="story-entry-body" [hidden]="!!dragId()">
+                        @if (showEntry(entry)) {
+                        @if (entry.category === 'character-information') {
+                            <gg-character-information [entry]="entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
+                        } @else if (entry.category === 'lore') {
+                        <gg-lore [entry]="entry" [editing]="editor === entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
+                    } @else if (entry.category === 'world-quests') {
+                            <gg-world-quests [entry]="entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
                         } @else if (hasTemplate(entry)) {
-                            <gg-patch-overview [entry]="entry" />
-                        }
-                        @for (quest of attachedQuests(entry); track quest.id) {
-                            <div class="attached-world-quests">
-                                <gg-world-quests [entry]="quest" />
-                                @if (quest.notes) { <p class="story-copy">{{ quest.notes }}</p> }
-                            </div>
+                            <gg-patch-overview [entry]="entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
                         }
                         @if (entry.notes) {
                             <p class="story-copy">{{ entry.notes }}</p>
                         }
+                        }
+                        @for (quest of attachedQuests(entry); track quest.id) {
+                            @if (showEntry(quest)) {
+                            <div class="attached-world-quests">
+                                @if (quest.category === 'character-information') {
+                                    <gg-character-information [entry]="quest" [incompleteOnly]="incompleteOnly() && !editMode()" />
+                                } @else if (quest.category === 'lore') { <gg-lore [entry]="quest" [incompleteOnly]="incompleteOnly() && !editMode()" />
+                                } @else { <gg-world-quests [entry]="quest" [incompleteOnly]="incompleteOnly() && !editMode()" /> }
+                                @if (quest.notes) { <p class="story-copy">{{ quest.notes }}</p> }
+                            </div>
+                            }
+                        }
+                        </div>
                     </article>
                 } @empty {
                     <section class="panel empty">
@@ -202,7 +284,9 @@
                             {{
                                 editMode()
                                     ? 'Add a subsection for an overview, quest, event, or other story topic.'
-                                    : 'No guide content yet. Turn on edit mode to add subsections.'
+                                    : incompleteOnly()
+                                      ? 'No incomplete items in this navigation category.'
+                                      : 'No guide content yet. Turn on edit mode to add subsections.'
                             }}
                         </p>
                     </section>
@@ -211,6 +295,7 @@
         </div>
     </section>
 } @else {
+    <div class="story-sticky-header" #stickyHeader><ng-container *ngTemplateOutlet="storyNavigation" /></div>
     <section class="panel empty">
         <h2>Organize your story guides</h2>
         <p>
@@ -227,22 +312,28 @@
     <div class="modal-backdrop">
         <section
             class="modal"
-            [class.patch-modal]="hasTemplate(entry)"
+            [class.create-subsection-modal]="isNewSubsection()"
+            [class.patch-modal]="hasTemplate(entry) && !isNewSubsection()"
             role="dialog"
             aria-modal="true"
             aria-labelledby="story-editor-title"
+            [attr.aria-describedby]="isNewSubsection() ? 'story-create-description' : null"
             ggDialogFocus
             (keydown.escape)="editor = null"
         >
             <div class="section-title">
                 <h2 id="story-editor-title">
-                    {{ entry.kind === 'story-category' ? 'Navigation Category' : 'Subsection' }}
+                    {{ entry.kind === 'story-category' ? 'Navigation Category' : isNewSubsection() ? 'Create Subsection' : 'Subsection' }}
                 </h2>
                 <button type="button" aria-label="Close editor" (click)="editor = null">
                     &#215;
                 </button>
             </div>
-            <form (ngSubmit)="save()">
+            @if (isNewSubsection()) {
+                <p id="story-create-description" class="story-create-description">Add a new content section to your story guide.</p>
+            }
+            <form (ngSubmit)="save()" #sectionForm="ngForm">
+                @if (entry.kind === 'story-category') {
                 <label
                     >Title<input
                         name="title"
@@ -251,7 +342,9 @@
                         maxlength="200"
                         placeholder="e.g. Mondstadt or Version 6.0"
                 /></label>
-                @if (entry.kind === 'story-category') {
+
+                    <gg-game-image-picker [game]="entry.game" label="Section Image"
+                        [value]="entry.sectionImageUrl ?? ''" (valueChange)="entry.sectionImageUrl = $event" />
                     <label
                         >Icon or icon URL<input
                             name="icon"
@@ -260,19 +353,13 @@
                     /></label>
                 } @else {
                     <label
-                        >Navigation Category<select name="section" [(ngModel)]="entry.storySection">
-                            @for (section of sections(); track section.id) {
-                                <option [value]="section.id">{{ section.name }}</option>
-                            }
-                        </select></label
-                    >
-                    <label
                         >Content Template<select
                             name="topic"
+                            required
                             [ngModel]="entry.category"
                             (ngModelChange)="setTopic(entry, $event)"
                         >
-                            @for (topic of topics(); track topic.id) {
+                            @for (topic of sortedTopics(); track topic.id) {
                                 <option [value]="topic.id">{{ topic.title }}</option>
                             }
                             @if (topic(entry).id !== entry.category) {
@@ -282,36 +369,46 @@
                             }
                         </select></label
                     >
-                    @if (entry.category === 'world-quests') {
-                        <p>In reading mode, this template follows the preceding Main Story or Patch Overview in this navigation category. Use Order to position it.</p>
+                    <label
+                        >Navigation Category<select name="section" required [(ngModel)]="entry.storySection">
+                            @for (section of sections(); track section.id) {
+                                <option [value]="section.id">{{ section.name }}</option>
+                            }
+                        </select></label
+                    >
+                <label
+                    >Section Title<input
+                        name="title"
+                        [(ngModel)]="entry.name"
+                        required
+                        maxlength="200"
+                        placeholder="e.g. The Outlander Who Caught the Wind"
+                /></label>
+                    @if (!isNewSubsection()) {
+                    @if (entry.category === 'character-information') {
+                        <p>Use primary sections for characters or topics, secondary headings for groupings, and global notes for shared information. In reading mode this follows the preceding story or patch template.</p>
+                        <gg-character-information [entry]="entry" [editing]="true" />
+                    } @else if (entry.category === 'lore') {
+                        <gg-lore [entry]="entry" [editing]="editor === entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
+                    } @else if (entry.category === 'world-quests') {
+                        <p>In reading mode, this template follows the preceding story or patch template in this navigation category. Drag its edit header to position it.</p>
                         <gg-world-quests [entry]="entry" [editing]="true" />
                     } @else if (hasTemplate(entry)) {
                         <gg-patch-overview [entry]="entry" [editing]="true" />
                     }
-                    <label
-                        >Content<textarea
-                            name="content"
-                            rows="6"
-                            [(ngModel)]="entry.notes"
-                            placeholder="Add guide notes for this subsection"
-                        ></textarea>
-                    </label>
                 }
-                <label
-                    >Order<input
-                        name="order"
-                        type="number"
-                        min="0"
-                        step="1"
-                        [(ngModel)]="entry.order"
-                        required
-                /></label>
+                }
                 @if (error) {
                     <p class="error" role="alert">{{ error }}</p>
                 }
                 <div class="modal-actions">
-                    <button type="button" (click)="editor = null">Cancel</button
-                    ><button type="submit" class="primary" [disabled]="busy()">Save changes</button>
+                    @if (isNewSubsection()) {
+                        <button type="submit" class="primary" [disabled]="busy() || sectionForm.invalid || !validNewSubsection()">Create Subsection</button>
+                        <button type="button" class="cancel-create" (click)="editor = null">Cancel</button>
+                    } @else {
+                        <button type="submit" class="primary" [disabled]="busy()">Save changes</button>
+                        <button type="button" (click)="editor = null">Cancel</button>
+                    }
                 </div>
             </form>
         </section>
@@ -358,3 +455,19 @@
         </span>
     }
 </ng-template>
+
+@if (confirmReset) {
+    <div class="modal-backdrop">
+        <section class="modal small" role="alertdialog" aria-modal="true"
+            aria-labelledby="reset-story-title" ggDialogFocus
+            (keydown.escape)="!resetting() && (confirmReset = false)">
+            <h2 id="reset-story-title">Reset story progress?</h2>
+            <p>This clears completion for every story guide and content row in the current game, across all navigation categories, on this device.</p>
+            @if (store.error()) { <p class="error" role="alert">{{ store.error() }}</p> }
+            <div class="modal-actions">
+                <button type="button" [disabled]="resetting()" (click)="confirmReset = false">Cancel</button>
+                <button type="button" class="danger" [disabled]="busy() || resetting()" (click)="resetProgress()">Reset progress</button>
+            </div>
+        </section>
+    </div>
+}

@@ -3,18 +3,20 @@ export const STORY_CONTENT_TYPES = [
     { id: 'patch-overview', title: 'Patch Overview' },
     { id: 'main-story', title: 'Main Story' },
     { id: 'side-stories', title: 'Character / Side Stories' },
-    { id: 'world-quests', title: 'World Quests' },
-    { id: 'events', title: 'Events' },
-    { id: 'lore', title: 'Lore' },
     { id: 'character-information', title: 'Character Information' },
+    { id: 'events', title: 'Events' },
+    { id: 'world-quests', title: 'World Quests' },
+    { id: 'lore', title: 'Lore' },
 ] as const;
 
 export type StoryContentType = typeof STORY_CONTENT_TYPES[number]['id'];
 
 /** Add game terminology here without changing templates, topic colors, or saved categories. */
 export const GAME_STORY_NAMES: Readonly<Record<string, Partial<Record<StoryContentType, string>>>> = {
-    genshin: { 'main-story': 'Archon Quest', 'side-stories': 'Story Quest' },
+    genshin: { 'main-story': 'Archon Quest', 'side-stories': 'Story Quest', 'character-information': 'Character Info' },
     hsr: { 'main-story': 'Trailblaze Mission' },
+    zzz: { 'main-story': "Phaethon's Story", 'side-stories': 'Agent Story' },
+    endfield: { 'main-story': 'Main Mission', 'side-stories': 'Character Stories', 'character-information': 'Operator Info' },
 };
 
 export function storyContentName(game: string, type: StoryContentType): string {

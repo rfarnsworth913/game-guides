@@ -16,6 +16,7 @@ export function encodeStory(entries: CatalogEntry[]): Document[] {
                 title: section.name,
                 order: section.order,
                 icon: section.icon ?? '',
+                ...(section.sectionImageUrl !== undefined ? { imageUrl: section.sectionImageUrl } : {}),
                 content: {
                     subsections: normalized.filter(
                         (entry) => entry.kind === 'story' && entry.storySection === section.id,
@@ -39,6 +40,7 @@ export function decodeStory(story: Document[], game: string): CatalogEntry[] {
             name: section.title,
             order: Number(section.order),
             icon: section.icon ?? '',
+            ...(section.imageUrl !== undefined ? { sectionImageUrl: section.imageUrl } : {}),
             game,
             kind: 'story-category',
             notes: '',

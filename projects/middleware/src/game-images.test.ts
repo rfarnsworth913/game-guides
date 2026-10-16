@@ -34,6 +34,15 @@ test('game image uploads persist, list per game, serve immediately and reject un
     assert.equal(served.headers.get('content-type'), 'image/png');
     assert.deepEqual(Buffer.from(await served.arrayBuffer()), png);
     assert.deepEqual(await (await fetch(endpoint)).json(), { images: [image] });
+    const metadata = { title: 'The Red Knight', category: 'banner', tags: 'Endfield Laevatain', description: 'Banner artwork', sourceName: 'Official site', sourceUrl: 'https://example.com', width: 1200, height: 400 };
+    const update = (body: unknown, origin?: string) => fetch(`${base}${image.url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) }, body: JSON.stringify(body) });
+    assert.equal((await update(metadata)).status, 200);
+    assert.deepEqual(await (await fetch(endpoint)).json(), { images: [{ ...image, details: metadata }] });
+    assert.deepEqual(JSON.parse(await readFile(join(root, 'arknights-endfield', `${image.name}.json`), 'utf8')), metadata);
+    assert.equal((await update({ ...metadata, sourceUrl: 'javascript:alert(1)' })).status, 400);
+    assert.equal((await update({ ...metadata, category: 'unsupported' })).status, 400);
+    assert.equal((await update(metadata, 'https://unrelated.example')).status, 403);
+    assert.equal((await update({ ...metadata, title: 'Updated' })).status, 200);
     assert.deepEqual(await (await fetch(`${base}/api/games/genshin/images`)).json(), { images: [] });
     assert.equal((await fetch(`${base}/api/games/genshin/images/${image.name}`)).status, 404);
     assert.notEqual((await (await upload()).json()).name, image.name);

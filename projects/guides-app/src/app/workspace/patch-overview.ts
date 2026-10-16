@@ -23,15 +23,69 @@ import {
 export class PatchOverviewTemplate {
     readonly entry = input.required<Entry>();
     readonly editing = input(false);
+    readonly incompleteOnly = input(false);
     readonly store = inject(WorkspaceStore);
-    readonly worldQuests = computed(() => this.entry().category === 'world-quests');
-    readonly storyBanner = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
-    readonly data = computed(() => (this.worldQuests() ? this.entry().worldQuests : this.entry().category === 'side-stories' ? this.entry().sideStories : this.entry().category === 'main-story' ? this.entry().mainStory : this.entry().patchOverview) ?? emptyPatchOverview());
+    readonly groupedTemplate = computed(() => ['world-quests', 'lore', 'character-information'].includes(this.entry().category));
+    readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events'].includes(this.entry().category));
+    readonly data = computed(() => (this.entry().category === 'events' ? this.entry().eventStory : this.entry().category === 'character-information' ? this.entry().characterInformation : this.entry().category === 'lore' ? this.entry().lore
+            : this.entry().category === 'world-quests' ? this.entry().worldQuests : this.entry().category === 'side-stories' ? this.entry().sideStories : this.entry().category === 'main-story' ? this.entry().mainStory : this.entry().patchOverview) ?? emptyPatchOverview());
     readonly failedImage = signal('');
+    readonly expandedRow = signal('');
+    readonly multilineRows = signal<string[]>([]);
+    readonly draggingRow = signal('');
+    readonly rowDropTarget = signal('');
+    readonly rowDropAfter = signal(false);
+    toggleMultiline(id: string): void {
+        this.multilineRows.update((rows) => rows.includes(id) ? rows.filter((row) => row !== id) : [...rows, id]);
+    }
+    rowTitle(row: StoryTableRow): string {
+        return (row.rowType === 'note' ? row.notes : row.content).trim().split('\n')[0] ||
+            (row.rowType === 'heading' ? 'New heading' : row.rowType === 'note' ? 'Global notes' : 'Untitled content');
+    }
+    toggleRow(event: Event, id: string): void {
+        event.preventDefault();
+        this.expandedRow.set(this.expandedRow() === id ? '' : id);
+    }
+    resizeNotes(event: Event): void {
+        const input = event.target as HTMLTextAreaElement;
+        input.style.height = 'auto';
+        input.style.height = `${input.scrollHeight}px`;
+    }
+    startRowDrag(event: DragEvent, row: StoryTableRow): void {
+        if (!this.editing()) { event.preventDefault(); return; }
+        event.dataTransfer?.setData('text/plain', row.id);
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+        this.draggingRow.set(row.id);
+        this.expandedRow.set('');
+    }
+    allowRowDrop(event: DragEvent, row: StoryTableRow): void {
+        const source = this.data().rows.find((item) => item.id === this.draggingRow());
+        if (!source || (source.groupId ?? '') !== (row.groupId ?? '')) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        this.rowDropTarget.set(row.id);
+        this.rowDropAfter.set(event.clientY > bounds.top + bounds.height / 2);
+    }
+    dropRow(event: DragEvent, target: StoryTableRow): void {
+        event.preventDefault();
+        const rows = this.data().rows;
+        const source = rows.find((row) => row.id === this.draggingRow());
+        if (source && source !== target && (source.groupId ?? '') === (target.groupId ?? '')) {
+            const next = rows.filter((row) => row !== source);
+            next.splice(next.indexOf(target) + (this.rowDropAfter() ? 1 : 0), 0, source);
+            this.data().rows = next;
+        }
+        this.endRowDrag();
+    }
+    endRowDrag(): void {
+        this.draggingRow.set('');
+        this.rowDropTarget.set('');
+    }
     readonly standalone = { standalone: true };
     readonly httpUrl = httpUrl;
     readonly imageUrl = storyImageUrl;
-    readonly storyTemplateName = computed(() => storyContentName(this.entry().game, this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
+    readonly storyTemplateName = computed(() => storyContentName(this.entry().game, this.entry().category === 'events' ? 'events' : this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
     readonly gameName = computed(
         () => GAMES.find((game) => game.id === this.entry().game)?.name ?? '',
     );
@@ -45,7 +99,11 @@ export class PatchOverviewTemplate {
         return rows.filter((row) => !row.rowType || row.rowType === 'quest').length;
     }
     groups() {
-        return patchGroups(this.data());
+        const groups = patchGroups(this.data());
+        if (!this.incompleteOnly() || this.editing()) return groups;
+        return groups.map((group) => ({ ...group, rows: group.rows.filter((row) =>
+            row.rowType === 'heading' || row.rowType === 'note' || !this.entry().storyRowCompletion?.[row.id],
+        ) })).filter((group) => this.questCount(group.rows) > 0);
     }
     addGroup(): void {
         preparePatchGroups(this.data());
@@ -66,15 +124,17 @@ export class PatchOverviewTemplate {
         return this.data().rows.filter((row) => (row.groupId ?? '') === id);
     }
     addRow(groupId = '', rowType: StoryTableRow['rowType'] = 'quest'): void {
+        const id = crypto.randomUUID();
         this.data().rows.push({
-            id: crypto.randomUUID(),
-            ...(this.worldQuests() ? { rowType } : {}),
+            id,
+            ...(this.groupedTemplate() ? { rowType } : {}),
             contentType: '',
             ...(groupId ? { groupId } : {}),
             content: '',
-            patch: '',
+            patch: this.data().groups?.find((group) => group.id === groupId)?.defaultPatch ?? '',
             notes: '',
         });
+        this.expandedRow.set(id);
     }
     removeRow(id: string): void {
         this.data().rows = this.data().rows.filter((row) => row.id !== id);

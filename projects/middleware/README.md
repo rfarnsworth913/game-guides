@@ -151,6 +151,13 @@ Only image references are saved in MongoDB. Back up the assets directory alongsi
 database: browser JSON backups do not embed uploaded files. Uploads remain in the game
 library even when an editing dialog is cancelled.
 
+The image picker opens a separate library dialog with search, image-type filters, and
+explicit selection confirmation. Banner position is stored with the story template.
+"Save Details to Library" writes a JSON sidecar beside an uploaded image, containing its
+friendly title, category, search tags, dimensions, description, and attribution. These details
+are reused when selecting that image elsewhere. Include sidecars when backing up assets.
+Use `PUT /api/games/:id/images/:filename` with a JSON details object to update them.
+
 Game IDs: `genshin`, `hsr`, `wuwa`, `zzz`, `endfield`.
 Invalid schemas/references return 400; unknown games 404; stale revisions 409;
 oversized payloads 413; non-JSON writes 415; unavailable database 503.

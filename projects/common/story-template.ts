@@ -11,6 +11,13 @@ export type StoryTableRow = {
     notesRight?: string;
 };
 export type PatchOverview = {
+    imagePositionX?: number;
+    imagePositionY?: number;
+    characterName?: string;
+    damageType?: string;
+    damageTypeIcon?: string;
+    faction?: string;
+    factionIcon?: string;
     region?: string;
     subtitle?: string;
     versionImageUrl?: string;
@@ -18,7 +25,7 @@ export type PatchOverview = {
     patchTitle?: string;
     releaseDate?: string;
     summary?: string;
-    groups?: { id: string; title: string }[];
+    groups?: { id: string; title: string; defaultPatch?: string }[];
     imageUrl: string;
     imageAlt: string;
     sourceName: string;
@@ -37,12 +44,15 @@ export const emptyPatchOverview = (): PatchOverview => ({
 /** Trim user-entered text without changing identifiers or internal formatting. */
 export function trimPatchOverviewText(patch: PatchOverview): void {
     const fields = ['imageUrl', 'imageAlt', 'sourceName', 'sourceUrl', 'versionImageUrl',
-        'patchVersion', 'patchTitle', 'releaseDate', 'summary', 'region', 'subtitle'] as const;
+        'patchVersion', 'patchTitle', 'releaseDate', 'summary', 'region', 'subtitle', 'characterName', 'damageType', 'damageTypeIcon', 'faction', 'factionIcon'] as const;
     for (const key of fields) {
         const value = patch[key];
         if (typeof value === 'string') patch[key] = value.trim();
     }
-    for (const group of patch.groups ?? []) group.title = group.title.trim();
+    for (const group of patch.groups ?? []) {
+        group.title = group.title.trim();
+        if (group.defaultPatch !== undefined) group.defaultPatch = group.defaultPatch.trim();
+    }
     for (const row of patch.rows) {
         for (const key of ['contentType', 'content', 'contentUrl', 'patch', 'notes', 'notesRight'] as const) {
             const value = row[key];
@@ -113,6 +123,13 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
     return (
         Object.keys(patch).every((key) =>
             [
+                'characterName',
+                'damageType',
+                'damageTypeIcon',
+                'faction',
+                'factionIcon',
+                'imagePositionX',
+                'imagePositionY',
                 'region',
                 'subtitle',
                 'imageUrl',
@@ -131,12 +148,13 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
         [patch.imageUrl, patch.imageAlt, patch.sourceName, patch.sourceUrl].every(
             (item) => typeof item === 'string',
         ) &&
+        [patch.imagePositionX, patch.imagePositionY].every((value) => value === undefined || (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100)) &&
         (!patch.imageUrl || !!storyImageUrl(patch.imageUrl)) &&
         (patch.versionImageUrl === undefined ||
             (typeof patch.versionImageUrl === 'string' &&
                 (!patch.versionImageUrl || !!storyImageUrl(patch.versionImageUrl)))) &&
         (!patch.sourceUrl || !!httpUrl(patch.sourceUrl)) &&
-        [patch.patchVersion, patch.patchTitle, patch.releaseDate, patch.summary, patch.region, patch.subtitle].every(
+        [patch.patchVersion, patch.patchTitle, patch.releaseDate, patch.summary, patch.region, patch.subtitle, patch.characterName, patch.damageType, patch.damageTypeIcon, patch.faction, patch.factionIcon].every(
             (value) => value === undefined || typeof value === 'string',
         ) &&
         (!patch.releaseDate ||
@@ -147,7 +165,8 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 patch.groups.every(
                     (group) =>
                         group &&
-                        Object.keys(group).every((key) => ['id', 'title'].includes(key)) &&
+                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch'].includes(key)) &&
+                        (group.defaultPatch === undefined || typeof group.defaultPatch === 'string') &&
                         typeof group.id === 'string' &&
                         !!group.id &&
                         typeof group.title === 'string' &&

@@ -10,9 +10,28 @@ describe('GameImagePicker', () => {
         fixture.componentRef.setInput('label', 'Header image');
         return fixture;
     }
+    it('shows a compact icon control and supports symbols and removal without expanding the form', () => {
+        const fixture = picker();
+        fixture.componentRef.setInput('compact', true);
+        fixture.componentRef.setInput('label', 'Damage Type Icon');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.compact-icon-button')).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.image-picker')).toBeNull();
+        expect(fixture.nativeElement.querySelector('.image-preview')).toBeNull();
+        fixture.componentInstance.iconDraft.set('  Fire  ');
+        fixture.componentInstance.useIconDraft();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.value()).toBe('Fire');
+        expect(fixture.nativeElement.querySelector('.compact-icon-button').textContent).toContain('Fire');
+        const remove = [...fixture.nativeElement.querySelectorAll('.compact-icon-menu button')]
+            .find((button: any) => button.textContent.trim() === 'Remove Icon') as HTMLButtonElement;
+        remove.click();
+        expect(fixture.componentInstance.value()).toBe('');
+    });
 
     it('loads the current game library and selects a previously uploaded image', async () => {
-        const image = { name: 'banner.png', url: '/api/games/endfield/images/banner.png' };
+        const image = { name: 'banner.png', url: '/api/games/endfield/images/banner.png',
+            details: { title: 'The Red Knight', category: 'banner', description: 'Knight artwork', sourceName: 'Official site', sourceUrl: 'https://example.com' } };
         const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ images: [image] }) });
         vi.stubGlobal('fetch', fetchMock);
         const fixture = picker();
@@ -21,8 +40,38 @@ describe('GameImagePicker', () => {
         expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images');
         const button = fixture.nativeElement.querySelector('.image-library button') as HTMLButtonElement;
         button.click();
+        expect(fixture.componentInstance.value()).toBe('');
+        expect(fixture.componentInstance.open()).toBe(true);
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('.use-selected') as HTMLButtonElement).click();
         expect(fixture.componentInstance.value()).toBe(image.url);
+        expect(fixture.componentInstance.description()).toBe('Knight artwork');
+        expect(fixture.componentInstance.sourceName()).toBe('Official site');
+        expect(fixture.componentInstance.sourceUrl()).toBe('https://example.com');
         expect(fixture.componentInstance.open()).toBe(false);
+    });
+
+    it('cancels selection without changing the parent value or attribution', async () => {
+        const component = picker().componentInstance;
+        component.value.set('https://example.com/original.png');
+        component.description.set('Keep this description');
+        component.pending.set({ name: 'new.png', url: '/api/games/endfield/images/new.png' });
+        component.open.set(true);
+        component.cancelLibrary();
+        expect(component.value()).toBe('https://example.com/original.png');
+        expect(component.description()).toBe('Keep this description');
+        expect(component.pending()).toBeNull();
+    });
+
+    it('filters by tags and type and detects the recommended banner ratio', () => {
+        const component = picker().componentInstance;
+        const banner = { name: 'red-knight.png', url: '/a', details: { title: 'Red Knight', tags: 'Endfield Laevatain', category: 'banner' as const, width: 1200, height: 400 } };
+        component.images.set([banner, { name: 'icon.png', url: '/b', details: { category: 'icon' } }]);
+        component.search.set('laevatain');
+        expect(component.filteredImages()).toEqual([banner]);
+        component.filter.set('icon');
+        expect(component.filteredImages()).toEqual([]);
+        expect(component.matchesBanner(banner)).toBe(true);
     });
 
     it('uploads image bytes and uses the returned reference', async () => {

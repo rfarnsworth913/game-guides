@@ -268,6 +268,13 @@ export class WorkspaceStore {
     async save(entry: Entry): Promise<boolean> {
         return this.replace([...this.entries().filter((e) => e.id !== entry.id), entry]);
     }
+    async resetStoryProgress(game: string): Promise<boolean> {
+        return this.replace(this.entries().map((entry) =>
+            entry.game === game && (entry.kind === 'story' || entry.kind === 'story-category')
+                ? { ...entry, completed: false, storyRowCompletion: {} }
+                : entry,
+        ));
+    }
     async remove(id: string): Promise<boolean> {
         return this.replace(
             this.entries()

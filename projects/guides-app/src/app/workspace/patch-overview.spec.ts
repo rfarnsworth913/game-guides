@@ -4,7 +4,58 @@ import { Entry, WorkspaceStore } from './workspace.store';
 import { emptyPatchOverview, trimPatchOverviewText } from '../../../../common/story-template';
 
 describe('Patch Overview grouped row editor', () => {
-    it.each(['patch-overview', 'main-story', 'side-stories', 'world-quests'])('%s adds and reorders grouped rows without losing removed group content', (category) => {
+    it('preserves collapsed drafts, inherits group patches and reorders rows without saving', () => {
+        const save = vi.fn();
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save } }] });
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        const entry: Entry = { id: 'draft', game: 'genshin', kind: 'story', category: 'main-story',
+            name: 'Draft', notes: '', rarity: 0, members: [], requirements: [], order: 0, day: '',
+            completed: false, quantity: 0, target: 0,
+            mainStory: { ...emptyPatchOverview(), groups: [{ id: 'a', title: 'A', defaultPatch: '1.1' }, { id: 'b', title: 'B' }] } };
+        fixture.componentRef.setInput('entry', entry);
+        fixture.componentRef.setInput('editing', true);
+        const component = fixture.componentInstance;
+        component.addRow('a');
+        const first = component.data().rows[0];
+        expect(first.patch).toBe('1.1');
+        Object.assign(first, { notes: 'Long draft notes', notesRight: 'Split draft', patch: '1.2' });
+        component.addRow('a');
+        const second = component.data().rows[1];
+        expect(component.expandedRow()).toBe(second.id);
+        component.toggleRow({ preventDefault() {} } as Event, first.id);
+        component.toggleRow({ preventDefault() {} } as Event, first.id);
+        expect(component.expandedRow()).toBe('');
+        expect(first).toMatchObject({ notes: 'Long draft notes', notesRight: 'Split draft', patch: '1.2' });
+        component.addRow('b');
+        const other = component.data().rows[2];
+        component.draggingRow.set(second.id);
+        component.rowDropAfter.set(false);
+        component.dropRow({ preventDefault() {} } as DragEvent, first);
+        expect(component.rowsForGroup('a').map((row) => row.id)).toEqual([second.id, first.id]);
+        component.draggingRow.set(first.id);
+        component.dropRow({ preventDefault() {} } as DragEvent, other);
+        expect(component.rowsForGroup('a').map((row) => row.id)).toEqual([second.id, first.id]);
+        expect(save).not.toHaveBeenCalled();
+    });
+    it('filters completed rows and empty groups while keeping global notes and headings', () => {
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: {} }] });
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        const row = { contentType: '', content: '', patch: '', notes: '' };
+        fixture.componentRef.setInput('entry', {
+            category: 'world-quests', storyRowCompletion: { done: true, finished: true },
+            worldQuests: { ...emptyPatchOverview(), groups: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }], rows: [
+                { ...row, id: 'heading', groupId: 'a', rowType: 'heading' },
+                { ...row, id: 'note', groupId: 'a', rowType: 'note' },
+                { ...row, id: 'done', groupId: 'a' }, { ...row, id: 'pending', groupId: 'a' },
+                { ...row, id: 'finished', groupId: 'b' },
+            ] },
+        });
+        fixture.componentRef.setInput('incompleteOnly', true);
+        expect(fixture.componentInstance.groups().map((group) => group.rows.map((row) => row.id))).toEqual([['heading', 'note', 'pending']]);
+        fixture.componentRef.setInput('editing', true);
+        expect(fixture.componentInstance.groups().length).toBe(2);
+    });
+    it.each(['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events'])('%s adds and reorders grouped rows without losing removed group content', (category) => {
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: {} }] });
         const fixture = TestBed.createComponent(PatchOverviewTemplate);
         const entry: Entry = {
@@ -17,6 +68,10 @@ describe('Patch Overview grouped row editor', () => {
             entry.mainStory = entry.patchOverview;
             delete entry.patchOverview;
         }
+        if (category === 'lore') {
+            entry.lore = entry.patchOverview;
+            delete entry.patchOverview;
+        }
         if (category === 'world-quests') {
             entry.worldQuests = entry.patchOverview;
             delete entry.patchOverview;
@@ -25,10 +80,22 @@ describe('Patch Overview grouped row editor', () => {
             entry.sideStories = entry.patchOverview;
             delete entry.patchOverview;
         }
-        const data = entry.sideStories ?? entry.worldQuests ?? entry.mainStory ?? entry.patchOverview!;
+        if (category === 'character-information') {
+            entry.characterInformation = entry.patchOverview;
+            delete entry.patchOverview;
+        }
+        if (category === 'events') {
+            entry.eventStory = entry.patchOverview;
+            delete entry.patchOverview;
+        }
+        const data = entry.lore ?? entry.eventStory ?? entry.characterInformation ?? entry.sideStories ?? entry.worldQuests ?? entry.mainStory ?? entry.patchOverview!;
         fixture.componentRef.setInput('entry', entry);
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
+        if (category === 'events') {
+            expect(fixture.nativeElement.textContent).toContain('Events Banner');
+            expect(fixture.nativeElement.textContent).not.toContain('Patch Details');
+        }
         const groups = fixture.nativeElement.querySelectorAll('.patch-edit-group') as NodeListOf<HTMLElement>;
         expect(groups.length).toBe(2);
         (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();

@@ -7,10 +7,10 @@ export const routes: Routes = [
         redirectTo: 'dashboard',
         pathMatch: 'full',
     },
-    {
-        path: 'games/:game/:page',
+    ...['games/:game/:page/:section', 'games/:game/:page', ':game/:page/:section', ':game/:page'].map((path) => ({
+        path,
         loadComponent: async () => import('./workspace/workspace').then((m) => m.Workspace),
-    },
+    })),
     ...[
         'inventory',
         'characters',

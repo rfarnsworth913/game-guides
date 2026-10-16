@@ -15,7 +15,10 @@ describe('story completion', () => {
             ] },
         };
         expect(storyProgress([entry])).toEqual({ total: 2, completed: 1, percent: 50 });
-        expect(storyProgress([entry, { category: 'lore', completed: true } as Entry])).toEqual({ total: 3, completed: 2, percent: 67 });
+        const event: Entry = { ...entry, category: 'events', worldQuests: undefined, eventStory: entry.worldQuests };
+        expect(storyProgress([event])).toEqual({ total: 2, completed: 1, percent: 50 });
+        const lore: Entry = { ...entry, category: 'lore', worldQuests: undefined, lore: entry.worldQuests };
+        expect(storyProgress([lore])).toEqual({ total: 2, completed: 1, percent: 50 });
         expect(storyProgress([])).toEqual({ total: 0, completed: 0, percent: 0 });
     });
 });

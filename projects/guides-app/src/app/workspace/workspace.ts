@@ -7,11 +7,12 @@ import { GameTheme } from '../lib/types';
 import { Entry, GAMES, Kind, validEntries, parseBackup, WorkspaceStore } from './workspace.store';
 import { Achievements } from './achievements';
 import { Story } from './story';
+import { BackToTop } from './back-to-top';
 import { DialogFocusDirective } from './dialog-focus';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story],
+    imports: [FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })

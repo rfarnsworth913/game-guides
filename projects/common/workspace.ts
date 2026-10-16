@@ -13,10 +13,14 @@ export type Entry = {
     patchOverview?: PatchOverview;
     mainStory?: PatchOverview;
     sideStories?: PatchOverview;
+    eventStory?: PatchOverview;
     worldQuests?: PatchOverview;
+    lore?: PatchOverview;
+    characterInformation?: PatchOverview;
     storyRowCompletion?: Record<string, boolean>;
     storySection?: string;
     icon?: string;
+    sectionImageUrl?: string;
     wikiUrl?: string;
     reward?: string;
     rewardIcon?: string;
@@ -54,7 +58,7 @@ export const CATALOG_FIELDS = {
 } as const;
 
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
-    const template = entry.category === 'side-stories' ? entry.sideStories : entry.category === 'world-quests' ? entry.worldQuests : entry.category === 'main-story' ? entry.mainStory : entry.category === 'patch-overview' ? entry.patchOverview : undefined;
+    const template = entry.category === 'events' ? entry.eventStory : entry.category === 'character-information' ? entry.characterInformation : entry.category === 'side-stories' ? entry.sideStories : entry.category === 'lore' ? entry.lore : entry.category === 'world-quests' ? entry.worldQuests : entry.category === 'main-story' ? entry.mainStory : entry.category === 'patch-overview' ? entry.patchOverview : undefined;
     const quests = template?.rows.filter((row) => !row.rowType || row.rowType === 'quest');
     return {
         ...entry,
@@ -84,12 +88,16 @@ export function toCatalog(entry: Entry): CatalogEntry {
         requirements: entry.requirements,
         order: entry.order,
         day: entry.day,
+        ...(entry.characterInformation !== undefined ? { characterInformation: entry.characterInformation } : {}),
+        ...(entry.lore !== undefined ? { lore: entry.lore } : {}),
         ...(entry.worldQuests !== undefined ? { worldQuests: entry.worldQuests } : {}),
+        ...(entry.eventStory !== undefined ? { eventStory: entry.eventStory } : {}),
         ...(entry.sideStories !== undefined ? { sideStories: entry.sideStories } : {}),
         ...(entry.mainStory !== undefined ? { mainStory: entry.mainStory } : {}),
         ...(entry.patchOverview !== undefined ? { patchOverview: entry.patchOverview } : {}),
         ...(entry.storySection !== undefined ? { storySection: entry.storySection } : {}),
         ...(entry.icon !== undefined ? { icon: entry.icon } : {}),
+        ...(entry.sectionImageUrl !== undefined ? { sectionImageUrl: entry.sectionImageUrl } : {}),
         ...(entry.wikiUrl !== undefined ? { wikiUrl: entry.wikiUrl } : {}),
         ...(entry.reward !== undefined ? { reward: entry.reward } : {}),
         ...(entry.rewardIcon !== undefined ? { rewardIcon: entry.rewardIcon } : {}),
@@ -114,6 +122,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'order',
         'day',
         'icon',
+        'sectionImageUrl',
         'wikiUrl',
         'reward',
         'rewardIcon',
@@ -123,7 +132,10 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'patchOverview',
         'mainStory',
         'sideStories',
+        'eventStory',
         'worldQuests',
+        'lore',
+        'characterInformation',
     ]);
     if (
         !value.every(
@@ -218,10 +230,14 @@ export function validEntries(value: unknown): value is Entry[] {
                 validPatchOverview(e.patchOverview) &&
                 validPatchOverview(e.mainStory) &&
                 validPatchOverview(e.sideStories) &&
+                validPatchOverview(e.eventStory) &&
                 validPatchOverview(e.worldQuests) &&
+                validPatchOverview(e.lore) &&
+                validPatchOverview(e.characterInformation) &&
                 validRowCompletion(e.storyRowCompletion) &&
                 [
                     e.icon,
+                    e.sectionImageUrl,
                     e.wikiUrl,
                     e.reward,
                     e.requirementText,

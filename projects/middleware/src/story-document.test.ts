@@ -27,6 +27,17 @@ const step: CatalogEntry = {
     notes: 'Follow the wind.',
 };
 
+test('section overview images persist separately from navigation icons and can be cleared', () => {
+    const withImage = { ...section, sectionImageUrl: '/api/games/genshin/images/mondstadt.png' };
+    assert.ok(validCatalog([withImage, step], 'genshin'));
+    const document = encodeEntries([withImage, step]);
+    assert.equal(document['story'][0].category.imageUrl, withImage.sectionImageUrl);
+    assert.deepEqual(decodeEntries(document, 'genshin'), [withImage, step]);
+    const cleared = mergeEntries(document, [{ ...withImage, sectionImageUrl: '' }, step]);
+    assert.equal(decodeEntries(cleared, 'genshin')[0].sectionImageUrl, '');
+    assert.equal(decodeEntries(cleared, 'genshin')[0].icon, 'wind');
+});
+
 test('story sections use category/content wrappers and preserve stable subsection IDs on round trip', () => {
     const document = encodeEntries([section, step]);
     assert.deepEqual(document['story'][0], {

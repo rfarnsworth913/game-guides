@@ -1,31 +1,39 @@
 @if (editing()) {
-    @if (!worldQuests()) {
+    @if (entry().category === 'character-information') {
+        <fieldset>
+            <legend>Character Header</legend>
+            <gg-game-image-picker [game]="entry().game" label="Character image" [(value)]="data().imageUrl" />
+            <label>Character Name<input [ngModelOptions]="standalone" [(ngModel)]="data().characterName" /></label>
+            <div class="patch-fields character-metadata-fields">
+                <div class="character-metadata-field">
+                    <label for="damage-type">Damage Type <small>Optional icon</small></label>
+                    <div class="character-metadata-control">
+                        <input id="damage-type" [ngModelOptions]="standalone" [(ngModel)]="data().damageType" placeholder="e.g. Physical" />
+                        <gg-game-image-picker [game]="entry().game" label="Damage Type Icon" [compact]="true"
+                            [value]="data().damageTypeIcon ?? ''" (valueChange)="data().damageTypeIcon = $event" />
+                    </div>
+                </div>
+                <div class="character-metadata-field">
+                    <label for="character-faction">Faction <small>Optional icon</small></label>
+                    <div class="character-metadata-control">
+                        <input id="character-faction" [ngModelOptions]="standalone" [(ngModel)]="data().faction" placeholder="e.g. Rhodes Island" />
+                        <gg-game-image-picker [game]="entry().game" label="Faction Icon" [compact]="true"
+                            [value]="data().factionIcon ?? ''" (valueChange)="data().factionIcon = $event" />
+                    </div>
+                </div>
+            </div>
+            <p>Icons are optional. Characters can be saved without them.</p>
+        </fieldset>
+    }
+    @if (!groupedTemplate()) {
     <fieldset class="patch-image-editor">
         <legend>{{ storyBanner() ? storyTemplateName() + ' Banner' : 'Patch Overview Banner' }}</legend>
-        <p>Recommended image: 1200 × 400 pixels (3:1). It scales to fit the guide.</p>
-        <gg-game-image-picker [game]="entry().game" label="Header image"
-            [(value)]="data().imageUrl" />
-        <label
-            >Image Description<input
-                name="patchImageAlt"
-                [ngModelOptions]="standalone"
-                [(ngModel)]="data().imageAlt"
-                placeholder="Describe the patch artwork"
-        /></label>
-        <label
-            >Image Source<input
-                name="patchSourceName"
-                [ngModelOptions]="standalone"
-                [(ngModel)]="data().sourceName"
-        /></label>
-        <label
-            >Image URL<input
-                name="patchSourceUrl"
-                [ngModelOptions]="standalone"
-                [(ngModel)]="data().sourceUrl"
-                type="url"
-                placeholder="https://…"
-        /></label>
+        <p>Recommended size: 1200 &#215; 400 &middot; 3:1 aspect ratio</p>
+        <gg-game-image-picker [game]="entry().game" label="Banner" [banner]="true"
+            [(value)]="data().imageUrl" [(description)]="data().imageAlt"
+            [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl"
+            [positionX]="data().imagePositionX ?? 50" (positionXChange)="data().imagePositionX = $event"
+            [positionY]="data().imagePositionY ?? 50" (positionYChange)="data().imagePositionY = $event" />
     </fieldset>
     @if (!storyBanner()) {
     <fieldset>
@@ -56,35 +64,23 @@
     }
     }
     <fieldset class="patch-group-editor">
-        <legend>{{ worldQuests() ? 'Primary Sections' : 'Content Groups' }}</legend>
+        <legend>{{ groupedTemplate() ? 'Primary Sections' : 'Content Groups' }}</legend>
         <p>Create the groups this guide needs. Removing a group keeps its rows in Overview.</p>
         @for (group of data().groups; track group.id; let index = $index) {
             <section class="patch-edit-group" [attr.aria-label]="group.title || 'New group'">
-            <div class="patch-group-edit-row">
-                <label
-                    >Group Name<input
-                        [attr.name]="'groupTitle-' + group.id"
-                        [ngModelOptions]="standalone"
-                        [(ngModel)]="group.title"
-                        placeholder="e.g. Trailers or EPs"
-                /></label>
-                <button
-                    type="button"
-                    [disabled]="index === 0"
-                    (click)="moveGroup(index, -1)"
-                    [attr.aria-label]="'Move group ' + (index + 1) + ' up'"
-                >
-                    &#8593;
-                </button>
-                <button
-                    type="button"
-                    [disabled]="index === (data().groups?.length ?? 0) - 1"
-                    (click)="moveGroup(index, 1)"
-                    [attr.aria-label]="'Move group ' + (index + 1) + ' down'"
-                >
-                    &#8595;
-                </button>
-                <button type="button" (click)="removeGroup(group.id)">Remove Group</button>
+            <div class="patch-group-edit-row compact-group-header">
+                <label>Group Name<input #groupName [attr.name]="'groupTitle-' + group.id"
+                    [ngModelOptions]="standalone" [(ngModel)]="group.title" placeholder="e.g. Operator Lore" /></label>
+                <label class="group-default-patch">Default Patch<input [ngModelOptions]="standalone" [(ngModel)]="group.defaultPatch" placeholder="e.g. 1.1" /></label>
+                <details #groupMenu class="group-overflow">
+                    <summary [attr.aria-label]="'Actions for ' + group.title">&#8943;</summary>
+                    <div>
+                        <button type="button" (click)="groupName.focus(); groupMenu.open = false">Rename</button>
+                        <button type="button" [disabled]="index === 0" (click)="moveGroup(index, -1)" [attr.aria-label]="'Move group ' + (index + 1) + ' up'">Move Up</button>
+                        <button type="button" [disabled]="index === (data().groups?.length ?? 0) - 1" (click)="moveGroup(index, 1)" [attr.aria-label]="'Move group ' + (index + 1) + ' down'">Move Down</button>
+                        <button type="button" class="row-remove" (click)="removeGroup(group.id)">Remove Group</button>
+                    </div>
+                </details>
             </div>
             <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(group.id), groupId: group.id }" />
             </section>
@@ -98,113 +94,113 @@
         </fieldset>
     }
     <ng-template #contentRows let-rows="rows" let-groupId="groupId">
-    <div class="patch-row-heading">
-        <h3>Content Rows</h3>
-    </div>
-    @for (row of rows; track row.id; let index = $index) {
-        <fieldset class="patch-row-editor">
-            <legend>Row {{ index + 1 }}</legend>
-            @if (worldQuests() && row.rowType === 'heading') {
-                <label>Secondary Heading<input [ngModelOptions]="standalone" [(ngModel)]="row.content" /></label>
-            } @else if (worldQuests() && row.rowType === 'note') {
-                <label>Global Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="3"></textarea></label>
-            } @else {
-            <label
-                >Content<textarea
-                    [attr.name]="'content-' + row.id"
-                    [ngModelOptions]="standalone"
-                    [(ngModel)]="row.content"
-                    rows="3"
-                ></textarea>
-            </label>
-            <label
-                >Content Link<input
-                    type="url"
-                    [attr.name]="'link-' + row.id"
-                    [ngModelOptions]="standalone"
-                    [(ngModel)]="row.contentUrl"
-                    placeholder="https://..."
-            /></label>
-            <label
-                >Patch<input
-                    [attr.name]="'patch-' + row.id"
-                    [ngModelOptions]="standalone"
-                    [(ngModel)]="row.patch"
-                    placeholder="e.g. 6.0"
-            /></label>
-            <label class="checkbox">
-                <input type="checkbox" [ngModelOptions]="standalone"
-                    [(ngModel)]="row.subQuest" />Sub-quest
-            </label>
-            <label class="checkbox"
-                ><input
-                    type="checkbox"
-                    [ngModelOptions]="standalone"
-                    [ngModel]="row.notesRight !== undefined"
-                    (ngModelChange)="splitNotes(row, $event)"
-                />Split Notes into two cells</label
-            >
-            <div [class.patch-fields]="row.notesRight !== undefined">
-                <label
-                    >{{ row.notesRight === undefined ? 'Notes' : 'Notes — left'
-                    }}<textarea
-                        [attr.name]="'notes-' + row.id"
-                        [ngModelOptions]="standalone"
-                        [(ngModel)]="row.notes"
-                        rows="3"
-                    ></textarea>
-                </label>
-                @if (row.notesRight !== undefined) {
-                    <label
-                        >Notes — right<textarea
-                            [attr.name]="'notesRight-' + row.id"
-                            [ngModelOptions]="standalone"
-                            [(ngModel)]="row.notesRight"
-                            rows="3"
-                        ></textarea>
-                    </label>
-                }
-            </div>
+        <div class="patch-row-heading">
+            <h3>Content Rows <small>{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}</small></h3>
+            <button type="button" (click)="addRow(groupId)">+ Add Row</button>
+        </div>
+        @for (row of rows; track row.id; let index = $index) {
+            <details class="patch-row-editor compact-row-card" [open]="expandedRow() === row.id && !draggingRow()"
+                [class.row-dragging]="draggingRow() === row.id"
+                [class.row-drop-before]="rowDropTarget() === row.id && draggingRow() !== row.id && !rowDropAfter()"
+                [class.row-drop-after]="rowDropTarget() === row.id && draggingRow() !== row.id && rowDropAfter()"
+                (dragover)="allowRowDrop($event, row)" (drop)="dropRow($event, row)">
+                <summary (click)="toggleRow($event, row.id)">
+                    <button type="button" class="row-drag-handle" draggable="true"
+                        [attr.aria-label]="'Drag to reorder ' + rowTitle(row)" title="Drag to reorder; move buttons are inside the row"
+                        (click)="$event.stopPropagation()" (dragstart)="startRowDrag($event, row)" (dragend)="endRowDrag()">&#10303;</button>
+                    <span class="row-chevron" aria-hidden="true">&#8250;</span>
+                    <span class="row-summary-text"><strong>{{ rowTitle(row) }}</strong>
+                        <small>{{ row.rowType === 'heading' ? 'Secondary heading' : row.rowType === 'note' ? 'Global notes' : 'Patch ' + (row.patch || '?') + (row.contentUrl ? ' ? Linked content' : '') }}{{ row.subQuest ? ' ? Sub-quest' : '' }}</small>
+                    </span><small>#{{ index + 1 }}</small>
+                </summary>
+                <div class="compact-row-fields">
+                    @if (groupedTemplate() && row.rowType === 'heading') {
+                        <label>Secondary Heading<input [ngModelOptions]="standalone" [(ngModel)]="row.content" /></label>
+                    } @else if (groupedTemplate() && row.rowType === 'note') {
+                        <label>Global Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)"></textarea></label>
+                    } @else {
+                        <label>Content
+                            @if (row.content.includes('\n') || multilineRows().includes(row.id)) {
+                                <textarea [attr.name]="'content-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.content" rows="2" (input)="resizeNotes($event)"></textarea>
+                            } @else { <input [attr.name]="'content-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.content" /> }
+                        </label>
+                        <button type="button" class="multiline-toggle" (click)="toggleMultiline(row.id)">{{ multilineRows().includes(row.id) ? 'Single line' : 'Multiline content' }}</button>
+                        <div class="row-link-patch">
+                            <label>Content Link<input type="url" [attr.name]="'link-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.contentUrl" placeholder="https://..." /></label>
+                            <label>Patch<input [attr.name]="'patch-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.patch" placeholder="e.g. 1.1" /></label>
+                        </div>
+                        <div [class.patch-fields]="row.notesRight !== undefined">
+                            <label>{{ row.notesRight === undefined ? 'Notes (Markdown)' : 'Notes ? left' }}<textarea [attr.name]="'notes-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)" placeholder="Optional notes"></textarea></label>
+                            @if (row.notesRight !== undefined) {
+                                <label>Notes ? right<textarea [attr.name]="'notesRight-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.notesRight" rows="2" (input)="resizeNotes($event)"></textarea></label>
+                            }
+                        </div>
+                        <div class="row-flags">
+                            <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [(ngModel)]="row.subQuest" />Sub-quest</label>
+                            <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [ngModel]="row.notesRight !== undefined" (ngModelChange)="splitNotes(row, $event)" />Split Notes into two cells</label>
+                        </div>
+                    }
+                    <div class="patch-row-actions">
+                        <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), -1) < 0" (click)="moveRow(data().rows.indexOf(row), -1)" [attr.aria-label]="'Move row ' + (index + 1) + ' up'">&#8593;</button>
+                        <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), 1) < 0" (click)="moveRow(data().rows.indexOf(row), 1)" [attr.aria-label]="'Move row ' + (index + 1) + ' down'">&#8595;</button>
+                        <button type="button" class="row-remove" (click)="removeRow(row.id)">Remove Row</button>
+                    </div>
+                </div>
+            </details>
+        } @empty { <p>Add content rows to this group.</p> }
+        <div class="patch-row-add">
+            <button type="button" (click)="addRow(groupId)">+ Add Row</button>
+            @if (groupedTemplate()) {
+                <button type="button" (click)="addRow(groupId, 'heading')">+ Secondary Heading</button>
+                <button type="button" (click)="addRow(groupId, 'note')">+ Global Notes</button>
             }
-            <div class="patch-row-actions">
-                <button
-                    type="button"
-                    [disabled]="rowTarget(data().rows.indexOf(row), -1) < 0"
-                    (click)="moveRow(data().rows.indexOf(row), -1)"
-                    [attr.aria-label]="'Move row ' + (index + 1) + ' up'"
-                >
-                    ↑
-                </button>
-                <button
-                    type="button"
-                    [disabled]="rowTarget(data().rows.indexOf(row), 1) < 0"
-                    (click)="moveRow(data().rows.indexOf(row), 1)"
-                    [attr.aria-label]="'Move row ' + (index + 1) + ' down'"
-                >
-                    ↓
-                </button>
-                <button type="button" (click)="removeRow(row.id)">Remove Row</button>
-            </div>
-        </fieldset>
-    } @empty {
-        <p>Add content rows to this group.</p>
-    }
-    <div class="patch-row-add">
-        <button type="button" (click)="addRow(groupId)">+ Add Row</button>
-        @if (worldQuests()) {
-            <button type="button" (click)="addRow(groupId, 'heading')">+ Secondary Heading</button>
-            <button type="button" (click)="addRow(groupId, 'note')">+ Global Notes</button>
-        }
-    </div>
+        </div>
     </ng-template>
+
 } @else {
-    <div class="patch-overview-dashboard" [attr.data-story-topic]="entry().category" [class.main-story-template]="storyBanner()" [class.world-quest-template]="worldQuests()">
-        @if (!worldQuests()) {
+    <div class="patch-overview-dashboard story-search-target" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()">
+        @if (entry().category === 'character-information') {
+            <div class="character-info-header">
+                @if (imageUrl(data().imageUrl); as portrait) {
+                    @if (failedImage() !== portrait) {
+                        <img class="character-info-portrait" [src]="portrait" [alt]="data().characterName || entry().name" (error)="failedImage.set(portrait)" />
+                    }
+                }
+                <div>
+                    <h3>{{ data().characterName || entry().name }}</h3>
+                    <div class="character-info-subtitle">
+                        @if (data().damageType) {
+                            <span class="character-damage-type">
+                                @if (imageUrl(data().damageTypeIcon || ''); as icon) {
+                                    <img [src]="icon" alt="" />
+                                } @else if (data().damageTypeIcon) {
+                                    <span aria-hidden="true">{{ data().damageTypeIcon }}</span>
+                                }
+                                {{ data().damageType }}
+                            </span>
+                        }
+                        @if (data().damageType && data().faction) { <span aria-hidden="true">|</span> }
+                        @if (data().faction) {
+                            <span class="character-damage-type">
+                                @if (imageUrl(data().factionIcon || ''); as icon) {
+                                    <img [src]="icon" alt="" />
+                                } @else if (data().factionIcon) {
+                                    <span aria-hidden="true">{{ data().factionIcon }}</span>
+                                }
+                                {{ data().faction }}
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+        @if (!groupedTemplate()) {
         <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate">
             @if (imageUrl(data().imageUrl); as imageUrl) {
                 @if (failedImage() !== imageUrl) {
                     <img
                         class="patch-banner"
+                        [style.object-position]="(data().imagePositionX ?? 50) + '% ' + (data().imagePositionY ?? 50) + '%'"
                         [src]="imageUrl"
                         [alt]="data().imageAlt || entry().name + ' patch artwork'"
                         width="1200"
@@ -251,6 +247,7 @@
             }
         </div>
         }
+        @if (groups().length) {
         <div class="patch-groups">
             @for (group of groups(); track group.id; let index = $index) {
                 <section
@@ -299,12 +296,13 @@
                             </thead>
                             <tbody>
                                 @for (row of group.rows; track row.id) {
-                                    @if (worldQuests() && row.rowType === 'heading') {
-                                        <tr class="world-secondary-heading"><th colspan="5" scope="rowgroup">{{ row.content }}</th></tr>
-                                    } @else if (worldQuests() && row.rowType === 'note') {
-                                        <tr><td colspan="5"><div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div></td></tr>
+                                    @if (groupedTemplate() && row.rowType === 'heading') {
+                                        <tr class="world-secondary-heading story-search-target" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><th colspan="5" scope="rowgroup">{{ row.content }}</th></tr>
+                                    } @else if (groupedTemplate() && row.rowType === 'note') {
+                                        <tr class="story-search-target" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><td colspan="5"><div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div></td></tr>
                                     } @else {
                                     <tr
+                                        class="story-search-target" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"
                                         [class.row-completed]="entry().storyRowCompletion?.[row.id]"
                                     >
                                         <td class="patch-completed">
@@ -358,5 +356,6 @@
                 </section>
             }
         </div>
+        }
     </div>
 }

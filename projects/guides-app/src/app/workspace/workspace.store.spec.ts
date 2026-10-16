@@ -23,6 +23,23 @@ describe('WorkspaceStore', () => {
         await store.initialize();
         return store;
     }
+    it('resets only current-game story completion locally across navigation categories', async () => {
+        const store = await readyStore();
+        const section = { ...item('section', 'story-category'), category: '' };
+        const otherSection = { ...item('other-section', 'story-category'), game: 'hsr', category: '' };
+        const story = { ...item('story', 'story'), category: 'lore', storySection: section.id,
+            completed: true, storyRowCompletion: { row: true } };
+        const other = { ...story, id: 'other-story', game: 'hsr', storySection: otherSection.id };
+        const inventory = { ...item('inventory'), completed: true };
+        expect(await store.replace([section, otherSection, story, other, inventory])).toBe(true);
+        vi.mocked(fetch).mockClear();
+        expect(await store.resetStoryProgress('genshin')).toBe(true);
+        expect(fetch).not.toHaveBeenCalled();
+        expect(store.entries().find((entry) => entry.id === story.id)).toMatchObject({ completed: false, storyRowCompletion: {} });
+        expect(store.entries().find((entry) => entry.id === other.id)).toMatchObject({ completed: true, storyRowCompletion: { row: true } });
+        expect(store.entries().find((entry) => entry.id === inventory.id)?.completed).toBe(true);
+        expect((await readyStore()).entries().find((entry) => entry.id === story.id)?.completed).toBe(false);
+    });
     it('stores definitions remotely and only player state locally; completion needs no API write', async () => {
         const store = await readyStore();
         await store.save(item('material'));
