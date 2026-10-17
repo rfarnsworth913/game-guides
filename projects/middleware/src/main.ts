@@ -1,3 +1,5 @@
+import { Auth0Security } from './auth0';
+import { ProgressRepository, ProgressDocument } from './progress';
 import { MongoClient } from 'mongodb';
 import { readConfig } from './config';
 import { GameRepository } from './repository';
@@ -13,7 +15,9 @@ try {
         db.collection(`${config.collection}_schema_v1_backup`),
     );
     await repository.initialize();
-    const server = createApi(repository, config.origins, () => db.command({ ping: 1 }));
+    const auth = new Auth0Security(config.auth0);
+    const progress = new ProgressRepository(db.collection<ProgressDocument>(`${config.collection}_player_progress`));
+    const server = createApi(repository, config.origins, () => db.command({ ping: 1 }), undefined, auth, progress);
     server.on('error', async () => {
         console.error('Middleware could not listen. Check MIDDLEWARE_PORT.');
         await client.close();

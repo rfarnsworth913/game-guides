@@ -53,41 +53,37 @@ export async function checkPatch(page, base, collection) {
         await click('+ Add subsection');
         await fill('[name=title]', 'Version 6.0 overview');
         await page.select('[name=topic]', 'patch-overview');
-        await page.waitForSelector('[name=patchImage]');
-        await fill('[name=patchImage]', imageUrl);
-        await fill('[name=patchImageAlt]', 'Version 6.0 patch banner');
-        await fill('[name=patchSourceName]', 'Official website');
-        await fill('[name=patchSourceUrl]', 'https://example.com/patch');
+        await click('Create Subsection');
+        await page.waitForSelector('gg-story [role=dialog]', { hidden: true });
+        await click('Edit');
+        await page.$$eval('gg-game-image-picker details', (items) => items.forEach((item) => item.open = true));
+        await fill('gg-game-image-picker .image-advanced input', imageUrl);
+        await fill('gg-game-image-picker .image-details > label:nth-of-type(2) input', 'Version 6.0 patch banner');
+        await fill('gg-game-image-picker .image-details > label:nth-of-type(3) input', 'Official website');
+        await fill('gg-game-image-picker .image-details > label:nth-of-type(4) input', 'https://example.com/patch');
         await fill('[name=patchVersion]', '6.0');
         await fill('[name=patchTitle]', 'A New Horizon');
         await fill('[name=releaseDate]', '2026-10-09');
-        await fill('[name=patchSummary]', 'Trailers, stories, and music for this update.');
         await click('+ Add group');
         await fill('.patch-group-edit-row [name^="groupTitle-"]', 'Trailers');
         await click('+ Add group');
         await page.waitForFunction(
             () => document.querySelectorAll('.patch-group-edit-row').length === 2,
         );
-        await fill('.patch-group-edit-row:nth-of-type(2) [name^="groupTitle-"]', 'EPs');
-        await click('+ Add row');
+        await fill('.patch-edit-group:nth-of-type(2) .patch-group-edit-row [name^="groupTitle-"]', 'EPs');
+        await click('+ Add Row');
         await fill('.patch-row-editor [name^="content-"]', 'Chapter One');
         await fill('.patch-row-editor [name^="link-"]', 'https://example.com/trailer');
         await fill('.patch-row-editor [name^="patch-"]', '6.0');
         await fill('.patch-row-editor [name^="notes-"]', 'These notes span both columns.');
-        await click('+ Add row');
+        await page.$$eval('.patch-edit-group', (groups) => groups[1].querySelector('.patch-row-add button').click());
         await page.waitForFunction(
             () => document.querySelectorAll('.patch-row-editor').length === 2,
         );
-        const second = '.patch-row-editor:last-of-type';
-        const epId = await page.$eval(
-            `${second} select`,
-            (select) =>
-                [...select.options].find((option) => option.textContent.trim() === 'EPs').value,
-        );
-        await page.select(`${second} select`, epId);
+        const second = '.patch-edit-group:nth-of-type(2) .patch-row-editor';
         await fill(`${second} [name^="content-"]`, 'Festival');
         await fill(`${second} [name^="patch-"]`, '6.0');
-        await page.click(`${second} input[type=checkbox]`);
+        await page.$$eval(`${second} .row-flags input`, (inputs) => inputs[1].click());
         await fill(`${second} [name^="notes-"]`, 'Starts October 9');
         await fill(`${second} [name^="notesRight-"]`, 'Limited-time rewards');
         await save();
@@ -138,19 +134,19 @@ export async function checkPatch(page, base, collection) {
             ),
             ['Trailers', 'EPs'],
         );
-        assert.equal(await page.$$eval('.story-outline-group', (links) => links.length), 2);
-        await page.click('.story-outline-group:last-child');
+        await page.click('gg-story [role=switch]');
+        await page.waitForSelector('gg-story [role=switch][aria-checked=false]');
+        assert.equal(await page.$$eval('.story-outline a', (links) => links.length), 1);
+        await page.click('.story-outline a');
         await page.waitForFunction(() =>
-            document.activeElement?.classList.contains('patch-content-group'),
+            document.activeElement?.classList.contains('story-section'),
         );
         assert.ok(
-            await page.$eval('.patch-release-block', (element) =>
+            await page.$eval('.patch-banner-release', (element) =>
                 element.textContent.includes('Oct 9, 2026'),
             ),
         );
         const before = await collection.findOne({ name: 'Genshin Impact' });
-        await page.click('gg-story [role=switch]');
-        await page.waitForSelector('gg-story [role=switch][aria-checked=false]');
         await page.click('.patch-table tbody input');
         await page.waitForFunction(
             () => document.querySelector('.patch-table tbody input').checked,
@@ -186,6 +182,7 @@ export async function checkPatch(page, base, collection) {
         await page.click('gg-story [role=switch]');
         await page.waitForSelector('gg-story [role=switch][aria-checked=true]');
         await click('Edit');
+        await page.click('.group-overflow summary');
         await page.click('button[aria-label="Move group 1 down"]');
         await save();
         assert.deepEqual(

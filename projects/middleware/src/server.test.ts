@@ -1,3 +1,4 @@
+import { editorFixture } from './test-support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AddressInfo } from 'node:net';
@@ -31,6 +32,7 @@ test('API validation, revision conflicts, origin checks, and parsed-data reads',
         },
         ['http://127.0.0.1:4200'],
         async () => true,
+        undefined, editorFixture,
     );
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;

@@ -122,6 +122,7 @@ export class Story {
         const target = entries[entries.indexOf(entry) + direction];
         if (target) await this.reorderEntry(entry.id, target.id, direction > 0);
     }
+    readonly canEdit = computed(() => this.store.canEdit?.() ?? true);
     readonly editMode = signal(false);
     readonly incompleteOnly = signal(false);
     readonly showCategoryProgress = signal(false);
@@ -291,7 +292,7 @@ export class Story {
     }
 
     toggleEditMode(): void {
-        if (this.busy() || this.editor || this.deleting) return;
+        if (!this.canEdit() || this.busy() || this.editor || this.deleting) return;
         this.editMode.update((value) => !value);
     }
 

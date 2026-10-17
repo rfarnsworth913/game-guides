@@ -1,3 +1,5 @@
+import { inject } from '@angular/core';
+import { AuthStore } from './auth.store';
 import { Component, computed, ElementRef, input, model, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { storyImageUrl } from '../../../../common/story-template';
@@ -11,6 +13,7 @@ import { GameImage, ImageCategory, friendlyImageName } from '../../../../common/
     styleUrl: './game-image-picker.scss',
 })
 export class GameImagePicker {
+    private readonly auth = inject(AuthStore);
     readonly game = input.required<string>();
     readonly label = input.required<string>();
     readonly value = model('');
@@ -70,7 +73,7 @@ export class GameImagePicker {
         this.savingDetails.set(true);
         this.error.set('');
         try {
-            const response = await fetch(image.url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(image.details ?? {}) });
+            const response = await this.auth.request(image.url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(image.details ?? {}) });
             const result = await response.json() as GameImage & { error?: string };
             if (!response.ok) throw new Error(result.error || 'Could not save image details.');
             this.images.update((images) => images.map((item) => item.url === result.url ? result : item));
@@ -134,7 +137,7 @@ export class GameImagePicker {
             const details = { title: this.title().trim() || this.currentName(), category: this.category(), tags: this.tags().trim(),
                 description: this.description().trim(), sourceName: this.sourceName().trim(), sourceUrl: this.sourceUrl().trim(),
                 ...this.dimensions()[this.value()] };
-            const response = await fetch(this.value(), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(details) });
+            const response = await this.auth.request(this.value(), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(details) });
             const result = await response.json() as GameImage & { error?: string };
             if (!response.ok) throw new Error(result.error || 'Could not save library details.');
             this.images.update((images) => [...images.filter((image) => image.url !== result.url), result]);
@@ -153,7 +156,7 @@ export class GameImagePicker {
         this.loading.set(true);
         this.error.set('');
         try {
-            const response = await fetch(`/api/games/${this.game()}/images`);
+            const response = await this.auth.request(`/api/games/${this.game()}/images`);
             if (!response.ok) throw new Error('Could not load images. Please try again.');
             const result = await response.json() as { images: GameImage[] };
             this.images.set(result.images);
@@ -188,7 +191,7 @@ export class GameImagePicker {
         }
         this.uploading.set(true);
         try {
-            const response = await fetch(`/api/games/${this.game()}/images?name=${encodeURIComponent(file.name)}`, {
+            const response = await this.auth.request(`/api/games/${this.game()}/images?name=${encodeURIComponent(file.name)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': contentType },
                 body: file,

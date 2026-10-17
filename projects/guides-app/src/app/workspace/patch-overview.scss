@@ -4,6 +4,7 @@
 }
 .patch-overview-dashboard {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
 }
 .patch-hero {

@@ -1,4 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { AuthStore } from './auth.store';
+import { ProgressSnapshot, validProgressState } from '../../../../common/player-progress';
+import { Inject, Injectable, Optional, computed, signal } from '@angular/core';
 import { validRowCompletion } from '../../../../common/story-template';
 import type { PlayerState } from '../../../../common/workspace';
 
@@ -17,6 +19,9 @@ export { GAMES, validEntries, parseBackup } from '../../../../common/workspace';
 const KEY = 'gg-workspace-v1';
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStore {
+    constructor(@Optional() @Inject(AuthStore) readonly auth: AuthStore | null = null) {}
+    readonly canEdit = computed(() => this.auth ? this.auth.user()?.editor === true : true);
+    private progressRevision = 0;
     readonly error = signal('');
     readonly entries = signal<Entry[]>([]);
     readonly initialized = signal(false);
@@ -29,13 +34,14 @@ export class WorkspaceStore {
         return `${entry.game}/${entry.id}`;
     }
     private async request(path: string, body?: unknown): Promise<unknown> {
-        const response = await fetch(`/api/${path}`, {
+        const init: RequestInit = {
             method: body ? 'PUT' : 'GET',
             ...(body
                 ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
                 : {}),
             signal: AbortSignal.timeout(10000),
-        });
+        };
+        const response = this.auth ? await this.auth.request(`/api/${path}`, init) : await fetch(`/api/${path}`, init);
         const data: unknown = await response.json();
         if (!response.ok) {
             throw new Error(
@@ -93,9 +99,13 @@ export class WorkspaceStore {
         }
         this.loading.set(true);
         this.initialized.set(false);
+        this.entries.set([]);
         this.error.set('');
         try {
-            const progressRaw = localStorage.getItem('gg-player-v1');
+            await this.auth?.initialize();
+            this.player = {};
+            const signedIn = !!this.auth?.user();
+            const progressRaw = signedIn ? null : localStorage.getItem('gg-player-v1');
             if (progressRaw) {
                 const parsed = JSON.parse(progressRaw) as { version?: unknown; state?: unknown };
                 if (
@@ -129,7 +139,7 @@ export class WorkspaceStore {
                 }
                 this.player = parsed.state as typeof this.player;
             }
-            const legacyRaw = localStorage.getItem(KEY);
+            const legacyRaw = !signedIn ? localStorage.getItem(KEY) : null;
             const legacy = legacyRaw ? parseBackup(legacyRaw) : [];
             const response = await this.request('games');
             if (
@@ -164,7 +174,7 @@ export class WorkspaceStore {
                     'gg-player-v1',
                     JSON.stringify({ version: 1, state: this.player }),
                 );
-                for (const game of snapshots) {
+                for (const game of this.canEdit() ? snapshots : []) {
                     const merged = new Map(game.entries.map((entry) => [entry.id, entry]));
                     for (const entry of legacy.filter((e) => e.game === game.id)) {
                         if (!merged.has(entry.id)) {
@@ -182,8 +192,12 @@ export class WorkspaceStore {
                     }
                 }
             }
-            if (legacyRaw) {
+            if (legacyRaw && this.canEdit()) {
                 localStorage.removeItem(KEY);
+            }
+            if (signedIn) {
+                const progress = await this.readProgress();
+                this.player = progress.state; this.progressRevision = progress.revision;
             }
             this.showSnapshots();
             this.initialized.set(true);
@@ -223,9 +237,10 @@ export class WorkspaceStore {
                         : {}),
                 };
             }
-            // Fail before any database write if browser storage is unavailable.
-            localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: player }));
-            this.player = player;
+            if (!this.auth?.user()) {
+                localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: player }));
+                this.player = player;
+            }
             for (const game of GAMES) {
                 const snapshot = this.snapshots.get(game.id)!;
                 const catalog = entries
@@ -238,6 +253,7 @@ export class WorkspaceStore {
                 if (JSON.stringify(catalog) === JSON.stringify(previous)) {
                     continue;
                 }
+                if (!this.canEdit()) throw new Error('An editor account is required to change guide content.');
                 const saved = this.snapshot(
                     await this.request(`games/${game.id}/catalog`, {
                         revision: snapshot.revision,
@@ -246,6 +262,13 @@ export class WorkspaceStore {
                 );
                 this.snapshots.set(game.id, saved);
                 wroteCatalog = true;
+            }
+            if (this.auth?.user()) {
+                const changes = Object.fromEntries(Object.entries(player).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(this.player[key])));
+                if (Object.keys(changes).length) {
+                    const progress = await this.writeProgress(changes);
+                    this.player = progress.state; this.progressRevision = progress.revision;
+                }
             }
             this.showSnapshots();
             return true;
@@ -258,12 +281,58 @@ export class WorkspaceStore {
                     wroteCatalog
                         ? ' Some games were saved before this error; reload before retrying the rest.'
                         : ''
-                } Player progress remains on this device.`,
+                } ${this.auth?.user() ? 'Account progress was not overwritten; reload before retrying.' : 'Player progress remains on this device.'}`,
             );
             return false;
         } finally {
             this.saving.set(false);
         }
+    }
+    clearAccountProgress(): void {
+        this.player = {}; this.progressRevision = 0;
+        this.entries.set([]); this.initialized.set(false);
+    }
+    private async readProgress(): Promise<ProgressSnapshot> {
+        const response = await this.auth!.request('/api/me/progress');
+        const data = await response.json();
+        if (!response.ok || !Number.isSafeInteger(data.revision) || data.revision < 0 || !validProgressState(data.state)) throw new Error('Could not load account progress.');
+        return data as ProgressSnapshot;
+    }
+    private async writeProgress(changes: ProgressSnapshot['state']): Promise<ProgressSnapshot> {
+        const response = await this.auth!.request('/api/me/progress', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ revision: this.progressRevision, changes }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not sync account progress.');
+        if (!Number.isSafeInteger(data.revision) || !validProgressState(data.state)) throw new Error('Invalid progress response.');
+        return data as ProgressSnapshot;
+    }
+    guestImport(): ProgressSnapshot['state'] {
+        const raw = localStorage.getItem('gg-player-v1');
+        if (!raw) return {};
+        const data = JSON.parse(raw);
+        if (data.version !== 1 || !validProgressState(data.state)) throw new Error('Invalid guest progress. Export a backup before continuing.');
+        const result: ProgressSnapshot['state'] = {};
+        for (const entry of this.entries()) {
+            const key = this.playerKey(entry); const guest = data.state[key];
+            if (!guest) continue;
+            const account = this.player[key];
+            const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
+                .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');
+            const completion = Object.fromEntries(rows.filter((row) => guest.storyRowCompletion?.[row.id] || account?.storyRowCompletion?.[row.id]).map((row) => [row.id, true]));
+            result[key] = { completed: guest.completed || account?.completed || false,
+                quantity: Math.max(guest.quantity, account?.quantity ?? 0), target: Math.max(guest.target, account?.target ?? 0), storyRowCompletion: completion };
+        }
+        return result;
+    }
+    async importGuestProgress(): Promise<boolean> {
+        if (!this.auth?.user() || this.saving() || !this.initialized()) return false;
+        this.saving.set(true); this.error.set('');
+        try {
+            const progress = await this.writeProgress(this.guestImport());
+            this.player = progress.state; this.progressRevision = progress.revision; this.showSnapshots();
+            return true;
+        } catch (error) { this.error.set(error instanceof Error ? error.message : 'Import failed.'); return false; }
+        finally { this.saving.set(false); }
     }
     async save(entry: Entry): Promise<boolean> {
         return this.replace([...this.entries().filter((e) => e.id !== entry.id), entry]);

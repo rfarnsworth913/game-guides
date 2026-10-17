@@ -2,6 +2,8 @@
   "name": "game-guides",
   "version": "0.0.0",
   "scripts": {
+    "test": "npm run middleware:check && npm run middleware:test && npm run ui:test -- --watch=false && npm run parser:test -- --runInBand",
+    "test:security": "tsx --test projects/middleware/src/auth.test.ts projects/middleware/src/auth0.test.ts",
     "ng": "ng",
     "lint": "npx eslint",
     "db:start": "node projects/middleware/database.mjs",
@@ -31,11 +33,14 @@
     "@angular/forms": "22.1.7",
     "@angular/platform-browser": "22.1.7",
     "@angular/router": "22.1.7",
+    "@auth0/auth0-angular": "^2.13.0",
     "bootstrap": "5.3.2",
     "chalk": "5.3.0",
     "date-fns": "3.3.1",
+    "express-oauth2-jwt-bearer": "^1.11.0",
     "marked": "^18.1.0",
     "mongodb": "6.4.0",
+    "openid-client": "^6.8.8",
     "puppeteer": "25.11.0",
     "rxjs": "7.8.1",
     "tslib": "2.6.2"

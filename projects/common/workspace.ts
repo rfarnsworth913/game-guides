@@ -41,7 +41,7 @@ export type Entry = {
     order: number;
     day: string;
 };
-/** Only player-owned state stays in the browser; these fields never enter the catalog. */
+/** Player-owned state is stored separately; these fields never enter the shared catalog. */
 export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion'>;
 export type CatalogEntry = Omit<Entry, keyof PlayerState>;
 export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[] };
@@ -74,7 +74,7 @@ export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
         ...(player?.storyRowCompletion ? { storyRowCompletion: player.storyRowCompletion } : {}),
     };
 }
-/** Whitelist fields to keep browser-only state (and arbitrary imported properties) off the wire. */
+/** Whitelist catalog fields to keep player state and arbitrary imported properties out of shared content. */
 export function toCatalog(entry: Entry): CatalogEntry {
     return {
         id: entry.id,

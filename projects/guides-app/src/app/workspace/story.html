@@ -29,6 +29,7 @@
             + Add section
         </button>
     }
+    @if (canEdit()) {
     <button
         class="story-mode-toggle"
         type="button"
@@ -44,6 +45,7 @@
             ><span class="story-switch-thumb"></span
         ></span>
     </button>
+    }
 </div>
 
 </ng-template>

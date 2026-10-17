@@ -18,6 +18,7 @@ const config: Config = {
     moduleNameMapper: {
         "^@common/(.*)$": "<rootDir>/../common/$1",
         "^chalk$": "<rootDir>/src/test/mocks/chalk.ts",
+        "^puppeteer$": "<rootDir>/src/test/mocks/puppeteer.ts",
         "^(\\.{1,2}/.*)\\.js$": "$1"
     }
 };

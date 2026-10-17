@@ -10,6 +10,7 @@ import { Entry, WorkspaceStore } from './workspace.store';
     templateUrl: './achievements.html',
 })
 export class Achievements {
+    readonly canEdit = computed(() => this.store.canEdit?.() ?? true);
     readonly game = input.required<string>();
     readonly store = inject(WorkspaceStore);
     readonly categories = computed(() =>

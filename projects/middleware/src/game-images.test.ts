@@ -1,3 +1,4 @@
+import { editorFixture } from './test-support';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -12,7 +13,7 @@ test('game image uploads persist, list per game, serve immediately and reject un
         async read() { throw new Error('Unexpected database call'); },
         async write() { throw new Error('Unexpected database call'); },
         async parsed() { throw new Error('Unexpected database call'); },
-    }, ['http://localhost:4200'], async () => true, root);
+    }, ['http://localhost:4200'], async () => true, root, editorFixture);
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     t.after(async () => {
         await new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections(); });

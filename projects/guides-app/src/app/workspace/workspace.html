@@ -95,28 +95,34 @@
                 >
             </div>
             <div class="header-right">
-                <span class="device-status"
-                    ><span class="dot"></span>
-                    {{
-                        store.saving()
-                            ? 'Saving...'
-                            : store.initialized()
-                              ? 'Database connected'
-                              : 'Database offline'
-                    }}</span
-                ><button (click)="theme.toggleTheme()" aria-label="Toggle light and dark theme">
-                    &#9680;</button
-                ><button
-                    class="avatar profile-trigger"
-                    popovertarget="profile-menu"
-                    aria-label="Open user menu"
-                >
-                    P
+                <span class="device-status" [class.offline]="!store.initialized()"
+                    [attr.title]="store.loading() ? 'Connecting to the game database' : store.initialized() ? 'Game database available. Progress synchronization is shown separately.' : 'Game database unavailable. Reload game data to retry.'">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg>
+                    <span>Database<small>{{ store.loading() ? 'Connecting' : store.initialized() ? 'Connected' : 'Offline' }}</small></span>
+                </span>
+                @if (store.saving()) { <span class="sync-status" role="status">Saving...</span> }
+                <button class="appearance-trigger" (click)="theme.toggleTheme()"
+                    [attr.aria-label]="'Switch to ' + (theme.theme() === 'dark' ? 'light' : 'dark') + ' theme'">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7">
+                        @if (theme.theme() === 'dark') { <path d="M21 13A9 9 0 0 1 11 3a9 9 0 1 0 10 10Z"/> }
+                        @else { <circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1"/> }
+                    </svg>
                 </button>
-                <div id="profile-menu" class="profile-menu" popover #profileMenu>
-                    <a routerLink="/settings" (click)="profileMenu.hidePopover(); mobile = false"
-                        >Settings &amp; backups</a
-                    >
+                @if (auth.user()) {
+                    <button class="profile-trigger" popovertarget="profile-menu" aria-label="Open user menu">
+                        <span class="avatar">{{ accountInitials(auth.user()?.name) }}</span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                    </button>
+                } @else {
+                    @if (auth.configured()) {
+                        <button class="header-sign-in" (click)="auth.login()">Sign in</button>
+                    }
+                    <button class="appearance-trigger" popovertarget="profile-menu" aria-label="Open preferences">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6m4 0h8M3 17h10m4 0h4"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>
+                    </button>
+                }
+                <div id="profile-menu" class="profile-menu" popover #profileMenu (toggle)="accountMenu.reset()">
+                    <gg-account-menu #accountMenu (closeMenu)="profileMenu.hidePopover(); mobile = false" />
                 </div>
             </div>
         </header>
@@ -169,7 +175,7 @@
                             page()
                         )
                     ) {
-                        <button class="primary" (click)="open(page())">
+                        <button [disabled]="!store.canEdit()" class="primary" (click)="open(page())">
                             + Add
                             {{
                                 page() === 'events'
@@ -287,7 +293,7 @@
                             <a [routerLink]="sectionLink('plans')">View all &#8594;</a>
                         </div>
                         @for (plan of plans().slice(0, 4); track plan.id) {
-                            <button class="plan-row" (click)="open('plans', plan)">
+                            <button [disabled]="!store.canEdit()" class="plan-row" (click)="open('plans', plan)">
                                 <div>
                                     <strong>{{ plan.name }}</strong
                                     ><small>{{ gameName(plan.game) }}</small>
@@ -300,7 +306,7 @@
                                 <span class="empty-symbol">&#9671;</span>
                                 <h3>Make room for your next goal</h3>
                                 <p>A character build, a stronger team. Start with a plan.</p>
-                                <button class="secondary" (click)="open('plans')">
+                                <button [disabled]="!store.canEdit()" class="secondary" (click)="open('plans')">
                                     + New plan
                                 </button>
                             </div>
@@ -425,11 +431,15 @@
                         quantities, and level targets stay in this browser. Export a backup before
                         clearing browser data.
                     </p>
-                    <h3>Appearance</h3>
-                    <button class="secondary" (click)="theme.toggleTheme()">
-                        Use {{ theme.theme() === 'dark' ? 'light' : 'dark' }} theme
-                    </button>
-                    <h3>Backup & restore</h3>
+                    @if (settingsTab() !== 'data') {
+                        <h3>Appearance</h3>
+                        <label>Theme
+                            <select [ngModel]="theme.preference()" (ngModelChange)="theme.setPreference($event)">
+                                <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+                            </select>
+                        </label>
+                    }
+                    <h3>Data &amp; backups</h3>
                     <p>
                         Export includes shared game data and your local progress. Import updates
                         shared game definitions in MongoDB and restores player progress on this
@@ -494,7 +504,7 @@
                                     : 'Add your first entry to start tracking your progress. Your collection begins with you.'
                             }}
                         </p>
-                        <button class="primary" (click)="open(page())">+ Add an entry</button>
+                        <button [disabled]="!store.canEdit()" class="primary" (click)="open(page())">+ Add an entry</button>
                     </section>
                 } @else if (!grid && (page() === 'inventory' || page() === 'characters')) {
                     <section class="panel table-wrap">
@@ -518,8 +528,8 @@
                                         <td>{{ e.rarity }} stars</td>
                                         <td>{{ e.quantity }}</td>
                                         <td>
-                                            <button (click)="open(e.kind, e)">Edit</button
-                                            ><button (click)="pendingDelete = e">Delete</button>
+                                            <button [disabled]="!store.canEdit()" (click)="open(e.kind, e)">Edit</button
+                                            ><button [disabled]="!store.canEdit()" (click)="pendingDelete = e">Delete</button>
                                         </td>
                                     </tr>
                                 }
@@ -599,8 +609,8 @@
                                             {{ e.completed ? 'Reopen' : 'Complete' }}
                                         </button>
                                     }
-                                    <button (click)="open(e.kind, e)">Edit</button
-                                    ><button class="delete" (click)="pendingDelete = e">
+                                    <button [disabled]="!store.canEdit()" (click)="open(e.kind, e)">Edit</button
+                                    ><button [disabled]="!store.canEdit()" class="delete" (click)="pendingDelete = e">
                                         Delete
                                     </button>
                                 </div>
@@ -808,7 +818,7 @@
             <h2 id="delete-title">Delete {{ entry.name }}?</h2>
             <p>This also removes references to this entry from teams and material plans.</p>
             <div class="modal-actions">
-                <button (click)="pendingDelete = null">Cancel</button
+                <button [disabled]="!store.canEdit()" (click)="pendingDelete = null">Cancel</button
                 ><button class="danger" (click)="remove()">Delete entry</button>
             </div>
         </section>

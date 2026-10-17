@@ -1,7 +1,7 @@
 <p class="sr-only" role="status">{{ moveNotice() }}</p>
 <div class="achievement-toolbar">
     <p>Track each milestone and the rewards waiting at the end.</p>
-    <button class="primary" (click)="open()">+ Add category</button>
+    <button [hidden]="!canEdit()" class="primary" (click)="open()">+ Add category</button>
 </div>
 <div class="achievement-search">
     <label for="achievement-search">Search achievements</label>
@@ -23,7 +23,7 @@
         >
             <div class="category-heading">
                 <button
-                    class="drag-handle"
+                    class="drag-handle" [hidden]="!canEdit()"
                     (pointerdown)="startDrag($event, category)"
                     (keydown)="moveWithKeyboard($event, category)"
                     [attr.aria-label]="'Reorder ' + category.name"
@@ -103,9 +103,9 @@
                 >
             </div>
             <div class="category-actions">
-                <button (click)="open(category)">+ Add achievement</button
-                ><button (click)="open(undefined, category)">Edit category</button
-                ><button class="delete" (click)="deleting = category">Delete category</button>
+                <button [hidden]="!canEdit()" (click)="open(category)">+ Add achievement</button
+                ><button [hidden]="!canEdit()" (click)="open(undefined, category)">Edit category</button
+                ><button [hidden]="!canEdit()" class="delete" (click)="deleting = category">Delete category</button>
             </div>
             <div
                 class="achievement-list"
@@ -123,7 +123,7 @@
                         "
                     >
                         <button
-                            class="drag-handle"
+                            class="drag-handle" [hidden]="!canEdit()"
                             (pointerdown)="startDrag($event, achievement)"
                             (keydown)="moveWithKeyboard($event, achievement)"
                             [attr.aria-label]="'Reorder ' + achievement.name"
@@ -167,12 +167,12 @@
                             </p>
                         </div>
                         <div class="achievement-actions">
-                            <button
+                            <button [hidden]="!canEdit()"
                                 (click)="open(category, achievement)"
                                 [attr.aria-label]="'Edit ' + achievement.name"
                             >
                                 Edit</button
-                            ><button
+                            ><button [hidden]="!canEdit()"
                                 class="delete"
                                 (click)="deleting = achievement"
                                 [attr.aria-label]="'Delete ' + achievement.name"
@@ -200,7 +200,7 @@
                 <span class="empty-symbol">☆</span>
                 <h2>Every achievement has a place</h2>
                 <p>Create a category, then add its achievements and rewards.</p>
-                <button class="primary" (click)="open()">+ Add category</button>
+                <button [hidden]="!canEdit()" class="primary" (click)="open()">+ Add category</button>
             </section>
         }
     }
@@ -344,7 +344,7 @@
                 }
             </p>
             <div class="modal-actions">
-                <button (click)="deleting = null">Cancel</button
+                <button [hidden]="!canEdit()" (click)="deleting = null">Cancel</button
                 ><button class="danger" (click)="remove()">Delete</button>
             </div>
         </section>

@@ -12,7 +12,7 @@ API process that does not recognize them.
 
 The service listens on loopback at `127.0.0.1:3001` by default. Angular proxies `/api/**`
 through `projects/guides-app/proxy.conf.cjs`. Set `UI_PORT` and `MIDDLEWARE_PORT` in `.env`
-to change ports. This is a local editing API, not an authenticated public deployment.
+to change ports. Configure Auth0 below to enable account sync and editor access.
 
 ## Document layout
 
@@ -48,9 +48,9 @@ changing modes does not write shared definitions or player progress.
 
 Sections and subsections are global shared game content: titles, icons, ordering, topics,
 guide content, and additions/removals apply to everyone using this database. Only story
-completion is player-specific, currently stored in each browser's localStorage. Other
-sessions see definition changes when they reload; there is no live synchronization or
-account-based progress storage yet.
+completion is player-specific: guests use browser localStorage, and signed-in accounts use
+a separate MongoDB collection. Account progress loads on sign-in/reload and saves on changes;
+concurrent stale writes are rejected with 409. Other sessions see changes when they reload.
 
 Each element of `story` has the following shape (MongoDB definitions contain no player completion state):
 
@@ -168,3 +168,90 @@ reuses an existing database, and shuts down only processes it started. MongoDB l
 to `projects/database/db/application-mongod.log`. Existing parser commands remain separate.
 
 Use `npm run middleware:test`, `npm run middleware:check`, and `npm run ui:e2e` to validate.
+
+
+## Authentication and account progress
+
+The client-rendered Angular app uses the official `@auth0/auth0-angular` SDK for Universal
+Login, sign-up, callback handling, silent token acquisition and logout. Auth0 access tokens
+stay in the SDK's memory cache and are attached only to same-origin `/api/` requests.
+The middleware uses Auth0's `express-oauth2-jwt-bearer` validator through an adapter for
+its existing Node HTTP server. Tokens must have a valid RS256 signature, the configured
+issuer and API audience, an unexpired lifetime, and this SPA's authorized client ID.
+ID tokens are not accepted as API access tokens. The default app no longer uses the
+older server-side `/api/auth/login` and `/api/auth/callback` routes or cookie sessions.
+
+### Auth0 dashboard setup
+
+1. Open **Applications > Applications**, select the app with client ID
+   `eKDUQTPL8t5blNeq3rpK3rO88Bl5xUsx` in tenant `dev-pliiugqmxtabpg15.us.auth0.com`.
+2. Change Application Type to **Single Page Application**, and set Token Endpoint
+   Authentication Method to **None**. A client secret is not used by this SPA.
+3. Set the following development URLs:
+
+   | Auth0 setting | Value |
+   | --- | --- |
+   | Allowed Callback URLs | `http://localhost:4200/` |
+   | Allowed Logout URLs | `http://localhost:4200/` |
+   | Allowed Web Origins | `http://localhost:4200` |
+
+4. Under **Applications > APIs**, create an API named **Game Guides** with Identifier
+   **`https://game-guides/api`** and signing algorithm **RS256**. This identifier is a
+   token audience; it does not need to be a reachable website. Configure user access for
+   the SPA if your tenant requires explicit API client grants.
+5. Public domain, client ID and API audience settings live together in
+   `projects/common/auth0-config.ts`, imported by Angular and middleware. If using an
+   existing API, put its exact Identifier in `audience` there. Do not use the SPA client ID
+   or the Auth0 Management API as this app's audience.
+6. Set `APP_ORIGIN=http://localhost:4200` in root `.env`. Set `AUTH0_EDITOR_SUBJECTS` to
+   comma-separated exact Auth0 user IDs (for example `auth0|...`) for trusted editors.
+   Empty means no accounts can edit shared catalogs or images. The previous
+   `OIDC_EDITOR_SUBJECTS` key remains a fallback for existing installations.
+7. Restart `npm start` and consistently open `http://localhost:4200`. The coordinator
+   checks port availability before launching Angular with its explicit port; it fails if
+   the configured port is busy. Do not accept an alternative port without updating Auth0.
+8. Open the avatar menu, choose **Sign up** or **Sign in to sync progress**, and verify
+   your profile name appears after returning from Universal Login. Editor controls appear
+   only for allowlisted accounts. Import browser progress through its explicit confirmation.
+
+Application Type, allowed URLs, API creation, connections and user permissions must be
+saved in the Auth0 dashboard. Local code changes do not update the tenant configuration.
+The Auth0 MCP connection was not available in this session to apply those settings.
+
+### Account data and authorization
+
+- `<DB_COLLECTION>_player_progress` stores each account's validated progress and revision.
+  Identity is derived from the verified issuer plus subject, preserving the same account
+  key used by the previous implementation when the issuer value is identical.
+- `GET /api/auth/session` returns the verified account and server-derived editor permission;
+  requests without a bearer token return an anonymous account. Responses are not cached.
+- `GET /api/me/progress` and `PATCH /api/me/progress` require a validated bearer token.
+  Progress updates are deltas with revision checks; one account cannot select another
+  account's data through client-supplied IDs.
+- Catalog and image mutations additionally require an allowlisted editor subject and the
+  exact `APP_ORIGIN` request origin. Public game definitions and images remain readable.
+- Guest completion remains local. Signing in does not automatically import it. Account
+  progress is not written into the guest localStorage key.
+- Logout uses the Auth0 SDK to clear its local state and return through Auth0 logout to
+  the configured origin. Previously issued API tokens remain valid until their expiry;
+  logout does not revoke JWTs held elsewhere. Keep API token lifetimes appropriate.
+- Existing legacy session collections are not deleted. They are unused by the default
+  Auth0 API integration; the previous auth module remains only for compatibility tests.
+
+### Deployment and validation
+
+Serve Angular and `/api` from the same HTTPS origin. Set `NODE_ENV=production` and
+`APP_ORIGIN` to the real browser origin. Add its callback, logout and web-origin URLs to
+Auth0. This app does not enable Angular SSR. Authentication is initialized on the browser.
+Never put a client secret or Management API token in Angular or the public configuration.
+Keep Authorization headers and callback codes out of logs.
+
+Run `npm run middleware:check`, `npm run middleware:test`, `npm run ui:test -- --watch=false`
+and `npm run ui:build`. `npm run test:security` includes both legacy regression coverage and
+Auth0 token validation tests. They check signatures, issuer/audience, expiry, authorized
+client IDs, editor allowlists and origin checks without a live Auth0 tenant. A real login,
+logout and API sync smoke test still requires the dashboard settings above and a browser.
+
+References:
+- https://github.com/auth0/auth0-angular
+- https://auth0.com/docs/quickstart/backend/nodejs

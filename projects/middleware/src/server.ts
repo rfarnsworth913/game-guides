@@ -1,3 +1,6 @@
+import { lockedSecurity, Security } from './auth';
+import { ProgressRepository } from './progress';
+import { validProgressState } from '../../common/player-progress';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { GAMES, validCatalog } from '../../common/workspace';
 import { ApiError, GameRepository } from './repository';
@@ -27,8 +30,11 @@ export function createApi(
     origins: string[],
     ping: () => Promise<unknown>,
     assetsRoot = imageRoot,
+    security: Security = lockedSecurity,
+    progress?: Pick<ProgressRepository, 'read' | 'patch'>,
 ) {
     const respond = (response: ServerResponse, status: number, body: unknown) => {
+        if (status === 429) response.setHeader('Retry-After', '60');
         response.writeHead(status, {
             'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
@@ -36,14 +42,53 @@ export function createApi(
         });
         response.end(JSON.stringify(body));
     };
+    const limits = new Map<string, { count: number; reset: number }>();
+    const rateLimit = (request: IncomingMessage, auth: boolean) => {
+        const key = (request.socket.remoteAddress ?? 'unknown') + (auth ? '/auth' : '/write');
+        const now = Date.now();
+        for (const [id, item] of limits) if (item.reset < now) limits.delete(id);
+        const item = limits.get(key) ?? { count: 0, reset: now + 60000 };
+        if (limits.size >= 10000 && !limits.has(key)) throw new ApiError(429, 'Too many requests. Try again later.');
+        if (++item.count > (auth ? 30 : 180)) throw new ApiError(429, 'Too many requests. Try again later.');
+        limits.set(key, item);
+    };
     const server = createServer((request, response) => {
         const handle = async () => {
-            const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+            const url = new URL(request.url ?? '/', 'http://localhost');
+            const path = url.pathname;
+            response.setHeader('X-Content-Type-Options', 'nosniff');
+            response.setHeader('Referrer-Policy', 'same-origin');
+            if (path.startsWith('/api/auth/') && path !== '/api/auth/session') rateLimit(request, true);
+            else if (!['GET', 'HEAD'].includes(request.method ?? '')) rateLimit(request, false);
             if (request.headers.origin && !origins.includes(request.headers.origin)) {
                 throw new ApiError(403, 'Origin is not allowed.');
             }
+            if (await security.handle(request, response, url)) return;
+            if (path === '/api/me/progress') {
+                if (!['GET', 'PATCH'].includes(request.method ?? '')) throw new ApiError(405, 'Method not allowed.');
+                const user = await security.requireUser(request, request.method === 'PATCH');
+                if (!progress) throw new ApiError(503, 'Account progress unavailable.');
+                if (request.method === 'GET') { respond(response, 200, await progress.read(user.id)); return; }
+                const body = await jsonBody(request);
+                if (!body || typeof body !== 'object' || Object.keys(body).some((key) => !['revision', 'changes'].includes(key)) ||
+                    !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0 ||
+                    !('changes' in body) || !validProgressState(body.changes)) throw new ApiError(400, 'Invalid progress update.');
+                const catalogs = new Map<string, Map<string, Awaited<ReturnType<typeof repository.read>>['entries'][number]>>();
+                for (const [key, state] of Object.entries(body.changes)) {
+                    const slash = key.indexOf('/'); const game = key.slice(0, slash); const id = key.slice(slash + 1);
+                    if (!catalogs.has(game)) catalogs.set(game, new Map((await repository.read(game)).entries.map((entry) => [entry.id, entry])));
+                    const entry = catalogs.get(game)!.get(id);
+                    if (!entry) throw new ApiError(400, 'Progress references unknown content.');
+                    const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
+                        .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');
+                    const rowIds = new Set(rows.map((row) => row.id));
+                    if (Object.keys(state.storyRowCompletion ?? {}).some((id) => !rowIds.has(id))) throw new ApiError(400, 'Progress references unknown rows.');
+                }
+                respond(response, 200, await progress.patch(user.id, Number(body.revision), body.changes)); return;
+            }
             const imageMatch = /^\/api\/games\/([a-z]+)\/images(?:\/([^/]+))?$/.exec(path);
             if (imageMatch) {
+                if (request.method !== 'GET') await security.requireEditor(request);
                 await handleGameImages(request, response, imageMatch[1], imageMatch[2], assetsRoot);
                 return;
             }
@@ -80,6 +125,7 @@ export function createApi(
             if (request.method !== 'PUT' || match[2] !== 'catalog') {
                 throw new ApiError(405, 'Method not allowed.');
             }
+            await security.requireEditor(request);
             const body = await jsonBody(request);
             if (
                 !body ||

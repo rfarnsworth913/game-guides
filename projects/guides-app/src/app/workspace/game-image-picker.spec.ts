@@ -37,7 +37,7 @@ describe('GameImagePicker', () => {
         const fixture = picker();
         await fixture.componentInstance.browse();
         fixture.detectChanges();
-        expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images');
+        expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images', expect.objectContaining({ credentials: 'same-origin' }));
         const button = fixture.nativeElement.querySelector('.image-library button') as HTMLButtonElement;
         button.click();
         expect(fixture.componentInstance.value()).toBe('');
@@ -93,7 +93,8 @@ describe('GameImagePicker', () => {
         const component = picker().componentInstance;
         const file = new File(['bytes'], 'Banner.PNG', { type });
         await component.upload({ target: { files: [file], value: 'Banner.PNG' } } as unknown as Event);
-        expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images?name=Banner.PNG', expect.objectContaining({ headers: { 'Content-Type': 'image/png' }, body: file }));
+        expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images?name=Banner.PNG', expect.objectContaining({ headers: expect.any(Headers), body: file }));
+        expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get('Content-Type')).toBe('image/png');
         expect(component.value()).toBe(image.url);
         expect(component.error()).toBe('');
     });

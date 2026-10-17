@@ -42,10 +42,12 @@ existing document name, `Honkai Star Rail`.
 
 - MongoDB stores game definitions: inventory items, characters, teams, plans, story steps,
   events, achievement categories, achievements, their descriptions/rewards, and ordering.
-- localStorage stores player state only: completion flags, owned quantities/current levels,
-  target levels, and appearance preferences. There are no player accounts or cloud progress sync.
+- Guests keep player state in localStorage. Signed-in players sync completion, owned quantities
+  and targets to a separate MongoDB collection. Auth0 SDK sign-in uses public settings in `projects/common/auth0-config.ts`, with editor access configured
+  through the root .env; see [authentication setup](projects/middleware/README.md#authentication-and-account-progress).
+  Without provider configuration, catalog/image edits are locked and guest completion still works.
 - Existing `gg-workspace-v1` data migrates on the first successful connection. Missing
-  catalog entries are added, existing server definitions win, and player progress moves to
+  catalog entries are added for editor accounts, existing server definitions win, and player progress moves to
   `gg-player-v1`. The old key is removed only after every game has migrated successfully.
 - Settings & backups, in the avatar menu, exports both definitions and local progress.
   Import updates shared game definitions in MongoDB and player state in this browser.
@@ -73,6 +75,8 @@ Completing a plan removes its farming requirements without consuming inventory.
 
 | Command | Purpose |
 | --- | --- |
+| `npm test` | Standard suite: middleware type checking, API/security tests, frontend/account-sync tests, and parser tests |
+| `npm run test:security` | Run the backend authentication and authorization security tests alone |
 | `npm start` / `npm run ui:start` | Launch the complete application |
 | `npm run ui:only` | Angular only (requires middleware/database already running) |
 | `npm run middleware:start` | Middleware only |
@@ -81,8 +85,17 @@ Completing a plan removes its farming requirements without consuming inventory.
 | `npm run ui:build` | Production frontend build |
 | `npm run ui:test -- --watch=false` | Frontend/store tests |
 | `npm run middleware:check` | Middleware TypeScript check |
-| `npm run middleware:test` | API validation tests |
+| `npm run middleware:test` | API validation and security tests |
 | `npm run ui:e2e` | Full-stack integration test with temporary ports/collection and isolated browser profiles |
+
+Security tests are mandatory in `npm test`, discovered by the middleware's `*.test.ts` pattern.
+They cover Auth0 token signatures, issuer/audience/expiry and authorized client checks, legacy session regressions, editor permissions,
+account isolation, and conflicting progress writes. Frontend tests also check account sync and guest
+import isolation. The standard suite runs once, exits nonzero on failure, and needs no live provider
+credentials or running MongoDB. VS Code's default test task runs the same command.
+
+Run `npm run ui:e2e` separately for browser/MongoDB integration coverage, including account restoration
+in a second browser, explicit guest import, and logout revocation.
 
 The end-to-end test checks startup/shutdown, actual database persistence, legacy migration,
 parser-field preservation, separate browser progress, shared edits, and stale-write rejection.

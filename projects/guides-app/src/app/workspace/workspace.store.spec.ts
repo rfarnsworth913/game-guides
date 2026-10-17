@@ -1,3 +1,5 @@
+import { AuthStore } from './auth.store';
+import { toCatalog } from '../../../../common/workspace';
 import { Entry, WorkspaceStore, validEntries, parseBackup, GAMES } from './workspace.store';
 
 const item = (id: string, kind: Entry['kind'] = 'inventory'): Entry => ({
@@ -303,5 +305,80 @@ describe('WorkspaceStore', () => {
         expect(validEntries([item('same'), item('same')])).toBe(false);
         expect(validEntries([{ ...item('bad'), quantity: -1 }])).toBe(false);
         expect(validEntries([{ ...item('bad'), requirements: [null] }])).toBe(false);
+    });
+});
+
+
+describe('Account progress syncing', () => {
+    let guest: Map<string, string>;
+    let remote: { revision: number; state: Record<string, { completed: boolean; quantity: number; target: number; storyRowCompletion?: Record<string, boolean> }> };
+    let conflict: boolean;
+    let signedIn: boolean;
+    const accountItem = item('material');
+    beforeEach(() => {
+        guest = new Map(); conflict = false; signedIn = true;
+        remote = { revision: 2, state: { 'genshin/material': { completed: false, quantity: 3, target: 10 } } };
+        vi.stubGlobal('localStorage', { getItem: vi.fn((key: string) => guest.get(key) ?? null),
+            setItem: vi.fn((key: string, value: string) => guest.set(key, value)), removeItem: vi.fn((key: string) => guest.delete(key)) });
+        vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
+            if (url === '/api/auth/session') return { ok: true, json: async () => ({ configured: true,
+                user: signedIn ? { id: 'alice', name: 'Alice', editor: false } : null, csrf: signedIn ? 'csrf-token' : null }) };
+            if (url === '/api/games') return { ok: true, json: async () => ({ games: GAMES.map((game) => ({ id: game.id, name: game.name, revision: 0,
+                entries: game.id === 'genshin' ? [toCatalog(accountItem)] : [] })) }) };
+            if (url === '/api/me/progress') {
+                if (options?.method === 'PATCH') {
+                    const body = JSON.parse(options.body as string);
+                    expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-token');
+                    if (conflict || body.revision !== remote.revision) return { ok: false, status: 409, json: async () => ({ error: 'Progress changed in another browser. Reload before retrying.' }) };
+                    remote = { revision: remote.revision + 1, state: { ...remote.state, ...body.changes } };
+                }
+                return { ok: true, json: async () => structuredClone(remote) };
+            }
+            throw new Error('Unexpected request: ' + url);
+        }));
+    });
+    afterEach(() => vi.unstubAllGlobals());
+    const ready = async () => { const store = new WorkspaceStore(new AuthStore()); await store.initialize(); return store; };
+    it('loads account state without importing guest data and sends completion changes with CSRF and revision', async () => {
+        guest.set('gg-player-v1', JSON.stringify({ version: 1, state: { 'genshin/material': { completed: true, quantity: 99, target: 90 } } }));
+        const original = guest.get('gg-player-v1');
+        const store = await ready();
+        expect(store.entries()[0]).toMatchObject({ completed: false, quantity: 3 });
+        expect(store.canEdit()).toBe(false);
+        expect(await store.save({ ...store.entries()[0], completed: true })).toBe(true);
+        expect(remote.revision).toBe(3);
+        expect(remote.state['genshin/material'].completed).toBe(true);
+        expect(guest.get('gg-player-v1')).toBe(original);
+        expect((await ready()).entries()[0].completed).toBe(true);
+    });
+    it('does not overwrite remote or displayed account state after a conflict', async () => {
+        const store = await ready(); conflict = true;
+        expect(await store.save({ ...store.entries()[0], completed: true })).toBe(false);
+        expect(remote.revision).toBe(2);
+        expect(store.entries()[0].completed).toBe(false);
+        expect(store.error()).toContain('Reload before retrying');
+        expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+    it('merges guest progress only after explicit import and retains the guest copy', async () => {
+        guest.set('gg-player-v1', JSON.stringify({ version: 1, state: { 'genshin/material': { completed: true, quantity: 1, target: 90 } } }));
+        const store = await ready();
+        expect(remote.revision).toBe(2);
+        expect(store.guestImport()['genshin/material']).toMatchObject({ completed: true, quantity: 3, target: 90 });
+        expect(remote.revision).toBe(2);
+        expect(await store.importGuestProgress()).toBe(true);
+        expect(remote.state['genshin/material']).toMatchObject({ completed: true, quantity: 3, target: 90 });
+        expect(guest.has('gg-player-v1')).toBe(true);
+    });
+    it('rejects catalog changes for ordinary accounts', async () => {
+        const store = await ready();
+        expect(await store.save({ ...store.entries()[0], name: 'Unauthorized change' })).toBe(false);
+        expect(store.error()).toContain('editor account');
+        expect(remote.revision).toBe(2);
+    });
+    it('clears account data before loading guest data after an account change', async () => {
+        const store = await ready(); signedIn = false;
+        await store.initialize();
+        expect(store.entries()[0]).toMatchObject({ completed: false, quantity: 0 });
+        expect(store.auth?.user()).toBeNull();
     });
 });

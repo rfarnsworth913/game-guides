@@ -2,7 +2,7 @@ import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes, createHash } from 'node:crypto';
 import { MongoClient } from 'mongodb';
 import puppeteer from 'puppeteer';
 import { checkStory } from './story-smoke.mjs';
@@ -20,6 +20,10 @@ const apiPort = await freePort();
 const collectionName = `middleware_test_${randomUUID().replaceAll('-', '')}`;
 const base = `http://127.0.0.1:${uiPort}`;
 const api = `http://127.0.0.1:${apiPort}`;
+const rawSession = randomBytes(32).toString('base64url');
+const sessionId = createHash('sha256').update(rawSession).digest('hex');
+const csrf = randomBytes(32).toString('base64url');
+const accountId = 'smoke-' + randomUUID();
 let log = '';
 const stack = spawn(process.execPath, ['projects/middleware/start.mjs'], {
     env: {
@@ -27,6 +31,11 @@ const stack = spawn(process.execPath, ['projects/middleware/start.mjs'], {
         UI_PORT: String(uiPort),
         MIDDLEWARE_PORT: String(apiPort),
         DB_COLLECTION: collectionName,
+        APP_ORIGIN: base,
+        OIDC_ISSUER: 'https://smoke-issuer.invalid',
+        OIDC_CLIENT_ID: 'smoke-client',
+        OIDC_CLIENT_SECRET: 'smoke-fixture-not-a-real-secret',
+        OIDC_EDITOR_SUBJECTS: 'smoke-editor',
     },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -138,6 +147,11 @@ try {
     assert.deepEqual(await collection.findOne({ name: 'Honkai Star Rail' }), migrated);
     await runScript('projects/middleware/parser-smoke.ts');
     browser = await puppeteer.launch({ headless: true });
+    await client.db(process.env.DB_NAME).collection(collectionName + '_auth_sessions').insertOne({
+        _id: sessionId, user: accountId, subject: 'smoke-editor', name: 'Smoke Editor', csrf,
+        expiresAt: new Date(Date.now() + 3600000), idleAt: new Date(Date.now() + 3600000),
+    });
+    await browser.setCookie({ name: 'gg-local-session', value: rawSession, url: base, httpOnly: true, sameSite: 'Lax' });
     const page = await browser.newPage();
     const runtimeErrors = [];
     page.on('pageerror', (error) => runtimeErrors.push(error.message));
@@ -145,56 +159,30 @@ try {
     await page.waitForFunction(() =>
         document.querySelector('.device-status')?.textContent.includes('Database connected'),
     );
-    // Exercise migration of an existing browser's definitions and completion status.
-    await page.evaluate(() => {
-        const entry = {
-            game: 'genshin',
-            notes: '',
-            quantity: 0,
-            target: 0,
-            rarity: 0,
-            members: [],
-            requirements: [],
-            order: 0,
-            day: 'Any day',
-        };
-        localStorage.setItem(
-            'gg-workspace-v1',
-            JSON.stringify({
-                version: 1,
-                entries: [
-                    {
-                        ...entry,
-                        id: 'legacy-category',
-                        kind: 'achievement-category',
-                        name: 'Migrated category',
-                        category: '',
-                        completed: false,
-                    },
-                    {
-                        ...entry,
-                        id: 'legacy-achievement',
-                        kind: 'achievements',
-                        name: 'Migrated achievement',
-                        category: 'legacy-category',
-                        completed: true,
-                    },
-                    {
-                        ...entry,
-                        id: 'legacy-story',
-                        kind: 'story',
-                        name: 'Legacy quest',
-                        category: 'Required',
-                        completed: true,
-                    },
-                ],
-            }),
-        );
+    // Seed shared definitions through an authenticated editor, then explicitly import guest state.
+    const initial = await (await fetch(api + '/api/games/genshin')).json();
+    const common = { game: 'genshin', notes: '', rarity: 0, members: [], requirements: [], order: 0, day: '' };
+    const seeded = await fetch(api + '/api/games/genshin/catalog', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Origin: base, Cookie: 'gg-local-session=' + rawSession, 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ revision: initial.revision, entries: [
+            { ...common, id: 'legacy-category', kind: 'achievement-category', name: 'Migrated category', category: '' },
+            { ...common, id: 'legacy-achievement', kind: 'achievements', name: 'Migrated achievement', category: 'legacy-category' },
+            { ...common, id: 'legacy-story', kind: 'story', name: 'Legacy quest', category: 'Required' },
+        ] }),
     });
+    assert.equal(seeded.status, 200);
+    await page.evaluate(() => localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1,
+        state: { 'genshin/legacy-achievement': { completed: true, quantity: 0, target: 0 }, 'genshin/legacy-story': { completed: true, quantity: 0, target: 0 } } })));
     await page.reload({ waitUntil: 'networkidle0' });
     await page.waitForSelector('.achievement-row');
+    assert.equal(await page.$eval('.achievement-row input[type=checkbox]', (e) => e.checked), false);
+    await page.click('[popovertarget=profile-menu]');
+    await page.click('gg-account-menu button');
+    await page.waitForSelector('gg-account-menu [role=dialog]');
+    await page.click('gg-account-menu [role=dialog] button:last-child');
+    await page.waitForFunction(() => !document.querySelector('gg-account-menu [role=dialog]'));
+    await page.evaluate(() => document.querySelector('#profile-menu').hidePopover());
     assert.equal(await page.$eval('.achievement-row input[type=checkbox]', (e) => e.checked), true);
-    assert.equal(await page.evaluate(() => localStorage.getItem('gg-workspace-v1')), null);
     const document = await collection.findOne({ name: 'Genshin Impact' });
     assert.deepEqual(document.events, [{ title: 'Parser-owned event' }]);
     assert.equal(document.version.title, 'Parser version');
@@ -217,11 +205,31 @@ try {
     await page.waitForFunction(() =>
         document.querySelector('.category-count').innerText.includes('0 / 1'),
     );
-    assert.equal(writes, 0, 'Completion must never write to the database');
+    assert.equal(writes, 0, 'Completion must never write to shared catalog endpoints');
     await page.click('.achievement-row input[type=checkbox]');
     await page.waitForFunction(() =>
         document.querySelector('.category-count').innerText.includes('1 / 1'),
     );
+    // A separate signed-in browser restores the account state without local progress storage.
+    const secondSession = randomBytes(32).toString('base64url');
+    const secondSessionId = createHash('sha256').update(secondSession).digest('hex');
+    await client.db(process.env.DB_NAME).collection(collectionName + '_auth_sessions').insertOne({
+        _id: secondSessionId, user: accountId, subject: 'smoke-editor', name: 'Smoke Editor', csrf,
+        expiresAt: new Date(Date.now() + 3600000), idleAt: new Date(Date.now() + 3600000),
+    });
+    const signedInContext = await browser.createBrowserContext();
+    try {
+        await signedInContext.setCookie({ name: 'gg-local-session', value: secondSession, url: base, httpOnly: true, sameSite: 'Lax' });
+        const signedInPage = await signedInContext.newPage();
+        await signedInPage.goto(base + '/games/genshin/achievements', { waitUntil: 'networkidle0' });
+        await signedInPage.waitForSelector('.achievement-row input');
+        assert.equal(await signedInPage.$eval('.achievement-row input', (input) => input.checked), true);
+        assert.equal(await signedInPage.evaluate(() => localStorage.getItem('gg-player-v1')), null);
+        await signedInPage.click('[popovertarget=profile-menu]');
+        await signedInPage.$$eval('gg-account-menu button', (buttons) => buttons.find((button) => button.textContent.trim() === 'Sign out').click());
+        await signedInPage.waitForFunction(() => document.querySelector('.achievement-row input')?.checked === false);
+        assert.equal(await client.db(process.env.DB_NAME).collection(collectionName + '_auth_sessions').countDocuments({ _id: secondSessionId }), 0);
+    } finally { await signedInContext.close(); }
     const context = await browser.createBrowserContext();
     const other = await context.newPage();
     await other.goto(`${base}/games/genshin/achievements`, { waitUntil: 'networkidle0' });
@@ -249,7 +257,7 @@ try {
     const update = (body) =>
         fetch(`${api}/api/games/genshin/catalog`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Origin: base, Cookie: 'gg-local-session=' + rawSession, 'X-CSRF-Token': csrf },
             body: JSON.stringify(body),
         });
     assert.equal(
@@ -341,7 +349,7 @@ try {
     await checkPatch(page, base, collection);
     assert.deepEqual(runtimeErrors, []);
     console.log(
-        'Full-stack checks passed: automatic startup, MongoDB persistence, one document per game, parser preservation, legacy migration, local-only completion, independent browser progress, shared edits, revision conflicts, and persisted drag ordering.',
+        'Full-stack checks passed: automatic startup, MongoDB persistence, one document per game, parser preservation, legacy migration, account completion, explicit guest import, independent browser progress, shared edits, revision conflicts, and persisted drag ordering.',
     );
 } catch (error) {
     console.error(log);
@@ -358,6 +366,9 @@ try {
                 .db(process.env.DB_NAME)
                 .collection(`${collectionName}_schema_v1_backup`)
                 .drop();
+            for (const suffix of ['_auth_sessions', '_auth_logins', '_player_progress']) {
+                await client.db(process.env.DB_NAME).collection(collectionName + suffix).drop().catch(() => {});
+            }
         } catch {
             /* collection may not have been created */
         }

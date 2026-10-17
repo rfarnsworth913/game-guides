@@ -1,3 +1,5 @@
+import { AccountMenu, accountInitials } from './account-menu';
+import { AuthStore } from './auth.store';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
@@ -12,7 +14,7 @@ import { DialogFocusDirective } from './dialog-focus';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, BackToTop],
+    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })
@@ -20,7 +22,11 @@ export class Workspace {
     private readonly router = inject(Router);
     readonly store = inject(WorkspaceStore);
     readonly theme = inject(ThemeService);
+    readonly auth = inject(AuthStore);
+    readonly accountInitials = accountInitials;
     readonly params = toSignal(inject(ActivatedRoute).paramMap);
+    readonly settingsParams = toSignal(inject(ActivatedRoute).queryParamMap);
+    readonly settingsTab = computed(() => this.settingsParams()?.get('tab'));
     readonly games = [...GAMES].sort((a, b) => a.name.localeCompare(b.name));
     readonly nav = [
         { id: 'dashboard', label: 'Dashboard', icon: '\u25c8' },

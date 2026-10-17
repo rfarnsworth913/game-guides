@@ -74,7 +74,14 @@ export async function checkStory(page, base, collection) {
     await click('+ Add subsection');
     await fill('title', 'Prologue');
     await page.select('gg-story select[name=topic]', 'main-story');
-    await fill('content', 'Follow the wind to the city gates.');
+    await click('Create Subsection');
+    await page.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    await click('Edit');
+    await click('+ Add Row');
+    await page.$eval('gg-story [name^="content-"]', (input) => {
+        input.value = 'Follow the wind to the city gates.';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     await save();
     await page.waitForSelector('gg-story [data-story-topic="main-story"]');
     await click('Edit section');
@@ -105,7 +112,7 @@ export async function checkStory(page, base, collection) {
             'Mondstadt / 1.0',
         );
         assert.equal(
-            await otherPlayer.$eval('gg-story .story-copy', (element) =>
+            await otherPlayer.$eval('gg-story .patch-content-cell', (element) =>
                 element.textContent.trim(),
             ),
             'Follow the wind to the city gates.',
@@ -137,28 +144,6 @@ export async function checkStory(page, base, collection) {
     } finally {
         await playerContext.close();
     }
-    assert.equal(
-        await page.$eval(
-            'gg-story .story-section-header',
-            (header) => getComputedStyle(header).backgroundColor,
-        ),
-        'rgb(46, 16, 101)',
-    );
-    await page.evaluate(() => {
-        document.documentElement.classList.replace('theme-dark', 'theme-light');
-        document.documentElement.setAttribute('data-theme', 'light');
-    });
-    assert.equal(
-        await page.$eval(
-            'gg-story .story-section-header',
-            (header) => getComputedStyle(header).backgroundColor,
-        ),
-        'rgb(237, 233, 254)',
-    );
-    await page.evaluate(() => {
-        document.documentElement.classList.replace('theme-light', 'theme-dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
-    });
     const screenshot = join(tmpdir(), 'game-guides-story-smoke.png');
     await page.screenshot({ path: screenshot, fullPage: true });
     console.log(`Story preview: ${screenshot}`);

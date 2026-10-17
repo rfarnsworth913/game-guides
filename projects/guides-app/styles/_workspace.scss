@@ -1136,31 +1136,46 @@ gg-workspace {
         margin-top: 0;
     }
     .header-right .profile-trigger {
-        width: 32px;
-        height: 32px;
-        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 42px;
+        padding: 4px 8px;
         border: 1px solid var(--line);
-        font-size: 11px;
+        border-radius: 9px;
     }
+    .profile-trigger .avatar { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+    .header-right svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .profile-trigger > svg { width: 14px; }
+    .header-right .appearance-trigger { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; }
+    .header-right .header-sign-in { font-size: 13px; padding: 9px 14px; border: 1px solid var(--line); }
+    .header-right .device-status { display: flex; align-items: center; gap: 8px; line-height: 1.4; }
+    .device-status > svg { color: var(--color-success); }
+    .device-status small { display: block; color: var(--color-success); font-size: 10px; }
+    .device-status.offline > svg, .device-status.offline small { color: var(--muted); }
+    .sync-status { color: var(--muted); font-size: 11px; }
     .profile-menu {
         position: fixed;
         inset: 65px 24px auto auto;
         margin: 0;
-        padding: 6px;
-        min-width: 210px;
+        padding: 10px;
+        width: min(288px, calc(100vw - 24px));
+        max-height: calc(100dvh - 85px);
+        overflow: auto;
+        box-sizing: border-box;
         color: var(--color-text-primary);
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 12px;
         box-shadow: 0 12px 35px #0005;
     }
-    .profile-menu a {
-        display: block;
-        padding: 12px;
-        border-radius: 5px;
-    }
-    .profile-menu a:hover {
-        background: var(--color-bg-hover);
+    @media (max-width: 600px) {
+        .header-right { gap: 8px; }
+        .device-status > span { display: none; }
+        .device-status { padding: 6px; }
+        .profile-menu { right: 12px; }
+        .breadcrumb { display: none; }
+        .sync-status { display: none; }
     }
 }
 
