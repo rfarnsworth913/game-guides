@@ -1,3 +1,25 @@
 :host {
     display: block;
 }
+
+.dashboard-story-list { display: grid; gap: 14px; }
+.dashboard-story-card {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--game-color, var(--color-primary));
+    border-radius: 8px;
+    background: var(--color-bg-primary);
+    min-width: 0;
+}
+.dashboard-story-card .section-title { margin-bottom: 10px; gap: 12px; }
+.dashboard-story-card .section-title a { color: var(--color-text-primary); font-size: 13px; }
+.dashboard-story-card .section-title > span { color: var(--game-color, var(--color-primary)); font-size: 13px; }
+.dashboard-story-card progress { width: 100%; height: 6px; display: block; margin-bottom: 8px; accent-color: var(--game-color); }
+.dashboard-story-card > small { display: block; }
+.dashboard-story-card .story-last-location, .dashboard-story-card .story-next-item {
+    font-size: 12px; line-height: 1.6; margin: 12px 0 0; overflow-wrap: anywhere;
+}
+.story-last-location span, .story-next-item span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.dashboard-story-card .story-resume-link { display: inline-block; color: var(--color-primary); font-size: 12px; margin-top: 12px; padding: 4px 0; }
+.dashboard-story-card a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.game-last-location { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; margin: 14px 0 0; }

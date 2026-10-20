@@ -158,7 +158,7 @@
     </ng-template>
 
 } @else {
-    <div class="patch-overview-dashboard story-search-target" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()">
+    <div class="patch-overview-dashboard story-search-target" [attr.data-story-entry]="entry().id" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()">
         @if (entry().category === 'character-information') {
             <div class="character-info-header">
                 @if (imageUrl(data().imageUrl); as portrait) {
@@ -297,12 +297,12 @@
                             <tbody>
                                 @for (row of group.rows; track row.id) {
                                     @if (groupedTemplate() && row.rowType === 'heading') {
-                                        <tr class="world-secondary-heading story-search-target" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><th colspan="5" scope="rowgroup">{{ row.content }}</th></tr>
+                                        <tr class="world-secondary-heading story-search-target" [attr.data-story-row]="row.id" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><th colspan="5" scope="rowgroup">{{ row.content }}</th></tr>
                                     } @else if (groupedTemplate() && row.rowType === 'note') {
-                                        <tr class="story-search-target" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><td colspan="5"><div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div></td></tr>
+                                        <tr class="story-search-target" [attr.data-story-row]="row.id" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><td colspan="5"><div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div></td></tr>
                                     } @else {
                                     <tr
-                                        class="story-search-target" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"
+                                        class="story-search-target" [attr.data-story-row]="row.id" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"
                                         [class.row-completed]="entry().storyRowCompletion?.[row.id]"
                                     >
                                         <td class="patch-completed">

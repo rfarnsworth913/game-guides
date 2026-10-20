@@ -130,6 +130,41 @@ describe('WorkspaceStore', () => {
             order: 0,
         });
     });
+    it('rebases edits to separate story sections across two tabs without refreshing', async () => {
+        const first = await readyStore();
+        const category = { ...item('region', 'story-category'), category: '' };
+        const a = { ...item('a', 'story'), category: 'main-story', storySection: 'region' };
+        const b = { ...a, id: 'b', name: 'b' };
+        await first.replace([category, a, b]);
+        const second = await readyStore();
+        expect(await first.save({ ...a, name: 'Saved in first tab' })).toBe(true);
+        expect(await second.save({ ...b, name: 'Saved in second tab' })).toBe(true);
+        expect(second.error()).toBe('');
+        expect(second.entries().find(e => e.id === 'a')?.name).toBe('Saved in first tab');
+        expect(second.entries().find(e => e.id === 'b')?.name).toBe('Saved in second tab');
+        expect((await readyStore()).entries()).toEqual(second.entries());
+    });
+    it('rejects overlapping edits and does not resurrect an item deleted by another tab', async () => {
+        const first = await readyStore();
+        await first.replace([item('a'), item('b')]);
+        const second = await readyStore();
+        await first.save({ ...item('a'), name: 'First tab title' });
+        expect(await second.save({ ...item('a'), name: 'Conflicting title' })).toBe(false);
+        expect(second.error()).toContain('same content');
+        expect((await readyStore()).entries().find(e => e.id === 'a')?.name).toBe('First tab title');
+        const third = await readyStore();
+        await first.remove('b');
+        expect(await third.save(item('new'))).toBe(true);
+        expect(third.entries().map(e => e.id).sort()).toEqual(['a', 'new']);
+    });
+    it('preserves unrelated guest progress saved in another tab', async () => {
+        const first = await readyStore();
+        await first.replace([item('a'), item('b')]);
+        const second = await readyStore();
+        await first.save({ ...item('a'), completed: true });
+        expect(await second.save({ ...item('b'), completed: true })).toBe(true);
+        expect(second.entries().every(e => e.completed)).toBe(true);
+    });
     it('rejects cross-game and invalid reorder destinations without changing data', async () => {
         const store = await readyStore();
         await store.replace([
@@ -190,7 +225,7 @@ describe('WorkspaceStore', () => {
             'fetch',
             vi.fn(async (url: string, options?: RequestInit) => {
                 if (!options?.body) {
-                    return { ok: true, json: async () => structuredClone({ games }) };
+                    return { ok: true, json: async () => structuredClone(url === '/api/games' ? { games } : games.find(g => g.id === url.split('/')[3])) };
                 }
                 const id = url.split('/')[3];
                 const game = games.find((g) => g.id === id)!;
@@ -198,6 +233,7 @@ describe('WorkspaceStore', () => {
                     entries: Array<unknown>;
                     revision: number;
                 };
+                if (body.revision !== game.revision) return { ok: false, status: 409, json: async () => ({ error: 'This game changed in another session.' }) };
                 game.entries = body.entries;
                 game.revision++;
                 return { ok: true, json: async () => structuredClone(game) };
@@ -356,8 +392,31 @@ describe('Account progress syncing', () => {
         expect(await store.save({ ...store.entries()[0], completed: true })).toBe(false);
         expect(remote.revision).toBe(2);
         expect(store.entries()[0].completed).toBe(false);
-        expect(store.error()).toContain('Reload before retrying');
+        expect(store.error()).toContain('Try saving again shortly');
         expect(localStorage.setItem).not.toHaveBeenCalled();
+    });
+    it('automatically retries stale account revisions while preserving changes from another tab', async () => {
+        const store = await ready();
+        remote = { revision: 3, state: { ...remote.state, 'genshin/material': { ...remote.state['genshin/material'], quantity: 7 } } };
+        expect(await store.save({ ...store.entries()[0], completed: true })).toBe(true);
+        expect(remote.state['genshin/material']).toMatchObject({ quantity: 7, completed: true });
+        expect(store.entries()[0]).toMatchObject({ quantity: 7, completed: true });
+        expect(remote.revision).toBe(4);
+        expect(store.error()).toBe('');
+    });
+    it('merges completion of separate rows without losing the other tab\'s first completion', async () => {
+        const store = await ready();
+        remote = { revision: 3, state: { 'genshin/material': { ...remote.state['genshin/material'], storyRowCompletion: { other: true } } } };
+        expect(await store.save({ ...store.entries()[0], storyRowCompletion: { mine: true } })).toBe(true);
+        expect(remote.state['genshin/material'].storyRowCompletion).toEqual({ other: true, mine: true });
+    });
+    it('does not overwrite a quantity changed differently in both tabs', async () => {
+        const store = await ready();
+        remote = { revision: 3, state: { 'genshin/material': { ...remote.state['genshin/material'], quantity: 7 } } };
+        expect(await store.save({ ...store.entries()[0], quantity: 9 })).toBe(false);
+        expect(remote.state['genshin/material'].quantity).toBe(7);
+        expect(remote.revision).toBe(3);
+        expect(store.error()).toContain('same content');
     });
     it('merges guest progress only after explicit import and retains the guest copy', async () => {
         guest.set('gg-player-v1', JSON.stringify({ version: 1, state: { 'genshin/material': { completed: true, quantity: 1, target: 90 } } }));

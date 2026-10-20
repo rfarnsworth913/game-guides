@@ -194,7 +194,7 @@
                             }}
                         </button>
                     } @else {
-                        <span class="date">{{ date }}</span>
+                        <span class="date">@if (page() === 'story') { Last Updated: }{{ date }}</span>
                     }
                 </div>
             </div>
@@ -214,15 +214,15 @@
                         ><small>Goals in progress <b>&#8599;</b></small></a
                     ><a [routerLink]="sectionLink('story')"
                         ><span>STORY PROGRESSION</span
-                        ><strong>{{ story().length }}<em> steps</em></strong
-                        ><small>Your ordered journey <b>&#8599;</b></small></a
+                        ><strong>{{ storyCompletion().percent }}<em>%</em></strong
+                        ><small>{{ storyCompletion().completed }} / {{ storyCompletion().total }} items complete <b>&#8599;</b></small></a
                     >
                 </section>
                 <div class="dashboard-grid">
                     <section class="panel games-panel">
                         <div class="section-title">
                             <h2>
-                                Your worlds <span>{{ context() ? '01' : '05' }}</span>
+                                Your worlds <span>{{ (context() ? 1 : games.length).toString().padStart(2, '0') }}</span>
                             </h2>
                             <a routerLink="/games">View games &#8594;</a>
                         </div>
@@ -243,11 +243,9 @@
                                         >
                                     </div>
                                     <div class="world-progress">
-                                        <span>{{ gameProgress(game.id) }}%</span
-                                        ><progress
-                                            max="100"
-                                            [value]="gameProgress(game.id)"
-                                        ></progress>
+                                        <span>{{ storyDashboards()[game.id].percent }}% story</span>
+                                        <small>{{ storyDashboards()[game.id].completed }} / {{ storyDashboards()[game.id].total }}</small>
+                                        <progress max="100" [value]="storyDashboards()[game.id].percent" [attr.aria-label]="game.name + ' story completion'"></progress>
                                     </div>
                                     <span class="arrow">&#9671;</span></a
                                 >
@@ -313,29 +311,34 @@
                         }
                     </section>
                     <section class="panel story-panel">
-                        <div class="section-title">
-                            <h2>Continue your story</h2>
-                            <span>&#9671;</span>
+                        <div class="section-title"><h2>Story guides</h2><span class="pill">{{ storyCompletion().percent }}% complete</span></div>
+                        <p class="section-subtitle">Your progress and where you left off.</p>
+                        <div class="dashboard-story-list">
+                            @for (guide of dashboardStories(); track guide.id) {
+                                <article class="dashboard-story-card" [style.--game-color]="guide.color">
+                                    <div class="section-title">
+                                        <a [routerLink]="'/games/' + guide.id + '/story'"><strong>{{ guide.name }}</strong></a>
+                                        <span>{{ guide.percent }}%</span>
+                                    </div>
+                                    <progress max="100" [value]="guide.percent" [attr.aria-label]="guide.name + ' story completion'"></progress>
+                                    <small>{{ guide.completed }} / {{ guide.total }} items complete</small>
+                                    @if (guide.lastLocation) {
+                                        <p class="story-last-location"><span>Last visited</span>{{ guide.lastLocation }}</p>
+                                    } @else if (guide.resume) {
+                                        <p class="story-last-location"><span>{{ guide.total && guide.completed === guide.total ? 'Guide complete' : 'Up next' }}</span>{{ guide.section?.name }} / {{ guide.resume.name }}</p>
+                                    } @else {
+                                        <p class="story-last-location">No story content yet.</p>
+                                    }
+                                    @if (guide.nextRow) {
+                                        <p class="story-next-item"><span>Next incomplete item</span>{{ guide.nextRow.content }}</p>
+                                    }
+                                    <a class="story-resume-link" [routerLink]="'/games/' + guide.id + '/story'"
+                                        [queryParams]="guide.section ? { section: guide.section.id } : {}" [fragment]="guide.fragment">
+                                        {{ guide.action }} &#8594;
+                                    </a>
+                                </article>
+                            }
                         </div>
-                        @if (nextStory(); as step) {
-                            <div class="story-feature">
-                                <span class="eyebrow">{{ gameName(step.game) }}</span>
-                                <h3>{{ step.name }}</h3>
-                                <p>{{ step.notes }}</p>
-                                <a class="secondary" [routerLink]="'/games/' + step.game + '/story'"
-                                    >Continue guide &#8594;</a
-                                >
-                            </div>
-                        } @else {
-                            <div class="empty compact">
-                                <span class="empty-symbol">&#9671;</span>
-                                <h3>Every world has a story</h3>
-                                <p>Keep track of the journey, one chapter at a time.</p>
-                                <a class="text-link" [routerLink]="sectionLink('story')"
-                                    >Explore your guides &#8594;</a
-                                >
-                            </div>
-                        }
                     </section>
                 </div>
             } @else if (page() === 'games') {
@@ -356,11 +359,14 @@
                                     {{ gameCount(game.id, 'characters') }} characters ·
                                     {{ gameCount(game.id, 'plans') }} plans
                                 </p>
-                                <progress max="100" [value]="gameProgress(game.id)"></progress>
+                                <progress max="100" [value]="storyDashboards()[game.id].percent" [attr.aria-label]="game.name + ' story completion'"></progress>
                                 <div class="section-title">
-                                    <small>{{ gameProgress(game.id) }}% goal readiness</small
+                                    <small>{{ storyDashboards()[game.id].percent }}% story complete &middot; {{ storyDashboards()[game.id].completed }} / {{ storyDashboards()[game.id].total }}</small
                                     ><span>Open workspace &#8599;</span>
                                 </div>
+                                @if (storyDashboards()[game.id].lastLocation) {
+                                    <p class="game-last-location">Last visited: {{ storyDashboards()[game.id].lastLocation }}</p>
+                                }
                             </div></a
                         >
                     }

@@ -11,6 +11,9 @@ import { Achievements } from './achievements';
 import { Story } from './story';
 import { BackToTop } from './back-to-top';
 import { DialogFocusDirective } from './dialog-focus';
+import { StoryPositionStore } from './story-position.store';
+import { storyDashboard } from './story-dashboard';
+import { storyProgress } from './story-progress';
 
 @Component({
     selector: 'gg-workspace',
@@ -23,6 +26,14 @@ export class Workspace {
     readonly store = inject(WorkspaceStore);
     readonly theme = inject(ThemeService);
     readonly auth = inject(AuthStore);
+    readonly storyPositions = inject(StoryPositionStore);
+    readonly storyDashboards = computed(() => Object.fromEntries(this.games.map(game => [game.id,
+        storyDashboard(this.store.entries(), game.id, this.storyPositions.positions()[game.id]),
+    ])));
+    readonly storyCompletion = computed(() => storyProgress(this.story()));
+    readonly dashboardStories = computed(() => this.games.filter(game => !this.context() || this.context()!.id === game.id)
+        .map(game => ({ ...game, ...this.storyDashboards()[game.id] }))
+        .sort((a, b) => a.name.localeCompare(b.name)));
     readonly accountInitials = accountInitials;
     readonly params = toSignal(inject(ActivatedRoute).paramMap);
     readonly settingsParams = toSignal(inject(ActivatedRoute).queryParamMap);

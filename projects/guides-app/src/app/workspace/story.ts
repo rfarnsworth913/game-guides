@@ -2,7 +2,9 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CharacterInformationTemplate } from './character-information';
 import { storyContentTypes } from '../../../../common/story-content-types';
-import { afterNextRender, Component, computed, effect, ElementRef, HostListener, inject, Injector, input, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, Injector, input, signal, viewChild } from '@angular/core';
+import { of } from 'rxjs';
+import { StoryPositionStore } from './story-position.store';
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { DialogFocusDirective } from './dialog-focus';
@@ -33,6 +35,34 @@ export class Story {
     private readonly route = inject(ActivatedRoute);
     private readonly queryParams = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
     private readonly routeParams = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
+    private readonly fragment = toSignal(this.route.fragment ?? of(null), { initialValue: this.route.snapshot.fragment ?? null });
+    readonly positions = inject(StoryPositionStore);
+    private resumedTarget = '';
+    private visitedGame = '';
+    private scrollFrame: number | null = null;
+    private rememberTarget(target: Element): void {
+        if (this.editMode()) return;
+        const entryId = target.closest<HTMLElement>('[data-story-entry]')?.dataset['storyEntry'];
+        if (entryId && this.subsections().some(entry => entry.id === entryId)) {
+            this.positions.remember(this.game(), entryId, target.closest<HTMLElement>('[data-story-row]')?.dataset['storyRow']);
+        }
+    }
+    @HostListener('click', ['$event'])
+    rememberInteraction(event: MouseEvent): void {
+        if (event.target instanceof Element) this.rememberTarget(event.target);
+    }
+    @HostListener('window:scroll')
+    rememberScroll(): void {
+        if (this.editMode() || this.scrollFrame !== null) return;
+        this.scrollFrame = requestAnimationFrame(() => {
+            this.scrollFrame = null;
+            const content = this.host.nativeElement.querySelector('.story-subsections')?.getBoundingClientRect();
+            if (!content || content.bottom <= 0) return;
+            const y = Math.max(20, (this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0) + 32);
+            const target = document.elementFromPoint(Math.min(window.innerWidth - 20, content.left + content.width / 2), y);
+            if (target && this.host.nativeElement.contains(target)) this.rememberTarget(target);
+        });
+    }
     readonly searchQuery = signal('');
     readonly searchResults = computed(() => searchStoryGuides(this.store.entries(), this.game(), this.searchQuery()));
     openSearchResult(result: StorySearchResult): void {
@@ -179,6 +209,7 @@ export class Story {
         if (!target) return;
         event.preventDefault();
         this.activeOutline.set(id);
+        this.rememberTarget(target);
         target.scrollIntoView({
             block: 'start',
             behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -239,6 +270,32 @@ export class Story {
     error = '';
 
     constructor() {
+        inject(DestroyRef).onDestroy(() => { if (this.scrollFrame !== null) cancelAnimationFrame(this.scrollFrame); });
+        effect(() => {
+            const entries = this.subsections();
+            if (this.editMode() || this.fragment() || !entries.length) return;
+            const remembered = this.positions.positions()[this.game()];
+            const valid = entries.some(entry => entry.id === remembered?.entryId);
+            if (this.visitedGame !== this.game()) {
+                this.visitedGame = this.game();
+                this.positions.remember(this.game(), valid ? remembered.entryId : entries[0].id, valid ? remembered.rowId : undefined, true);
+            } else if (!valid) this.positions.remember(this.game(), entries[0].id);
+        });
+        effect(() => {
+            const fragment = this.fragment();
+            const key = `${this.game()}/${this.active()?.id}/${fragment}`;
+            this.subsections();
+            if (!fragment || !fragment.startsWith('story-') || key === this.resumedTarget) return;
+            this.incompleteOnly.set(false);
+            afterNextRender(() => {
+                const target = document.getElementById(fragment);
+                if (!target || !this.host.nativeElement.contains(target)) return;
+                this.resumedTarget = key;
+                target.scrollIntoView({ block: 'start', behavior: 'instant' });
+                target.focus({ preventScroll: true });
+                this.rememberTarget(target);
+            }, { injector: this.injector });
+        });
         effect((onCleanup) => {
             const header = this.stickyHeader()?.nativeElement;
             if (!header || typeof ResizeObserver === 'undefined') return;
@@ -284,6 +341,11 @@ export class Story {
             preserveFragment: true,
         });
         this.selected.set(id);
+        if (!this.editMode()) {
+            const first = this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && entry.storySection === id)
+                .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))[0];
+            if (first) this.positions.remember(this.game(), first.id);
+        }
         try {
             localStorage.setItem(`gg-story-tab-v1:${this.game()}`, id);
         } catch {

@@ -181,6 +181,13 @@ export const GAMES = [
         subtitle: 'Beyond the stars',
     },
     {
+        id: 'nte',
+        name: 'Neverness to Everness',
+        short: 'NTE',
+        color: '#ef94cf',
+        subtitle: 'Explore a new world',
+    },
+    {
         id: 'wuwa',
         name: 'Wuthering Waves',
         short: 'WW',

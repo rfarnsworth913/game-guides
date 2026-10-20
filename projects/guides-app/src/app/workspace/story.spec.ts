@@ -150,6 +150,7 @@ describe('Story tab persistence', () => {
 
     function setup(initial: Entry[] = []) {
         const params = new BehaviorSubject(convertToParamMap({}));
+        const fragment = new BehaviorSubject<string | null>(null);
         const entries = signal(initial);
         TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
             entries, initialized: signal(true), loading: signal(false), saving: signal(false), error: signal(''),
@@ -157,16 +158,30 @@ describe('Story tab persistence', () => {
         TestBed.overrideProvider(ActivatedRoute, { useValue: {
             paramMap: params, snapshot: { paramMap: params.value, queryParamMap: convertToParamMap({}) },
             queryParamMap: new BehaviorSubject(convertToParamMap({})),
+            fragment,
         } });
         vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
         const fixture = TestBed.createComponent(Story);
         fixture.componentRef.setInput('game', 'zzz');
         fixture.detectChanges();
-        return { fixture, entries, params };
+        return { fixture, entries, params, fragment };
     }
     const section = (id: string, game = 'zzz', order = 0): Entry => ({
         id, game, order, kind: 'story-category', name: id, notes: '', category: '',
         quantity: 0, target: 0, rarity: 0, members: [], requirements: [], completed: false, day: '',
+    });
+
+    it('opens and remembers the row targeted by a dashboard resume link', async () => {
+        const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region',
+            mainStory: { ...emptyPatchOverview(), rows: [{ id: 'quest', content: 'Next quest', contentType: '', patch: '1.0', notes: '' }] } };
+        const { fixture, fragment } = setup([section('region'), chapter]);
+        const target = fixture.nativeElement.querySelector('#story-row-chapter-quest') as HTMLElement;
+        target.scrollIntoView = vi.fn();
+        fragment.next('story-row-chapter-quest');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(target.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
+        expect(fixture.componentInstance.positions.positions()['zzz']).toMatchObject({ entryId: 'chapter', rowId: 'quest' });
     });
 
     it('remembers clicked tabs after recreation and keeps each game independent', () => {

@@ -1,4 +1,5 @@
 import { AuthStore } from './auth.store';
+import { mergeUpdates } from './merge-updates';
 import { ProgressSnapshot, validProgressState } from '../../../../common/player-progress';
 import { Inject, Injectable, Optional, computed, signal } from '@angular/core';
 import { validRowCompletion } from '../../../../common/story-template';
@@ -17,6 +18,9 @@ import {
 export type { Entry, Kind } from '../../../../common/workspace';
 export { GAMES, validEntries, parseBackup } from '../../../../common/workspace';
 const KEY = 'gg-workspace-v1';
+class RequestError extends Error {
+    constructor(readonly status: number, message: string) { super(message); }
+}
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStore {
     constructor(@Optional() @Inject(AuthStore) readonly auth: AuthStore | null = null) {}
@@ -44,7 +48,7 @@ export class WorkspaceStore {
         const response = this.auth ? await this.auth.request(`/api/${path}`, init) : await fetch(`/api/${path}`, init);
         const data: unknown = await response.json();
         if (!response.ok) {
-            throw new Error(
+            throw new RequestError(response.status,
                 data &&
                 typeof data === 'object' &&
                 'error' in data &&
@@ -54,6 +58,23 @@ export class WorkspaceStore {
             );
         }
         return data;
+    }
+    private async writeCatalog(base: GameSnapshot, edited: GameSnapshot['entries']): Promise<GameSnapshot> {
+        let current = base;
+        let entries = edited;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                return this.snapshot(await this.request(`games/${base.id}/catalog`, { revision: current.revision, entries }));
+            } catch (error) {
+                if (!(error instanceof RequestError) || error.status !== 409) throw error;
+                current = this.snapshot(await this.request(`games/${base.id}`));
+                if (current.id !== base.id) throw new Error('Invalid game response.');
+                const index = (values: GameSnapshot['entries']) => Object.fromEntries(values.map(entry => [entry.id, entry]));
+                entries = Object.values(mergeUpdates(index(base.entries), index(edited), index(current.entries)));
+                if (!validCatalog(entries, base.id)) throw new Error('Another tab changed related guide content. Review the latest guide before retrying.');
+            }
+        }
+        throw new Error('This game is being updated repeatedly. Your edit is still open; try saving again shortly.');
     }
     private snapshot(value: unknown): GameSnapshot {
         if (
@@ -238,8 +259,12 @@ export class WorkspaceStore {
                 };
             }
             if (!this.auth?.user()) {
-                localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: player }));
-                this.player = player;
+                const raw = localStorage.getItem('gg-player-v1');
+                const latest = raw ? JSON.parse(raw) : { version: 1, state: {} };
+                if (latest.version !== 1 || !validProgressState(latest.state)) throw new Error('Invalid local player data. Your stored data has not been overwritten.');
+                const merged = mergeUpdates(this.player, player, latest.state);
+                localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: merged }));
+                this.player = merged;
             }
             for (const game of GAMES) {
                 const snapshot = this.snapshots.get(game.id)!;
@@ -254,12 +279,7 @@ export class WorkspaceStore {
                     continue;
                 }
                 if (!this.canEdit()) throw new Error('An editor account is required to change guide content.');
-                const saved = this.snapshot(
-                    await this.request(`games/${game.id}/catalog`, {
-                        revision: snapshot.revision,
-                        entries: catalog,
-                    }),
-                );
+                const saved = await this.writeCatalog(snapshot, catalog);
                 this.snapshots.set(game.id, saved);
                 wroteCatalog = true;
             }
@@ -281,7 +301,7 @@ export class WorkspaceStore {
                     wroteCatalog
                         ? ' Some games were saved before this error; reload before retrying the rest.'
                         : ''
-                } ${this.auth?.user() ? 'Account progress was not overwritten; reload before retrying.' : 'Player progress remains on this device.'}`,
+                } ${this.auth?.user() ? 'Account progress was not overwritten.' : 'Player progress remains on this device.'}`,
             );
             return false;
         } finally {
@@ -299,12 +319,24 @@ export class WorkspaceStore {
         return data as ProgressSnapshot;
     }
     private async writeProgress(changes: ProgressSnapshot['state']): Promise<ProgressSnapshot> {
-        const response = await this.auth!.request('/api/me/progress', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ revision: this.progressRevision, changes }) });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not sync account progress.');
-        if (!Number.isSafeInteger(data.revision) || !validProgressState(data.state)) throw new Error('Invalid progress response.');
-        return data as ProgressSnapshot;
+        const base = this.player;
+        const edited = { ...base, ...changes };
+        let current = { revision: this.progressRevision, state: base };
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const merged = mergeUpdates(base, edited, current.state);
+            const updates = Object.fromEntries(Object.entries(merged).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(current.state[key])));
+            const response = await this.auth!.request('/api/me/progress', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ revision: current.revision, changes: updates }) });
+            const data = await response.json();
+            if (!response.ok) {
+                if (response.status !== 409) throw new Error(data.error || 'Could not sync account progress.');
+                current = await this.readProgress();
+                continue;
+            }
+            if (!Number.isSafeInteger(data.revision) || data.revision < 0 || !validProgressState(data.state)) throw new Error('Invalid progress response.');
+            return data as ProgressSnapshot;
+        }
+        throw new Error('Progress is being updated repeatedly. Try saving again shortly.');
     }
     guestImport(): ProgressSnapshot['state'] {
         const raw = localStorage.getItem('gg-player-v1');
