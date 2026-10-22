@@ -103,3 +103,5 @@ It removes only its randomly named test collection. Historical scripts under `sc
 require an explicitly supplied disposable test server; use `npm run ui:e2e` for safe setup.
 
 See [middleware documentation](projects/middleware/README.md) for the document schema and API.
+
+See the [implementation guide](docs/implementation-guide.md) for branch reconciliation, CodeRabbit, CI, release rules, and local deployment setup.

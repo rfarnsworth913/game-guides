@@ -1,6 +1,6 @@
 import { endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth, sub } from "date-fns";
 
-import { formatDate } from "@common/constants";
+import { DATE_FORMAT } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
 import { DataService, Logger } from "../services";
@@ -67,8 +67,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 title: "Daily Activities",
                 url: "https://wutheringwaves.fandom.com/wiki/Guidebook/Activity",
                 icon: "icons/wuthering-waves/daily-activities.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -77,8 +77,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 title: "Weekly Challenge",
                 url: "https://wutheringwaves.fandom.com/wiki/Weekly_Challenge",
                 icon: "icons/wuthering-waves/weekly-challenge.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },
@@ -87,8 +87,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 title: "Fantasies of the Thousand Gateways",
                 url: "https://wutheringwaves.fandom.com/wiki/Fantasies_of_the_Thousand_Gateways",
                 icon: "icons/wuthering-waves/fantasies-of-the-thousand-gateways.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },
@@ -97,8 +97,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 title: "Shop Reset",
                 url: "",
                 icon: "icons/wuthering-waves/shop-reset.svg",
-                startDate: format(startOfMonth(new Date()), formatDate),
-                endDate: format(endOfMonth(new Date()), formatDate),
+                startDate: format(startOfMonth(new Date()), DATE_FORMAT),
+                endDate: format(endOfMonth(new Date()), DATE_FORMAT),
                 eventType: EventType.Monthly,
                 completed: false
             }
@@ -150,7 +150,7 @@ export class WutheringWavesParser extends AbstractDataParser {
             }
 
             const releaseDate = isValid(new Date(versionData.releaseDate))
-                ? format(new Date(versionData.releaseDate), formatDate)
+                ? format(new Date(versionData.releaseDate), DATE_FORMAT)
                 : "";
 
             return [{
@@ -197,8 +197,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 title: row.title,
                 url: row.url,
                 icon: `icons/wuthering-waves/${this.getEventType(row.title, row.endDate)}.svg`,
-                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), formatDate) : "",
-                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), formatDate) : "",
+                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), DATE_FORMAT) : "",
+                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), DATE_FORMAT) : "",
                 eventType: this.getEventType(row.title, row.endDate),
                 completed: false
             }));
@@ -230,8 +230,8 @@ export class WutheringWavesParser extends AbstractDataParser {
 
             const normalizedResetDate = rawDate.replace("Doubled Pawns Matrix Stages", "").trim().split("-");
 
-            const startDate = format(new Date(normalizedResetDate[0]), formatDate);
-            const endDate = format(new Date(normalizedResetDate[1]), formatDate);
+            const startDate = format(new Date(normalizedResetDate[0]), DATE_FORMAT);
+            const endDate = format(new Date(normalizedResetDate[1]), DATE_FORMAT);
 
             return [{
                 title: "Doubled Pawns Matrix",
@@ -275,8 +275,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 return [];
             }
 
-            const startDate = format(sub(resetDate, { days: 28 }), formatDate);
-            const endDate = format(resetDate, formatDate);
+            const startDate = format(sub(resetDate, { days: 28 }), DATE_FORMAT);
+            const endDate = format(resetDate, DATE_FORMAT);
 
             return [{
                 title: "Tower of Adversity",
@@ -320,8 +320,8 @@ export class WutheringWavesParser extends AbstractDataParser {
                 return [];
             }
 
-            const startDate = format(sub(resetDate, { days: 28 }), formatDate);
-            const endDate = format(resetDate, formatDate);
+            const startDate = format(sub(resetDate, { days: 28 }), DATE_FORMAT);
+            const endDate = format(resetDate, DATE_FORMAT);
 
             return [{
                 title: "Whimpering Wastes",

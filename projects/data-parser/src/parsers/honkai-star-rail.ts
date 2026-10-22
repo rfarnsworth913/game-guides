@@ -1,6 +1,6 @@
 import { addDays, endOfISOWeek, endOfMonth, endOfWeek, format, isValid, startOfISOWeek, startOfMonth, startOfWeek } from "date-fns";
 
-import { formatDate } from "@common/constants";
+import { DATE_FORMAT } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
 
@@ -71,8 +71,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: "Daily Training",
                 url: "https://honkai-star-rail.fandom.com/wiki/Interastral_Peace_Guide/Daily_Training",
                 icon: "icons/honkai-star-rail/daily-training.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -81,8 +81,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: "Echo of War",
                 url: "https://honkai-star-rail.fandom.com/wiki/Echo_of_War",
                 icon: "icons/honkai-star-rail/echo-of-war.svg",
-                startDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), formatDate),
-                endDate: format(endOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }), formatDate),
+                startDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), DATE_FORMAT),
+                endDate: format(endOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },
@@ -91,8 +91,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: "Embers Exchange",
                 url: "https://honkai-star-rail.fandom.com/wiki/Embers_Exchange",
                 icon: "icons/honkai-star-rail/embers-exchange.svg",
-                startDate: format(startOfMonth(new Date()), formatDate),
-                endDate: format(endOfMonth(new Date()), formatDate),
+                startDate: format(startOfMonth(new Date()), DATE_FORMAT),
+                endDate: format(endOfMonth(new Date()), DATE_FORMAT),
                 eventType: EventType.Monthly,
                 completed: false
             },
@@ -101,8 +101,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: "Currency Wars",
                 url: "https://honkai-star-rail.fandom.com/wiki/Currency_Wars",
                 icon: "icons/honkai-star-rail/currency-wars.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.WeeklyLinked,
                 completed: false
             },
@@ -111,8 +111,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: "Simulated Universe",
                 url: "https://honkai-star-rail.fandom.com/wiki/Simulated_Universe",
                 icon: "icons/honkai-star-rail/simulated-universe.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.WeeklyLinked,
                 completed: false
             }
@@ -164,7 +164,7 @@ export class HonkaiStarRailParser extends AbstractDataParser {
             }
 
             const releaseDate = isValid(new Date(versionData.releaseDate))
-                ? format(new Date(versionData.releaseDate), formatDate)
+                ? format(new Date(versionData.releaseDate), DATE_FORMAT)
                 : "";
 
             return [{
@@ -235,8 +235,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: sourceData.id,
                 url: sourceData.url,
                 icon: `icons/honkai-star-rail/${sourceData.id.toLowerCase().replace(/ /g, "-")}.svg`,
-                startDate: format(parsedStartDate, formatDate),
-                endDate: format(parsedEndDate, formatDate),
+                startDate: format(parsedStartDate, DATE_FORMAT),
+                endDate: format(parsedEndDate, DATE_FORMAT),
                 eventType: EventType.EndGame,
                 completed: false
             }];
@@ -277,8 +277,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: row.title,
                 url: row.url,
                 icon: `icons/honkai-star-rail/${this.getEventType(row.thirdColumn, row.endDate)}.svg`,
-                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), formatDate) : "",
-                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), formatDate) : "",
+                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), DATE_FORMAT) : "",
+                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), DATE_FORMAT) : "",
                 eventType: this.getEventType(row.thirdColumn, row.endDate),
                 completed: false
             }));
