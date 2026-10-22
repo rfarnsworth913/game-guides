@@ -1,4 +1,5 @@
 import { PatchOverview, validPatchOverview, validRowCompletion } from './story-template';
+import { CharacterCollection, CharacterDefinition, CharacterRules, validCharacterCollection, validCharacterDefinition, validCharacterRules } from './characters';
 export type Kind =
     | 'inventory'
     | 'characters'
@@ -10,6 +11,8 @@ export type Kind =
     | 'achievement-category'
     | 'story-category';
 export type Entry = {
+    characterDefinition?: CharacterDefinition;
+    characterCollection?: CharacterCollection;
     patchOverview?: PatchOverview;
     mainStory?: PatchOverview;
     sideStories?: PatchOverview;
@@ -42,9 +45,9 @@ export type Entry = {
     day: string;
 };
 /** Player-owned state is stored separately; these fields never enter the shared catalog. */
-export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion'>;
+export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection'>;
 export type CatalogEntry = Omit<Entry, keyof PlayerState>;
-export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[] };
+export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules };
 export const CATALOG_FIELDS = {
     inventory: 'inventory',
     characters: 'characters',
@@ -72,6 +75,7 @@ export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
         quantity: player?.quantity ?? 0,
         target: player?.target ?? 90,
         ...(player?.storyRowCompletion ? { storyRowCompletion: player.storyRowCompletion } : {}),
+        ...(player?.characterCollection ? { characterCollection: player.characterCollection } : {}),
     };
 }
 /** Whitelist catalog fields to keep player state and arbitrary imported properties out of shared content. */
@@ -88,6 +92,7 @@ export function toCatalog(entry: Entry): CatalogEntry {
         requirements: entry.requirements,
         order: entry.order,
         day: entry.day,
+        ...(entry.characterDefinition !== undefined ? { characterDefinition: entry.characterDefinition } : {}),
         ...(entry.characterInformation !== undefined ? { characterInformation: entry.characterInformation } : {}),
         ...(entry.lore !== undefined ? { lore: entry.lore } : {}),
         ...(entry.worldQuests !== undefined ? { worldQuests: entry.worldQuests } : {}),
@@ -136,6 +141,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'worldQuests',
         'lore',
         'characterInformation',
+        'characterDefinition',
     ]);
     if (
         !value.every(
@@ -242,6 +248,8 @@ export function validEntries(value: unknown): value is Entry[] {
                 validPatchOverview(e.lore) &&
                 validPatchOverview(e.characterInformation) &&
                 validRowCompletion(e.storyRowCompletion) &&
+                (e.characterDefinition === undefined || (e.kind === 'characters' && Number.isSafeInteger(e.rarity) && e.rarity >= 1 && e.rarity <= 20 && validCharacterDefinition(e.characterDefinition))) &&
+                (e.characterCollection === undefined || (e.kind === 'characters' && validCharacterCollection(e.characterCollection))) &&
                 [
                     e.icon,
                     e.sectionImageUrl,
@@ -317,7 +325,9 @@ export function parseBackup(raw: string): Entry[] {
         !('version' in data) ||
         data.version !== 1 ||
         !('entries' in data) ||
-        !validEntries(data.entries)
+        !validEntries(data.entries) ||
+        ('characterRules' in data && (!data.characterRules || typeof data.characterRules !== 'object' || Array.isArray(data.characterRules) ||
+            !Object.entries(data.characterRules).every(([game, rules]) => GAMES.some(item => item.id === game) && validCharacterRules(rules))))
     ) {
         throw new Error('Invalid workspace backup');
     }

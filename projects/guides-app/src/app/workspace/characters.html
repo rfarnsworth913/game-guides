@@ -1,0 +1,646 @@
+<section class="character-workspace">
+    <div class="character-toolbar">
+        <div class="collection-tabs" aria-label="Character view">
+            <button
+                type="button"
+                [class.active]="tab() === 'collection'"
+                [attr.aria-pressed]="tab() === 'collection'"
+                (click)="tab.set('collection')"
+            >
+                My collection <span>{{ owned().length }}</span>
+            </button>
+            <button
+                type="button"
+                [class.active]="tab() === 'catalog'"
+                [attr.aria-pressed]="tab() === 'catalog'"
+                (click)="tab.set('catalog')"
+            >
+                Character catalog <span>{{ catalog().length }}</span>
+            </button>
+        </div>
+        <div class="character-actions">
+            @if (store.canEdit()) {
+                <button type="button" [disabled]="busy()" (click)="editRules()">Game rules</button>
+                <button type="button" [disabled]="busy()" (click)="editDefinition()">
+                    + Catalog character
+                </button>
+            }
+            <button type="button" class="primary" (click)="tab.set('catalog')" [disabled]="busy()">
+                + Add to collection
+            </button>
+        </div>
+    </div>
+    <p class="collection-help">
+        {{
+            store.auth?.user()
+                ? 'Your collection and builds sync to your account.'
+                : 'Your collection and builds are saved on this browser. Sign in to sync across devices.'
+        }}
+        Character information is shared by everyone.
+    </p>
+    @if (message()) {
+        <p class="collection-message" role="status">{{ message() }}</p>
+    }
+    @if (!rules()) {
+        <div class="rules-notice">
+            Game progression rules have not been configured. Browse characters now; an editor must
+            set the level cap and equipment slots before builds can be saved.
+        </div>
+    } @else {
+        <p class="rules-summary">
+            Level cap {{ rules()!.levelCap }} &middot;
+            {{ rules()!.equipmentSlots.length }} equipment slots &middot;
+            {{ rules()!.progressionTracks.length }} progression tracks
+        </p>
+    }
+    <div class="character-filters">
+        <input
+            type="search"
+            aria-label="Search characters"
+            placeholder="Search name, role, weapon or damage type"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+        />
+        <select
+            aria-label="Filter character rarity"
+            [ngModel]="rarity()"
+            (ngModelChange)="rarity.set($event)"
+        >
+            <option value="">All rarities</option>
+            @for (value of rarities(); track value) {
+                <option [value]="value">{{ value }} star</option>
+            }
+        </select>
+        <select
+            aria-label="Filter character damage type"
+            [ngModel]="damageType()"
+            (ngModelChange)="damageType.set($event)"
+        >
+            <option value="">All damage types</option>
+            @for (value of damageTypes(); track value) {
+                <option [value]="value">{{ value }}</option>
+            }
+        </select>
+    </div>
+    <div class="character-grid">
+        @for (entry of visible(); track entry.id) {
+            <button
+                type="button"
+                class="character-card"
+                (click)="details(entry)"
+                [attr.aria-label]="'View ' + entry.name"
+            >
+                <div class="character-portrait">
+                    @if (entry.icon && validImage(entry.icon)) {
+                        <img [src]="entry.icon" alt="" loading="lazy" />
+                    } @else {
+                        <span aria-hidden="true">{{ entry.name.slice(0, 1) }}</span>
+                    }
+                    <span class="character-rarity">{{ entry.rarity }} &#9733;</span>
+                </div>
+                <div class="character-card-copy">
+                    <strong>{{ entry.name }}</strong
+                    ><small
+                        >{{ definition(entry).damageType || 'Damage type not set' }} &middot;
+                        {{ definition(entry).weaponType || 'Weapon not set' }}</small
+                    >
+                    <span class="character-roles">{{
+                        definition(entry).roles.join(' / ') || 'Roles not set'
+                    }}</span>
+                    @if (entry.characterCollection?.owned) {
+                        <span class="collection-owned"
+                            >In collection &middot; Level
+                            {{ entry.characterCollection!.level }}</span
+                        >
+                    } @else {
+                        <span class="collection-unowned"
+                            >View character &amp; add to collection</span
+                        >
+                    }
+                </div>
+            </button>
+        } @empty {
+            <div class="panel empty character-empty">
+                <h2>
+                    {{
+                        search() || rarity() || damageType()
+                            ? 'No matching characters'
+                            : tab() === 'collection'
+                              ? 'Start your character collection'
+                              : 'No catalog characters yet'
+                    }}
+                </h2>
+                <p>
+                    {{
+                        tab() === 'collection'
+                            ? 'Choose characters from the shared catalog and track your own build.'
+                            : 'An editor can add character definitions for everyone in this game.'
+                    }}
+                </p>
+                @if (tab() === 'collection') {
+                    <button type="button" class="secondary" (click)="tab.set('catalog')">
+                        Browse character catalog
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@if (selected(); as entry) {
+    @if (collection; as build) {
+        <div class="modal-backdrop">
+            <section
+                class="modal character-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="character-detail-title"
+                ggDialogFocus
+                (keydown.escape)="closeDetails()"
+            >
+                <div class="character-detail-heading">
+                    @if (entry.icon && validImage(entry.icon)) {
+                        <img [src]="entry.icon" alt="" />
+                    }
+                    <div>
+                        <span class="eyebrow"
+                            >Character details &middot; {{ entry.rarity }} star</span
+                        >
+                        <h2 id="character-detail-title">{{ entry.name }}</h2>
+                        <p>
+                            {{ definition(entry).damageType }} &middot;
+                            {{ definition(entry).weaponType }}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        [disabled]="busy()"
+                        (click)="closeDetails()"
+                        aria-label="Close character details"
+                    >
+                        &#215;
+                    </button>
+                </div>
+                @if (error) {
+                    <p class="alert" role="alert">{{ error }}</p>
+                }
+                <div class="character-detail-grid">
+                    <section class="character-global">
+                        <div class="section-title">
+                            <h3>Character information</h3>
+                            @if (store.canEdit()) {
+                                <button
+                                    type="button"
+                                    [disabled]="busy()"
+                                    (click)="editDefinition(entry)"
+                                >
+                                    Edit shared info
+                                </button>
+                            }
+                        </div>
+                        <p class="character-roles">
+                            {{ definition(entry).roles.join(' / ') || 'No roles recorded' }}
+                        </p>
+                        @if (entry.notes) {
+                            <p class="character-description">{{ entry.notes }}</p>
+                        }
+                        <h4>Skills</h4>
+                        @for (skill of definition(entry).skills; track $index) {
+                            <article class="character-skill">
+                                <strong>{{ skill.name }}</strong>
+                                <p>{{ skill.description }}</p>
+                            </article>
+                        } @empty {
+                            <p class="muted">No skills recorded yet.</p>
+                        }
+                        <h4>Passive skills</h4>
+                        @for (skill of definition(entry).passiveSkills; track $index) {
+                            <article class="character-skill">
+                                <strong>{{ skill.name }}</strong>
+                                <p>{{ skill.description }}</p>
+                            </article>
+                        } @empty {
+                            <p class="muted">No passive skills recorded yet.</p>
+                        }
+                        <h4>Guides &amp; strategies</h4>
+                        <ul class="character-guide-links">
+                            @for (guide of definition(entry).guides; track $index) {
+                                <li>
+                                    <a [href]="guide.url" target="_blank" rel="noopener noreferrer"
+                                        >{{ guide.title }} &#8599;</a
+                                    >
+                                </li>
+                            } @empty {
+                                <li>No guides linked yet.</li>
+                            }
+                        </ul>
+                    </section>
+                    <section class="character-personal">
+                        <h3>Your build</h3>
+                        <p class="collection-help">
+                            {{
+                                entry.characterCollection?.owned
+                                    ? 'Edit the character in your collection.'
+                                    : 'Set up a build to add this character to your collection.'
+                            }}
+                        </p>
+                        @if (rules(); as gameRules) {
+                            <label
+                                >Level
+                                <input
+                                    type="number"
+                                    min="1"
+                                    [max]="gameRules.levelCap"
+                                    [(ngModel)]="build.level"
+                                    [disabled]="busy()"
+                            /></label>
+                            <small>Level 1&ndash;{{ gameRules.levelCap }}</small>
+                            <h4>Equipment</h4>
+                            @for (slot of gameRules.equipmentSlots; track slot.id) {
+                                <label
+                                    >{{ slot.label
+                                    }}<textarea
+                                        rows="2"
+                                        [ngModelOptions]="{ updateOn: 'blur' }"
+                                        [ngModel]="gearText(slot.id)"
+                                        (ngModelChange)="setGear(slot.id, $event)"
+                                        [disabled]="busy()"
+                                        placeholder="One item name per line"
+                                    ></textarea
+                                    ><small
+                                        >Up to {{ slot.limit }} item{{
+                                            slot.limit === 1 ? '' : 's'
+                                        }}</small
+                                    ></label
+                                >
+                            } @empty {
+                                <p class="muted">No equipment slots configured.</p>
+                            }
+                            @for (track of gameRules.progressionTracks; track track.id) {
+                                <label
+                                    >{{ track.label
+                                    }}<input
+                                        type="number"
+                                        min="0"
+                                        [max]="track.max"
+                                        [ngModel]="build.progression[track.id] ?? 0"
+                                        (ngModelChange)="build.progression[track.id] = $event"
+                                        [disabled]="busy()"
+                                    /><small>0&ndash;{{ track.max }}</small></label
+                                >
+                            }
+                            @for (id of orphanGear(); track id) {
+                                <p class="rules-notice">
+                                    An equipment slot was removed from the game rules. Saved items:
+                                    {{ build.gear[id].join(', ') }}
+                                    <button type="button" (click)="clearOrphanGear(id)">
+                                        Clear obsolete slot
+                                    </button>
+                                </p>
+                            }
+                            @for (id of orphanTracks(); track id) {
+                                <p class="rules-notice">
+                                    A progression track is no longer configured. Saved value:
+                                    {{ build.progression[id] }}
+                                    <button type="button" (click)="clearOrphanTrack(id)">
+                                        Clear obsolete track
+                                    </button>
+                                </p>
+                            }
+                            <button
+                                type="button"
+                                class="primary"
+                                (click)="saveCollection()"
+                                [disabled]="busy()"
+                            >
+                                {{
+                                    entry.characterCollection?.owned
+                                        ? 'Save your build'
+                                        : 'Add to collection'
+                                }}
+                            </button>
+                        } @else {
+                            <p class="rules-notice">
+                                An editor must configure this game's progression rules before you
+                                can save a build.
+                            </p>
+                        }
+                        @if (entry.characterCollection?.owned) {
+                            @if (confirmingRemoval) {
+                                <section
+                                    class="character-remove-confirm"
+                                    aria-label="Confirm removal"
+                                >
+                                    <h4>Remove {{ entry.name }}?</h4>
+                                    <p>
+                                        This clears your saved level and equipment for this
+                                        character. The shared character stays in the catalog.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        (click)="removeCollection()"
+                                        [disabled]="busy()"
+                                    >
+                                        Remove from collection</button
+                                    ><button
+                                        type="button"
+                                        (click)="confirmingRemoval = false"
+                                        [disabled]="busy()"
+                                    >
+                                        Cancel
+                                    </button>
+                                </section>
+                            } @else {
+                                <button
+                                    type="button"
+                                    class="character-remove"
+                                    (click)="confirmingRemoval = true"
+                                    [disabled]="busy()"
+                                >
+                                    Remove from my collection
+                                </button>
+                            }
+                        }
+                    </section>
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@if (definitionEditor; as entry) {
+    @if (entry.characterDefinition; as data) {
+        <div class="modal-backdrop">
+            <section
+                class="modal character-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="character-definition-title"
+                ggDialogFocus
+                (keydown.escape)="!busy() && (definitionEditor = null)"
+            >
+                <div class="section-title">
+                    <h2 id="character-definition-title">Shared character information</h2>
+                    <button
+                        type="button"
+                        (click)="definitionEditor = null"
+                        [disabled]="busy()"
+                        aria-label="Close shared character editor"
+                    >
+                        &#215;
+                    </button>
+                </div>
+                <p class="collection-help">
+                    These details are shared by everyone. Level and equipped items belong in Your
+                    build.
+                </p>
+                @if (error) {
+                    <p class="alert" role="alert">{{ error }}</p>
+                }
+                <div class="character-form-grid">
+                    <label
+                        >Character name<input
+                            [(ngModel)]="entry.name"
+                            maxlength="160"
+                            required /></label
+                    ><label
+                        >Rarity<input
+                            type="number"
+                            min="1"
+                            max="20"
+                            [(ngModel)]="entry.rarity"
+                            required
+                    /></label>
+                    <label
+                        >Weapon type<input
+                            [(ngModel)]="data.weaponType"
+                            list="character-weapon-types" /></label
+                    ><label
+                        >Damage type<input
+                            [(ngModel)]="data.damageType"
+                            list="character-damage-types"
+                    /></label>
+                </div>
+                <datalist id="character-weapon-types">
+                    @for (value of rules()?.weaponTypes ?? []; track value) {
+                        <option [value]="value"></option>
+                    }</datalist
+                ><datalist id="character-damage-types">
+                    @for (value of rules()?.damageTypes ?? []; track value) {
+                        <option [value]="value"></option>
+                    }
+                </datalist>
+                <label
+                    >Roles<input
+                        [ngModelOptions]="{ updateOn: 'blur' }"
+                        [ngModel]="data.roles.join(', ')"
+                        (ngModelChange)="data.roles = csv($event)"
+                        placeholder="DPS, Support"
+                /></label>
+                <label>Description<textarea rows="3" [(ngModel)]="entry.notes"></textarea></label>
+                <gg-game-image-picker
+                    [game]="game()"
+                    label="Character portrait"
+                    [value]="entry.icon ?? ''"
+                    (valueChange)="entry.icon = $event"
+                />
+                <fieldset>
+                    <legend>Skills</legend>
+                    @for (skill of data.skills; track $index) {
+                        <div class="character-editor-row">
+                            <label>Name<input [(ngModel)]="skill.name" /></label
+                            ><label
+                                >Description<textarea
+                                    rows="2"
+                                    [(ngModel)]="skill.description"
+                                ></textarea></label
+                            ><button type="button" (click)="data.skills.splice($index, 1)">
+                                Remove skill
+                            </button>
+                        </div>
+                    }
+                    <button type="button" (click)="data.skills.push({ name: '', description: '' })">
+                        + Add skill
+                    </button>
+                </fieldset>
+                <fieldset>
+                    <legend>Passive skills</legend>
+                    @for (skill of data.passiveSkills; track $index) {
+                        <div class="character-editor-row">
+                            <label>Name<input [(ngModel)]="skill.name" /></label
+                            ><label
+                                >Description<textarea
+                                    rows="2"
+                                    [(ngModel)]="skill.description"
+                                ></textarea></label
+                            ><button type="button" (click)="data.passiveSkills.splice($index, 1)">
+                                Remove passive
+                            </button>
+                        </div>
+                    }
+                    <button
+                        type="button"
+                        (click)="data.passiveSkills.push({ name: '', description: '' })"
+                    >
+                        + Add passive skill
+                    </button>
+                </fieldset>
+                <fieldset>
+                    <legend>Guides &amp; strategies</legend>
+                    @for (guide of data.guides; track $index) {
+                        <div class="character-editor-row">
+                            <label>Title<input [(ngModel)]="guide.title" /></label
+                            ><label
+                                >Guide URL<input
+                                    type="url"
+                                    [(ngModel)]="guide.url"
+                                    placeholder="https://" /></label
+                            ><button type="button" (click)="data.guides.splice($index, 1)">
+                                Remove guide
+                            </button>
+                        </div>
+                    }
+                    <button type="button" (click)="data.guides.push({ title: '', url: '' })">
+                        + Add guide link
+                    </button>
+                </fieldset>
+                <div class="character-modal-footer">
+                    <button
+                        type="button"
+                        class="primary"
+                        (click)="saveDefinition()"
+                        [disabled]="busy()"
+                    >
+                        Save shared character</button
+                    ><button type="button" (click)="definitionEditor = null" [disabled]="busy()">
+                        Cancel
+                    </button>
+                </div>
+            </section>
+        </div>
+    }
+}
+
+@if (rulesEditor; as draft) {
+    <div class="modal-backdrop">
+        <section
+            class="modal character-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-rules-title"
+            ggDialogFocus
+            (keydown.escape)="!busy() && (rulesEditor = null)"
+        >
+            <div class="section-title">
+                <h2 id="character-rules-title">Game character rules</h2>
+                <button
+                    type="button"
+                    (click)="rulesEditor = null"
+                    [disabled]="busy()"
+                    aria-label="Close game rules"
+                >
+                    &#215;
+                </button>
+            </div>
+            <p class="collection-help">
+                One shared reference for every character in this game. Verify the initial values
+                before saving. Equipment and progression IDs stay stable when you rename their
+                labels.
+            </p>
+            @if (error) {
+                <p class="alert" role="alert">{{ error }}</p>
+            }
+            <div class="character-form-grid">
+                <label
+                    >Maximum character level<input
+                        type="number"
+                        min="1"
+                        max="1000"
+                        [(ngModel)]="draft.levelCap" /></label
+                ><label
+                    >Available rarities<input
+                        [ngModelOptions]="{ updateOn: 'blur' }"
+                        [ngModel]="draft.rarities.join(', ')"
+                        (ngModelChange)="draft.rarities = rarityValues($event)"
+                        placeholder="4, 5"
+                /></label>
+            </div>
+            <label
+                >Weapon types<input
+                    [ngModelOptions]="{ updateOn: 'blur' }"
+                    [ngModel]="draft.weaponTypes.join(', ')"
+                    (ngModelChange)="draft.weaponTypes = csv($event)"
+                    placeholder="Comma-separated weapon types"
+            /></label>
+            <label
+                >Damage types<input
+                    [ngModelOptions]="{ updateOn: 'blur' }"
+                    [ngModel]="draft.damageTypes.join(', ')"
+                    (ngModelChange)="draft.damageTypes = csv($event)"
+                    placeholder="Comma-separated damage types"
+            /></label>
+            <label
+                >Roles<input
+                    [ngModelOptions]="{ updateOn: 'blur' }"
+                    [ngModel]="draft.roles.join(', ')"
+                    (ngModelChange)="draft.roles = csv($event)"
+                    placeholder="DPS, Support"
+            /></label>
+            <fieldset>
+                <legend>Equipment slots</legend>
+                <p class="collection-help">
+                    Define the slots this game uses, such as a weapon, artifact pieces, or echo
+                    slots.
+                </p>
+                @for (slot of draft.equipmentSlots; track slot.id) {
+                    <div class="character-editor-row">
+                        <label>Slot name<input [(ngModel)]="slot.label" /></label
+                        ><label
+                            >Item limit<input
+                                type="number"
+                                min="1"
+                                max="20"
+                                [(ngModel)]="slot.limit" /></label
+                        ><button type="button" (click)="draft.equipmentSlots.splice($index, 1)">
+                            Remove slot
+                        </button>
+                    </div>
+                }
+                <button type="button" (click)="addSlot()">+ Equipment slot</button>
+            </fieldset>
+            <fieldset>
+                <legend>Progression tracks</legend>
+                <p class="collection-help">
+                    Add game-specific numeric progression such as ascension, constellation,
+                    resonance chain, or skill ranks.
+                </p>
+                @for (track of draft.progressionTracks; track track.id) {
+                    <div class="character-editor-row">
+                        <label>Track name<input [(ngModel)]="track.label" /></label
+                        ><label
+                            >Maximum rank<input
+                                type="number"
+                                min="0"
+                                max="1000"
+                                [(ngModel)]="track.max" /></label
+                        ><button type="button" (click)="draft.progressionTracks.splice($index, 1)">
+                            Remove track
+                        </button>
+                    </div>
+                }
+                <button type="button" (click)="addTrack()">+ Progression track</button>
+            </fieldset>
+            <p class="collection-help">
+                Changing limits or removing slots may require users to update existing builds. Saved
+                data is retained until they explicitly change it.
+            </p>
+            <div class="character-modal-footer">
+                <button type="button" class="primary" (click)="saveRules()" [disabled]="busy()">
+                    Save game rules</button
+                ><button type="button" (click)="rulesEditor = null" [disabled]="busy()">
+                    Cancel
+                </button>
+            </div>
+        </section>
+    </div>
+}

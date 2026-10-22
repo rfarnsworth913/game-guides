@@ -1,18 +1,20 @@
 import { PlayerState, GAMES } from './workspace';
 import { validRowCompletion } from './story-template';
+import { validCharacterCollection } from './characters';
 export type ProgressSnapshot = { revision: number; state: Record<string, PlayerState> };
 export function validPlayerState(value: unknown): value is PlayerState {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const state = value as PlayerState;
     return (
         Object.keys(state).every((key) =>
-            ['completed', 'quantity', 'target', 'storyRowCompletion'].includes(key),
+            ['completed', 'quantity', 'target', 'storyRowCompletion', 'characterCollection'].includes(key),
         ) &&
         typeof state.completed === 'boolean' &&
         [state.quantity, state.target].every(
             (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1e9,
         ) &&
         validRowCompletion(state.storyRowCompletion) &&
+        (state.characterCollection === undefined || validCharacterCollection(state.characterCollection)) &&
         Object.keys(state.storyRowCompletion ?? {}).length <= 10000 &&
         Object.keys(state.storyRowCompletion ?? {}).every(safeId)
     );

@@ -1,6 +1,7 @@
 import { lockedSecurity, Security } from './auth';
 import { ProgressRepository } from './progress';
 import { validProgressState } from '../../common/player-progress';
+import { characterCollectionFits, validCharacterRules } from '../../common/characters';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { GAMES, validCatalog } from '../../common/workspace';
 import { ApiError, GameRepository } from './repository';
@@ -74,11 +75,22 @@ export function createApi(
                     !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0 ||
                     !('changes' in body) || !validProgressState(body.changes)) throw new ApiError(400, 'Invalid progress update.');
                 const catalogs = new Map<string, Map<string, Awaited<ReturnType<typeof repository.read>>['entries'][number]>>();
+                const gameRules = new Map<string, Awaited<ReturnType<typeof repository.read>>['characterRules']>();
                 for (const [key, state] of Object.entries(body.changes)) {
                     const slash = key.indexOf('/'); const game = key.slice(0, slash); const id = key.slice(slash + 1);
-                    if (!catalogs.has(game)) catalogs.set(game, new Map((await repository.read(game)).entries.map((entry) => [entry.id, entry])));
+                    if (!catalogs.has(game)) {
+                        const snapshot = await repository.read(game);
+                        catalogs.set(game, new Map(snapshot.entries.map((entry) => [entry.id, entry])));
+                        gameRules.set(game, snapshot.characterRules);
+                    }
                     const entry = catalogs.get(game)!.get(id);
                     if (!entry) throw new ApiError(400, 'Progress references unknown content.');
+                    if (state.characterCollection) {
+                        const rules = gameRules.get(game);
+                        if (entry.kind !== 'characters' || (state.characterCollection.owned && (!rules || !characterCollectionFits(state.characterCollection, rules)))) {
+                            throw new ApiError(400, 'Character level, equipment, or progression does not match this game\'s rules.');
+                        }
+                    }
                     const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
                         .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');
                     const rowIds = new Set(rows.map((row) => row.id));
@@ -141,7 +153,8 @@ export function createApi(
                     'Invalid catalog, references, or revision. Player state must not be sent to the server.',
                 );
             }
-            respond(response, 200, await repository.write(id, body.entries, Number(body.revision)));
+            if ('characterRules' in body && !validCharacterRules(body.characterRules)) throw new ApiError(400, 'Invalid character rules.');
+            respond(response, 200, await repository.write(id, body.entries, Number(body.revision), 'characterRules' in body ? body.characterRules as import('../../common/characters').CharacterRules : undefined));
         };
         handle().catch((error: unknown) => {
             const known = error instanceof ApiError;

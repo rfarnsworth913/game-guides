@@ -171,7 +171,7 @@
                 </div>
                 <div class="heading-action">
                     @if (
-                        ['inventory', 'characters', 'teams', 'plans', 'events'].includes(
+                        ['inventory', 'teams', 'plans', 'events'].includes(
                             page()
                         )
                     ) {
@@ -421,6 +421,8 @@
                         </div>
                     }
                 </section>
+            } @else if (page() === 'characters') {
+                @if (context(); as game) { <gg-characters [game]="game.id" /> }
             } @else if (page() === 'achievements') {
                 @if (context(); as game) {
                     <gg-achievements [game]="game.id" />

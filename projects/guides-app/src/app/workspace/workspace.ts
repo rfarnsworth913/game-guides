@@ -9,6 +9,7 @@ import { GameTheme } from '../lib/types';
 import { Entry, GAMES, Kind, validEntries, parseBackup, WorkspaceStore } from './workspace.store';
 import { Achievements } from './achievements';
 import { Story } from './story';
+import { Characters } from './characters';
 import { BackToTop } from './back-to-top';
 import { DialogFocusDirective } from './dialog-focus';
 import { StoryPositionStore } from './story-position.store';
@@ -17,7 +18,7 @@ import { storyProgress } from './story-progress';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, BackToTop],
+    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })
@@ -166,10 +167,10 @@ export class Workspace {
         return this.store.entries().some((e) => e.id === id);
     }
     count(kind: string): number {
-        return this.scoped().filter((e) => e.kind === kind).length;
+        return this.scoped().filter((e) => e.kind === kind && (kind !== 'characters' || e.characterCollection?.owned)).length;
     }
     gameCount(game: string, kind: string): number {
-        return this.store.entries().filter((e) => e.game === game && e.kind === kind).length;
+        return this.store.entries().filter((e) => e.game === game && e.kind === kind && (kind !== 'characters' || e.characterCollection?.owned)).length;
     }
     gameProgress(game: string): number {
         const entries = this.store
@@ -281,7 +282,7 @@ export class Workspace {
     }
     exportData(): void {
         const url = URL.createObjectURL(
-            new Blob([JSON.stringify({ version: 1, entries: this.store.entries() }, null, 2)], {
+            new Blob([JSON.stringify({ version: 1, entries: this.store.entries(), characterRules: this.store.characterRules() }, null, 2)], {
                 type: 'application/json',
             }),
         );
@@ -301,10 +302,12 @@ export class Workspace {
             if (file.size > 5000000) {
                 throw new Error();
             }
-            const entries = parseBackup(await file.text());
+            const raw = await file.text();
+            const entries = parseBackup(raw);
+            const rules = JSON.parse(raw).characterRules;
             const merged = new Map(this.store.entries().map((e) => [e.id, e]));
             entries.forEach((e) => merged.set(e.id, e));
-            if (await this.store.replace([...merged.values()])) {
+            if (await this.store.replace([...merged.values()], rules)) {
                 this.notice.set('Backup imported. Matching entries were updated.');
             }
         } catch {

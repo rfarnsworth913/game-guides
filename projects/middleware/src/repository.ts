@@ -2,6 +2,7 @@ import { BSON, Collection, Document } from 'mongodb';
 import { CatalogEntry, GAMES, GameSnapshot } from '../../common/workspace';
 import { decodeEntries, mergeEntries, migrateDocument } from './game-document';
 import { normalizeStory } from './story-document';
+import { CharacterRules, characterDefinitionFits, validCharacterRules } from '../../common/characters';
 
 // Match parser source IDs exactly; the UI display name for HSR includes a colon.
 export const gameDocumentName = (id: string) =>
@@ -85,6 +86,7 @@ export class GameRepository {
             name: GAMES.find((g) => g.id === id)!.name,
             revision: Number(document['_revision'] ?? 0),
             entries,
+            ...(validCharacterRules(document['characterRules']) ? { characterRules: document['characterRules'] } : {}),
         };
     }
     async parsed(id: string): Promise<Record<string, unknown>> {
@@ -95,10 +97,15 @@ export class GameRepository {
             ),
         );
     }
-    async write(id: string, entries: CatalogEntry[], revision: number): Promise<GameSnapshot> {
+    async write(id: string, entries: CatalogEntry[], revision: number, characterRules?: CharacterRules): Promise<GameSnapshot> {
         entries = normalizeStory(entries);
         const document = await this.document(id);
-        const fields = { ...mergeEntries(document, entries), _revision: revision + 1 };
+        const rules = characterRules ?? document['characterRules'];
+        if (rules !== undefined && !validCharacterRules(rules)) throw new ApiError(400, 'Invalid character rules.');
+        if (rules && entries.some(entry => entry.characterDefinition && !characterDefinitionFits(entry.characterDefinition, entry.rarity, rules))) {
+            throw new ApiError(400, 'Character definitions do not match the game\'s rarity, weapon, damage, or role options. Update the options or definitions together.');
+        }
+        const fields = { ...mergeEntries(document, entries), ...(rules ? { characterRules: rules } : {}), _revision: revision + 1 };
         this.checkSize({ ...document, ...fields });
         const result = await this.collection.updateOne(
             { _id: document['_id'], _revision: revision },
@@ -110,6 +117,6 @@ export class GameRepository {
                 'This game changed in another session. Reload game data before saving again.',
             );
         }
-        return { id, name: GAMES.find((g) => g.id === id)!.name, revision: revision + 1, entries };
+        return { id, name: GAMES.find((g) => g.id === id)!.name, revision: revision + 1, entries, ...(rules ? { characterRules: rules } : {}) };
     }
 }

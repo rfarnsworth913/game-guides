@@ -1,4 +1,5 @@
 import { AuthStore } from './auth.store';
+import { CharacterCollection, CharacterRules, characterCollectionFits, validCharacterCollection, validCharacterRules } from '../../../../common/characters';
 import { mergeUpdates } from './merge-updates';
 import { ProgressSnapshot, validProgressState } from '../../../../common/player-progress';
 import { Inject, Injectable, Optional, computed, signal } from '@angular/core';
@@ -31,6 +32,7 @@ export class WorkspaceStore {
     readonly initialized = signal(false);
     readonly loading = signal(false);
     readonly saving = signal(false);
+    readonly characterRules = signal<Record<string, CharacterRules>>({});
     private snapshots = new Map<string, GameSnapshot>();
     private loadingPromise: Promise<boolean> | null = null;
     private player: Record<string, PlayerState> = {};
@@ -59,18 +61,20 @@ export class WorkspaceStore {
         }
         return data;
     }
-    private async writeCatalog(base: GameSnapshot, edited: GameSnapshot['entries']): Promise<GameSnapshot> {
+    private async writeCatalog(base: GameSnapshot, edited: GameSnapshot['entries'], editedRules?: CharacterRules): Promise<GameSnapshot> {
         let current = base;
         let entries = edited;
+        let rules = editedRules;
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
-                return this.snapshot(await this.request(`games/${base.id}/catalog`, { revision: current.revision, entries }));
+                return this.snapshot(await this.request(`games/${base.id}/catalog`, { revision: current.revision, entries, ...(rules ? { characterRules: rules } : {}) }));
             } catch (error) {
                 if (!(error instanceof RequestError) || error.status !== 409) throw error;
                 current = this.snapshot(await this.request(`games/${base.id}`));
                 if (current.id !== base.id) throw new Error('Invalid game response.');
                 const index = (values: GameSnapshot['entries']) => Object.fromEntries(values.map(entry => [entry.id, entry]));
                 entries = Object.values(mergeUpdates(index(base.entries), index(edited), index(current.entries)));
+                if (editedRules) rules = mergeUpdates(base.characterRules, editedRules, current.characterRules);
                 if (!validCatalog(entries, base.id)) throw new Error('Another tab changed related guide content. Review the latest guide before retrying.');
             }
         }
@@ -87,6 +91,7 @@ export class WorkspaceStore {
             Number(value.revision) < 0 ||
             !('entries' in value) ||
             !validCatalog(value.entries, value.id)
+            || ('characterRules' in value && !validCharacterRules(value.characterRules))
         ) {
             throw new Error('Invalid game data received from middleware.');
         }
@@ -95,9 +100,11 @@ export class WorkspaceStore {
             name: GAMES.find((g) => g.id === value.id)?.name ?? value.id,
             revision: Number(value.revision),
             entries: value.entries,
+            ...('characterRules' in value ? { characterRules: value.characterRules as CharacterRules } : {}),
         };
     }
     private showSnapshots(): void {
+        this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
             [...this.snapshots.values()].flatMap((game) =>
                 game.entries.map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
@@ -151,7 +158,7 @@ export class WorkspaceStore {
                         Number(state.target) < 0 ||
                         !validRowCompletion(
                             'storyRowCompletion' in state ? state.storyRowCompletion : undefined,
-                        )
+                        ) || ('characterCollection' in state && !validCharacterCollection(state.characterCollection))
                     ) {
                         throw new Error(
                             'Invalid local player data. Your stored data has not been overwritten.',
@@ -234,7 +241,7 @@ export class WorkspaceStore {
             this.loading.set(false);
         }
     }
-    async replace(entries: Entry[]): Promise<boolean> {
+    async replace(entries: Entry[], ruleUpdates?: Record<string, CharacterRules>): Promise<boolean> {
         if (!this.initialized() || this.loading() || this.saving()) {
             this.error.set('Game data is not ready or a save is in progress. Please retry.');
             return false;
@@ -242,6 +249,9 @@ export class WorkspaceStore {
         if (!validEntries(entries)) {
             this.error.set('Invalid workspace entries.');
             return false;
+        }
+        if (ruleUpdates && !Object.entries(ruleUpdates).every(([game, rules]) => GAMES.some(item => item.id === game) && validCharacterRules(rules))) {
+            this.error.set('Invalid game character rules.'); return false;
         }
         this.saving.set(true);
         this.error.set('');
@@ -256,6 +266,7 @@ export class WorkspaceStore {
                     ...(entry.storyRowCompletion
                         ? { storyRowCompletion: entry.storyRowCompletion }
                         : {}),
+                    ...(entry.characterCollection ? { characterCollection: entry.characterCollection } : {}),
                 };
             }
             if (!this.auth?.user()) {
@@ -275,11 +286,12 @@ export class WorkspaceStore {
                 const previous = snapshot.entries
                     .map((entry) => toCatalog(fromCatalog(entry)))
                     .sort((a, b) => a.id.localeCompare(b.id));
-                if (JSON.stringify(catalog) === JSON.stringify(previous)) {
+                const editedRules = ruleUpdates?.[game.id];
+                if (JSON.stringify(catalog) === JSON.stringify(previous) && (!editedRules || JSON.stringify(editedRules) === JSON.stringify(snapshot.characterRules))) {
                     continue;
                 }
                 if (!this.canEdit()) throw new Error('An editor account is required to change guide content.');
-                const saved = await this.writeCatalog(snapshot, catalog);
+                const saved = await this.writeCatalog(snapshot, catalog, editedRules);
                 this.snapshots.set(game.id, saved);
                 wroteCatalog = true;
             }
@@ -311,6 +323,25 @@ export class WorkspaceStore {
     clearAccountProgress(): void {
         this.player = {}; this.progressRevision = 0;
         this.entries.set([]); this.initialized.set(false);
+    }
+    async saveCharacterRules(game: string, rules: CharacterRules): Promise<boolean> {
+        if (!this.canEdit() || !this.initialized() || this.saving() || this.loading() || !validCharacterRules(rules)) return false;
+        const base = this.snapshots.get(game);
+        if (!base) return false;
+        this.saving.set(true); this.error.set('');
+        try {
+            const saved = await this.writeCatalog(base, base.entries, rules);
+            this.snapshots.set(game, saved); this.showSnapshots(); return true;
+        } catch (error) { this.error.set(error instanceof Error ? error.message : 'Could not save character rules.'); return false; }
+        finally { this.saving.set(false); }
+    }
+    async saveCharacterCollection(id: string, collection: CharacterCollection): Promise<boolean> {
+        const entry = this.entries().find(entry => entry.id === id && entry.kind === 'characters');
+        const rules = entry && this.characterRules()[entry.game];
+        if (!entry || !validCharacterCollection(collection) || (collection.owned && (!rules || !characterCollectionFits(collection, rules)))) {
+            this.error.set('Check this character\'s level, equipment, and progression against the game rules.'); return false;
+        }
+        return this.save({ ...entry, characterCollection: structuredClone(collection) });
     }
     private async readProgress(): Promise<ProgressSnapshot> {
         const response = await this.auth!.request('/api/me/progress');
@@ -353,6 +384,9 @@ export class WorkspaceStore {
             const completion = Object.fromEntries(rows.filter((row) => guest.storyRowCompletion?.[row.id] || account?.storyRowCompletion?.[row.id]).map((row) => [row.id, true]));
             result[key] = { completed: guest.completed || account?.completed || false,
                 quantity: Math.max(guest.quantity, account?.quantity ?? 0), target: Math.max(guest.target, account?.target ?? 0), storyRowCompletion: completion };
+            // Explicit account builds take precedence; never combine two different equipment sets.
+            const collection = account?.characterCollection ?? guest.characterCollection;
+            if (collection) result[key].characterCollection = structuredClone(collection);
         }
         return result;
     }
