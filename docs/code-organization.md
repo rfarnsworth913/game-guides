@@ -11,6 +11,7 @@ The `common` folder contains shared resources that are used across different par
 ```bash
 common/
 ├─ constants/
+├─ enums/
 ```
 
 #### common/constants
@@ -22,3 +23,13 @@ Some rules on formatting for constants:
 * Group related constants together in a single file.
 * Avoid hardcoding values directly in the code; instead, reference the constants.
 * Provide meaningful names that clearly indicate the purpose of the constant.
+
+#### common/enums
+
+The `enums` folder within `common` contains files that define enumerations used throughout the project. Enums help represent a set of named values, making the code more readable and maintainable.
+
+Some rules on formatting for enums:
+* Use PascalCase for enum names, e.g., `UserRole`.
+* Use PascalCase for enum values, e.g., `AdminUser`.
+* Group related enum values together in a single file.
+* Avoid using magic numbers or strings directly in the code; instead, reference the enums.

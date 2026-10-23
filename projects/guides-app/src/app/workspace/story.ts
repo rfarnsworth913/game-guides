@@ -56,6 +56,7 @@ export class Story {
         if (this.editMode() || this.scrollFrame !== null) return;
         this.scrollFrame = requestAnimationFrame(() => {
             this.scrollFrame = null;
+            this.updateOutlineFromScroll();
             const content = this.host.nativeElement.querySelector('.story-subsections')?.getBoundingClientRect();
             if (!content || content.bottom <= 0) return;
             const y = Math.max(20, (this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0) + 32);
@@ -186,6 +187,62 @@ export class Story {
         } finally { this.resetting.set(false); }
     }
     readonly activeOutline = signal('');
+    readonly expandedOutline = signal<string[]>([]);
+    outlineCollapsed(id: string): boolean { return !this.expandedOutline().includes(id); }
+    updateOutlineFromScroll(): void {
+        const top = Math.max(0, this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0);
+        const center = top + (window.innerHeight - top) / 2;
+        const selector = '[data-story-entry][id^="story-content-"]';
+        const targets = [...this.host.nativeElement.querySelectorAll<HTMLElement>(selector)]
+            .filter(target => target.getClientRects().length)
+            .map(target => {
+                const bounds = target.getBoundingClientRect();
+                // A parent article includes attached templates; stop its own range where they begin.
+                const child = target.querySelector<HTMLElement>(selector);
+                const bottom = child ? Math.min(bounds.bottom, child.getBoundingClientRect().top) : bounds.bottom;
+                return { target, top: bounds.top, bottom };
+            })
+            .filter(bounds => bounds.bottom > top && bounds.top < window.innerHeight && bounds.bottom > bounds.top);
+        const nearest = targets.sort((a, b) => {
+            const distance = (bounds: { top: number; bottom: number }) => Math.max(bounds.top - center, center - bounds.bottom, 0);
+            return distance(a) - distance(b) || b.top - a.top;
+        })[0];
+        if (nearest) this.activeOutline.set(nearest.target.id);
+    }
+    outlineChapterActive(id: string, children: Entry[]): boolean {
+        return this.activeOutline() === 'story-content-' + id ||
+            (this.outlineCollapsed(id) && children.some(entry => this.activeOutline() === 'story-content-' + entry.id));
+    }
+    readonly outlineChapters = computed(() => {
+        const entries = this.subsections();
+        const primary = entries.filter(entry => ['patch-overview', 'main-story'].includes(entry.category));
+        const chapters = primary.map(entry => ({ entry: entry as Entry | null, children: [] as Entry[] }));
+        if (!chapters.length && entries.length) chapters.push({ entry: null, children: [] });
+        let index = 0;
+        for (const entry of entries) {
+            const primaryIndex = primary.indexOf(entry);
+            if (primaryIndex >= 0) index = primaryIndex;
+            else chapters[index]?.children.push(entry);
+        }
+        return chapters.map(chapter => ({
+            ...chapter,
+            id: chapter.entry?.id ?? 'related-content',
+            children: chapter.children.filter(entry => this.showEntry(entry)),
+        })).filter(chapter => (chapter.entry && this.showEntry(chapter.entry)) || chapter.children.length);
+    });
+    toggleOutline(id: string): void {
+        this.expandedOutline.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+    }
+    openOutlineChapter(event: Event, id: string, hasChildren: boolean): void {
+        if (hasChildren && this.outlineCollapsed(id)) this.toggleOutline(id);
+        this.jumpTo(event, 'story-content-' + id);
+    }
+    collapseOutline(): void {
+        this.expandedOutline.set([]);
+    }
+    expandOutline(): void {
+        this.expandedOutline.set(this.outlineChapters().map(chapter => chapter.id));
+    }
     readonly encodeAnchor = (id: string) => '#' + encodeURIComponent(id);
     hasTemplate(entry: Entry): boolean {
         return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events'].includes(entry.category);
@@ -270,6 +327,15 @@ export class Story {
     error = '';
 
     constructor() {
+        let outlineContext = '';
+        effect(() => {
+            const context = `${this.game()}/${this.active()?.id ?? ''}`;
+            if (context !== outlineContext) {
+                outlineContext = context;
+                this.expandedOutline.set([]);
+                this.activeOutline.set('');
+            }
+        });
         inject(DestroyRef).onDestroy(() => { if (this.scrollFrame !== null) cancelAnimationFrame(this.scrollFrame); });
         effect(() => {
             const entries = this.subsections();

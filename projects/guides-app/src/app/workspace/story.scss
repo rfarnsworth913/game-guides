@@ -134,7 +134,7 @@
     }
 }
 .story-section {
-    scroll-margin-top: 96px;
+    scroll-margin-top: calc(var(--story-sticky-height, 0px) + 16px);
 }
 .story-subsections .story-section {
     padding: 0;

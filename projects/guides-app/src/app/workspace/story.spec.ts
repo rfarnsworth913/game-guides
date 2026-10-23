@@ -7,6 +7,104 @@ import { Entry, WorkspaceStore } from './workspace.store';
 import { emptyPatchOverview } from '../../../../common/story-template';
 
 describe('Story incomplete filter', () => {
+    it('nests related templates beneath the preceding patch or main story in the outline', () => {
+        const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt',
+            notes: '', quantity: 0, target: 0, rarity: 0, category: '', members: [], requirements: [],
+            completed: false, order: 0, day: '' };
+        const entry = (id: string, category: string, order: number): Entry => ({
+            ...section, id, name: id, kind: 'story', storySection: section.id, category, order,
+        });
+        const entries = signal([section, entry('patch', 'patch-overview', 0),
+            entry('event', 'events', 1), entry('main', 'main-story', 2),
+            entry('world', 'world-quests', 3), entry('character', 'character-information', 4),
+            entry('later-event', 'events', 5), entry('later-world', 'world-quests', 6)]);
+        TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
+            entries, initialized: signal(true), loading: signal(false), saving: signal(false), error: signal(''),
+        } }] });
+        const fixture = TestBed.createComponent(Story);
+        fixture.componentRef.setInput('game', 'genshin');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        expect(component.outlineChapters().map(chapter => [chapter.id, chapter.children.map(child => child.id)]))
+            .toEqual([['patch', ['event']], ['main', ['world', 'character', 'later-event', 'later-world']]]);
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelectorAll('.outline-chapter').length).toBe(2);
+        expect(root.querySelector('.outline-group')).toBeNull();
+        expect(root.querySelector('.story-outline h3')?.textContent).toBe('Story Navigation');
+        expect(root.querySelector('.outline-number')).toBeNull();
+        expect(root.querySelector('.outline-chapter-heading small')).toBeNull();
+        expect(root.querySelector('.outline-toggle svg')).not.toBeNull();
+        expect(root.querySelector('.outline-book')).not.toBeNull();
+        const navigate = vi.spyOn(component, 'jumpTo').mockImplementation(() => {});
+        root.querySelector<HTMLAnchorElement>('.outline-chapter-heading a')!.click();
+        fixture.detectChanges();
+        expect(navigate).toHaveBeenCalledWith(expect.any(Event), 'story-content-patch');
+        expect(component.outlineCollapsed('patch')).toBe(false);
+        navigate.mockRestore();
+        component.expandOutline();
+        fixture.detectChanges();
+        expect(root.querySelector('.outline-group a[href="#story-content-world"]')).not.toBeNull();
+        expect(root.querySelector('#story-content-world')).not.toBeNull();
+        const operator = root.querySelector('.outline-group[data-story-topic="character-information"] .outline-secondary');
+        expect(operator?.textContent).toContain('character');
+        expect(operator?.querySelector('.story-category-icon')).not.toBeNull();
+        expect(root.querySelector('.outline-group[data-story-topic="character-information"] button')).toBeNull();
+        expect(root.querySelector('.outline-group button')).toBeNull();
+        expect(root.querySelectorAll('.outline-secondary').length).toBe(5);
+        const contentOrder = [...root.querySelectorAll('.story-subsections [id^="story-content-"]')].map(element => '#' + element.id);
+        const navigationOrder = [...root.querySelectorAll('.story-outline a')].map(element => element.getAttribute('href'));
+        expect(navigationOrder).toEqual(contentOrder);
+        expect([...root.querySelectorAll('.outline-secondary')].every(link => link.querySelector('.story-category-icon'))).toBe(true);
+        root.querySelector<HTMLButtonElement>('.outline-toggle')!.click();
+        fixture.detectChanges();
+        expect(root.querySelector('.outline-chapter')?.querySelector('.outline-group')).toBeNull();
+        entries.set([section, entry('world-only', 'world-quests', 0)]);
+        fixture.detectChanges();
+        component.expandOutline();
+        fixture.detectChanges();
+        expect(component.outlineChapters()[0].entry).toBeNull();
+        expect(root.querySelector('.outline-group a')?.textContent).toContain('world-only');
+        entries.set([section, entry('main-only', 'main-story', 0)]);
+        fixture.detectChanges();
+        expect(root.querySelector('.outline-toggle')).toBeNull();
+    });
+    it('tracks content at the visible viewport center, separating attached content from its parent', () => {
+        const viewportHeight = vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(800);
+        const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt',
+            notes: '', quantity: 0, target: 0, rarity: 0, category: '', members: [], requirements: [],
+            completed: false, order: 0, day: '' };
+        const first: Entry = { ...section, id: 'first', kind: 'story', storySection: section.id, category: 'main-story' };
+        const second: Entry = { ...first, id: 'second', category: 'world-quests', order: 1 };
+        TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
+            entries: signal([section, first, second]), initialized: signal(true), loading: signal(false),
+            saving: signal(false), error: signal(''),
+        } }] });
+        const fixture = TestBed.createComponent(Story);
+        fixture.componentRef.setInput('game', 'genshin');
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const rect = (top: number, bottom: number) => ({ top, bottom } as DOMRect);
+        vi.spyOn(root.querySelector<HTMLElement>('.story-sticky-header')!, 'getBoundingClientRect').mockReturnValue(rect(0, 100));
+        const parent = root.querySelector<HTMLElement>('#story-content-first')!;
+        const child = root.querySelector<HTMLElement>('#story-content-second')!;
+        for (const target of [parent, child]) vi.spyOn(target, 'getClientRects').mockReturnValue([rect(0, 500)] as unknown as DOMRectList);
+        const center = 100 + (window.innerHeight - 100) / 2;
+        vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue(rect(-300, center + 300));
+        const childBounds = vi.spyOn(child, 'getBoundingClientRect').mockReturnValue(rect(center + 50, center + 300));
+        fixture.componentInstance.updateOutlineFromScroll();
+        expect(fixture.componentInstance.activeOutline()).toBe(parent.id);
+        childBounds.mockReturnValue(rect(center - 10, center + 300));
+        fixture.componentInstance.updateOutlineFromScroll();
+        expect(fixture.componentInstance.activeOutline()).toBe(child.id);
+        fixture.detectChanges();
+        expect(root.querySelector('.outline-chapter-heading a.active')).not.toBeNull();
+        fixture.componentInstance.expandOutline();
+        fixture.detectChanges();
+        expect(root.querySelector('.outline-group a.active')?.getAttribute('href')).toBe('#story-content-second');
+        fixture.componentInstance.collapseOutline();
+        expect(fixture.componentInstance.expandedOutline()).toEqual([]);
+        viewportHeight.mockRestore();
+    });
     it('shows a compact creation form and requires valid fields before creation', async () => {
         const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt',
             notes: '', quantity: 0, target: 0, rarity: 0, category: '', members: [], requirements: [],
