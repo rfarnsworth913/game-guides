@@ -1,13 +1,8 @@
 import { Entry } from './workspace.store';
+import { storyRowDone, storyTemplateFor } from '../../../../common/story-guide';
 
 export function storyTemplate(entry: Entry) {
-    return entry.category === 'patch-overview' ? entry.patchOverview
-        : entry.category === 'main-story' ? entry.mainStory
-        : entry.category === 'events' ? entry.eventStory
-        : entry.category === 'side-stories' ? entry.sideStories
-        : entry.category === 'character-information' ? entry.characterInformation
-        : entry.category === 'lore' ? entry.lore
-        : entry.category === 'world-quests' ? entry.worldQuests : undefined;
+    return storyTemplateFor(entry);
 }
 
 export function storyProgress(entries: Entry[]) {
@@ -15,11 +10,11 @@ export function storyProgress(entries: Entry[]) {
     let completed = 0;
     for (const entry of entries) {
         const template = storyTemplate(entry);
-        if (['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events'].includes(entry.category)) {
+        if (['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity'].includes(entry.category)) {
             for (const row of template?.rows ?? []) {
                 if (row.rowType === 'heading' || row.rowType === 'note') continue;
                 total++;
-                if (entry.storyRowCompletion?.[row.id]) completed++;
+                if (storyRowDone(entry, row)) completed++;
             }
         } else {
             total++;

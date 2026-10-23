@@ -209,6 +209,20 @@
                             }
                         </section>
                     }
+                    @if (contentDirectories().length) {
+                        <div class="guide-directories">
+                            <h3>Browse Content</h3>
+                            <p class="guide-help">Complete directories for this game</p>
+                            @for (directory of contentDirectories(); track directory.id) {
+                                <details [attr.data-story-topic]="directory.id">
+                                    <summary><span class="story-category-icon" aria-hidden="true">{{ topicIcon(directory.id) }}</span>{{ directory.title }} <small>{{ directory.entries.length }}</small></summary>
+                                    @for (entry of directory.entries; track entry.id) {
+                                        <button type="button" (click)="openDirectoryEntry(entry)">{{ entry.name }}</button>
+                                    }
+                                </details>
+                            }
+                        </div>
+                    }
                 </nav>
             }
             <div class="story-subsections" [class.reordering]="dragId()">

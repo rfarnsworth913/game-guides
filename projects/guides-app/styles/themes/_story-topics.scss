@@ -2,13 +2,14 @@
 
 // Topic colors stay consistent across games, regions and patch versions.
 $story-topics: (
-  patch-overview: (accent: #0284c7, light: #e0f2fe, dark: #082f49),
-  main-story: (accent: #7c3aed, light: #ede9fe, dark: #2e1065),
-  side-stories: (accent: #0d9488, light: #ccfbf1, dark: #042f2e),
-  world-quests: (accent: #16a34a, light: #dcfce7, dark: #052e16),
-  events: (accent: #d97706, light: #fef3c7, dark: #451a03),
-  lore: (accent: #4f46e5, light: #e0e7ff, dark: #1e1b4b),
-  character-information: (accent: #e11d48, light: #ffe4e6, dark: #4c0519),
+  patch-overview: (accent: #38a8d9, light: #e0f2fe, dark: #132733),
+  main-story: (accent: #a78bfa, light: #ede9fe, dark: #28243a),
+  side-stories: (accent: #19b8ad, light: #ccfbf1, dark: #132e2d),
+  world-quests: (accent: #46b78b, light: #dcfce7, dark: #192e29),
+  events: (accent: #e7a34b, light: #fef3c7, dark: #30291e),
+  endgame-activity: (accent: #e16c70, light: #ffe4e6, dark: #321f27),
+  lore: (accent: #8595e8, light: #e0e7ff, dark: #22293a),
+  character-information: (accent: #e08aae, light: #fce7f3, dark: #302431),
 );
 
 :root {

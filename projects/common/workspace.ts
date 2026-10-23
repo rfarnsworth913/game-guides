@@ -1,4 +1,5 @@
 import { PatchOverview, validPatchOverview, validRowCompletion } from './story-template';
+import { storyRowDone, storyTemplateFor } from './story-guide';
 import { CharacterCollection, CharacterDefinition, CharacterRules, validCharacterCollection, validCharacterDefinition, validCharacterRules } from './characters';
 export type Kind =
     | 'inventory'
@@ -61,7 +62,7 @@ export const CATALOG_FIELDS = {
 } as const;
 
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
-    const template = entry.category === 'events' ? entry.eventStory : entry.category === 'character-information' ? entry.characterInformation : entry.category === 'side-stories' ? entry.sideStories : entry.category === 'lore' ? entry.lore : entry.category === 'world-quests' ? entry.worldQuests : entry.category === 'main-story' ? entry.mainStory : entry.category === 'patch-overview' ? entry.patchOverview : undefined;
+    const template = storyTemplateFor(entry);
     const quests = template?.rows.filter((row) => !row.rowType || row.rowType === 'quest');
     return {
         ...entry,
@@ -69,7 +70,7 @@ export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
             entry.kind === 'story' && template
                 ? quests!.length > 0 &&
                   quests!.every(
-                      (row) => player?.storyRowCompletion?.[row.id] === true,
+                      (row) => storyRowDone({ ...entry, ...player } as Entry, row),
                   )
                 : player?.completed ?? false,
         quantity: player?.quantity ?? 0,

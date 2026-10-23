@@ -228,7 +228,7 @@ describe('Story incomplete filter', () => {
         expect(fixture.nativeElement.querySelector('.patch-hero')).toBeNull();
         expect(fixture.nativeElement.textContent).toContain('Laevatain');
         expect(fixture.nativeElement.textContent).toContain('Operator Profile');
-        expect(fixture.nativeElement.querySelectorAll('.patch-groups').length).toBe(1);
+        expect(fixture.nativeElement.querySelectorAll('gg-story-content-list').length).toBe(1);
         fixture.componentInstance.incompleteOnly.set(false);
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('.patch-hero')).not.toBeNull();
@@ -278,6 +278,7 @@ describe('Story tab persistence', () => {
         fragment.next('story-row-chapter-quest');
         fixture.detectChanges();
         await fixture.whenStable();
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
         expect(target.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
         expect(fixture.componentInstance.positions.positions()['zzz']).toMatchObject({ entryId: 'chapter', rowId: 'quest' });
     });

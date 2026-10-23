@@ -1,4 +1,6 @@
 @if (editing()) {
+    <label>Guide summary<textarea [ngModelOptions]="standalone" [(ngModel)]="data().summary" rows="2" placeholder="Optional introduction or release summary (Markdown)"></textarea></label>
+    <gg-story-context-editor [context]="editorContext()" />
     @if (entry().category === 'character-information') {
         <fieldset>
             <legend>Character Header</legend>
@@ -64,13 +66,13 @@
     }
     }
     <fieldset class="patch-group-editor">
-        <legend>{{ groupedTemplate() ? 'Primary Sections' : 'Content Groups' }}</legend>
+        <legend>{{ mainQuestTemplate() ? questEditorLabel() + ' Groups' : groupedTemplate() ? 'Primary Sections' : 'Content Groups' }}</legend>
         <p>Create the groups this guide needs. Removing a group keeps its rows in Overview.</p>
         @for (group of data().groups; track group.id; let index = $index) {
             <section class="patch-edit-group" [attr.aria-label]="group.title || 'New group'">
             <div class="patch-group-edit-row compact-group-header">
-                <label>Group Name<input #groupName [attr.name]="'groupTitle-' + group.id"
-                    [ngModelOptions]="standalone" [(ngModel)]="group.title" placeholder="e.g. Operator Lore" /></label>
+                <label>{{ mainQuestTemplate() ? questEditorLabel() + ' Title' : 'Group Name' }}<input #groupName [attr.name]="'groupTitle-' + group.id"
+                    [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.content ?? group.title" (ngModelChange)="mainQuestTemplate() ? setMainQuestTitle(group, $event) : group.title = $event" placeholder="e.g. Everwinter Without Mercy" /></label>
                 <label class="group-default-patch">Default Patch<input [ngModelOptions]="standalone" [(ngModel)]="group.defaultPatch" placeholder="e.g. 1.1" /></label>
                 <details #groupMenu class="group-overflow">
                     <summary [attr.aria-label]="'Actions for ' + group.title">&#8943;</summary>
@@ -82,10 +84,21 @@
                     </div>
                 </details>
             </div>
+            @if (mainQuestTemplate()) {
+                <label>{{ questEditorLabel() }} Link<input type="url" [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.contentUrl ?? ''" (ngModelChange)="ensureMainQuest(group).contentUrl = $event" placeholder="https://..." /></label>
+                @if (group.mainQuest; as mainQuest) {
+                    <details class="guide-context-editor">
+                        <summary>{{ questEditorLabel() }} details</summary>
+                        <label>{{ questEditorLabel() }} Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="mainQuest.notes" rows="2"></textarea></label>
+                        @if (mainQuest.notesRight !== undefined) { <label>Additional {{ questEditorLabel() }} Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="mainQuest.notesRight" rows="2"></textarea></label> }
+                        <gg-story-context-editor [context]="rowContext(mainQuest)" [row]="true" />
+                    </details>
+                }
+            }
             <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(group.id), groupId: group.id }" />
             </section>
         }
-        <button type="button" (click)="addGroup()">+ Add group</button>
+        <button type="button" (click)="addGroup()">{{ mainQuestTemplate() ? '+ Add ' + questEditorLabel() : '+ Add group' }}</button>
     </fieldset>
     @if (!data().groups?.length || rowsForGroup('').length) {
         <fieldset class="patch-group-editor">
@@ -95,8 +108,8 @@
     }
     <ng-template #contentRows let-rows="rows" let-groupId="groupId">
         <div class="patch-row-heading">
-            <h3>Content Rows <small>{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}</small></h3>
-            <button type="button" (click)="addRow(groupId)">+ Add Row</button>
+            <h3>{{ mainQuestTemplate() ? 'Quests' : 'Content Rows' }} <small>{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}</small></h3>
+            <button type="button" (click)="addRow(groupId)">{{ mainQuestTemplate() ? '+ Add Quest' : '+ Add Row' }}</button>
         </div>
         @for (row of rows; track row.id; let index = $index) {
             <details class="patch-row-editor compact-row-card" [open]="expandedRow() === row.id && !draggingRow()"
@@ -110,13 +123,13 @@
                         (click)="$event.stopPropagation()" (dragstart)="startRowDrag($event, row)" (dragend)="endRowDrag()">&#10303;</button>
                     <span class="row-chevron" aria-hidden="true">&#8250;</span>
                     <span class="row-summary-text"><strong>{{ rowTitle(row) }}</strong>
-                        <small>{{ row.rowType === 'heading' ? 'Secondary heading' : row.rowType === 'note' ? 'Global notes' : 'Patch ' + (row.patch || '?') + (row.contentUrl ? ' ? Linked content' : '') }}{{ row.subQuest ? ' ? Sub-quest' : '' }}</small>
+                        <small>{{ row.rowType === 'heading' ? 'Secondary heading' : row.rowType === 'note' ? 'Global notes' : 'Patch ' + (row.patch || '?') + (row.contentUrl ? ' · Linked content' : '') }}{{ row.subQuest && !mainQuestTemplate() ? ' · Sub-quest' : '' }}</small>
                     </span><small>#{{ index + 1 }}</small>
                 </summary>
                 <div class="compact-row-fields">
-                    @if (groupedTemplate() && row.rowType === 'heading') {
+                    @if (row.rowType === 'heading') {
                         <label>Secondary Heading<input [ngModelOptions]="standalone" [(ngModel)]="row.content" /></label>
-                    } @else if (groupedTemplate() && row.rowType === 'note') {
+                    } @else if (row.rowType === 'note') {
                         <label>Global Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)"></textarea></label>
                     } @else {
                         <label>Content
@@ -136,24 +149,24 @@
                             }
                         </div>
                         <div class="row-flags">
-                            <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [(ngModel)]="row.subQuest" />Sub-quest</label>
+                            @if (!mainQuestTemplate()) { <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [(ngModel)]="row.subQuest" />Sub-quest</label> }
                             <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [ngModel]="row.notesRight !== undefined" (ngModelChange)="splitNotes(row, $event)" />Split Notes into two cells</label>
                         </div>
                     }
                     <div class="patch-row-actions">
+                        @if (mainQuestTemplate() && row.groupId && (!row.rowType || row.rowType === 'quest')) { <button type="button" (click)="promoteMainQuest(row)">Use as {{ questEditorLabel() }}</button> }
                         <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), -1) < 0" (click)="moveRow(data().rows.indexOf(row), -1)" [attr.aria-label]="'Move row ' + (index + 1) + ' up'">&#8593;</button>
                         <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), 1) < 0" (click)="moveRow(data().rows.indexOf(row), 1)" [attr.aria-label]="'Move row ' + (index + 1) + ' down'">&#8595;</button>
                         <button type="button" class="row-remove" (click)="removeRow(row.id)">Remove Row</button>
                     </div>
+                    <gg-story-context-editor [context]="rowContext(row)" [row]="true" />
                 </div>
             </details>
         } @empty { <p>Add content rows to this group.</p> }
         <div class="patch-row-add">
-            <button type="button" (click)="addRow(groupId)">+ Add Row</button>
-            @if (groupedTemplate()) {
+            <button type="button" (click)="addRow(groupId)">{{ mainQuestTemplate() ? '+ Add Quest' : '+ Add Row' }}</button>
                 <button type="button" (click)="addRow(groupId, 'heading')">+ Secondary Heading</button>
                 <button type="button" (click)="addRow(groupId, 'note')">+ Global Notes</button>
-            }
         </div>
     </ng-template>
 
@@ -247,115 +260,6 @@
             }
         </div>
         }
-        @if (groups().length) {
-        <div class="patch-groups">
-            @for (group of groups(); track group.id; let index = $index) {
-                <section
-                    class="patch-content-group"
-                    [class.alternate]="index % 2 === 1"
-                    [id]="groupAnchor(group.id)"
-                    tabindex="-1"
-                    [attr.aria-labelledby]="groupAnchor(group.id) + '-title'"
-                >
-                    <div class="patch-group-heading">
-                        <h4 [id]="groupAnchor(group.id) + '-title'">{{ group.title }}</h4>
-                        <span>{{ groupCompleted(group.rows) }} / {{ questCount(group.rows) }}</span>
-                    </div>
-                    <div
-                        class="patch-table-scroll"
-                        tabindex="0"
-                        role="region"
-                        [attr.aria-label]="group.title + ' content'"
-                    >
-                        <table class="patch-table">
-                            <caption>
-                                {{
-                                    entry().name
-                                }}
-                                &mdash;
-                                {{
-                                    group.title
-                                }}
-                            </caption>
-                            <colgroup>
-                                <col class="completion-column" />
-                                <col class="content-column" />
-                                <col class="patch-column" />
-                            </colgroup>
-                            <colgroup>
-                                <col />
-                                <col />
-                            </colgroup>
-                            <thead>
-                                <tr class="patch-column-headings">
-                                    <th scope="col">Completed</th>
-                                    <th scope="col">Content</th>
-                                    <th scope="col">Patch</th>
-                                    <th scope="colgroup" colspan="2">Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (row of group.rows; track row.id) {
-                                    @if (groupedTemplate() && row.rowType === 'heading') {
-                                        <tr class="world-secondary-heading story-search-target" [attr.data-story-row]="row.id" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><th colspan="5" scope="rowgroup">{{ row.content }}</th></tr>
-                                    } @else if (groupedTemplate() && row.rowType === 'note') {
-                                        <tr class="story-search-target" [attr.data-story-row]="row.id" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"><td colspan="5"><div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div></td></tr>
-                                    } @else {
-                                    <tr
-                                        class="story-search-target" [attr.data-story-row]="row.id" [id]="'story-row-' + entry().id + '-' + row.id" tabindex="-1"
-                                        [class.row-completed]="entry().storyRowCompletion?.[row.id]"
-                                    >
-                                        <td class="patch-completed">
-                                            <input
-                                                type="checkbox"
-                                                [checked]="
-                                                    entry().storyRowCompletion?.[row.id] ?? false
-                                                "
-                                                [disabled]="store.saving() || store.loading()"
-                                                [attr.aria-label]="
-                                                    'Mark ' + (row.content || 'row') + ' complete'
-                                                "
-                                                (change)="toggle(row)"
-                                            />
-                                        </td>
-                                        <td class="patch-content-cell" [class.sub-quest]="row.subQuest">
-                                            @if (row.subQuest) {
-                                                <span class="sub-quest-label">Sub-quest: </span>
-                                            }
-                                            @if (httpUrl(row.contentUrl || row.content); as url) {
-                                                <a
-                                                    [href]="url"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    >{{ row.content || url
-                                                    }}<span aria-hidden="true"> &#8599;</span></a
-                                                >
-                                            } @else {
-                                                {{ row.content }}
-                                            }
-                                        </td>
-                                        <td class="patch-version-cell">{{ row.patch }}</td>
-                                        <td [attr.colspan]="row.notesRight === undefined ? 2 : 1">
-                                            <div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div>
-                                        </td>
-                                        @if (row.notesRight !== undefined) {
-                                            <td><div class="notes-markdown" [innerHTML]="row.notesRight | notesMarkdown"></div></td>
-                                        }
-                                    </tr>
-                                    }
-                                } @empty {
-                                    <tr>
-                                        <td colspan="5" class="patch-empty">
-                                            No content in this group yet.
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            }
-        </div>
-        }
+        <gg-story-content-list [entry]="entry()" [data]="data()" [disabled]="store.saving() || store.loading()" [incompleteOnly]="incompleteOnly()" [relatedEntries]="relatedEntries()" (toggled)="toggle($event)" />
     </div>
 }

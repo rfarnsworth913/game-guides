@@ -19,6 +19,7 @@
     "start": "node projects/middleware/start.mjs",
     "ui:only": "ng serve",
     "middleware:migrate": "tsx projects/middleware/src/migrate.ts",
+    "middleware:main-quests": "tsx projects/middleware/src/main-quest-migration.ts",
     "middleware:start": "node --watch --watch-preserve-output --import tsx projects/middleware/src/main.ts",
     "middleware:check": "tsc -p projects/middleware/tsconfig.json",
     "middleware:test": "tsx --test projects/middleware/src/*.test.ts"

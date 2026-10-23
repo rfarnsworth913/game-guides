@@ -379,9 +379,9 @@ export class WorkspaceStore {
             const key = this.playerKey(entry); const guest = data.state[key];
             if (!guest) continue;
             const account = this.player[key];
-            const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
-                .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');
-            const completion = Object.fromEntries(rows.filter((row) => guest.storyRowCompletion?.[row.id] || account?.storyRowCompletion?.[row.id]).map((row) => [row.id, true]));
+            // Include historical cycle keys and old row IDs; importing must not erase earlier tracking.
+            const completion = Object.fromEntries([...new Set([...Object.keys(guest.storyRowCompletion ?? {}), ...Object.keys(account?.storyRowCompletion ?? {})])]
+                .filter(key => guest.storyRowCompletion?.[key] || account?.storyRowCompletion?.[key]).map(key => [key, true]));
             result[key] = { completed: guest.completed || account?.completed || false,
                 quantity: Math.max(guest.quantity, account?.quantity ?? 0), target: Math.max(guest.target, account?.target ?? 0), storyRowCompletion: completion };
             // Explicit account builds take precedence; never combine two different equipment sets.

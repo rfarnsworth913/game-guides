@@ -1,0 +1,82 @@
+<div class="guide-reading-view" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
+    @for (group of groups(); track group.id) {
+        <section class="guide-content-section" [id]="'patch-group-' + entry().id + '-' + (group.id || 'overview')">
+            @if (questTemplate() && group.mainQuest; as mainQuest) {
+            <header class="guide-section-heading guide-main-quest-heading story-search-target" [id]="anchor(mainQuest)" [attr.data-story-row]="mainQuest.id" tabindex="-1">
+                <button type="button" [attr.aria-label]="'Toggle ' + (mainQuest.content || group.title)" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-group-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
+                </button>
+                <div class="guide-main-quest-title">
+                    <h4>@if (httpUrl(mainQuest.contentUrl || mainQuest.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ mainQuest.content || group.title }}</a> } @else { {{ mainQuest.content || group.title }} }</h4>
+                    <p>{{ mainQuestName() }}@if (mainQuest.patch || group.defaultPatch || sharedPatch(); as version) { <span> · Version {{ version }}</span> }</p>
+                </div>
+                @let progress = groupProgress(group.id);
+                <div class="guide-main-quest-progress" aria-label="Quest completion">
+                    <strong>{{ progress.completed }} / {{ progress.total }}</strong>
+                    <small>{{ progress.percent }}%</small>
+                </div>
+            </header>
+            } @else {
+            <header class="guide-section-heading">
+                <button type="button" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-group-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
+                    <h4>{{ group.title }}</h4>
+                    <span>{{ countDone(group.rows) }} / {{ count(group.rows) }}</span>
+                </button>
+            </header>
+            }
+            <div class="guide-section-content" [class.collapsed]="collapsed().includes(group.id)"
+                [id]="'guide-group-' + entry().id + '-' + group.id"
+                [attr.aria-hidden]="collapsed().includes(group.id)"
+                [attr.inert]="collapsed().includes(group.id) ? '' : null">
+            <div class="guide-section-clip">
+            <div class="guide-row-list">
+                @if (group.mainQuest; as mainQuest) {
+                    @if (mainQuest.notes || mainQuest.notesRight || mainQuest.context?.requirements?.length) {
+                        <div class="guide-main-quest-details">
+                            <div class="notes-markdown" [innerHTML]="mainQuest.notes | notesMarkdown"></div>
+                            @if (mainQuest.notesRight) { <div class="notes-markdown" [innerHTML]="mainQuest.notesRight | notesMarkdown"></div> }
+                            @for (requirement of mainQuest.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
+                        </div>
+                    }
+                }
+                @for (row of group.rows; track row.id) {
+                    <article class="guide-content-row story-search-target" [class.guide-row-done]="done(row)" [class.guide-subquest]="row.subQuest && !questTemplate()" [class.guide-row-heading]="row.rowType === 'heading'" [id]="anchor(row)" [attr.data-story-row]="row.id" tabindex="-1">
+                        @if (row.rowType === 'heading') { <h5>{{ row.content }}</h5> }
+                        @else if (row.rowType === 'note') { <div class="notes-markdown guide-global-note" [innerHTML]="row.notes | notesMarkdown"></div> }
+                        @else {
+                            <label class="guide-row-tracking"><input type="checkbox" [checked]="done(row)" [disabled]="disabled() || !canTrack(row)" [attr.aria-label]="label(row) + ': ' + (row.content || 'Untitled content')" (change)="toggled.emit(row)" /></label>
+                            <div class="guide-row-body">
+                                <div class="guide-row-title">
+                                    @if (httpUrl(row.contentUrl || row.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content || url }} <span aria-hidden="true">↗</span></a> }
+                                    @else { <strong>{{ row.content || 'Untitled content' }}</strong> }
+                                    @if (row.patch && row.patch !== sharedPatch()) { <span class="guide-meta-badge">Patch {{ row.patch }}</span> }
+                                    @if (row.context?.difficulty) { <span class="guide-meta-badge">{{ row.context.difficulty }}</span> }
+                                </div>
+                                @if (contextText(row.context)) { <p class="guide-row-context">{{ contextText(row.context) }}</p> }
+                                @if (row.context?.availability) { <span class="guide-meta-badge">{{ row.context.availability }}</span> }
+                                @if (!canTrack(row)) { <p class="guide-warning">An editor must set a cycle ID before current-cycle progress can be tracked.</p> }
+                                @for (requirement of row.context?.requirements; track $index) {
+                                    @if (['missable', 'unlock', 'time-gate'].includes(requirement.type)) { <p class="guide-warning"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
+                                }
+                                @if (row.notes || row.notesRight || row.context?.requirements?.length || row.context?.relatedContentIds?.length) {
+                                    <details class="guide-row-details">
+                                        <summary>{{ reference() ? 'Reference details' : 'Notes & requirements' }}</summary>
+                                        <div [class.guide-split-notes]="row.notesRight !== undefined">
+                                            <div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div>
+                                            @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | notesMarkdown"></div> }
+                                        </div>
+                                        @for (requirement of row.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
+                                        @for (entry of related(row.context?.relatedContentIds); track entry.id) { <a class="guide-related" [href]="relatedUrl(entry)">Related: {{ entry.name }}</a> }
+                                    </details>
+                                }
+                            </div>
+                        }
+                    </article>
+                } @empty { <p class="guide-empty">No content in this section yet.</p> }
+            </div>
+            </div>
+            </div>
+        </section>
+    } @empty { <p class="guide-empty" role="status">No matching items in this guide.</p> }
+</div>

@@ -3,8 +3,11 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { GameImagePicker } from './game-image-picker';
-import { NotesMarkdownPipe } from './markdown';
 import { Entry, WorkspaceStore, GAMES } from './workspace.store';
+import { StoryContentList } from './story-content-list';
+import { StoryContextEditor } from './story-context-editor';
+import type { StoryGroup } from '../../../../common/types/story-group.type';
+import { StoryContext, storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from '../../../../common/story-guide';
 import {
     emptyPatchOverview,
     httpUrl,
@@ -16,7 +19,7 @@ import {
 
 @Component({
     selector: 'gg-patch-overview',
-    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, NotesMarkdownPipe],
+    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor],
     templateUrl: './patch-overview.html',
     styleUrl: './patch-overview.scss',
 })
@@ -26,9 +29,35 @@ export class PatchOverviewTemplate {
     readonly incompleteOnly = input(false);
     readonly store = inject(WorkspaceStore);
     readonly groupedTemplate = computed(() => ['world-quests', 'lore', 'character-information'].includes(this.entry().category));
-    readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events'].includes(this.entry().category));
-    readonly data = computed(() => (this.entry().category === 'events' ? this.entry().eventStory : this.entry().category === 'character-information' ? this.entry().characterInformation : this.entry().category === 'lore' ? this.entry().lore
-            : this.entry().category === 'world-quests' ? this.entry().worldQuests : this.entry().category === 'side-stories' ? this.entry().sideStories : this.entry().category === 'main-story' ? this.entry().mainStory : this.entry().patchOverview) ?? emptyPatchOverview());
+    readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events', 'endgame-activity'].includes(this.entry().category));
+    readonly data = computed(() => storyTemplateFor(this.entry()) ?? emptyPatchOverview());
+    readonly relatedEntries = computed(() => this.store.entries?.() ?? []);
+    readonly done = (row: StoryTableRow) => storyRowDone(this.entry(), row);
+    readonly canTrack = (row: StoryTableRow) => storyCompletionKey(this.entry(), row) !== null;
+    editorContext(): StoryContext { return this.data().context ??= {}; }
+    rowContext(row: StoryTableRow): StoryContext { return row.context ??= {}; }
+    readonly mainQuestTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
+    readonly questEditorLabel = computed(() => this.entry().category === 'side-stories' ? storyContentName(this.entry().game, 'side-stories') : 'Main Quest');
+    ensureMainQuest(group: StoryGroup): StoryTableRow {
+        return group.mainQuest ??= { id: crypto.randomUUID(), groupId: group.id, content: group.title, contentUrl: '', contentType: '', patch: group.defaultPatch ?? '', notes: '' };
+    }
+    setMainQuestTitle(group: StoryGroup, title: string): void {
+        group.title = title;
+        this.ensureMainQuest(group).content = title;
+    }
+    promoteMainQuest(row: StoryTableRow): void {
+        const group = this.data().groups?.find(group => group.id === row.groupId);
+        if (!this.mainQuestTemplate() || !group) return;
+        const previous = group.mainQuest;
+        this.data().rows = this.data().rows.filter(item => item.id !== row.id);
+        if (previous) this.data().rows.unshift({ ...previous, groupId: group.id, subQuest: false });
+        group.mainQuest = row;
+        group.title = row.content;
+    }
+    trackingLabel(row?: StoryTableRow): string {
+        const mode = storyTrackingMode(this.entry(), row);
+        return mode === 'recurring' ? 'This cycle' : mode.charAt(0).toUpperCase() + mode.slice(1);
+    }
     readonly failedImage = signal('');
     readonly expandedRow = signal('');
     readonly multilineRows = signal<string[]>([]);
@@ -85,7 +114,7 @@ export class PatchOverviewTemplate {
     readonly standalone = { standalone: true };
     readonly httpUrl = httpUrl;
     readonly imageUrl = storyImageUrl;
-    readonly storyTemplateName = computed(() => storyContentName(this.entry().game, this.entry().category === 'events' ? 'events' : this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
+    readonly storyTemplateName = computed(() => storyContentName(this.entry().game, this.entry().category === 'endgame-activity' ? 'endgame-activity' : this.entry().category === 'events' ? 'events' : this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
     readonly gameName = computed(
         () => GAMES.find((game) => game.id === this.entry().game)?.name ?? '',
     );
@@ -93,7 +122,7 @@ export class PatchOverviewTemplate {
         return `patch-group-${this.entry().id}-${id || 'overview'}`;
     }
     groupCompleted(rows: StoryTableRow[]): number {
-        return rows.filter((row) => (!row.rowType || row.rowType === 'quest') && this.entry().storyRowCompletion?.[row.id] === true).length;
+        return rows.filter((row) => (!row.rowType || row.rowType === 'quest') && this.done(row)).length;
     }
     questCount(rows: StoryTableRow[]): number {
         return rows.filter((row) => !row.rowType || row.rowType === 'quest').length;
@@ -102,15 +131,19 @@ export class PatchOverviewTemplate {
         const groups = patchGroups(this.data());
         if (!this.incompleteOnly() || this.editing()) return groups;
         return groups.map((group) => ({ ...group, rows: group.rows.filter((row) =>
-            row.rowType === 'heading' || row.rowType === 'note' || !this.entry().storyRowCompletion?.[row.id],
+            row.rowType === 'heading' || row.rowType === 'note' || !this.done(row),
         ) })).filter((group) => this.questCount(group.rows) > 0);
     }
     addGroup(): void {
         preparePatchGroups(this.data());
-        this.data().groups!.push({ id: crypto.randomUUID(), title: 'New group' });
+        const group: StoryGroup = { id: crypto.randomUUID(), title: this.mainQuestTemplate() ? 'New ' + this.questEditorLabel().toLowerCase() : 'New group' };
+        if (this.mainQuestTemplate()) this.ensureMainQuest(group);
+        this.data().groups!.push(group);
     }
     removeGroup(id: string): void {
         preparePatchGroups(this.data());
+        const parent = this.data().groups!.find(group => group.id === id)?.mainQuest;
+        if (parent) this.data().rows.push(parent);
         this.data().groups = this.data().groups!.filter((group) => group.id !== id);
         for (const row of this.data().rows) if (row.groupId === id) delete row.groupId;
     }
@@ -127,7 +160,7 @@ export class PatchOverviewTemplate {
         const id = crypto.randomUUID();
         this.data().rows.push({
             id,
-            ...(this.groupedTemplate() ? { rowType } : {}),
+            rowType,
             contentType: '',
             ...(groupId ? { groupId } : {}),
             content: '',
@@ -165,11 +198,13 @@ export class PatchOverviewTemplate {
     }
     async toggle(row: StoryTableRow): Promise<void> {
         const entry = this.entry();
+        const key = storyCompletionKey(entry, row);
+        if (key === null || row.rowType === 'heading' || row.rowType === 'note') return;
         await this.store.save({
             ...entry,
             storyRowCompletion: {
                 ...entry.storyRowCompletion,
-                [row.id]: !entry.storyRowCompletion?.[row.id],
+                [key]: !entry.storyRowCompletion?.[key],
             },
         });
     }

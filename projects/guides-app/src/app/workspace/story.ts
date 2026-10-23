@@ -13,6 +13,8 @@ import { PatchOverviewTemplate } from './patch-overview';
 import { WorldQuestsTemplate } from './world-quests';
 import { LoreTemplate } from './lore';
 import { storyProgress } from './story-progress';
+import { storyTemplateFor } from '../../../../common/story-guide';
+import { reworkMainQuestTemplate } from '../../../../common/main-quest';
 import { GameImagePicker } from './game-image-picker';
 import { searchStoryGuides, StorySearchResult } from './story-search';
 import {
@@ -71,10 +73,7 @@ export class Story {
         this.searchQuery.set('');
         this.incompleteOnly.set(false);
         afterNextRender(() => {
-            const target = document.getElementById(result.target);
-            if (!target) return;
-            target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
-            target.focus({ preventScroll: true });
+            this.revealAndScroll(result.target);
         }, { injector: this.injector });
     }
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -170,7 +169,7 @@ export class Story {
     });
     topicIcon(id: string): string {
         return ({ 'patch-overview': '◉', 'main-story': '▤', 'side-stories': '♧', 'world-quests': '◇',
-            events: '✦', lore: '◈', 'character-information': '▣' } as Record<string, string>)[id] ?? '◇';
+            events: '✦', 'endgame-activity': '⚑', lore: '◈', 'character-information': '▣' } as Record<string, string>)[id] ?? '◇';
     }
     readonly resetting = signal(false);
     confirmReset = false;
@@ -187,6 +186,13 @@ export class Story {
         } finally { this.resetting.set(false); }
     }
     readonly activeOutline = signal('');
+    readonly contentDirectories = computed(() => this.topics().filter(topic => topic.id !== 'main-story' && topic.id !== 'patch-overview')
+        .map(topic => ({ ...topic, entries: this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && entry.category === topic.id)
+            .sort((a, b) => (storyTemplateFor(a)?.context?.region ?? '').localeCompare(storyTemplateFor(b)?.context?.region ?? '') || a.order - b.order || a.name.localeCompare(b.name)) }))
+        .filter(directory => directory.entries.length));
+    openDirectoryEntry(entry: Entry): void {
+        this.openSearchResult({ id: entry.id, title: entry.name, excerpt: '', context: '', sectionId: entry.storySection ?? '', target: 'story-content-' + entry.id });
+    }
     readonly expandedOutline = signal<string[]>([]);
     outlineCollapsed(id: string): boolean { return !this.expandedOutline().includes(id); }
     updateOutlineFromScroll(): void {
@@ -215,14 +221,13 @@ export class Story {
     }
     readonly outlineChapters = computed(() => {
         const entries = this.subsections();
-        const primary = entries.filter(entry => ['patch-overview', 'main-story'].includes(entry.category));
-        const chapters = primary.map(entry => ({ entry: entry as Entry | null, children: [] as Entry[] }));
-        if (!chapters.length && entries.length) chapters.push({ entry: null, children: [] });
-        let index = 0;
+        const chapters: { entry: Entry | null; children: Entry[] }[] = [];
         for (const entry of entries) {
-            const primaryIndex = primary.indexOf(entry);
-            if (primaryIndex >= 0) index = primaryIndex;
-            else chapters[index]?.children.push(entry);
+            if (['patch-overview', 'main-story'].includes(entry.category)) chapters.push({ entry, children: [] });
+            else {
+                if (!chapters.length) chapters.push({ entry: null, children: [] });
+                chapters[chapters.length - 1].children.push(entry);
+            }
         }
         return chapters.map(chapter => ({
             ...chapter,
@@ -245,7 +250,7 @@ export class Story {
     }
     readonly encodeAnchor = (id: string) => '#' + encodeURIComponent(id);
     hasTemplate(entry: Entry): boolean {
-        return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events'].includes(entry.category);
+        return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity'].includes(entry.category);
     }
     attachedQuests(entry: Entry): Entry[] {
         if (this.editMode() || !['main-story', 'side-stories', 'patch-overview', 'events'].includes(entry.category)) return [];
@@ -274,6 +279,16 @@ export class Story {
                 : 'smooth',
         });
         target.focus({ preventScroll: true });
+    }
+    private revealAndScroll(id: string, behavior: ScrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'): void {
+        document.dispatchEvent(new CustomEvent('story-guide-reveal', { detail: id }));
+        requestAnimationFrame(() => {
+            const target = document.getElementById(id);
+            if (!target || !this.host.nativeElement.contains(target)) return;
+            target.scrollIntoView({ block: 'start', behavior });
+            target.focus({ preventScroll: true });
+            this.rememberTarget(target);
+        });
     }
     readonly topics = computed(() => storyContentTypes(this.game()));
     readonly sortedTopics = computed(() =>
@@ -354,12 +369,8 @@ export class Story {
             if (!fragment || !fragment.startsWith('story-') || key === this.resumedTarget) return;
             this.incompleteOnly.set(false);
             afterNextRender(() => {
-                const target = document.getElementById(fragment);
-                if (!target || !this.host.nativeElement.contains(target)) return;
                 this.resumedTarget = key;
-                target.scrollIntoView({ block: 'start', behavior: 'instant' });
-                target.focus({ preventScroll: true });
-                this.rememberTarget(target);
+                this.revealAndScroll(fragment, 'instant');
             }, { injector: this.injector });
         });
         effect((onCleanup) => {
@@ -474,15 +485,15 @@ export class Story {
         }
         if (topic === 'side-stories') {
             entry.sideStories ??= emptyPatchOverview();
-            preparePatchGroups(entry.sideStories);
+            entry.sideStories = reworkMainQuestTemplate(entry.sideStories, entry.name).template;
         }
-        if (topic === 'events') {
+        if (topic === 'events' || topic === 'endgame-activity') {
             entry.eventStory ??= emptyPatchOverview();
             preparePatchGroups(entry.eventStory);
         }
         if (topic === 'main-story') {
             entry.mainStory ??= emptyPatchOverview();
-            preparePatchGroups(entry.mainStory);
+            entry.mainStory = reworkMainQuestTemplate(entry.mainStory, entry.name).template;
         }
         if (topic === 'patch-overview') {
             entry.patchOverview ??= emptyPatchOverview();

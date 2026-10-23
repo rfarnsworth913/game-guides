@@ -4,6 +4,30 @@ import { Entry, WorkspaceStore } from './workspace.store';
 import { emptyPatchOverview, trimPatchOverviewText } from '../../../../common/story-template';
 
 describe('Patch Overview grouped row editor', () => {
+    it.each([['main-story', 'Main Quest'], ['side-stories', 'Story Quest']])('edits linked %s headings and preserves parent data when promoting or removing a group', (category, label) => {
+        const save = vi.fn();
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save } }] });
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        const parent = { id: 'parent', groupId: 'a', contentType: '', content: 'Main quest', contentUrl: 'https://example.com/main', patch: '', notes: 'Original parent notes' };
+        const child = { ...parent, id: 'child', content: 'A quest', notes: 'Original quest notes' };
+        const data = { ...emptyPatchOverview(), groups: [{ id: 'a', title: 'Main quest', mainQuest: parent }], rows: [child] };
+        const entry: Entry = { id: 'draft', game: 'genshin', kind: 'story', category, name: 'Draft',
+            notes: '', rarity: 0, members: [], requirements: [], order: 0, day: '', completed: false, quantity: 0, target: 0,
+            ...(category === 'side-stories' ? { sideStories: data } : { mainStory: data }) };
+        fixture.componentRef.setInput('entry', entry);
+        fixture.componentRef.setInput('editing', true);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.textContent).toContain(label + ' Title');
+        expect(root.textContent).toContain(label + ' Link');
+        expect(root.querySelector('.row-flags')?.textContent).not.toContain('Sub-quest');
+        fixture.componentInstance.promoteMainQuest(child);
+        expect(data.groups[0].mainQuest.id).toBe('child');
+        expect(data.rows[0]).toMatchObject({ id: 'parent', notes: 'Original parent notes' });
+        fixture.componentInstance.removeGroup('a');
+        expect(data.rows.map(row => row.id).sort()).toEqual(['child', 'parent']);
+        expect(save).not.toHaveBeenCalled();
+    });
     it('preserves collapsed drafts, inherits group patches and reorders rows without saving', () => {
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save } }] });
@@ -111,7 +135,7 @@ describe('Patch Overview grouped row editor', () => {
         const last = data.rows[2];
         fixture.changeDetectorRef.markForCheck();
         fixture.detectChanges();
-        const up = groups[1].querySelectorAll('.patch-row-actions button')[3] as HTMLButtonElement;
+        const up = groups[1].querySelector('[aria-label="Move row 2 up"]') as HTMLButtonElement;
         up.click();
         expect(component.rowsForGroup('eps').map((row) => row.id)).toEqual([last.id, first.id]);
         component.removeGroup('eps');

@@ -1,4 +1,8 @@
+import { StoryContext, trimStoryContext, validStoryContext } from './story-guide';
+import type { StoryGroup } from './types/story-group.type';
+
 export type StoryTableRow = {
+    context?: StoryContext;
     id: string;
     subQuest?: boolean;
     rowType?: 'quest' | 'heading' | 'note';
@@ -11,6 +15,7 @@ export type StoryTableRow = {
     notesRight?: string;
 };
 export type PatchOverview = {
+    context?: StoryContext;
     imagePositionX?: number;
     imagePositionY?: number;
     characterName?: string;
@@ -25,7 +30,7 @@ export type PatchOverview = {
     patchTitle?: string;
     releaseDate?: string;
     summary?: string;
-    groups?: { id: string; title: string; defaultPatch?: string }[];
+    groups?: StoryGroup[];
     imageUrl: string;
     imageAlt: string;
     sourceName: string;
@@ -43,6 +48,7 @@ export const emptyPatchOverview = (): PatchOverview => ({
 
 /** Trim user-entered text without changing identifiers or internal formatting. */
 export function trimPatchOverviewText(patch: PatchOverview): void {
+    trimStoryContext(patch.context);
     const fields = ['imageUrl', 'imageAlt', 'sourceName', 'sourceUrl', 'versionImageUrl',
         'patchVersion', 'patchTitle', 'releaseDate', 'summary', 'region', 'subtitle', 'characterName', 'damageType', 'damageTypeIcon', 'faction', 'factionIcon'] as const;
     for (const key of fields) {
@@ -52,19 +58,24 @@ export function trimPatchOverviewText(patch: PatchOverview): void {
     for (const group of patch.groups ?? []) {
         group.title = group.title.trim();
         if (group.defaultPatch !== undefined) group.defaultPatch = group.defaultPatch.trim();
+        if (group.mainQuest) trimStoryRow(group.mainQuest);
     }
     for (const row of patch.rows) {
-        for (const key of ['contentType', 'content', 'contentUrl', 'patch', 'notes', 'notesRight'] as const) {
-            const value = row[key];
-            if (typeof value === 'string') row[key] = value.trim();
-        }
+        trimStoryRow(row);
+    }
+}
+function trimStoryRow(row: StoryTableRow): void {
+    trimStoryContext(row.context);
+    for (const key of ['contentType', 'content', 'contentUrl', 'patch', 'notes', 'notesRight'] as const) {
+        const value = row[key];
+        if (typeof value === 'string') row[key] = value.trim();
     }
 }
 
 /** Preserve existing content-type labels as editable groups without changing row IDs. */
 export function patchGroups(
     patch: PatchOverview,
-): { id: string; title: string; rows: StoryTableRow[] }[] {
+): (StoryGroup & { rows: StoryTableRow[] })[] {
     const groups =
         patch.groups ??
         [...new Set(patch.rows.map((row) => row.contentType).filter(Boolean))].map((title) => ({
@@ -123,6 +134,7 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
     return (
         Object.keys(patch).every((key) =>
             [
+                'context',
                 'characterName',
                 'damageType',
                 'damageTypeIcon',
@@ -145,6 +157,7 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 'summary',
             ].includes(key),
         ) &&
+        validStoryContext(patch.context) &&
         [patch.imageUrl, patch.imageAlt, patch.sourceName, patch.sourceUrl].every(
             (item) => typeof item === 'string',
         ) &&
@@ -165,7 +178,8 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 patch.groups.every(
                     (group) =>
                         group &&
-                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch'].includes(key)) &&
+                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch', 'mainQuest'].includes(key)) &&
+                        (group.mainQuest === undefined || (validStoryTableRow(group.mainQuest) && (!group.mainQuest.rowType || group.mainQuest.rowType === 'quest') && (!group.mainQuest.groupId || group.mainQuest.groupId === group.id))) &&
                         (group.defaultPatch === undefined || typeof group.defaultPatch === 'string') &&
                         typeof group.id === 'string' &&
                         !!group.id &&
@@ -174,11 +188,24 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 ) &&
                 new Set(patch.groups.map((group) => group.id)).size === patch.groups.length)) &&
         Array.isArray(patch.rows) &&
+        patch.rows.every(validStoryTableRow) &&
         patch.rows.every(
             (row) =>
-                row &&
+                (row.groupId === undefined ||
+                    (typeof row.groupId === 'string' &&
+                        patch.groups?.some((group) => group.id === row.groupId))),
+        ) &&
+        new Set([...patch.rows.map((row) => row.id), ...(patch.groups ?? []).flatMap(group => group.mainQuest ? [group.mainQuest.id] : [])]).size === patch.rows.length + (patch.groups ?? []).filter(group => group.mainQuest).length
+    );
+}
+
+export function validStoryTableRow(value: unknown): value is StoryTableRow {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const row = value as StoryTableRow;
+    return (
                 Object.keys(row).every((key) =>
                     [
+                        'context',
                         'id',
                         'subQuest',
                         'rowType',
@@ -191,6 +218,7 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                         'contentUrl',
                     ].includes(key),
                 ) &&
+                validStoryContext(row.context) &&
                 (row.rowType === undefined || ['quest', 'heading', 'note'].includes(row.rowType)) &&
                 typeof row.id === 'string' &&
                 (row.subQuest === undefined || typeof row.subQuest === 'boolean') &&
@@ -198,17 +226,10 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 [row.contentType, row.content, row.patch, row.notes].every(
                     (item) => typeof item === 'string',
                 ) &&
-                (row.notesRight === undefined || typeof row.notesRight === 'string'),
-        ) &&
-        patch.rows.every(
-            (row) =>
+                (row.notesRight === undefined || typeof row.notesRight === 'string') &&
                 (row.contentUrl === undefined ||
                     (typeof row.contentUrl === 'string' &&
                         (!row.contentUrl || !!httpUrl(row.contentUrl)))) &&
-                (row.groupId === undefined ||
-                    (typeof row.groupId === 'string' &&
-                        patch.groups?.some((group) => group.id === row.groupId))),
-        ) &&
-        new Set(patch.rows.map((row) => row.id)).size === patch.rows.length
+                (row.groupId === undefined || typeof row.groupId === 'string')
     );
 }

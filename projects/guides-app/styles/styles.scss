@@ -7,6 +7,7 @@
 @use "./themes/story-topics";
 @use "./workspace";
 @use "./story-layout";
+@use "./story-reading";
 
 :root { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }

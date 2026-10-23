@@ -1,0 +1,106 @@
+// Shared reading surfaces for all story template compositions. Player progress is always green.
+gg-story {
+    --guide-canvas: #0b0f16;
+    --guide-card: #171d29;
+    --guide-nested: #202938;
+    --guide-border: #303b4c;
+    --guide-text: #f1f5f9;
+    --guide-muted: #a9b7c9;
+    --guide-complete: #46b78b;
+    color: var(--guide-text);
+    .story-overall-progress { --story-topic-accent: var(--guide-complete); }
+    .story-overall-progress progress { accent-color: var(--guide-complete); }
+    .story-overall-progress progress::-webkit-progress-value { background: var(--guide-complete); }
+    .story-overall-progress progress::-moz-progress-bar { background: var(--guide-complete); }
+    .guide-reading-view { display: grid; gap: 16px; }
+    .guide-content-section {
+        border: 1px solid var(--guide-border);
+        border-radius: 10px;
+        background: var(--guide-card);
+        overflow: hidden;
+    }
+    .guide-row-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+    .guide-help, .guide-row-context { color: var(--guide-muted); font-size: 12px; margin: 8px 0; }
+    .guide-meta-badge { font-size: 11px; border: 1px solid var(--guide-border); border-radius: 4px; padding: 2px 6px; color: var(--guide-muted); }
+    .guide-section-heading { height: auto; padding: 0; margin: 0; display: block; border-bottom: 0; background: color-mix(in srgb, var(--story-topic-accent) 8%, var(--guide-card)); border-inline-start: 3px solid var(--story-topic-accent); }
+    .guide-section-heading > button {
+        display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-radius: 0;
+        min-height: 44px; padding: 10px 14px; color: var(--guide-text); background: transparent; text-align: start;
+        h4 { font-size: 15px; margin: 0; overflow-wrap: anywhere; }
+        > span { margin-inline-start: auto; font-size: 12px; color: var(--guide-muted); white-space: nowrap; }
+        svg { width: 16px; height: 16px; flex: 0 0 16px; color: var(--story-topic-accent); }
+        svg { transition: transform 200ms ease; }
+        svg.expanded { transform: rotate(90deg); }
+    }
+    .guide-section-content { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 220ms ease, opacity 180ms ease; }
+    .guide-section-heading.guide-main-quest-heading {
+        display: flex; align-items: center; gap: 10px; min-height: 86px; box-sizing: border-box;
+        padding: 16px 16px 16px 10px; border-bottom: 3px solid color-mix(in srgb, var(--story-topic-accent) 20%, var(--guide-border));
+        background: color-mix(in srgb, var(--story-topic-accent) 11%, var(--guide-card));
+        > button { width: auto; min-height: 36px; flex: 0 0 30px; justify-content: center; padding: 8px 6px; }
+        .guide-main-quest-title { flex: 1; min-width: 0; }
+        h4 { font-size: 18px; line-height: 1.35; font-weight: 650; margin: 0; overflow-wrap: anywhere; }
+        h4 a { color: var(--guide-text); text-decoration: none; }
+        h4 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+        p { margin: 8px 0 0; font-size: 14px; line-height: 1.4; color: var(--guide-muted); }
+        .guide-main-quest-progress { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-variant-numeric: tabular-nums; }
+        .guide-main-quest-progress strong { font-size: 18px; color: color-mix(in srgb, var(--story-topic-accent) 60%, var(--guide-text)); }
+        .guide-main-quest-progress small { font-size: 12px; color: var(--guide-muted); }
+    }
+    .guide-main-quest-details { padding: 12px 16px; color: var(--guide-muted); font-size: 13px; border-top: 1px solid var(--guide-border); }
+    .guide-section-content.collapsed { grid-template-rows: 0fr; opacity: 0; }
+    .guide-section-clip { min-height: 0; overflow: hidden; }
+    .guide-content-row {
+        display: flex; align-items: flex-start; gap: 12px; padding: 15px 16px; border-top: 1px solid var(--guide-border);
+        background: var(--guide-card); outline-offset: -2px;
+        &:hover { background: color-mix(in srgb, var(--guide-nested) 50%, var(--guide-card)); }
+        h5 { font-size: 13px; font-weight: 650; margin: 0; }
+    }
+    .guide-row-tracking { margin: 0; display: inline-flex; padding-top: 2px; }
+    .guide-row-tracking input { width: 18px; height: 18px; margin: 0; accent-color: var(--guide-complete); cursor: pointer; }
+    .guide-row-body { flex: 1; min-width: 0; }
+    .guide-row-title { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+    .guide-row-title a { color: var(--story-content-link); text-decoration: underline; text-underline-offset: 3px; }
+    .guide-row-done .guide-row-title > strong, .guide-row-done .guide-row-title > a { color: var(--guide-muted); }
+    .guide-subquest { padding-inline-start: 44px; }
+    .guide-row-heading { background: var(--guide-nested); border-inline-start: 2px solid var(--story-topic-accent); }
+    .guide-row-details { margin-top: 8px; color: var(--guide-muted); font-size: 13px; }
+    .guide-row-details summary { cursor: pointer; font-size: 12px; width: fit-content; }
+    .guide-row-details[open] > summary { margin-bottom: 12px; }
+    .guide-split-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .guide-global-note { width: 100%; font-size: 13px; color: var(--guide-muted); }
+    .guide-warning, .guide-requirement { font-size: 12px; line-height: 1.5; margin-block: 8px; overflow-wrap: anywhere; }
+    .guide-warning { border-inline-start: 2px solid var(--story-events-accent); padding-inline-start: 10px; }
+    .guide-related { display: inline-block; margin: 8px 12px 0 0; font-size: 12px; color: var(--story-content-link); }
+    .guide-empty { padding: 18px; color: var(--guide-muted); font-size: 13px; }
+    .guide-reference .guide-content-row { padding-block: 12px; }
+    .guide-activity .guide-row-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; padding: 12px; }
+    .guide-activity .guide-content-row { border: 1px solid var(--guide-border); border-radius: 8px; background: var(--guide-nested); }
+    .guide-activity .guide-row-heading, .guide-activity .guide-content-row:has(.guide-global-note) { grid-column: 1 / -1; }
+    @media (prefers-reduced-motion: reduce) {
+        .guide-section-content, .guide-section-heading svg { transition: none; }
+    }
+    .guide-context-editor { margin-block: 20px; padding: 14px; border: 1px solid var(--guide-border); border-radius: 8px; }
+    .guide-context-editor summary { cursor: pointer; font-weight: 600; }
+    .guide-requirement-editor { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 14px; margin-bottom: 16px; align-items: end; }
+    .guide-directories { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--guide-border); }
+    .guide-directories details { margin-bottom: 8px; }
+    .guide-directories summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; padding-block: 6px; }
+    .guide-directories small { margin-inline-start: auto; color: var(--guide-muted); }
+    .guide-directories button { display: block; text-align: start; width: 100%; font-size: 12px; border: 0; background: transparent; padding: 8px; }
+    .story-outline a.active { background: color-mix(in srgb, var(--story-topic-accent) 15%, var(--guide-card)); box-shadow: inset 3px 0 0 var(--story-topic-accent); }
+    :is(button, a, input, select, summary):focus-visible { outline: 2px solid var(--story-content-link); outline-offset: 2px; }
+    gg-patch-overview .patch-groups { border-color: var(--guide-border); background: var(--guide-card); }
+    gg-patch-overview .patch-groups .patch-group-heading { background: color-mix(in srgb, var(--story-topic-accent) 8%, var(--guide-card)); color: var(--guide-text); border-inline-start: 3px solid var(--story-topic-accent); }
+    gg-patch-overview .patch-table .patch-column-headings th { background: var(--guide-nested); color: var(--guide-muted); }
+    gg-patch-overview .patch-table input[type='checkbox'] { accent-color: var(--guide-complete); }
+    @media (max-width: 650px) {
+        .guide-content-row { padding: 12px; gap: 10px; flex-wrap: wrap; }
+        .guide-row-body { flex-basis: calc(100% - 40px); }
+        .guide-subquest { padding-inline-start: 28px; }
+        .guide-split-notes, .guide-requirement-editor { grid-template-columns: minmax(0, 1fr); }
+    }
+}
+:root.theme-light gg-story, [data-theme='light'] gg-story {
+    --guide-canvas: #f8fafc; --guide-card: #fff; --guide-nested: #eef2f7; --guide-border: #cbd5e1; --guide-text: #172033; --guide-muted: #475569;
+}

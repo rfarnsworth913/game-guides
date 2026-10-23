@@ -5,6 +5,7 @@ export const STORY_CONTENT_TYPES = [
     { id: 'side-stories', title: 'Character / Side Stories' },
     { id: 'character-information', title: 'Character Information' },
     { id: 'events', title: 'Events' },
+    { id: 'endgame-activity', title: 'Endgame Activities' },
     { id: 'world-quests', title: 'World Quests' },
     { id: 'lore', title: 'Lore' },
 ] as const;
