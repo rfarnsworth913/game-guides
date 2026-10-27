@@ -168,6 +168,23 @@ describe("ThemeService", () => {
         expect(document.documentElement.style.colorScheme).toBe("light");
     });
 
+    it("follows system changes only while System is selected", () => {
+        const service = createService('system', true);
+        const media = vi.mocked(window.matchMedia).mock.results[0].value as MediaQueryList;
+        const changed = vi.mocked(media.addEventListener).mock.calls[0][1] as () => void;
+        expect(service.theme()).toBe('dark');
+        Object.defineProperty(media, 'matches', { value: false, configurable: true });
+        changed();
+        expect(service.theme()).toBe('light');
+        expect(service.preference()).toBe('system');
+        service.setPreference('dark');
+        changed();
+        expect(service.theme()).toBe('dark');
+        expect(setItemMock).toHaveBeenCalledWith(themeID, 'dark');
+        service.ngOnDestroy();
+        expect(media.removeEventListener).toHaveBeenCalledWith('change', changed);
+    });
+
     it("restores a valid game and ignores unknown games", () => {
         createService("dark");
         getItemMock.mockImplementation((key: string) => new Map([["gg-game", "wuwa"], ["gg-theme", "dark"]]).get(key));

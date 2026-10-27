@@ -1,7 +1,7 @@
 import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { formatDate, formatMonthName } from "@common/constants";
+import { DATE_FORMAT } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
 
@@ -59,8 +59,8 @@ export class ArknightsEndfield extends AbstractDataParser {
                 title: "Stock Redistribution",
                 url: "https://endfield.wiki.gg/wiki/Stock_Redistribution",
                 icon: "icons/arknights-endfield/stock-redistribution.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -69,8 +69,8 @@ export class ArknightsEndfield extends AbstractDataParser {
                 title: "Daily Routine",
                 url: "https://endfield.wiki.gg/wiki/Operational_Manual#Daily",
                 icon: "icons/arknights-endfield/daily-routine.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -79,8 +79,8 @@ export class ArknightsEndfield extends AbstractDataParser {
                 title: "Stamina Spend",
                 url: "",
                 icon: "icons/arknights-endfield/stamina.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -89,8 +89,8 @@ export class ArknightsEndfield extends AbstractDataParser {
                 title: "Weekly Routine",
                 url: "https://endfield.wiki.gg/wiki/Weekly_Routine",
                 icon: "icons/arknights-endfield/weekly-routine.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },

@@ -1,9 +1,17 @@
 {
-  // For more information, visit: https://angular.dev/ai/mcp
   "servers": {
-    "angular-cli": {
+    "auth0": {
       "command": "npx",
-      "args": ["-y", "@angular/cli", "mcp"]
+      "args": [
+        "-y",
+        "@auth0/auth0-mcp-server",
+        "run",
+        "--tools",
+        "*"
+      ],
+      "env": {
+        "DEBUG": "auth0-mcp"
+      }
     }
   }
 }

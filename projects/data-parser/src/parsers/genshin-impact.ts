@@ -1,7 +1,7 @@
 import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { formatDate, formatMonthName } from "@common/constants";
+import { DATE_FORMAT, MONTH_NAME_FORMAT } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
 
@@ -75,8 +75,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: "Daily Commissions",
                 url: "https://genshin-impact.fandom.com/wiki/Commission",
                 icon: "icons/genshin-impact/commission.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -85,8 +85,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: "Trounce Domain",
                 url: "https://genshin-impact.fandom.com/wiki/Trounce_Domain",
                 icon: "icons/genshin-impact/trounce-domain.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },
@@ -95,8 +95,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: "Paimon's Bargains",
                 url: "https://genshin-impact.fandom.com/wiki/Paimon%27s_Bargains",
                 icon: "icons/genshin-impact/paimons-bargains.svg",
-                startDate: format(startOfMonth(new Date()), formatDate),
-                endDate: format(endOfMonth(new Date()), formatDate),
+                startDate: format(startOfMonth(new Date()), DATE_FORMAT),
+                endDate: format(endOfMonth(new Date()), DATE_FORMAT),
                 eventType: EventType.Monthly,
                 completed: false
             },
@@ -105,8 +105,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: "Artifact Extraction",
                 url: "https://genshin-impact.fandom.com/wiki/Artifact",
                 icon: "icons/genshin-impact/artifacts.svg",
-                startDate: format(this.versionInfo.releaseDate as string, formatDate),
-                endDate: format(add(this.versionInfo.releaseDate as string, { weeks: 6 }), formatDate),
+                startDate: format(this.versionInfo.releaseDate as string, DATE_FORMAT),
+                endDate: format(add(this.versionInfo.releaseDate as string, { weeks: 6 }), DATE_FORMAT),
                 eventType: EventType.Crafting,
                 completed: false
             },
@@ -115,8 +115,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: "Artifact Definition",
                 url: "https://genshin-impact.fandom.com/wiki/Artifact",
                 icon: "icons/genshin-impact/artifacts.svg",
-                startDate: format(this.versionInfo.releaseDate as string, formatDate),
-                endDate: format(add(this.versionInfo.releaseDate as string, { weeks: 6 }), formatDate),
+                startDate: format(this.versionInfo.releaseDate as string, DATE_FORMAT),
+                endDate: format(add(this.versionInfo.releaseDate as string, { weeks: 6 }), DATE_FORMAT),
                 eventType: EventType.Crafting,
                 completed: false
             }
@@ -183,7 +183,7 @@ export class GenshinImpactParser extends AbstractDataParser {
             }
 
             const releaseDate = isValid(new Date(versionData.releaseDate))
-                ? format(new Date(versionData.releaseDate), formatDate)
+                ? format(new Date(versionData.releaseDate), DATE_FORMAT)
                 : "";
 
             return [{
@@ -229,8 +229,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: row.title,
                 url: row.url,
                 icon: `icons/genshin-impact/${this.getEventType(row.thirdColumn, row.endDate)}.svg`,
-                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), formatDate) : "",
-                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), formatDate) : "",
+                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), DATE_FORMAT) : "",
+                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), DATE_FORMAT) : "",
                 eventType: this.getEventType(row.thirdColumn, row.endDate),
                 completed: false
             }));
@@ -317,8 +317,8 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: cleanTitle,
                 url: banner.url,
                 icon: `icons/genshin-impact/banner-${index}.svg`,
-                startDate: format(new Date(banner.startDate), formatDate),
-                endDate: format(new Date(banner.endDate), formatDate),
+                startDate: format(new Date(banner.startDate), DATE_FORMAT),
+                endDate: format(new Date(banner.endDate), DATE_FORMAT),
                 eventType: EventType.Banner,
                 completed: false
             } as Event;
@@ -334,7 +334,7 @@ export class GenshinImpactParser extends AbstractDataParser {
         const events = await this.browserController(sourceData.url, async (page) => {
 
             // Extract date string from the page: Season ## January 16, 2026 (Patch Name) – February 16, 2026 (Patch Name)
-            const monthName = format(new Date(), formatMonthName);
+            const monthName = format(new Date(), MONTH_NAME_FORMAT);
             const dateString = await this.getElementByText(page, "td", monthName, "includes");
             if (!dateString) {
                 Logger.warn("Could not find Imaginarium Theater duration information.");
@@ -348,8 +348,8 @@ export class GenshinImpactParser extends AbstractDataParser {
             const cleanedStartDate = getDateFromString(rawStartDate.replace(/^Season [0-9]+/, "").trim());
             const cleanedEndDate = getDateFromString(rawEndDate.trim());
 
-            const startDate = format(cleanedStartDate, formatDate);
-            const endDate = format(cleanedEndDate, formatDate);
+            const startDate = format(cleanedStartDate, DATE_FORMAT);
+            const endDate = format(cleanedEndDate, DATE_FORMAT);
 
             return [{
                 title: "Imaginarium Theater",
@@ -383,8 +383,8 @@ export class GenshinImpactParser extends AbstractDataParser {
 
             // Extract inner text from the matched element to avoid hidden/extra content
             const durationText = await this.getTextContent(dateString);
-            const startDate = format(durationText.split("–")[0].replace("Duration:", "").trim(), formatDate);
-            const endDate = format(durationText.split("–")[1].trim(), formatDate);
+            const startDate = format(durationText.split("–")[0].replace("Duration:", "").trim(), DATE_FORMAT);
+            const endDate = format(durationText.split("–")[1].trim(), DATE_FORMAT);
 
             return [{
                 title: "Spiral Abyss",

@@ -1,7 +1,7 @@
 import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { formatDate, formatMonthName } from "@common/constants";
+import { DATE_FORMAT } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource, Event, Version } from "@common/types";
 
@@ -57,8 +57,8 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
                 title: "Errands",
                 url: "https://zenless-zone-zero.fandom.com/wiki/Compendium#Errands",
                 icon: "icons/zenless-zone-zero/errands.svg",
-                startDate: format(new Date(), formatDate),
-                endDate: format(new Date(), formatDate),
+                startDate: format(new Date(), DATE_FORMAT),
+                endDate: format(new Date(), DATE_FORMAT),
                 eventType: EventType.Daily,
                 completed: false
             },
@@ -67,8 +67,8 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
                 title: "Notorious Hunt",
                 url: "https://zenless-zone-zero.fandom.com/wiki/Notorious_Hunt",
                 icon: "icons/zenless-zone-zero/notorious-hunt.svg",
-                startDate: format(startOfISOWeek(new Date()), formatDate),
-                endDate: format(endOfISOWeek(new Date()), formatDate),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },
@@ -77,8 +77,8 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
                 title: "Signal Shop",
                 url: "https://zenless-zone-zero.fandom.com/wiki/Signal_Shop",
                 icon: "icons/zenless-zone-zero/signal-shop.svg",
-                startDate: format(startOfMonth(new Date()), formatDate),
-                endDate: format(endOfMonth(new Date()), formatDate),
+                startDate: format(startOfMonth(new Date()), DATE_FORMAT),
+                endDate: format(endOfMonth(new Date()), DATE_FORMAT),
                 eventType: EventType.Monthly,
                 completed: false
             }
@@ -145,7 +145,7 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
             }
 
             const releaseDate = isValid(new Date(versionData.releaseDate))
-                ? format(new Date(versionData.releaseDate), formatDate)
+                ? format(new Date(versionData.releaseDate), DATE_FORMAT)
                 : "";
 
             return [{
@@ -191,8 +191,8 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
                 title: row.title,
                 url: row.url,
                 icon: `icons/genshin-impact/${this.getEventType(row.thirdColumn, row.endDate)}.svg`,
-                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), formatDate) : "",
-                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), formatDate) : "",
+                startDate: isValid(new Date(row.startDate)) ? format(new Date(row.startDate), DATE_FORMAT) : "",
+                endDate: isValid(new Date(row.endDate)) ? format(new Date(row.endDate), DATE_FORMAT) : "",
                 eventType: this.getEventType(row.thirdColumn, row.endDate),
                 completed: false
             }));

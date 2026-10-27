@@ -1,23 +1,53 @@
-import { Injectable, signal } from "@angular/core";
+import { Injectable, OnDestroy, signal } from "@angular/core";
 
 import { GameTheme, GlobalTheme } from "@lib/types";
 
 export const GAME_THEMES: ReadonlyArray<{ id: GameTheme; label: string }> = [
     { id: "default", label: "All games" },
+    { id: "ffxiv", label: "Final Fantasy XIV" },
     { id: "genshin", label: "Genshin Impact" },
     { id: "hsr", label: "Honkai: Star Rail" },
+    { id: "nte", label: "Neverness to Everness" },
     { id: "zzz", label: "Zenless Zone Zero" },
     { id: "wuwa", label: "Wuthering Waves" },
     { id: "endfield", label: "Arknights: Endfield" },
 ];
 
 @Injectable({ providedIn: "root" })
-export class ThemeService {
-    private readonly activeTheme = signal<GlobalTheme>(this.read("gg-theme") === "light" ? "light" : "dark");
+export class ThemeService implements OnDestroy {
+    private readonly systemTheme = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    readonly preference = signal<'system' | GlobalTheme>(this.readPreference());
+    private readonly activeTheme = signal<GlobalTheme>(this.resolveTheme());
     private readonly activeGame = signal<GameTheme>(this.readGame());
 
     readonly theme = this.activeTheme.asReadonly();
     readonly game = this.activeGame.asReadonly();
+    private readonly systemChanged = (): void => {
+        if (this.preference() === 'system') {
+            this.activeTheme.set(this.resolveTheme());
+            this.applyTheme();
+        }
+    };
+    constructor() {
+        this.systemTheme?.addEventListener('change', this.systemChanged);
+    }
+    ngOnDestroy(): void {
+        this.systemTheme?.removeEventListener('change', this.systemChanged);
+    }
+    private readPreference(): 'system' | GlobalTheme {
+        const saved = this.read('gg-theme');
+        return saved === 'light' || saved === 'system' ? saved : 'dark';
+    }
+    private resolveTheme(): GlobalTheme {
+        return this.preference() === 'system' ? (this.systemTheme?.matches ? 'dark' : 'light') : this.preference() as GlobalTheme;
+    }
+    setPreference(preference: 'system' | GlobalTheme): void {
+        if (!['system', 'light', 'dark'].includes(preference)) return;
+        this.preference.set(preference);
+        this.activeTheme.set(this.resolveTheme());
+        this.applyTheme();
+        this.persist('gg-theme', preference);
+    }
 
     /** Returns the selected shell appearance. */
     getTheme (): GlobalTheme {
@@ -26,9 +56,7 @@ export class ThemeService {
 
     /** Changes the shell appearance while preserving the game accent. */
     setTheme(theme: GlobalTheme): void {
-        this.activeTheme.set(theme);
-        this.applyTheme();
-        this.persist("gg-theme", theme);
+        this.setPreference(theme);
     }
 
     /** Changes only the game context and accent. */
