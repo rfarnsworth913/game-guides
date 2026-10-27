@@ -1,6 +1,14 @@
 @if (editing()) {
     <label>Guide summary<textarea [ngModelOptions]="standalone" [(ngModel)]="data().summary" rows="2" placeholder="Optional introduction or release summary (Markdown)"></textarea></label>
     <gg-story-context-editor [context]="editorContext()" />
+    @if (eventTemplate()) {
+        <fieldset><legend>Event Details</legend>
+            <div class="patch-fields">
+                <label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" placeholder="e.g. 1.0" /></label>
+                <label>Subtitle<input [ngModelOptions]="standalone" [(ngModel)]="data().subtitle" placeholder="Event overview and progression" /></label>
+            </div>
+        </fieldset>
+    }
     @if (entry().category === 'character-information') {
         <fieldset>
             <legend>Character Header</legend>
@@ -66,14 +74,19 @@
     }
     }
     <fieldset class="patch-group-editor">
-        <legend>{{ mainQuestTemplate() ? questEditorLabel() + ' Groups' : groupedTemplate() ? 'Primary Sections' : 'Content Groups' }}</legend>
+        <legend>{{ mainQuestTemplate() ? 'Story Groups' : groupedTemplate() ? 'Primary Sections' : 'Content Groups' }}</legend>
         <p>Create the groups this guide needs. Removing a group keeps its rows in Overview.</p>
         @for (group of data().groups; track group.id; let index = $index) {
             <section class="patch-edit-group" [attr.aria-label]="group.title || 'New group'">
             <div class="patch-group-edit-row compact-group-header">
-                <label>{{ mainQuestTemplate() ? questEditorLabel() + ' Title' : 'Group Name' }}<input #groupName [attr.name]="'groupTitle-' + group.id"
-                    [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.content ?? group.title" (ngModelChange)="mainQuestTemplate() ? setMainQuestTitle(group, $event) : group.title = $event" placeholder="e.g. Everwinter Without Mercy" /></label>
+                <label>{{ isQuestGroup(group) ? questEditorLabel() + ' Title' : 'Group Name' }}<input #groupName [attr.name]="'groupTitle-' + group.id"
+                    [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.content ?? group.title" (ngModelChange)="isQuestGroup(group) ? setMainQuestTitle(group, $event) : group.title = $event" [placeholder]="isQuestGroup(group) ? 'e.g. Everwinter Without Mercy' : 'e.g. Related Cutscenes'" /></label>
                 <label class="group-default-patch">Default Patch<input [ngModelOptions]="standalone" [(ngModel)]="group.defaultPatch" placeholder="e.g. 1.1" /></label>
+                @if (entry().category === 'world-quests') {
+                    <label>Organize by<select [ngModelOptions]="standalone" [ngModel]="group.worldQuestMode || 'region'" (ngModelChange)="group.worldQuestMode = $event">
+                        <option value="region">Region / area</option><option value="questChain">Quest chain</option>
+                    </select></label>
+                }
                 <details #groupMenu class="group-overflow">
                     <summary [attr.aria-label]="'Actions for ' + group.title">&#8943;</summary>
                     <div>
@@ -84,7 +97,22 @@
                     </div>
                 </details>
             </div>
-            @if (mainQuestTemplate()) {
+            @if (eventTemplate()) {
+                <label>Group Title Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="group.contentUrl" placeholder="https://..." /></label>
+            }
+            @if (entry().category === 'world-quests') {
+                <p class="guide-help">Use secondary headings, or set each objective's Area (region mode) or Chapter / main quest (chain mode). Default Patch only prefills new rows; each objective keeps its own release version.</p>
+                <details class="guide-context-editor guide-membership-editor">
+                    <summary>Include existing objectives</summary>
+                    <label>Additional objectives from this guide<select multiple [ngModelOptions]="standalone" [ngModel]="group.objectiveIds || []" (ngModelChange)="group.objectiveIds = $event">
+                        @for (objective of data().rows; track objective.id) {
+                            @if ((!objective.rowType || objective.rowType === 'quest') && objective.groupId !== group.id) { <option [value]="objective.id">{{ objective.content }}</option> }
+                        }
+                    </select></label>
+                    <p class="guide-help">These reference existing objectives and share their completion state. Edit the original row to update its details.</p>
+                </details>
+            }
+            @if (isQuestGroup(group)) {
                 <label>{{ questEditorLabel() }} Link<input type="url" [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.contentUrl ?? ''" (ngModelChange)="ensureMainQuest(group).contentUrl = $event" placeholder="https://..." /></label>
                 @if (group.mainQuest; as mainQuest) {
                     <details class="guide-context-editor">
@@ -95,10 +123,11 @@
                     </details>
                 }
             }
-            <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(group.id), groupId: group.id }" />
+            <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(group.id), groupId: group.id, questGroup: isQuestGroup(group) }" />
             </section>
         }
         <button type="button" (click)="addGroup()">{{ mainQuestTemplate() ? '+ Add ' + questEditorLabel() : '+ Add group' }}</button>
+        @if (mainQuestTemplate()) { <button type="button" (click)="addGroup('content')">+ Add Content Group</button> }
     </fieldset>
     @if (!data().groups?.length || rowsForGroup('').length) {
         <fieldset class="patch-group-editor">
@@ -106,10 +135,10 @@
             <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(''), groupId: '' }" />
         </fieldset>
     }
-    <ng-template #contentRows let-rows="rows" let-groupId="groupId">
+    <ng-template #contentRows let-rows="rows" let-groupId="groupId" let-questGroup="questGroup">
         <div class="patch-row-heading">
-            <h3>{{ mainQuestTemplate() ? 'Quests' : 'Content Rows' }} <small>{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}</small></h3>
-            <button type="button" (click)="addRow(groupId)">{{ mainQuestTemplate() ? '+ Add Quest' : '+ Add Row' }}</button>
+            <h3>{{ questGroup ? 'Quests' : 'Content Rows' }} <small>{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}</small></h3>
+            <button type="button" (click)="addRow(groupId)">{{ questGroup ? '+ Add Quest' : '+ Add Row' }}</button>
         </div>
         @for (row of rows; track row.id; let index = $index) {
             <details class="patch-row-editor compact-row-card" [open]="expandedRow() === row.id && !draggingRow()"
@@ -129,6 +158,9 @@
                 <div class="compact-row-fields">
                     @if (row.rowType === 'heading') {
                         <label>Secondary Heading<input [ngModelOptions]="standalone" [(ngModel)]="row.content" /></label>
+                        @if (entry().category === 'world-quests' || eventTemplate()) {
+                            <label>Secondary Heading Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="row.contentUrl" placeholder="https://..." /></label>
+                        }
                     } @else if (row.rowType === 'note') {
                         <label>Global Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)"></textarea></label>
                     } @else {
@@ -154,17 +186,17 @@
                         </div>
                     }
                     <div class="patch-row-actions">
-                        @if (mainQuestTemplate() && row.groupId && (!row.rowType || row.rowType === 'quest')) { <button type="button" (click)="promoteMainQuest(row)">Use as {{ questEditorLabel() }}</button> }
+                        @if (questGroup && row.groupId && (!row.rowType || row.rowType === 'quest')) { <button type="button" (click)="promoteMainQuest(row)">Use as {{ questEditorLabel() }}</button> }
                         <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), -1) < 0" (click)="moveRow(data().rows.indexOf(row), -1)" [attr.aria-label]="'Move row ' + (index + 1) + ' up'">&#8593;</button>
                         <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), 1) < 0" (click)="moveRow(data().rows.indexOf(row), 1)" [attr.aria-label]="'Move row ' + (index + 1) + ' down'">&#8595;</button>
                         <button type="button" class="row-remove" (click)="removeRow(row.id)">Remove Row</button>
                     </div>
-                    <gg-story-context-editor [context]="rowContext(row)" [row]="true" />
+                    <gg-story-context-editor [context]="rowContext(row)" [row]="true" [worldQuest]="entry().category === 'world-quests'" />
                 </div>
             </details>
         } @empty { <p>Add content rows to this group.</p> }
         <div class="patch-row-add">
-            <button type="button" (click)="addRow(groupId)">{{ mainQuestTemplate() ? '+ Add Quest' : '+ Add Row' }}</button>
+            <button type="button" (click)="addRow(groupId)">{{ questGroup ? '+ Add Quest' : '+ Add Row' }}</button>
                 <button type="button" (click)="addRow(groupId, 'heading')">+ Secondary Heading</button>
                 <button type="button" (click)="addRow(groupId, 'note')">+ Global Notes</button>
         </div>
@@ -230,7 +262,7 @@
                 @if (storyBanner()) {
                     <p>{{ storyTemplateName() }}</p>
                     @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
-                } @else { <p>Patch {{ data().patchVersion || data().rows[0]?.patch }}</p> }
+                } @else { <p><gg-patch-badge [version]="data().patchVersion || data().rows[0]?.patch" /></p> }
             </div>
             @if (!storyBanner() && data().releaseDate) {
                 <div class="patch-banner-release">
@@ -260,6 +292,31 @@
             }
         </div>
         }
+        @if (eventTemplate()) {
+            <section class="guide-event-info" aria-label="Event information">
+                <dl class="guide-event-facts">
+                    <div><dt>Introduced</dt><dd>@if (eventPatchVersion(); as version) { <gg-patch-badge [version]="version" /> } @else { <span>Not specified</span> }</dd></div>
+                    <div><dt>Availability</dt><dd>{{ eventAvailability() }}</dd></div>
+                    @if (data().context?.startDate; as start) { <div><dt>Starts</dt><dd><time [attr.datetime]="start">{{ start | date: 'MMM d, y' }}</time></dd></div> }
+                    @if (data().context?.endDate; as end) { <div><dt>Ends</dt><dd><time [attr.datetime]="end">{{ end | date: 'MMM d, y' }}</time></dd></div> }
+                    <div><dt>Progress</dt><dd>{{ eventProgress().completed }} / {{ eventProgress().total }}</dd></div>
+                </dl>
+                @if (eventHasDetails()) {
+                    <details class="guide-event-participation">
+                        <summary>Participation requirements and event details</summary>
+                        @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | notesMarkdown"></div> }
+                        @for (gate of eventGates(); track $index) {
+                            <p class="guide-requirement"><strong>{{ gate.type }}:</strong> {{ gate.text }}
+                                @for (target of eventRelated(gate.targetId); track target.id) { <a [href]="eventRelatedUrl(target)">{{ target.name }}</a> }
+                            </p>
+                        }
+                        @for (item of eventNotes(); track $index) { <p class="guide-requirement"><strong>{{ item.type }}:</strong> {{ item.text }}</p> }
+                        @for (target of eventRelated(); track target.id) { <a class="guide-related" [href]="eventRelatedUrl(target)">Related: {{ target.name }}</a> }
+                    </details>
+                }
+            </section>
+        }
+        @if (completionError()) { <p class="guide-completion-error" role="alert">{{ completionError() }}</p> }
         <gg-story-content-list [entry]="entry()" [data]="data()" [disabled]="store.saving() || store.loading()" [incompleteOnly]="incompleteOnly()" [relatedEntries]="relatedEntries()" (toggled)="toggle($event)" />
     </div>
 }

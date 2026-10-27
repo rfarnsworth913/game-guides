@@ -5,10 +5,15 @@ import { httpUrl, patchGroups, PatchOverview, StoryTableRow } from '../../../../
 import { storyCompletionKey, StoryContext, storyRowDone, storyTrackingMode } from '../../../../common/story-guide';
 import { StoryTrackingMode } from '../../../../common/enums/story-tracking.enum';
 import { storyContentName } from '../../../../common/story-content-types';
+import { NgTemplateOutlet } from '@angular/common';
+import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from '../../../../common/world-quest';
+import type { WorldQuestSection } from '../../../../common/types/world-quest.type';
+import { WORLD_QUEST_SUBTYPES } from '../../../../common/constants/world-quest.constants';
+import { PatchBadge } from './patch-badge';
 
 @Component({
     selector: 'gg-story-content-list',
-    imports: [NotesMarkdownPipe],
+    imports: [NotesMarkdownPipe, NgTemplateOutlet, PatchBadge],
     templateUrl: './story-content-list.html',
 })
 export class StoryContentList {
@@ -19,6 +24,12 @@ export class StoryContentList {
     readonly relatedEntries = input<Entry[]>([]);
     readonly toggled = output<StoryTableRow>();
     readonly collapsed = signal<string[]>([]);
+    readonly collapsedSections = signal<string[]>([]);
+    readonly expandedNotes = signal<string[]>([]);
+    readonly worldQuest = computed(() => this.entry().category === 'world-quests');
+    readonly worldGroups = computed(() => worldQuestGroups(this.data()));
+    readonly visibleWorldGroups = computed(() => this.worldGroups().filter(group => !this.incompleteOnly() || this.countDone(group.rows) < this.count(group.rows)));
+    readonly prerequisites = worldQuestPrerequisites;
     readonly httpUrl = httpUrl;
     readonly done = (row: StoryTableRow) => storyRowDone(this.entry(), row);
     readonly canTrack = (row: StoryTableRow) => storyCompletionKey(this.entry(), row) !== null;
@@ -26,6 +37,7 @@ export class StoryContentList {
     readonly completed = computed(() => this.rows().filter(this.done).length);
     readonly reference = computed(() => ['patch-overview', 'lore', 'character-information'].includes(this.entry().category));
     readonly activity = computed(() => this.entry().category === 'endgame-activity');
+    readonly eventTemplate = computed(() => this.entry().category === 'events');
     readonly questTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
     readonly mainQuestName = computed(() => storyContentName(this.entry().game, this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
     readonly sharedPatch = computed(() => {
@@ -44,11 +56,48 @@ export class StoryContentList {
         const mode = storyTrackingMode(this.entry(), row);
         return mode === StoryTrackingMode.Recurring ? 'This cycle' : mode.charAt(0).toUpperCase() + mode.slice(1);
     }
+    toggleRow(event: Event, row: StoryTableRow): void {
+        if (event.target instanceof HTMLInputElement) {
+            event.target.checked = this.done(row);
+        }
+        if (this.disabled() || !this.canTrack(row) || row.rowType === 'heading' || row.rowType === 'note') {
+            return;
+        }
+        this.toggled.emit(row);
+    }
     toggleGroup(id: string): void {
         this.collapsed.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
     }
-    count(rows: StoryTableRow[]): number { return rows.filter(row => !row.rowType || row.rowType === 'quest').length; }
-    countDone(rows: StoryTableRow[]): number { return rows.filter(row => (!row.rowType || row.rowType === 'quest') && this.done(row)).length; }
+    toggleSection(id: string): void {
+        this.collapsedSections.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+    }
+    toggleNotes(id: string): void {
+        this.expandedNotes.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+    }
+    visibleRows(rows: StoryTableRow[]): StoryTableRow[] {
+        return this.incompleteOnly() ? rows.filter(row => row.rowType === 'heading' || row.rowType === 'note' || !this.done(row)) : rows;
+    }
+    visibleSection(section: WorldQuestSection): boolean {
+        return !this.incompleteOnly() || worldQuestObjectives(section.rows).some(row => !this.done(row));
+    }
+    subtype(value?: string): string {
+        return value ? WORLD_QUEST_SUBTYPES.get(value) ?? value : '';
+    }
+    worldNotes(row: StoryTableRow) {
+        return this.contextNotes(row.context);
+    }
+    contextNotes(context?: StoryContext) {
+        return context?.requirements?.filter(item => !['prerequisite', 'unlock', 'time-gate'].includes(item.type)) ?? [];
+    }
+    requirementTarget(id?: string): Entry | undefined {
+        return this.relatedEntries().find(entry => entry.game === this.entry().game && entry.id === id);
+    }
+    worldAnchor(row: StoryTableRow, groupId: string): string {
+        const first = this.worldGroups().find(group => group.rows.some(item => item.id === row.id));
+        return first?.id === groupId ? this.anchor(row) : `${this.anchor(row)}-membership-${groupId}`;
+    }
+    count(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).length; }
+    countDone(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(this.done).length; }
     groupProgress(id: string): { total: number; completed: number; percent: number } {
         const rows = patchGroups(this.data()).find(group => group.id === id)?.rows ?? [];
         const total = this.count(rows);
@@ -71,5 +120,6 @@ export class StoryContentList {
     revealTarget(event: Event): void {
         if (!(event instanceof CustomEvent) || ![...this.data().rows, ...(this.data().groups ?? []).flatMap(group => group.mainQuest ? [group.mainQuest] : [])].some(row => this.anchor(row) === event.detail)) return;
         this.collapsed.set([]);
+        this.collapsedSections.set([]);
     }
 }

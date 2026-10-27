@@ -18,6 +18,7 @@ export function reworkMainQuestTemplate(source: PatchOverview, title: string): {
     for (const group of patchGroups(template)) {
         const savedGroup = template.groups!.find(item => item.id === group.id);
         if (!savedGroup) continue;
+        if (savedGroup.groupType === 'content') continue;
         if (!savedGroup.mainQuest) {
             const quests = group.rows.filter(row => !row.rowType || row.rowType === 'quest');
             const first = quests[0];

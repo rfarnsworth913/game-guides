@@ -2,11 +2,52 @@ import { BehaviorSubject } from 'rxjs';
 import { ActivatedRoute, convertToParamMap, Router, provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { GameImagePicker } from './game-image-picker';
 import { Story } from './story';
 import { Entry, WorkspaceStore } from './workspace.store';
 import { emptyPatchOverview } from '../../../../common/story-template';
 
 describe('Story incomplete filter', () => {
+    it('edits a navigation icon with the compact picker and renders uploaded icons after saving', async () => {
+        const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt', icon: '*',
+            notes: '', quantity: 0, target: 0, rarity: 1, category: '', members: [], requirements: [], completed: false, order: 0, day: '' };
+        const entries = signal([section]);
+        const save = vi.fn(async (entry: Entry) => { entries.set([entry]); return true; });
+        TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
+            entries, initialized: signal(true), loading: signal(false), saving: signal(false), error: signal(''), save,
+        } }] });
+        vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+        const fixture = TestBed.createComponent(Story);
+        fixture.componentRef.setInput('game', 'genshin');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        component.editMode.set(true);
+        component.open('story-category', section);
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('.navigation-category-icon > span')?.textContent).toBe('Icon or Icon URL');
+        expect(root.querySelector('.navigation-category-icon .compact-icon-button')).not.toBeNull();
+        const picker = fixture.debugElement.query(By.css('.navigation-category-icon gg-game-image-picker')).componentInstance as GameImagePicker;
+        expect(picker.compact()).toBe(true);
+        expect(picker.value()).toBe('*');
+        picker.pending.set({ name: 'mondstadt.webp', url: '/api/games/genshin/images/mondstadt.webp' });
+        picker.useSelected();
+        fixture.detectChanges();
+        expect(component.editor?.icon).toBe('/api/games/genshin/images/mondstadt.webp');
+        expect(section.icon).toBe('*');
+        expect(save).not.toHaveBeenCalled();
+        await component.save();
+        fixture.detectChanges();
+        expect(save).toHaveBeenCalledWith(expect.objectContaining({ icon: '/api/games/genshin/images/mondstadt.webp' }));
+        expect(root.querySelector('#story-tab-section img')?.getAttribute('src')).toBe('/api/games/genshin/images/mondstadt.webp');
+        expect(component.iconUrl('https://example.com/icon.png')).toBe('https://example.com/icon.png');
+        expect(component.iconUrl('*')).toBeNull();
+        expect(component.iconUrl('javascript:alert(1)')).toBeNull();
+        expect(component.iconUrl('/api/games/genshin/images/../secret.png')).toBeNull();
+    });
     it('nests related templates beneath the preceding patch or main story in the outline', () => {
         const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt',
             notes: '', quantity: 0, target: 0, rarity: 0, category: '', members: [], requirements: [],

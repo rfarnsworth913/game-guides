@@ -6,7 +6,11 @@ import { GameImagePicker } from './game-image-picker';
 import { Entry, WorkspaceStore, GAMES } from './workspace.store';
 import { StoryContentList } from './story-content-list';
 import { StoryContextEditor } from './story-context-editor';
+import { NotesMarkdownPipe } from './markdown';
+import { worldQuestPrerequisites } from '../../../../common/world-quest';
+import { PatchBadge } from './patch-badge';
 import type { StoryGroup } from '../../../../common/types/story-group.type';
+import { StoryAvailability } from '../../../../common/enums/story-tracking.enum';
 import { StoryContext, storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from '../../../../common/story-guide';
 import {
     emptyPatchOverview,
@@ -19,7 +23,7 @@ import {
 
 @Component({
     selector: 'gg-patch-overview',
-    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor],
+    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, NotesMarkdownPipe, PatchBadge],
     templateUrl: './patch-overview.html',
     styleUrl: './patch-overview.scss',
 })
@@ -28,6 +32,7 @@ export class PatchOverviewTemplate {
     readonly editing = input(false);
     readonly incompleteOnly = input(false);
     readonly store = inject(WorkspaceStore);
+    readonly completionError = signal('');
     readonly groupedTemplate = computed(() => ['world-quests', 'lore', 'character-information'].includes(this.entry().category));
     readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events', 'endgame-activity'].includes(this.entry().category));
     readonly data = computed(() => storyTemplateFor(this.entry()) ?? emptyPatchOverview());
@@ -38,6 +43,34 @@ export class PatchOverviewTemplate {
     rowContext(row: StoryTableRow): StoryContext { return row.context ??= {}; }
     readonly mainQuestTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
     readonly questEditorLabel = computed(() => this.entry().category === 'side-stories' ? storyContentName(this.entry().game, 'side-stories') : 'Main Quest');
+    readonly eventTemplate = computed(() => this.entry().category === 'events');
+    readonly eventPatchVersion = computed(() => {
+        if (this.data().patchVersion) return this.data().patchVersion;
+        const versions = [...new Set(this.data().rows.filter(row => !row.rowType || row.rowType === 'quest').map(row => row.patch).filter(Boolean))];
+        return versions.length === 1 ? versions[0] : '';
+    });
+    readonly eventAvailability = computed(() => {
+        const availability = this.data().context?.availability;
+        return availability === StoryAvailability.Limited ? 'Limited-time' : availability === StoryAvailability.Permanent ? 'Permanent' : availability === StoryAvailability.Recurring ? 'Recurring' : availability === StoryAvailability.Retired ? 'Retired' : 'Not specified';
+    });
+    readonly eventProgress = computed(() => {
+        const rows = this.data().rows.filter(row => !row.rowType || row.rowType === 'quest');
+        return { total: rows.length, completed: rows.filter(this.done).length };
+    });
+    readonly eventGates = computed(() => worldQuestPrerequisites(this.data().context));
+    readonly eventNotes = computed(() => this.data().context?.requirements?.filter(item => !['prerequisite', 'unlock', 'time-gate'].includes(item.type)) ?? []);
+    readonly eventHasDetails = computed(() => !!(this.data().summary || this.eventGates()?.length || this.eventNotes().length || this.data().context?.relatedContentIds?.length));
+    eventRelated(id?: string): Entry[] {
+        const ids = id ? [id] : this.data().context?.relatedContentIds ?? [];
+        return this.relatedEntries().filter(entry => entry.game === this.entry().game && ids.includes(entry.id));
+    }
+    eventRelatedUrl(entry: Entry): string {
+        return entry.kind === 'story' ? `/games/${entry.game}/story?section=${encodeURIComponent(entry.storySection ?? '')}#story-content-${encodeURIComponent(entry.id)}`
+            : `/games/${entry.game}/${entry.kind === 'achievement-category' ? 'achievements' : entry.kind}`;
+    }
+    isQuestGroup(group: StoryGroup): boolean {
+        return this.mainQuestTemplate() && group.groupType !== 'content';
+    }
     ensureMainQuest(group: StoryGroup): StoryTableRow {
         return group.mainQuest ??= { id: crypto.randomUUID(), groupId: group.id, content: group.title, contentUrl: '', contentType: '', patch: group.defaultPatch ?? '', notes: '' };
     }
@@ -47,7 +80,7 @@ export class PatchOverviewTemplate {
     }
     promoteMainQuest(row: StoryTableRow): void {
         const group = this.data().groups?.find(group => group.id === row.groupId);
-        if (!this.mainQuestTemplate() || !group) return;
+        if (!group || !this.isQuestGroup(group)) return;
         const previous = group.mainQuest;
         this.data().rows = this.data().rows.filter(item => item.id !== row.id);
         if (previous) this.data().rows.unshift({ ...previous, groupId: group.id, subQuest: false });
@@ -134,10 +167,11 @@ export class PatchOverviewTemplate {
             row.rowType === 'heading' || row.rowType === 'note' || !this.done(row),
         ) })).filter((group) => this.questCount(group.rows) > 0);
     }
-    addGroup(): void {
+    addGroup(groupType: 'quest' | 'content' = 'quest'): void {
         preparePatchGroups(this.data());
-        const group: StoryGroup = { id: crypto.randomUUID(), title: this.mainQuestTemplate() ? 'New ' + this.questEditorLabel().toLowerCase() : 'New group' };
-        if (this.mainQuestTemplate()) this.ensureMainQuest(group);
+        const narrative = this.mainQuestTemplate();
+        const group: StoryGroup = { id: crypto.randomUUID(), title: narrative && groupType === 'quest' ? 'New ' + this.questEditorLabel().toLowerCase() : 'New group', ...(narrative ? { groupType } : {}) };
+        if (this.isQuestGroup(group)) this.ensureMainQuest(group);
         this.data().groups!.push(group);
     }
     removeGroup(id: string): void {
@@ -171,6 +205,11 @@ export class PatchOverviewTemplate {
     }
     removeRow(id: string): void {
         this.data().rows = this.data().rows.filter((row) => row.id !== id);
+        for (const group of this.data().groups ?? []) {
+            if (group.objectiveIds) {
+                group.objectiveIds = group.objectiveIds.filter(objectiveId => objectiveId !== id);
+            }
+        }
     }
     splitNotes(row: StoryTableRow, split: boolean): void {
         if (split) row.notesRight = '';
@@ -200,12 +239,20 @@ export class PatchOverviewTemplate {
         const entry = this.entry();
         const key = storyCompletionKey(entry, row);
         if (key === null || row.rowType === 'heading' || row.rowType === 'note') return;
-        await this.store.save({
-            ...entry,
-            storyRowCompletion: {
-                ...entry.storyRowCompletion,
-                [key]: !entry.storyRowCompletion?.[key],
-            },
-        });
+        this.completionError.set('');
+        try {
+            const saved = await this.store.save({
+                ...entry,
+                storyRowCompletion: {
+                    ...entry.storyRowCompletion,
+                    [key]: !entry.storyRowCompletion?.[key],
+                },
+            });
+            if (!saved) {
+                this.completionError.set(this.store.error?.() || 'Could not save completion. Please retry.');
+            }
+        } catch (error) {
+            this.completionError.set(error instanceof Error ? error.message : 'Could not save completion. Please retry.');
+        }
     }
 }

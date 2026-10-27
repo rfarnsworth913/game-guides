@@ -3,7 +3,8 @@ import { ProgressRepository } from './progress';
 import { validProgressState } from '../../common/player-progress';
 import { characterCollectionFits, validCharacterRules } from '../../common/characters';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
-import { GAMES, validCatalog } from '../../common/workspace';
+import { GAMES, validCatalog, fromCatalog } from '../../common/workspace';
+import { storyCompletionKey } from '../../common/story-guide';
 import { ApiError, GameRepository } from './repository';
 import { handleGameImages, imageRoot } from './game-images';
 
@@ -74,6 +75,8 @@ export function createApi(
                 if (!body || typeof body !== 'object' || Object.keys(body).some((key) => !['revision', 'changes'].includes(key)) ||
                     !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0 ||
                     !('changes' in body) || !validProgressState(body.changes)) throw new ApiError(400, 'Invalid progress update.');
+                const previous = await progress.read(user.id);
+                if (previous.revision !== body.revision) throw new ApiError(409, 'Progress changed in another browser. Reload before retrying.');
                 const catalogs = new Map<string, Map<string, Awaited<ReturnType<typeof repository.read>>['entries'][number]>>();
                 const gameRules = new Map<string, Awaited<ReturnType<typeof repository.read>>['characterRules']>();
                 for (const [key, state] of Object.entries(body.changes)) {
@@ -93,8 +96,13 @@ export function createApi(
                     }
                     const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
                         .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');
-                    const rowIds = new Set(rows.map((row) => row.id));
-                    if (Object.keys(state.storyRowCompletion ?? {}).some((id) => !rowIds.has(id))) throw new ApiError(400, 'Progress references unknown rows.');
+                    const definition = fromCatalog(entry);
+                    const rowIds = new Set(rows.flatMap(row => [row.id, storyCompletionKey(definition, row)].filter((id): id is string => id !== null)));
+                    const history = previous.state[key]?.storyRowCompletion ?? {};
+                    // Template edits can retire rows or promote them to headings. Preserve existing
+                    // private history, but do not allow new or changed unknown completion keys.
+                    if (Object.entries(state.storyRowCompletion ?? {}).some(([id, value]) => !rowIds.has(id) &&
+                        !(Object.hasOwn(history, id) && history[id] === value))) throw new ApiError(400, 'Progress references unknown rows.');
                 }
                 respond(response, 200, await progress.patch(user.id, Number(body.revision), body.changes)); return;
             }

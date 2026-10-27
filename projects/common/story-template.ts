@@ -57,6 +57,7 @@ export function trimPatchOverviewText(patch: PatchOverview): void {
     }
     for (const group of patch.groups ?? []) {
         group.title = group.title.trim();
+        if (group.contentUrl !== undefined) group.contentUrl = group.contentUrl.trim();
         if (group.defaultPatch !== undefined) group.defaultPatch = group.defaultPatch.trim();
         if (group.mainQuest) trimStoryRow(group.mainQuest);
     }
@@ -178,7 +179,12 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 patch.groups.every(
                     (group) =>
                         group &&
-                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch', 'mainQuest'].includes(key)) &&
+                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch', 'mainQuest', 'worldQuestMode', 'objectiveIds', 'groupType', 'contentUrl'].includes(key)) &&
+                        (group.contentUrl === undefined || (typeof group.contentUrl === 'string' && (!group.contentUrl || !!httpUrl(group.contentUrl)))) &&
+                        (group.groupType === undefined || ['quest', 'content'].includes(group.groupType)) &&
+                        (group.groupType !== 'content' || group.mainQuest === undefined) &&
+                        (group.worldQuestMode === undefined || ['region', 'questChain'].includes(group.worldQuestMode)) &&
+                        (group.objectiveIds === undefined || (Array.isArray(patch.rows) && Array.isArray(group.objectiveIds) && group.objectiveIds.length <= 1000 && new Set(group.objectiveIds).size === group.objectiveIds.length && group.objectiveIds.every(id => patch.rows.some(row => row && row.id === id && (!row.rowType || row.rowType === 'quest'))))) &&
                         (group.mainQuest === undefined || (validStoryTableRow(group.mainQuest) && (!group.mainQuest.rowType || group.mainQuest.rowType === 'quest') && (!group.mainQuest.groupId || group.mainQuest.groupId === group.id))) &&
                         (group.defaultPatch === undefined || typeof group.defaultPatch === 'string') &&
                         typeof group.id === 'string' &&

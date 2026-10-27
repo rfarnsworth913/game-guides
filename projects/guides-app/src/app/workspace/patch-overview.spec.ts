@@ -1,9 +1,45 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from './patch-overview';
 import { Entry, WorkspaceStore } from './workspace.store';
-import { emptyPatchOverview, trimPatchOverviewText } from '../../../../common/story-template';
+import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from '../../../../common/story-template';
+import { reworkMainQuestTemplate } from '../../../../common/main-quest';
 
 describe('Patch Overview grouped row editor', () => {
+    it.each(['main-story', 'side-stories'])('allows regular cutscene groups within %s without creating or promoting a parent quest', category => {
+        const save = vi.fn();
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save, saving: () => false, loading: () => false } }] });
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        const data = emptyPatchOverview();
+        const entry: Entry = { id: 'draft', game: 'genshin', kind: 'story', category, name: 'Story', notes: '', rarity: 1, members: [], requirements: [], order: 0, day: '', completed: false, quantity: 0, target: 0,
+            ...(category === 'side-stories' ? { sideStories: data } : { mainStory: data }) };
+        fixture.componentRef.setInput('entry', entry);
+        fixture.componentRef.setInput('editing', true);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        [...root.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === '+ Add Content Group')!.click();
+        const component = fixture.componentInstance;
+        const group = data.groups![0];
+        group.title = 'Related Cutscenes';
+        component.addRow(group.id);
+        Object.assign(data.rows[0], { content: group.title, contentUrl: 'https://example.com/cutscene' });
+        fixture.detectChanges();
+        expect(group.groupType).toBe('content');
+        expect(group.mainQuest).toBeUndefined();
+        expect(root.textContent).toContain('Group Name');
+        expect(root.textContent).toContain('+ Add Row');
+        expect(root.textContent).not.toContain('Use as ');
+        expect(validPatchOverview(data)).toBe(true);
+        expect(reworkMainQuestTemplate(data, group.title).template).toEqual(data);
+        fixture.componentRef.setInput('editing', false);
+        fixture.detectChanges();
+        expect(root.querySelector('.guide-main-quest-heading')).toBeNull();
+        expect(root.querySelector('.guide-section-heading h4')?.textContent).toBe(group.title);
+        expect(root.querySelector('.guide-row-title a')?.getAttribute('href')).toBe('https://example.com/cutscene');
+        component.promoteMainQuest(data.rows[0]);
+        expect(group.mainQuest).toBeUndefined();
+        expect(data.rows).toHaveLength(1);
+        expect(save).not.toHaveBeenCalled();
+    });
     it.each([['main-story', 'Main Quest'], ['side-stories', 'Story Quest']])('edits linked %s headings and preserves parent data when promoting or removing a group', (category, label) => {
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save } }] });

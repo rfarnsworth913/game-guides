@@ -14,13 +14,43 @@
         <label>Region<input [ngModelOptions]="standalone" [(ngModel)]="context().region" /></label>
         <label>Area<input [ngModelOptions]="standalone" [(ngModel)]="context().area" /></label>
         <label>Quest chain<input [ngModelOptions]="standalone" [(ngModel)]="context().chain" /></label>
-        <label>{{ row() ? 'Quest / activity subtype' : 'Chapter / act' }}<input [ngModelOptions]="standalone" [ngModel]="row() ? context().subtype : context().chapter" (ngModelChange)="row() ? context().subtype = $event : context().chapter = $event" placeholder="e.g. Hidden Exploration Objective" /></label>
+        <label>{{ row() ? 'Quest / activity subtype' : 'Chapter / act' }}<input [attr.list]="worldQuest() && row() ? subtypeListId : null" [ngModelOptions]="standalone" [ngModel]="row() ? context().subtype : context().chapter" (ngModelChange)="row() ? context().subtype = $event : context().chapter = $event" placeholder="e.g. Hidden Exploration Objective" /></label>
+        @if (worldQuest() && row()) { <datalist [id]="subtypeListId">@for (subtype of worldSubtypes; track subtype) { <option [value]="subtype"></option> }</datalist> }
         <label>Current cycle ID<input [ngModelOptions]="standalone" [(ngModel)]="context().cycleId" placeholder="e.g. season-2026-10" maxlength="100" /></label>
         <label>Reset schedule<input [ngModelOptions]="standalone" [(ngModel)]="context().resetSchedule" placeholder="e.g. Every Monday at server reset" /></label>
         @if (row()) { <label>Difficulty / tier<input [ngModelOptions]="standalone" [(ngModel)]="context().difficulty" /></label> }
+        @if (worldQuest() && row()) {
+            <label>Chapter / main quest<input [ngModelOptions]="standalone" [(ngModel)]="context().chapter" placeholder="Optional secondary group in quest-chain mode" /></label>
+        }
     </div>
     <p class="guide-help">Recurring rows require a cycle ID. Changing it starts a separate cycle and preserves earlier progress. Leave one-time milestones on completed.</p>
-    <h4>Requirements & contextual information</h4>
+    @if (worldQuest() && row()) {
+        <h4>Requirements</h4>
+        <label>Prerequisite status<select [ngModelOptions]="standalone" [ngModel]="requirementStatus()" (ngModelChange)="setRequirementStatus($event)">
+            <option value="unknown">Requirements not documented</option>
+            <option value="none">No prerequisites (verified)</option>
+            <option value="documented">Documented prerequisites</option>
+        </select></label>
+        @if (requirementStatus() === 'documented') {
+            <label>Conditions<select [ngModelOptions]="standalone" [ngModel]="context().requirementsOperator || 'allOf'" (ngModelChange)="context().requirementsOperator = $event">
+                <option value="allOf">Meet all requirements</option><option value="anyOf">Meet any requirement</option>
+            </select></label>
+            @for (gate of prerequisites(); track $index; let index = $index) {
+                <div class="guide-requirement-editor">
+                    <label>Gate type<select [ngModelOptions]="standalone" [ngModel]="gate.type" (ngModelChange)="setPrerequisite(index, 'type', $event)">
+                        @for (type of gateTypes; track type) { <option [value]="type">{{ type }}</option> }
+                    </select></label>
+                    <label>Verified requirement<textarea rows="2" [ngModelOptions]="standalone" [ngModel]="gate.text" (ngModelChange)="setPrerequisite(index, 'text', $event)"></textarea></label>
+                    <label>Related record ID<input [ngModelOptions]="standalone" [ngModel]="gate.targetId" (ngModelChange)="setPrerequisite(index, 'targetId', $event)" /></label>
+                    <button type="button" (click)="removePrerequisite(index)" aria-label="Remove prerequisite">Remove</button>
+                </div>
+            }
+            <button type="button" (click)="addPrerequisite()">+ Add prerequisite</button>
+        }
+        <p class="guide-help">Only record verified access conditions here. Keep advice, rewards and spoilers in Notes. Empty source data does not mean there are no prerequisites.</p>
+    }
+    @if (!worldQuest() || !row() || context().requirements?.length) {
+    <h4>{{ worldQuest() ? 'Legacy requirements & contextual information' : 'Requirements & contextual information' }}</h4>
     @for (requirement of context().requirements; track $index; let index = $index) {
         <div class="guide-requirement-editor">
             <label>Type<select [ngModelOptions]="standalone" [(ngModel)]="requirement.type">
@@ -31,7 +61,8 @@
             <button type="button" (click)="context().requirements!.splice(index, 1)" aria-label="Remove requirement">Remove</button>
         </div>
     }
-    <button type="button" (click)="addRequirement()">+ Add requirement</button>
+    @if (!worldQuest() || !row()) { <button type="button" (click)="addRequirement()">+ Add requirement</button> }
+    }
     <label>Related content IDs<input [ngModelOptions]="{standalone:true, updateOn:'blur'}" [ngModel]="context().relatedContentIds?.join(', ') ?? ''" (ngModelChange)="relatedIds($event)" placeholder="Comma-separated IDs from this game" /></label>
     <p class="guide-help">Links point to existing records. Linking a quest or achievement does not create a second completion record.</p>
 </details>

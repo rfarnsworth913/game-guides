@@ -19,6 +19,7 @@ export class GameImagePicker {
     readonly value = model('');
     readonly banner = input(false);
     readonly compact = input(false);
+    readonly selectionOnly = input(false);
     readonly iconMenuId = `icon-menu-${crypto.randomUUID()}`;
     readonly iconMenu = viewChild<ElementRef<HTMLElement>>('iconMenu');
     readonly iconDraft = signal('');

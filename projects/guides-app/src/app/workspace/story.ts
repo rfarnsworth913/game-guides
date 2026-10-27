@@ -438,13 +438,15 @@ export class Story {
     topic(entry: Entry) {
         return this.topics().find((topic) => topic.id === entry.category) ?? this.topics()[1];
     }
-    iconUrl(icon: string): string | null {
-        try {
-            const url = new URL(icon);
-            return ['https:', 'http:'].includes(url.protocol) ? url.href : null;
-        } catch {
-            return null;
+    editorTitle(entry: Entry): string {
+        const existing = this.store.entries().some(saved => saved.id === entry.id);
+        if (entry.kind === 'story-category') {
+            return existing ? 'Edit Navigation Group' : 'Create Navigation Group';
         }
+        return existing ? 'Edit Subsection' : 'Create Subsection';
+    }
+    iconUrl(icon: string): string | null {
+        return storyImageUrl(icon);
     }
     open(kind: 'story' | 'story-category', entry?: Entry): void {
         if (!this.editMode() || this.busy()) return;

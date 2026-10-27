@@ -53,6 +53,7 @@
     @if (uploading()) { <p role="status">Uploading image?</p> }
     @if (error()) { <p class="image-error" role="alert">{{ error() }}</p> }
     @if (message()) { <p role="status">{{ message() }}</p> }
+    @if (!selectionOnly()) {
     <details class="image-details"><summary>Image Details <span>Description, attribution, and source page</span></summary>
         <label>Image Type<select [ngModelOptions]="{standalone:true}" [ngModel]="category()" (ngModelChange)="category.set($event)">
             <option value="banner">Banner</option><option value="character">Character</option><option value="landscape">Landscape</option><option value="icon">Icon</option>
@@ -70,6 +71,7 @@
             <label>{{ label() }} URL or symbol<input type="text" [ngModelOptions]="{standalone:true}" [ngModel]="value()" (ngModelChange)="value.set($event)" placeholder="https://?" /></label>
         </details>
     </details>
+    }
 </div>
 }
 <dialog #library class="game-image-dialog" (cancel)="cancelLibrary(); $event.preventDefault()"

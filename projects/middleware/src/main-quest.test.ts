@@ -11,6 +11,20 @@ const template = (): PatchOverview => ({ ...emptyPatchOverview(), groups: [{ id:
     { id: 'two', groupId: 'group', contentType: '', content: 'Gunfire in the Silent Lands', patch: '7.0', notes: '', subQuest: true },
 ] });
 
+test('explicit content groups remain regular groups through quest conversion and validation', () => {
+    const source = template();
+    source.groups!.push({ id: 'cutscenes', title: 'Related Cutscenes', groupType: 'content' });
+    const cutscene = { id: 'scene', groupId: 'cutscenes', contentType: '', content: 'Related Cutscenes', contentUrl: 'https://example.com/video', patch: '7.0', notes: 'Keep this linked video' };
+    source.rows.push(cutscene);
+    const result = reworkMainQuestTemplate(source, 'Related Cutscenes');
+    assert.equal(result.promoted, 1);
+    assert.equal(result.template.groups![1].mainQuest, undefined);
+    assert.deepEqual(result.template.rows.find(row => row.id === 'scene'), cutscene);
+    assert.ok(validPatchOverview(result.template));
+    assert.equal(validPatchOverview({ ...result.template, groups: [{ ...result.template.groups![1], mainQuest: cutscene }] }), false);
+    assert.equal(validPatchOverview({ ...result.template, groups: [{ ...result.template.groups![1], groupType: 'invalid' }] }), false);
+});
+
 test('main quest conversion moves the original parent intact and preserves child IDs, order, links and progress', () => {
     const original = template();
     const before = structuredClone(original);

@@ -356,7 +356,7 @@
 @if (editor; as entry) {
     <div class="modal-backdrop">
         <section
-            class="modal"
+            class="modal story-guide-dialog"
             [class.create-subsection-modal]="isNewSubsection()"
             [class.patch-modal]="hasTemplate(entry) && !isNewSubsection()"
             role="dialog"
@@ -366,12 +366,12 @@
             ggDialogFocus
             (keydown.escape)="editor = null"
         >
-            <div class="section-title">
+            <div class="story-dialog-header">
                 <h2 id="story-editor-title">
-                    {{ entry.kind === 'story-category' ? 'Navigation Category' : isNewSubsection() ? 'Create Subsection' : 'Subsection' }}
+                    {{ editorTitle(entry) }}
                 </h2>
-                <button type="button" aria-label="Close editor" (click)="editor = null">
-                    &#215;
+                <button type="button" class="story-dialog-close" aria-label="Close editor" (click)="editor = null">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 6 12 12M18 6 6 18" /></svg>
                 </button>
             </div>
             @if (isNewSubsection()) {
@@ -379,6 +379,7 @@
             }
             <form (ngSubmit)="save()" #sectionForm="ngForm">
                 @if (entry.kind === 'story-category') {
+                <div class="navigation-category-title-row">
                 <label
                     >Title<input
                         name="title"
@@ -388,14 +389,14 @@
                         placeholder="e.g. Mondstadt or Version 6.0"
                 /></label>
 
-                    <gg-game-image-picker [game]="entry.game" label="Section Image"
+                    <div class="navigation-category-icon">
+                        <span>Icon or Icon URL</span>
+                        <gg-game-image-picker [game]="entry.game" label="Icon or Icon URL" [compact]="true"
+                            [value]="entry.icon ?? ''" (valueChange)="entry.icon = $event" />
+                    </div>
+                </div>
+                    <gg-game-image-picker [game]="entry.game" label="Section Image" [selectionOnly]="true"
                         [value]="entry.sectionImageUrl ?? ''" (valueChange)="entry.sectionImageUrl = $event" />
-                    <label
-                        >Icon or icon URL<input
-                            name="icon"
-                            [(ngModel)]="entry.icon"
-                            placeholder="Symbol, emoji, or https://…"
-                    /></label>
                 } @else {
                     <label
                         >Content Template<select
@@ -462,14 +463,19 @@
 @if (deleting; as entry) {
     <div class="modal-backdrop">
         <section
-            class="modal small"
+            class="modal small story-guide-dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="story-delete-title"
             ggDialogFocus
             (keydown.escape)="deleting = null"
         >
-            <h2 id="story-delete-title">Delete {{ entry.name }}?</h2>
+            <div class="story-dialog-header">
+                <h2 id="story-delete-title">Delete {{ entry.name }}?</h2>
+                <button type="button" class="story-dialog-close" aria-label="Close delete dialog" [disabled]="busy()" (click)="deleting = null">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                </button>
+            </div>
             <p>
                 {{
                     entry.kind === 'story-category'
@@ -503,10 +509,15 @@
 
 @if (confirmReset) {
     <div class="modal-backdrop">
-        <section class="modal small" role="alertdialog" aria-modal="true"
+        <section class="modal small story-guide-dialog" role="alertdialog" aria-modal="true"
             aria-labelledby="reset-story-title" ggDialogFocus
             (keydown.escape)="!resetting() && (confirmReset = false)">
-            <h2 id="reset-story-title">Reset story progress?</h2>
+            <div class="story-dialog-header">
+                <h2 id="reset-story-title">Reset story progress?</h2>
+                <button type="button" class="story-dialog-close" aria-label="Close reset dialog" [disabled]="resetting()" (click)="confirmReset = false">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                </button>
+            </div>
             <p>This clears completion for every story guide and content row in the current game, across all navigation categories, on this device.</p>
             @if (store.error()) { <p class="error" role="alert">{{ store.error() }}</p> }
             <div class="modal-actions">

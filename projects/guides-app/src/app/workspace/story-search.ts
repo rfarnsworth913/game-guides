@@ -38,7 +38,8 @@ export function searchStoryGuides(entries: Entry[], game: string, query: string)
             } else {
                 for (const row of [...(template?.rows ?? []), ...(template?.groups ?? []).flatMap(group => group.mainQuest ? [group.mainQuest] : [])]) {
                     const group = template?.groups?.find((group) => group.id === row.groupId);
-                    if (!matches([row.content, row.contentUrl, row.contentType, row.patch, row.notes, row.notesRight, group?.title, group?.defaultPatch, JSON.stringify(row.context ?? {})])) continue;
+                    const memberships = template?.groups?.filter(candidate => candidate.objectiveIds?.includes(row.id)).map(candidate => candidate.title) ?? [];
+                    if (!matches([row.content, row.contentUrl, row.contentType, row.patch, row.notes, row.notesRight, group?.title, group?.contentUrl, group?.defaultPatch, ...memberships, JSON.stringify(row.context ?? {})])) continue;
                     results.push({ id: `${entry.id}/${row.id}`, title: row.content || (row.rowType === 'note' ? 'Global Notes' : 'Content row'),
                         context: [section.name, entry.name, group?.title, row.patch && `Patch ${row.patch}`].filter(Boolean).join(' / '),
                         excerpt: [row.notes, row.notesRight, row.contentUrl].filter(Boolean).join(' · '), sectionId: section.id,

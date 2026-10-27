@@ -215,6 +215,13 @@ export const GAMES = [
         color: '#eea575',
         subtitle: 'A new frontier',
     },
+    {
+        id: 'ffxiv',
+        name: 'Final Fantasy XIV',
+        short: 'FFXIV',
+        color: '#8fb7e8',
+        subtitle: 'Adventure in Eorzea',
+    },
 ];
 export function validEntries(value: unknown): value is Entry[] {
     return (

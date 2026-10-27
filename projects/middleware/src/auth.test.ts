@@ -10,6 +10,7 @@ import { ProgressDocument, ProgressRepository } from './progress';
 import { createApi } from './server';
 import { validProgressState } from '../../common/player-progress';
 import { CatalogEntry } from '../../common/workspace';
+import { StoryTrackingMode } from '../../common/enums/story-tracking.enum';
 
 function memory<T extends Document>() {
     const docs = new Map<string, T>();
@@ -256,6 +257,20 @@ test('HTTP API denies anonymous edits, isolates progress, validates references a
         body: JSON.stringify({ revision: 1, userId: 'bob', changes: {} }),
     });
     assert.equal(forged.status, 400);
+    const history = { 'archived-parent': true, 'removed-row': false, 'cycle:season-1:row': true };
+    await progress.patch('alice', 1, { 'genshin/quest': { ...playerState, storyRowCompletion: { ...history, row: true } } });
+    const edited = { ...playerState, storyRowCompletion: { ...history, row: false } };
+    const historySave = await patch({ 'genshin/quest': edited }, {}, 2);
+    assert.equal(historySave.status, 200, JSON.stringify(await historySave.json()));
+    assert.deepEqual((await progress.read('alice')).state['genshin/quest'].storyRowCompletion, edited.storyRowCompletion);
+    assert.equal((await patch({ 'genshin/quest': { ...edited, storyRowCompletion: { ...edited.storyRowCompletion, fake: true } } }, {}, 3)).status, 400);
+    assert.equal((await patch({ 'genshin/quest': { ...edited, storyRowCompletion: { ...edited.storyRowCompletion, 'removed-row': true } } }, {}, 3)).status, 400);
+    assert.equal((await patch({ 'genshin/quest': edited }, { Cookie: '__Host-gg-session=' + 'b'.repeat(43) }, 0)).status, 400);
+    entry.lore!.context = { trackingMode: StoryTrackingMode.Recurring, cycleId: 'season-2' };
+    const recurring = { ...edited, storyRowCompletion: { ...edited.storyRowCompletion, 'cycle:season-2:row': true } };
+    assert.equal((await patch({ 'genshin/quest': recurring }, {}, 3)).status, 200);
+    assert.equal((await progress.read('alice')).state['genshin/quest'].storyRowCompletion?.['cycle:season-1:row'], true);
+    assert.equal((await patch({ 'genshin/quest': { ...recurring, storyRowCompletion: { ...recurring.storyRowCompletion, 'cycle:future:row': true } } }, {}, 4)).status, 400);
 });
 
 test('unconfigured authentication fails closed while public catalogs remain readable', async (t) => {

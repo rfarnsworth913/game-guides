@@ -28,8 +28,8 @@ describe('Unified story reading view', () => {
         expect(root.querySelector('#story-row-existing-done .notes-markdown li strong')?.textContent).toBe('note');
         expect(root.querySelector('.guide-split-notes')?.textContent).toContain('Right note');
         expect(root.querySelector('#story-row-existing-next.guide-subquest')).toBeNull();
-        expect(root.querySelector('#story-row-existing-done .guide-meta-badge')).toBeNull();
-        expect(root.querySelector('#story-row-existing-next .guide-meta-badge')?.textContent).toContain('1.1');
+        expect(root.querySelector('#story-row-existing-done .guide-patch-badge')).toBeNull();
+        expect(root.querySelector('#story-row-existing-next .guide-patch-badge')?.textContent).toBe('Patch 1.1');
         const toggled = vi.fn();
         fixture.componentInstance.toggled.subscribe(toggled);
         root.querySelector<HTMLInputElement>('#story-row-existing-next input')!.click();
@@ -91,7 +91,8 @@ describe('Unified story reading view', () => {
         expect(root.querySelectorAll('input[type="checkbox"]').length).toBe(2);
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');
         expect(root.querySelector('.guide-main-quest-progress small')?.textContent).toBe('50%');
-        expect(root.querySelector('.guide-main-quest-title p')?.textContent).toBe('Archon Quest · Version 1.0');
+        expect(root.querySelector('.guide-main-quest-title p > span')?.textContent).toBe('Archon Quest');
+        expect(root.querySelector('.guide-main-quest-title .guide-patch-badge')?.textContent).toBe('Patch 1.0');
         fixture.componentRef.setInput('incompleteOnly', true);
         fixture.detectChanges();
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');
@@ -106,7 +107,8 @@ describe('Unified story reading view', () => {
         fixture.componentRef.setInput('data', story);
         fixture.componentRef.setInput('entry', { ...entry, game, sideStories: story });
         fixture.detectChanges();
-        expect(root.querySelector('.guide-main-quest-title p')?.textContent).toBe(name + ' · Version 1.0');
+        expect(root.querySelector('.guide-main-quest-title p > span')?.textContent).toBe(name);
+        expect(root.querySelector('.guide-main-quest-title .guide-patch-badge')?.textContent).toBe('Patch 1.0');
         expect(root.querySelector('.guide-main-quest-heading h4 a')?.getAttribute('href')).toBe(parent.contentUrl);
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');
         expect(root.querySelector('.guide-main-quest-progress small')?.textContent).toBe('50%');

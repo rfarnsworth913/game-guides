@@ -10,6 +10,35 @@ describe('GameImagePicker', () => {
         fixture.componentRef.setInput('label', 'Header image');
         return fixture;
     }
+    it('selects and removes navigation images without exposing image metadata or manual URL controls', () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const fixture = picker();
+        fixture.componentRef.setInput('label', 'Section Image');
+        fixture.componentRef.setInput('selectionOnly', true);
+        fixture.componentRef.setInput('value', '/api/games/endfield/images/existing.webp');
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('.image-preview')?.getAttribute('src')).toBe('/api/games/endfield/images/existing.webp');
+        expect(root.querySelector('.image-details')).toBeNull();
+        expect(root.querySelector('.image-advanced')).toBeNull();
+        expect(root.textContent).not.toContain('Image Type');
+        expect(root.textContent).not.toContain('URL or symbol');
+        expect(root.querySelector('input[type="file"]')).not.toBeNull();
+        expect(root.textContent).toContain('Browse Library');
+        fixture.componentInstance.pending.set({ name: 'new.webp', url: '/api/games/endfield/images/new.webp', details: { category: 'landscape', description: 'Existing library details' } });
+        fixture.componentInstance.useSelected();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.value()).toBe('/api/games/endfield/images/new.webp');
+        root.querySelector<HTMLButtonElement>('.remove-image')!.click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.value()).toBe('');
+        expect(fetchMock).not.toHaveBeenCalled();
+        fixture.componentRef.setInput('selectionOnly', false);
+        fixture.detectChanges();
+        expect(root.querySelector('.image-details')).not.toBeNull();
+        expect(root.querySelector('.image-advanced')).not.toBeNull();
+    });
     it('shows a compact icon control and supports symbols and removal without expanding the form', () => {
         const fixture = picker();
         fixture.componentRef.setInput('compact', true);

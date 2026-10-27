@@ -21,7 +21,9 @@ gg-story {
     }
     .guide-row-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
     .guide-help, .guide-row-context { color: var(--guide-muted); font-size: 12px; margin: 8px 0; }
+    .guide-row-context { margin-bottom: 0; }
     .guide-meta-badge { font-size: 11px; border: 1px solid var(--guide-border); border-radius: 4px; padding: 2px 6px; color: var(--guide-muted); }
+    .guide-row-main > .guide-meta-badge { display: inline-block; margin-top: 6px; }
     .guide-section-heading { height: auto; padding: 0; margin: 0; display: block; border-bottom: 0; background: color-mix(in srgb, var(--story-topic-accent) 8%, var(--guide-card)); border-inline-start: 3px solid var(--story-topic-accent); }
     .guide-section-heading > button {
         display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-radius: 0;
@@ -42,7 +44,7 @@ gg-story {
         h4 { font-size: 18px; line-height: 1.35; font-weight: 650; margin: 0; overflow-wrap: anywhere; }
         h4 a { color: var(--guide-text); text-decoration: none; }
         h4 a:hover { text-decoration: underline; text-underline-offset: 3px; }
-        p { margin: 8px 0 0; font-size: 14px; line-height: 1.4; color: var(--guide-muted); }
+        p { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; font-size: 14px; line-height: 1.4; color: var(--guide-muted); }
         .guide-main-quest-progress { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-variant-numeric: tabular-nums; }
         .guide-main-quest-progress strong { font-size: 18px; color: color-mix(in srgb, var(--story-topic-accent) 60%, var(--guide-text)); }
         .guide-main-quest-progress small { font-size: 12px; color: var(--guide-muted); }
@@ -57,6 +59,8 @@ gg-story {
         h5 { font-size: 13px; font-weight: 650; margin: 0; }
     }
     .guide-row-tracking { margin: 0; display: inline-flex; padding-top: 2px; }
+    .guide-content-row:has(> gg-patch-badge) { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; }
+    .guide-content-row > gg-patch-badge { justify-self: end; align-self: start; }
     .guide-row-tracking input { width: 18px; height: 18px; margin: 0; accent-color: var(--guide-complete); cursor: pointer; }
     .guide-row-body { flex: 1; min-width: 0; }
     .guide-row-title { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
@@ -73,15 +77,72 @@ gg-story {
     .guide-warning { border-inline-start: 2px solid var(--story-events-accent); padding-inline-start: 10px; }
     .guide-related { display: inline-block; margin: 8px 12px 0 0; font-size: 12px; color: var(--story-content-link); }
     .guide-empty { padding: 18px; color: var(--guide-muted); font-size: 13px; }
+    .guide-completion-error { padding: 10px 12px; border: 1px solid var(--guide-border); border-inline-start: 3px solid var(--story-events-accent); border-radius: 6px; font-size: 13px; }
     .guide-reference .guide-content-row { padding-block: 12px; }
+    .guide-section-heading.guide-linked-heading {
+        display: flex; align-items: center; gap: 10px; padding-inline-end: 14px;
+        > button { width: auto; flex: 0 0 40px; padding-inline-end: 0; }
+        h4 { flex: 1; min-width: 0; margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+        h4 a { color: var(--guide-text); text-decoration: none; }
+        h4 a:hover { text-decoration: underline; }
+        > span { color: var(--guide-muted); font-size: 12px; white-space: nowrap; }
+    }
+    .guide-event-info {
+        margin-bottom: 16px; border: 1px solid var(--guide-border); border-radius: 8px; background: var(--guide-card); overflow: hidden;
+        .guide-event-facts { display: flex; flex-wrap: wrap; margin: 0; }
+        .guide-event-facts > div { flex: 1 1 130px; min-width: 0; padding: 12px 16px; text-align: center; }
+        .guide-event-facts > div:first-child { text-align: start; }
+        .guide-event-facts > div:last-child { text-align: end; }
+        dt { font-size: 11px; font-weight: 400; color: var(--guide-muted); }
+        dd { margin: 4px 0 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+        .guide-event-participation { padding: 10px 16px; border-top: 1px solid var(--guide-border); color: var(--guide-muted); font-size: 12px; }
+        summary { cursor: pointer; width: fit-content; }
+        .guide-event-participation[open] summary { margin-bottom: 12px; }
+        a { color: var(--story-content-link); }
+        .guide-event-participation > :last-child { margin-bottom: 0; }
+    }
+    .guide-world-quests {
+        .guide-section-heading h4 small { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; color: var(--guide-muted); }
+        .guide-section-heading .guide-group-icon { width: 20px; height: 20px; flex-basis: 20px; }
+        .guide-secondary-heading { background: var(--guide-nested); border-inline-start: 0; border-top: 1px solid var(--guide-border); }
+        .guide-secondary-heading h5 { margin: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+        .guide-linked-secondary-heading {
+            display: flex; align-items: center; gap: 10px; padding-inline-end: 14px;
+            > button { width: auto; flex: 0 0 40px; padding-inline-end: 0; }
+            h5 { flex: 1; min-width: 0; }
+            h5 a { color: var(--story-content-link); text-decoration: none; }
+            h5 a:hover, h5 a:focus-visible { text-decoration: underline; }
+            > span { color: var(--guide-muted); font-size: 12px; white-space: nowrap; }
+        }
+        .guide-content-row { padding-block: 12px; }
+        .guide-row-title a { text-decoration: none; }
+        .guide-row-title a:hover, .guide-row-title a:focus-visible { text-decoration: underline; }
+        .guide-row-main { min-width: 0; }
+        .guide-objective-details:empty { display: none; }
+        .guide-objective-requirements, .guide-objective-notes { margin-top: 12px; color: var(--guide-text); font-size: 13px; line-height: 1.6; min-width: 0; overflow-wrap: anywhere; }
+        .guide-objective-notes { margin-top: 6px; }
+        .guide-objective-details svg, .guide-objective-notes svg { width: 14px; height: 14px; flex: 0 0 14px; margin-top: 3px; color: var(--story-content-link); }
+        .guide-objective-requirements { display: flex; align-items: flex-start; gap: 10px; }
+        .guide-objective-requirements strong { font-weight: 500; }
+        .guide-objective-requirements a { color: var(--story-content-link); margin-inline-start: 6px; }
+        .guide-objective-requirements ul { margin: 6px 0 0; padding-inline-start: 20px; }
+        .guide-notes-toggle { display: flex; align-items: center; gap: 8px; padding: 0; border: 0; border-radius: 0; min-height: 0; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+        .guide-notes-toggle svg { width: 16px; height: 16px; flex-basis: 16px; margin-top: 0; transition: transform 200ms ease; }
+        .guide-notes-toggle svg.expanded { transform: rotate(90deg); }
+        .guide-notes-content { padding-top: 12px; }
+        .guide-objective-notes .notes-markdown > :first-child { margin-top: 0; }
+        .guide-objective-notes .notes-markdown > :last-child { margin-bottom: 0; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    }
     .guide-activity .guide-row-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; padding: 12px; }
     .guide-activity .guide-content-row { border: 1px solid var(--guide-border); border-radius: 8px; background: var(--guide-nested); }
     .guide-activity .guide-row-heading, .guide-activity .guide-content-row:has(.guide-global-note) { grid-column: 1 / -1; }
     @media (prefers-reduced-motion: reduce) {
-        .guide-section-content, .guide-section-heading svg { transition: none; }
+        .guide-section-content, .guide-section-heading svg, .guide-world-quests .guide-notes-toggle svg { transition: none; }
     }
     .guide-context-editor { margin-block: 20px; padding: 14px; border: 1px solid var(--guide-border); border-radius: 8px; }
     .guide-context-editor summary { cursor: pointer; font-weight: 600; }
+    .guide-membership-editor select[multiple] { min-height: 120px; }
     .guide-requirement-editor { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 14px; margin-bottom: 16px; align-items: end; }
     .guide-directories { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--guide-border); }
     .guide-directories details { margin-bottom: 8px; }

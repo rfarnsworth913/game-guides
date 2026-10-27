@@ -62,3 +62,41 @@ test('recurring progress uses independent cycle keys and never overwrites lifeti
     row.context = { trackingMode: StoryTrackingMode.Completed };
     assert.equal(storyRowDone(activity, row), true);
 });
+
+test('world quest organization, memberships and explicit prerequisites round-trip without sharing private progress', () => {
+    const enriched = structuredClone(guide);
+    const data = enriched.worldQuests!;
+    data.groups!.push({ id: 'chain-view', title: 'Quest chain', worldQuestMode: 'questChain', objectiveIds: ['old-row-id'] });
+    data.groups![0].worldQuestMode = 'region';
+    data.rows[1].context = { chapter: 'Chapter one', subtype: 'hiddenExploration', prerequisites: [
+        { type: StoryRequirementType.Prerequisite, text: 'Verified prerequisite', targetId: 'another-quest' },
+        { type: StoryRequirementType.TimeGate, text: 'Wait for daily reset' },
+    ], requirementsOperator: 'anyOf' };
+    data.rows.push({ id: 'no-prerequisites', groupId: 'old-group', content: 'Standalone quest', contentType: '', patch: '', notes: '', context: { prerequisites: [] } });
+    data.rows.push({ id: 'unknown-prerequisites', groupId: 'old-group', content: 'Undocumented quest', contentType: '', patch: '1.1', notes: '', context: { prerequisites: null } });
+    const catalog = [toCatalog(section), toCatalog(enriched)];
+    assert.ok(validCatalog(catalog, 'genshin'));
+    const document = encodeStory(catalog);
+    assert.ok(!JSON.stringify(document).includes('storyRowCompletion'));
+    const decoded = decodeStory(document, 'genshin').find(entry => entry.id === guide.id)!;
+    assert.deepEqual(decoded.worldQuests, data);
+    const restored = fromCatalog(decoded, { completed: false, quantity: 0, target: 0, storyRowCompletion: enriched.storyRowCompletion });
+    assert.equal(storyRowDone(restored, restored.worldQuests!.rows[1]), true);
+    assert.deepEqual(restored.storyRowCompletion, guide.storyRowCompletion);
+    assert.equal(validStoryContext({ prerequisites: [{ type: StoryRequirementType.Prerequisite, text: 'Gate', completed: true }] }), false);
+});
+
+test('event group title links survive catalog round trips without changing stage IDs or private progress', () => {
+    const event: Entry = { ...structuredClone(guide), category: 'events', eventStory: structuredClone(guide.worldQuests) };
+    delete event.worldQuests;
+    event.eventStory!.groups![0].contentUrl = 'https://example.com/event';
+    const catalog = [toCatalog(section), toCatalog(event)];
+    assert.ok(validCatalog(catalog, 'genshin'));
+    const document = encodeStory(catalog);
+    const decoded = decodeStory(document, 'genshin').find(entry => entry.id === event.id)!;
+    assert.deepEqual(decoded.eventStory, event.eventStory);
+    assert.ok(!JSON.stringify(document).includes('storyRowCompletion'));
+    const restored = fromCatalog(decoded, { completed: false, quantity: 0, target: 0, storyRowCompletion: guide.storyRowCompletion });
+    assert.equal(storyRowDone(restored, restored.eventStory!.rows[1]), true);
+    assert.equal(validPatchOverview({ ...event.eventStory, groups: [{ ...event.eventStory!.groups![0], contentUrl: 'data:text/html,bad' }] }), false);
+});
