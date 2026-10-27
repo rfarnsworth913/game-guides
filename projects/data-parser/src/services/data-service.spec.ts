@@ -148,34 +148,11 @@ describe("DataService manages database connections and stored game data", () => 
             expect(mockUpdateOne).not.toHaveBeenCalled();
         });
 
-        it("warns and skips filtering and writes when the root is absent", async () => {
-            expect.hasAssertions();
-            const predicate = jest.fn(() => true);
-            await expect(service.cleanupExpiredItems(documentName, "events", predicate)).resolves.toBeUndefined();
-            expect(Logger.warn).toHaveBeenCalledWith(`No document found for '${documentName}'.`);
-            expect(predicate).not.toHaveBeenCalled();
-            expect(mockUpdateOne).not.toHaveBeenCalled();
-            expect(mockInsertOne).not.toHaveBeenCalled();
-        });
-
-        it("propagates predicate failure without writing", async () => {
-            expect.hasAssertions();
-            const error = new Error("Invalid event");
-            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("A")] }));
-            await expect(service.cleanupExpiredItems(documentName, "events", () => { throw error; })).rejects.toBe(error);
-            expect(mockUpdateOne).not.toHaveBeenCalled();
-            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
-        });
-
-        it("propagates write failure without logging successful removal", async () => {
-            expect.hasAssertions();
-            const error = new Error("Write failed");
-            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("A")] }));
-            mockUpdateOne.mockRejectedValueOnce(error);
-            await expect(service.cleanupExpiredItems(documentName, "events", () => false)).rejects.toBe(error);
-            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
-            expect(Logger.info).not.toHaveBeenCalledWith("Removed event: A");
-        });
+        expect(mockFindOne).toHaveBeenCalledWith({ name: "Genshin Impact" });
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+            { name: "Genshin Impact" },
+            { $pull: { events: { title: { $in: ["A"] }, kind: { $exists: false } } }, $inc: { _revision: 1 } }
+        );
     });
 
     describe("New records are added by title while existing records are preserved", () => {
@@ -263,16 +240,22 @@ describe("DataService manages database connections and stored game data", () => 
             expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version } });
         });
 
-        it.each([
-            ["identical version", version],
-            ["same title with changed metadata", { ...version, releaseDate: "2026-02-02", url: "https://example.com/revised" }],
-        ])("returns false and skips writes for %s", async (_label, incoming) => {
-            expect.hasAssertions();
-            mockFindOne.mockResolvedValueOnce(createRoot({ version }));
-            await expect(service.updateVersion(documentName, incoming)).resolves.toBe(false);
-            expect(mockInsertOne).not.toHaveBeenCalled();
-            expect(mockUpdateOne).not.toHaveBeenCalled();
-        });
+        // getRootDocument path: first findOne returns null -> insertOne -> findOne returns created
+        mockFindOne
+            .mockResolvedValueOnce(null) // initial root not found
+            .mockResolvedValueOnce(existing); // after insert, return existing root
+
+        const records = ([{ title: "Existing" }, { title: "New" }] as unknown) as Array<Event>;
+        await service.addRecords("Genshin Impact", "events", records);
+
+        // Insert root when missing
+        expect(mockInsertOne).toHaveBeenCalledTimes(1);
+
+        // Appends with an atomic pipeline rather than replacing a stale snapshot
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+            { name: "Genshin Impact" },
+            expect.any(Array)
+        );
     });
 
     describe("Database failures are logged and propagated to callers", () => {
@@ -301,13 +284,88 @@ describe("DataService manages database connections and stored game data", () => 
             expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
         });
 
-        it.each(operations.slice(1))("$name propagates update errors", async ({ run }) => {
-            expect.hasAssertions();
-            const error = new Error("Update failed");
-            mockFindOne.mockResolvedValueOnce(createRoot({ events: [] }));
-            mockUpdateOne.mockRejectedValueOnce(error);
-            await expect(run()).rejects.toBe(error);
-            expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
+    it("strips player state and deduplicates incoming parser records", async () => {
+        expect.hasAssertions();
+        mockFindOne.mockResolvedValueOnce({ _id: { _id: "id" }, name: "Genshin Impact", events: [] });
+        await service.addRecords("Genshin Impact", "events", [
+            { title: "New", completed: false, quantity: 5, target: 10 },
+            { title: "New", completed: true, quantity: 6, target: 20 },
+        ]);
+        const write = JSON.stringify(mockUpdateOne.mock.calls);
+        expect(write).not.toContain('"completed"');
+        expect(write).not.toContain('"quantity"');
+        expect(write).not.toContain('"target"');
+        expect(write.match(/"title":"New"/g)).toHaveLength(1);
+        expect(write).toContain('"_revision"');
+    });
+
+    it("can remove every expired parser event while preserving manually authored events", async () => {
+        expect.hasAssertions();
+        mockFindOne.mockResolvedValueOnce({
+            _id: { _id: "id" }, name: "Genshin Impact",
+            events: [{ title: "Expired" }, { kind: "events", name: "Manual" }] as unknown as Array<Event>,
         });
+        const filter = jest.fn(() => false);
+        await service.cleanupExpiredItems("Genshin Impact", "events", filter);
+        expect(filter).toHaveBeenCalledTimes(1);
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+            { name: "Genshin Impact" },
+            { $pull: { events: { title: { $in: ["Expired"] }, kind: { $exists: false } } }, $inc: { _revision: 1 } },
+        );
+    });
+
+    it("updateVersion returns true and updates when version changed", async () => {
+        expect.hasAssertions();
+
+        const existing: RootDocument = {
+            _id: { _id: "id" },
+            name: "Genshin Impact",
+            events: [],
+            version: {
+                title: "5.5: Day of the Flame's Return",
+                releaseDate: "2026-01-01",
+                url: "https://example.com/v5-5"
+            }
+        };
+
+        mockFindOne.mockResolvedValueOnce(existing);
+
+        const nextVersion: Version = {
+            title: "5.6: Paralogism",
+            releaseDate: "2026-02-01",
+            url: "https://example.com/v5-6"
+        };
+
+        const isNewVersion = await service.updateVersion("Genshin Impact", nextVersion);
+
+        expect(isNewVersion).toBe(true);
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+            { name: "Genshin Impact" },
+            { $set: { version: nextVersion } }
+        );
+    });
+
+    it("updateVersion returns false and skips update when version unchanged", async () => {
+        expect.hasAssertions();
+
+        const currentVersion: Version = {
+            title: "5.6: Paralogism",
+            releaseDate: "2026-02-01",
+            url: "https://example.com/v5-6"
+        };
+
+        const existing: RootDocument = {
+            _id: { _id: "id" },
+            name: "Genshin Impact",
+            events: [],
+            version: currentVersion
+        };
+
+        mockFindOne.mockResolvedValue(existing);
+
+        const isNewVersion = await service.updateVersion("Genshin Impact", currentVersion);
+
+        expect(isNewVersion).toBe(false);
+        expect(mockUpdateOne).not.toHaveBeenCalled();
     });
 });

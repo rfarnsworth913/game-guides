@@ -1,7 +1,7 @@
 import { endOfISOWeek, endOfMonth, format, startOfISOWeek, startOfMonth, sub } from "date-fns";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { formatDate } from "@common/constants";
+import { DATE_FORMAT } from "@common/constants";
 import { EventType } from "@common/enums";
 import { DataFile, DataSource } from "@common/types";
 import { DataService } from "../services";
@@ -85,11 +85,11 @@ describe("Wuthering Waves Parser Unit Tests", () => {
 
             const { parser, service } = createParser();
 
-            const today = format(new Date(), formatDate);
-            const weekStart = format(startOfISOWeek(new Date()), formatDate);
-            const weekEnd = format(endOfISOWeek(new Date()), formatDate);
-            const monthStart = format(startOfMonth(new Date()), formatDate);
-            const monthEnd = format(endOfMonth(new Date()), formatDate);
+            const today = format(new Date(), DATE_FORMAT);
+            const weekStart = format(startOfISOWeek(new Date()), DATE_FORMAT);
+            const weekEnd = format(endOfISOWeek(new Date()), DATE_FORMAT);
+            const monthStart = format(startOfMonth(new Date()), DATE_FORMAT);
+            const monthEnd = format(endOfMonth(new Date()), DATE_FORMAT);
 
             await invokeParserMethod(parser, "createStaticEvents");
 
@@ -281,8 +281,8 @@ describe("Wuthering Waves Parser Unit Tests", () => {
                     title: "Tower of Adversity",
                     url: source.url,
                     icon: "icons/wuthering-waves/tower-of-adversity.svg",
-                    startDate: format(sub(resetDate, { days: 28 }), formatDate),
-                    endDate: format(resetDate, formatDate),
+                    startDate: format(sub(resetDate, { days: 28 }), DATE_FORMAT),
+                    endDate: format(resetDate, DATE_FORMAT),
                     eventType: EventType.Monthly,
                     completed: false
                 }
@@ -325,8 +325,8 @@ describe("Wuthering Waves Parser Unit Tests", () => {
                     title: "Whimpering Wastes",
                     url: source.url,
                     icon: "icons/wuthering-waves/whimpering-wastes.svg",
-                    startDate: format(sub(resetDate, { days: 28 }), formatDate),
-                    endDate: format(resetDate, formatDate),
+                    startDate: format(sub(resetDate, { days: 28 }), DATE_FORMAT),
+                    endDate: format(resetDate, DATE_FORMAT),
                     eventType: EventType.Monthly,
                     completed: false
                 }

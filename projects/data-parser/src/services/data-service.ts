@@ -66,7 +66,12 @@ export class DataService {
         if (!rootDocument) {
             Logger.info(`Root document '${rootDocumentName}' does not exist. Creating it.`);
 
-            rootDocument = { _id: new mongoDB.ObjectId(), name: rootDocumentName };
+            rootDocument = {
+                _id: new mongoDB.ObjectId(), name: rootDocumentName,
+                version: { title: "", releaseDate: "", url: "" },
+                achievements: [], characters: [], events: [], inventory: [], plans: [], story: [], teams: [],
+                _schemaVersion: 2, _revision: 0,
+            };
             if (subDocumentName) {
                 rootDocument[subDocumentName] = [];
             }
@@ -117,21 +122,16 @@ export class DataService {
 
             // Extract topic data ---------------------------------------------
             const items: Array<Event> = (document[topic] as Array<Event>) ?? [];
-            const retainedItems: Array<Event> = [];
-            const removedItems: Array<Event> = [];
-            items.forEach((item) => {
-                if (filterFn(item)) {
-                    retainedItems.push(item);
-                } else {
-                    removedItems.push(item);
-                }
-            });
+            const removedItems = items.filter(item => !("kind" in item) && !filterFn(item));
 
             // Update database if any items were removed ----------------------
             if (removedItems.length > 0) {
                 await collection.updateOne(
                     { name: documentName },
-                    { $set: { [topic]: retainedItems } }
+                    {
+                        $pull: { [topic]: { title: { $in: removedItems.map(item => item.title) }, kind: { $exists: false } } } as mongoDB.PullOperator<mongoDB.Document>,
+                        $inc: { _revision: 1 },
+                    }
                 );
 
                 removedItems.forEach((item) => {
@@ -173,8 +173,11 @@ export class DataService {
             const knownTitles = new Set(existingRecords.map(record => record.title));
 
             records.forEach((record: T) => {
-                if (!knownTitles.has(record.title)) {
-                    knownTitles.add(record.title);
+                const exists = existingRecords.some(
+                    (existing: T) => existing.title === record.title
+                );
+
+                if (!exists && !newRecords.some(item => item.title === record.title)) {
                     newRecords.push(record);
                     Logger.info(`Added new record: ${record.title}`);
                 }
@@ -183,7 +186,24 @@ export class DataService {
             // Update the database with the new records -----------------------
             await collection.updateOne(
                 { name: rootDocumentName },
-                { $set: { [subDocumentName]: [...existingRecords, ...newRecords] } }
+                [
+                    { $set: {
+                        [subDocumentName]: { $concatArrays: [
+                            { $ifNull: [`$${subDocumentName}`, []] },
+                            { $filter: {
+                                input: { $literal: newRecords.map(record => {
+                                    const { completed, quantity, target, ...shared } = record as T & { completed?: boolean; quantity?: number; target?: number };
+                                    return shared;
+                                }) },
+                                as: "record",
+                                cond: { $not: [{ $in: ["$$record.title", { $map: {
+                                    input: { $ifNull: [`$${subDocumentName}`, []] }, as: "existing", in: "$$existing.title",
+                                } }] }] },
+                            } },
+                        ] },
+                        _revision: { $add: [{ $ifNull: ["$_revision", 0] }, 1] },
+                    } },
+                ]
             );
 
             Logger.info(`Successfully updated '${subDocumentName}' in '${rootDocumentName}'.`);

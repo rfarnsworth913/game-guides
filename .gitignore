@@ -30,7 +30,7 @@ yarn-error.log
 .history/*
 
 # Miscellaneous
-/.angular/cache
+/.angular/
 .sass-cache/
 /connect.lock
 /coverage
@@ -44,3 +44,4 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 .env
+/backups/
