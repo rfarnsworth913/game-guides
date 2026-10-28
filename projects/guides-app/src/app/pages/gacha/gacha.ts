@@ -1,8 +1,9 @@
 import { Component } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
 
-import { Header } from "../../common/header/header.js";
-import { Sidebar } from "./sidebar/sidebar.js";
+import { Header } from "../../common/header/header";
+import { Sidebar } from "./sidebar/sidebar";
+
 
 @Component({
     selector: "gg-gacha",
