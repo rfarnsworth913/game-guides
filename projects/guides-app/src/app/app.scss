@@ -1,0 +1,7 @@
+// App root styles
+:host {
+    display: block;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+}

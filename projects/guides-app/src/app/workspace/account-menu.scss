@@ -1,0 +1,79 @@
+:host {
+    display: block;
+    font-size: 13px;
+}
+:host svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.account-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 8px 20px;
+    border-bottom: 1px solid var(--line);
+}
+.account-heading > div { min-width: 0; flex: 1; }
+.account-heading strong { display: block; overflow-wrap: anywhere; font-size: 15px; }
+.account-heading small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+.account-avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--color-accent-subtle);
+    color: var(--color-primary);
+    font-weight: 650;
+}
+.signed-in-icon { color: var(--color-success); }
+:host .menu-caption { margin: 16px 8px 8px; color: var(--muted); font-size: 10px; letter-spacing: .7px; text-transform: uppercase; }
+:host .account-actions { margin: 0; }
+:host .account-actions a, :host .account-actions button,
+:host .account-footer button, :host .back-action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 40px;
+    padding: 10px;
+    margin: 2px 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--color-text-primary);
+    background: transparent;
+    font: inherit;
+    text-decoration: none;
+    text-align: left;
+}
+:host .account-actions a:hover, :host .account-actions button:hover,
+:host .account-footer button:hover, :host .back-action:hover { background: var(--color-bg-hover); }
+:host button:disabled { opacity: .5; cursor: wait; }
+:host a:focus-visible, :host button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.menu-chevron { margin-left: auto; color: var(--muted); font-size: 20px; }
+:host .account-actions small { display: block; margin-top: 4px; font-size: 11px; line-height: 1.5; }
+.account-footer { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+:host .account-footer .sign-out { color: var(--color-danger, #e98b98); }
+:host .back-action { width: auto; margin-top: 10px; color: var(--muted); }
+:host .panel-title { font-size: 14px; margin: 8px 10px 12px; }
+.profile-details { margin: 0 10px 12px; }
+.profile-details dt { color: var(--muted); font-size: 11px; margin-top: 12px; }
+.profile-details dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+:host > p { padding: 0 8px; }
+.import-dialog {
+    color: var(--color-text-primary);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    width: min(480px, calc(100vw - 32px));
+    padding: 24px;
+    margin: auto;
+}
+.import-dialog::backdrop { background: #0009; }
+:host .import-dialog button { font: inherit; padding: 10px 14px; border: 1px solid var(--line); }

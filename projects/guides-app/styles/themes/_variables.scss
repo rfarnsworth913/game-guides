@@ -1,0 +1,32 @@
+// Neutral surfaces stay independent of the selected game.
+$light-theme: (
+  bg-primary: #f4f6fa,
+  bg-secondary: #ffffff,
+  bg-tertiary: #e9edf5,
+  bg-hover: #dfe5ef,
+  text-primary: #1c2333,
+  text-secondary: #4c586e,
+  text-muted: #626e82,
+  border-color: #cbd3e0,
+  shadow-color: rgba(11, 13, 18, 0.12),
+  success: #187b46,
+  warning: #946200,
+  error: #c52f43,
+  info: #2365bc,
+);
+
+$dark-theme: (
+  bg-primary: #0b0d12,
+  bg-secondary: #12151d,
+  bg-tertiary: #181c26,
+  bg-hover: #202532,
+  text-primary: #f4f6fa,
+  text-secondary: #a5adbd,
+  text-muted: #6f788a,
+  border-color: #292f3d,
+  shadow-color: rgba(0, 0, 0, 0.35),
+  success: #4dcc88,
+  warning: #edb950,
+  error: #f47788,
+  info: #7baeff,
+);

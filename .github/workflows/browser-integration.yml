@@ -1,0 +1,50 @@
+name: Browser integration
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev, ai]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      E2E_MONGODB_URI: mongodb://127.0.0.1:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.15.0'
+          cache: npm
+      - run: npm ci
+      - name: Install Chrome and Linux browser libraries
+        run: npx puppeteer browsers install chrome --install-deps
+      - name: Browser integration
+        run: npm run ui:e2e
+      - name: Failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-integration-failures
+          path: tmp/e2e-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
