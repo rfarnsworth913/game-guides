@@ -1,0 +1,28 @@
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "^main$"
+      - "^dev$"
+      - "^ai$"
+  path_instructions:
+    - path: "projects/guides-app/**"
+      instructions: >-
+        Check accessibility, Angular state handling, component boundaries,
+        and reuse of maintained components. Avoid unrelated formatting rewrites.
+    - path: "projects/middleware/**"
+      instructions: >-
+        Check verified identity, editor authorization, account isolation,
+        origin validation, upload validation, and concurrency protections.
+    - path: "projects/common/**"
+      instructions: >-
+        Preserve stable IDs, stored-data compatibility and runtime validation.
+        Keep player state out of shared catalog definitions.
+    - path: "projects/data-parser/**"
+      instructions: >-
+        Check malformed input handling and repeatable imports.
+        Preserve manually maintained game content and existing progress data.

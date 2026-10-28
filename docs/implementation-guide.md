@@ -123,37 +123,31 @@ Create `setup/ci-review` from the now-integrated `dev`.
 
 ### Lint prerequisite
 
-The current `lint` script does not name source directories. UI lint targets TypeScript only. ESLint's project service also fails to associate shared files with a TypeScript project, and the full run reports additional code errors and warnings.
+Lint configuration is implemented as of October 27, 2026:
 
-1. Add explicit source scopes for common, middleware, parsers, Angular TypeScript, and Angular templates. Exclude generated output, dependencies, database files, and `.angular` globally.
-2. Use the existing parser `tsconfig.lint.json` override as a pattern. Configure appropriate lint TSConfigs/project associations for the other projects, including tests. Do not disable type-aware rules for the whole repository merely to silence configuration failures.
-3. Scope Jest rules to Jest tests; Vitest and Node test files should not inherit incompatible Jest-only rules.
-4. Separate errors that prevent useful checking from legacy formatting preferences. Fix the former first, then agree on the intended formatting rules. A dedicated formatting PR is easier to review than reformatting during feature changes.
-5. Declare any directly imported ESLint/configuration packages as direct development dependencies, rather than relying on incidental transitive installations. Add this script after configuring those scopes:
+1. `lint` delegates to `lint:ci`, which explicitly checks common, middleware, parser, and Angular sources. `ui:lint` includes external HTML templates and inline component templates.
+2. Each project has a `tsconfig.lint.json` covering its source and tests. ESLint uses these explicit projects with type-aware rules enabled; it does not rely on the project service discovering shared files.
+3. Jest rules apply only to parser Jest tests. Angular Vitest tests and middleware Node tests retain shared TypeScript checks without Jest rules. Angular component rules and inline template processing apply only to UI sources.
+4. Generated output, dependencies, database files, backups, temporary files, coverage, and `.angular` are ignored globally. Existing formatting preferences remain unchanged; avoid applying repository-wide autofixes during feature changes.
+5. `typescript-eslint`, previously a transitive dependency, is now a direct development dependency. The lockfile is updated. The CI script is:
 
 ```json
 "lint:ci": "eslint projects/common projects/middleware/src projects/data-parser/src projects/guides-app/src"
 ```
 
-This example fails on errors and reports warnings. Once the warning baseline is cleaned up, add `--max-warnings=0` if you want warnings to block merges. Do not use `continue-on-error` or `|| true` for the required lint gate.
+The configuration now completes linting without fatal project-association errors. The repository still has existing code errors and formatting warnings; see [the lint baseline](lint-baseline-2026-10-27.md). `lint:ci` fails on errors and reports warnings, without `continue-on-error` or `|| true`. Once the warning baseline is cleaned up, optionally add `--max-warnings=0`.
 
 6. Run `npm run lint:ci` locally until it exits successfully.
 
 ### Browser integration prerequisite
 
-`npm test` already runs the normal API/security, Angular, and parser suites without a live database or Auth0 tenant. `npm run ui:e2e` is separate. Its current smoke script sets legacy OIDC/session fixtures while the runtime uses Auth0 bearer tokens.
+`npm test` runs API/security, Angular, and parser suites without a live database or Auth0 tenant. `npm run ui:e2e` now builds and runs the isolated bearer-token browser suite. See [Browser integration](browser-integration.md) for commands, coverage, isolation, and cleanup details.
 
-Before making E2E required:
+The replacement suite uses generated RS256 test tokens through the actual `Auth0Security` validator, the real Angular SDK with a pre-authenticated cache fixture, a disposable database (including catalog, schema backups, and account progress), temporary uploads, and isolated browser contexts. Production authentication and upload defaults are unchanged. The suite checks guest operation, editor permissions, invalid token rejection, account isolation, completion persistence, concurrent catalog/progress updates, uploads, and logout/cache clearing. Issued bearer JWTs remain valid after browser logout until expiry.
 
-1. Update the smoke harness to use an isolated test issuer/JWKS and test-signed access tokens through the actual Auth0 validation path, or a dedicated test application/tenant for interactive provider testing.
-2. Keep test-only issuer/key injection confined to the test harness. Never weaken production token validation or add a production authentication bypass.
-3. Use a disposable MongoDB database and isolated browser profiles. Isolate the schema-backup and player-progress collections and uploaded assets too; inspect cleanup rather than assuming a random catalog collection isolates everything.
-4. Verify guest operation, editor authorization, account isolation, completion persistence, concurrent edits, image uploads, and logout behavior. Current bearer-token logout does not revoke every previously issued JWT.
-5. Run this job on a hosted Ubuntu runner with a disposable MongoDB service and the browser libraries Puppeteer needs. Adapt host-port/origin assumptions in the existing launcher as needed.
+`.github/workflows/browser-integration.yml` runs it on Ubuntu with a disposable MongoDB service and Puppeteer browser libraries. After the hosted workflow passes, make **Browser integration / browser-integration** a required branch check alongside unit tests and lint. This remains an explicit tracked prerequisite until the hosted run and branch protection configuration are confirmed. A passing unit-test workflow alone is not the final all-tests gate.
 
-Keep E2E as an explicit tracked prerequisite until it works. A passing unit-test workflow alone is not the final "all tests" gate.
-
-## 6. Add GitHub Actions and CodeRabbit
+Auth0 hosted login, Google/MFA, refresh-token rotation, and remote provider logout still require a dedicated provider test tenant/application; they are not claimed by the pre-authenticated browser suite.
 
 ### CI workflow
 

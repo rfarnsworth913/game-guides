@@ -53,6 +53,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "e2e": {
+              "optimization": true,
+              "sourceMap": false,
+              "outputPath": "dist/guides-app-e2e",
+              "fileReplacements": [
+                {
+                  "replace": "projects/common/auth0-config.ts",
+                  "with": "projects/middleware/e2e/auth0-config.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
