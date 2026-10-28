@@ -170,6 +170,7 @@ export class DataService {
             // Add only new records to the sub-document -----------------------
             const existingRecords: Array<T> = rootDocument[subDocumentName] as Array<T>;
             const newRecords: Array<T> = [];
+            const knownTitles = new Set(existingRecords.map(record => record.title));
 
             records.forEach((record: T) => {
                 const exists = existingRecords.some(
