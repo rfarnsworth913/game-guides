@@ -1,0 +1,217 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+.patch-overview-dashboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+}
+.patch-hero {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 10px;
+    aspect-ratio: 3 / 1;
+    min-height: 210px;
+    max-height: 360px;
+    background: linear-gradient(120deg, #061321, #163c51);
+    border: 1px solid var(--color-border);
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: linear-gradient(90deg, #03101aee, #07131b99 52%, #07131b11);
+    }
+}
+.patch-banner {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.patch-hero-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100%;
+    box-sizing: border-box;
+    padding: 26px;
+    color: #f5faff;
+    max-width: 80%;
+    h3 {
+        font-size: clamp(24px, 2.6vw, 38px);
+        line-height: 1.12;
+        margin: 12px 0 8px;
+        overflow-wrap: anywhere;
+    }
+    p {
+        margin: 0;
+        line-height: 1.5;
+        color: #d3e4f5;
+        font-size: 14px;
+    }
+}
+.patch-game-name {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #e0edfa;
+}
+.patch-source {
+    text-align: right;
+    padding-inline: 4px;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+.patch-source a {
+    color: var(--color-text-primary);
+    text-underline-offset: 3px;
+}
+.patch-groups {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px;
+    background: color-mix(
+        in srgb,
+        var(--story-patch-overview-background) 15%,
+        var(--color-bg-primary)
+    );
+}
+.patch-content-group {
+    scroll-margin-top: 100px;
+    margin-bottom: 14px;
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+.patch-group-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 14px;
+    background: color-mix(in srgb, var(--story-topic-accent) 65%, #000);
+    color: #fff;
+    border-radius: 6px 6px 0 0;
+    h4 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+    span {
+        font-size: 11px;
+        white-space: nowrap;
+    }
+}
+.alternate .patch-group-heading {
+    background: color-mix(in srgb, var(--story-topic-accent) 75%, #000);
+}
+.patch-table-scroll {
+    overflow-x: auto;
+}
+.patch-table {
+    width: 100%;
+    min-width: 580px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    caption {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+    th,
+    td {
+        border: 1px solid var(--color-border);
+        padding: 8px 10px;
+        vertical-align: middle;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font-size: 12px;
+    }
+    .patch-column-headings th {
+        background: var(--story-topic-background);
+        color: var(--color-text-secondary);
+        text-align: left;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+    }
+    .patch-column-headings th:first-child,
+    .patch-column-headings th:nth-child(3) {
+        text-align: center;
+    }
+    tbody tr {
+        background: var(--color-bg-primary);
+    }
+    tbody tr:nth-child(even) {
+        background: color-mix(in srgb, var(--color-bg-secondary) 65%, var(--color-bg-primary));
+    }
+    tbody tr:hover {
+        background: var(--color-bg-tertiary);
+    }
+    .completion-column {
+        width: 84px;
+    }
+    .content-column {
+        width: 40%;
+    }
+    .patch-column {
+        width: 64px;
+    }
+    .patch-completed,
+    .patch-version-cell {
+        text-align: center;
+    }
+    input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--story-topic-accent);
+    }
+    .patch-content-cell a {
+        color: var(--story-content-link);
+        text-decoration-color: var(--story-patch-overview-accent);
+        text-underline-offset: 3px;
+    }
+    .patch-content-cell.sub-quest {
+        padding-inline-start: 32px;
+    }
+    .sub-quest-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+    .patch-content-cell a:hover {
+        color: var(--color-primary);
+    }
+    .patch-empty {
+        text-align: center;
+        padding: 20px;
+        color: var(--color-text-secondary);
+    }
+}
+.row-completed .patch-content-cell {
+    text-decoration: line-through;
+    text-decoration-color: var(--color-text-muted);
+}
+@media (max-width: 650px) {
+    .patch-hero-copy {
+        max-width: 100%;
+        padding: 20px;
+    }
+    .patch-groups {
+        padding: 8px;
+    }
+}

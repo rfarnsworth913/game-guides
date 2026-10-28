@@ -1,0 +1,87 @@
+/* Global styles and theme system */
+@use "./themes/variables" as vars;
+@use "./themes/theme-mixin" as mixin;
+@use "./themes/dark-theme";
+@use "./themes/light-theme";
+@use "./themes/game-themes";
+@use "./themes/story-topics";
+@use "./workspace";
+@use "./story-layout";
+@use "./story-reading";
+
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* Smooth transition when switching themes */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Bootstrap overrides using theme variables */
+body {
+  margin: 0;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a {
+  color: var(--color-primary);
+
+  &:hover {
+    color: var(--color-primary-light);
+  }
+}
+
+/* Utility classes for theme colors */
+.btn-primary {
+  color: var(--color-on-primary);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+
+  &:hover {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+}
+
+.border {
+  border-color: var(--color-border) !important;
+}
+
+.text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+.text-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+// Bootstrap components inherit the same neutral surfaces and text.
+:root {
+  --bs-body-bg: var(--color-bg-primary);
+  --bs-body-color: var(--color-text-primary);
+  --bs-secondary-color: var(--color-text-secondary);
+  --bs-tertiary-bg: var(--color-bg-tertiary);
+  --bs-border-color: var(--color-border);
+  --bs-link-color: var(--color-primary);
+}
+
+.btn-primary {
+  --bs-btn-color: var(--color-on-primary);
+  --bs-btn-hover-color: var(--color-on-primary);
+  --bs-btn-active-color: var(--color-on-primary);
+  --bs-btn-active-bg: var(--color-primary-dark);
+  --bs-btn-active-border-color: var(--color-primary-dark);
+  --bs-btn-disabled-bg: var(--color-primary);
+  --bs-btn-disabled-border-color: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { transition: none; }
+}

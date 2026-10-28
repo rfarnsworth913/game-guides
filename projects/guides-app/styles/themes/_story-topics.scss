@@ -1,0 +1,64 @@
+@use "sass:map";
+
+// Topic colors stay consistent across games, regions and patch versions.
+$story-topics: (
+  patch-overview: (accent: #38a8d9, light: #e0f2fe, dark: #132733),
+  main-story: (accent: #a78bfa, light: #ede9fe, dark: #28243a),
+  side-stories: (accent: #19b8ad, light: #ccfbf1, dark: #132e2d),
+  world-quests: (accent: #46b78b, light: #dcfce7, dark: #192e29),
+  events: (accent: #e7a34b, light: #fef3c7, dark: #30291e),
+  endgame-activity: (accent: #e16c70, light: #ffe4e6, dark: #321f27),
+  lore: (accent: #8595e8, light: #e0e7ff, dark: #22293a),
+  character-information: (accent: #e08aae, light: #fce7f3, dark: #302431),
+);
+
+:root {
+  @each $topic, $colors in $story-topics {
+    --story-#{$topic}-accent: #{map.get($colors, accent)};
+    --story-#{$topic}-background-light: #{map.get($colors, light)};
+    --story-#{$topic}-background-dark: #{map.get($colors, dark)};
+  }
+}
+
+:root,
+:root.theme-dark,
+[data-theme="dark"] {
+  @each $topic, $colors in $story-topics {
+    --story-#{$topic}-background: var(--story-#{$topic}-background-dark);
+  }
+}
+
+:root.theme-light,
+[data-theme="light"] {
+  @each $topic, $colors in $story-topics {
+    --story-#{$topic}-background: var(--story-#{$topic}-background-light);
+  }
+}
+
+// Example: <section class="story-section" data-story-topic="world-quests">.
+// Descendants, including quest groupings/regions, inherit the topic variables.
+@each $topic, $colors in $story-topics {
+  [data-story-topic="#{$topic}"] {
+    --story-topic-accent: var(--story-#{$topic}-accent);
+    --story-topic-background: var(--story-#{$topic}-background);
+  }
+}
+
+.story-section {
+  border-inline-start: 3px solid var(--story-topic-accent, var(--color-border));
+}
+
+.story-section-header {
+  background-color: var(--story-topic-background, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+}
+
+.story-topic-icon {
+  color: var(--story-topic-accent, var(--color-text-primary));
+}
+
+.story-subsection {
+  margin-inline-start: 1rem;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid var(--story-topic-accent, var(--color-border));
+}

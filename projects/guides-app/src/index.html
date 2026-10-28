@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+
+        <title>Game Guides — Your next objective</title>
+        <meta name="description" content="Your personal multi-game progression workspace. Track inventory, character builds, farming plans, teams, and story progress." />
+
+        <base href="/" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+        <script>
+        // Match ThemeService defaults before first paint; storage can be blocked.
+        (function () {
+            let theme = "dark";
+            let game = "default";
+            try {
+                theme = localStorage.getItem("gg-theme") === "light" ? "light" : "dark";
+                const savedGame = localStorage.getItem("gg-game");
+                if (["default", "genshin", "hsr", "zzz", "wuwa", "endfield"].includes(savedGame)) {
+                    game = savedGame;
+                }
+            } catch {}
+            const root = document.documentElement;
+            root.classList.add("theme-" + theme);
+            root.dataset.theme = theme;
+            root.dataset.game = game;
+            root.style.colorScheme = theme;
+        })();
+        </script>
+    </head>
+
+    <body>
+        <gg-root></gg-root>
+    </body>
+</html>

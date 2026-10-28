@@ -5,7 +5,6 @@
 /tmp
 /out-tsc
 /bazel-out
-/projects/database
 
 # Node
 /node_modules
@@ -27,17 +26,22 @@ yarn-error.log
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/mcp.json
 .history/*
 
 # Miscellaneous
-/.angular/cache
+/.angular/
 .sass-cache/
 /connect.lock
 /coverage
 /libpeerconnection.log
 testem.log
 /typings
+__screenshots__/
+/projects/database
 
 # System files
 .DS_Store
 Thumbs.db
+.env
+/backups/

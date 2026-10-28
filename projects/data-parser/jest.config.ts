@@ -1,31 +1,24 @@
 import type { Config } from "jest";
 
 const config: Config = {
-    displayName: "data-parser",
-    rootDir: "./",
+    rootDir: ".",
     testEnvironment: "node",
-    testMatch: ["<rootDir>/**/*.spec.ts"],
+    testMatch: ["<rootDir>/src/**/*.spec.ts"],
     moduleFileExtensions: ["ts", "js", "json"],
     extensionsToTreatAsEsm: [".ts"],
     transform: {
-        "^.+\\.(ts|tsx)$": [
+        "^.+\\.ts$": [
             "ts-jest",
             {
                 useESM: true,
-                tsconfig: "<rootDir>/tsconfig.json"
-            }
-        ],
-        "^.+\\.[mc]?js$": [
-            "babel-jest",
-            {
-                presets: [
-                    ["@babel/preset-env", { targets: { node: "current" } }]
-                ]
+                tsconfig: "<rootDir>/tsconfig.spec.json"
             }
         ]
     },
-    transformIgnorePatterns: ["/node_modules/(?!chalk/)"],
     moduleNameMapper: {
+        "^@common/(.*)$": "<rootDir>/../common/$1",
+        "^chalk$": "<rootDir>/src/test/mocks/chalk.ts",
+        "^puppeteer$": "<rootDir>/src/test/mocks/puppeteer.ts",
         "^(\\.{1,2}/.*)\\.js$": "$1"
     }
 };
