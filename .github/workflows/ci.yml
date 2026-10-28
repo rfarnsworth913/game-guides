@@ -1,0 +1,38 @@
+name: CI
+on:
+  pull_request:
+    branches: [main, dev, ai]
+  push:
+    branches: [main, dev, ai]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    name: ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint, test, build]
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - if: matrix.check == 'lint'
+        run: npm run lint:ci
+      - if: matrix.check == 'test'
+        run: npm test
+      - if: matrix.check == 'build'
+        run: npm run ui:build

@@ -5,15 +5,15 @@
     "test": "npm run middleware:check && npm run middleware:test && npm run ui:test -- --watch=false && npm run parser:test -- --runInBand",
     "test:security": "tsx --test projects/middleware/src/auth.test.ts projects/middleware/src/auth0.test.ts",
     "ng": "ng",
-    "lint": "npx eslint",
+    "lint": "npm run lint:ci",
     "db:start": "node projects/middleware/database.mjs",
     "parser:start": "tsx projects/data-parser/src/main.ts",
-    "parser:lint": "npx eslint \"projects/data-parser/**/*.ts\"",
+    "parser:lint": "eslint projects/data-parser/src",
     "parser:test": "npx jest --config projects/data-parser/jest.config.ts",
     "ui:build": "ng build",
     "ui:watch": "ng build --watch --configuration development",
     "ui:start": "node projects/middleware/start.mjs",
-    "ui:lint": "npx eslint \"projects/guides-app/**/*.ts\"",
+    "ui:lint": "eslint projects/guides-app/src",
     "ui:e2e": "node projects/middleware/stack-smoke.mjs",
     "ui:test": "ng test",
     "start": "node projects/middleware/start.mjs",
@@ -22,7 +22,11 @@
     "middleware:main-quests": "tsx projects/middleware/src/main-quest-migration.ts",
     "middleware:start": "node --watch --watch-preserve-output --import tsx projects/middleware/src/main.ts",
     "middleware:check": "tsc -p projects/middleware/tsconfig.json",
-    "middleware:test": "tsx --test projects/middleware/src/*.test.ts"
+    "middleware:test": "tsx --test projects/middleware/src/*.test.ts",
+    "lint:ci": "eslint projects/common projects/middleware/src projects/data-parser/src projects/guides-app/src",
+    "common:lint": "eslint projects/common",
+    "middleware:lint": "eslint projects/middleware/src",
+    "ui:e2e:build": "ng build --configuration e2e"
   },
   "private": true,
   "type": "module",
@@ -73,6 +77,7 @@
     "ts-node": "10.9.2",
     "tsx": "4.7.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "typescript-eslint": "8.70.0"
   }
 }

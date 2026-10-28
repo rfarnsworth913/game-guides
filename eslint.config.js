@@ -1,31 +1,34 @@
 // @ts-check
 import angular from "angular-eslint";
 import js from "@eslint/js";
-import stylistic from "@stylistic/eslint-plugin"
+import stylistic from "@stylistic/eslint-plugin";
 import tseslint from "typescript-eslint";
 
 import { defineConfig } from "eslint/config";
 import jsdoc from "eslint-plugin-jsdoc";
 import jest from "eslint-plugin-jest";
 
-export default defineConfig([
+const config = defineConfig([
+  {
+    ignores: ["**/node_modules/**", "**/dist/**", "**/out-tsc/**", "**/coverage/**", "**/.angular/**", "**/bazel-out/**", "tmp/**", "backups/**", "projects/database/**", "**/*.generated.*"],
+  },
 
   // TypeScript Files Configuration -----------------------------------------
   {
     ...jsdoc.configs["flat/recommended"],
 
-    files: ["**/*.ts"],
+    files: ["projects/common/**/*.ts", "projects/middleware/src/**/*.ts", "projects/data-parser/src/**/*.ts", "projects/guides-app/src/**/*.ts"],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
       ...tseslint.configs.stylistic,
-      ...angular.configs.tsRecommended,
     ],
-    processor: angular.processInlineTemplates,
 
     languageOptions: {
       parserOptions: {
-        projectService: true
+        projectService: false,
+        tsconfigRootDir: import.meta.dirname,
+        project: ["./projects/common/tsconfig.lint.json", "./projects/middleware/tsconfig.lint.json", "./projects/data-parser/tsconfig.lint.json", "./projects/guides-app/tsconfig.lint.json"],
       },
     },
 
@@ -444,6 +447,14 @@ export default defineConfig([
         "startLines": 1
       }],
 
+    }
+  },
+  // Angular components and inline templates ---------------------------------
+  {
+    files: ["projects/guides-app/src/**/*.ts"],
+    extends: [...angular.configs.tsRecommended],
+    processor: angular.processInlineTemplates,
+    rules: {
       // Angular: Possible Problems (https://github.com/angular-eslint/angular-eslint/blob/main/packages/eslint-plugin/README.md#possible-problems) -----
       "@angular-eslint/contextual-lifecycle": ["error"],
       "@angular-eslint/no-async-lifecycle-method": ["error"],
@@ -493,21 +504,7 @@ export default defineConfig([
   },
   // Unit Tests Configuration -----------------------------------------------
   {
-    files: ["**/*.spec.ts", "**/*.e2e-spec.ts"],
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      ...tseslint.configs.stylistic,
-      ...angular.configs.tsRecommended
-    ],
-    processor: angular.processInlineTemplates,
-
-    languageOptions: {
-      parserOptions: {
-        projectService: true
-      },
-    },
-
+    files: ["projects/data-parser/src/**/*.spec.ts", "projects/data-parser/src/**/*.e2e-spec.ts"],
     plugins: {
       jest
     },
@@ -567,7 +564,7 @@ export default defineConfig([
 
   // Data parser typing override ---------------------------------------------
   {
-    files: ["projects/data-parser/**/*.ts"],
+    files: ["projects/data-parser/src/**/*.ts"],
 
     languageOptions: {
       parserOptions: {
@@ -579,7 +576,7 @@ export default defineConfig([
 
   // Template Files Configuration -------------------------------------------
   {
-    files: ["**/*.html"],
+    files: ["projects/guides-app/src/**/*.html"],
     ignores: ["**/ie-upgrade.html"],
     extends: [
       ...angular.configs.templateRecommended,
@@ -616,4 +613,15 @@ export default defineConfig([
       "@angular-eslint/template/valid-aria": ["warn"],
     }
   }
+]);
+
+export default defineConfig([
+  ...config,
+  {
+    files: ["projects/guides-app/src/**/*.spec.ts", "projects/middleware/src/**/*.test.ts"],
+    rules: {
+      "max-lines-per-function": ["warn", { max: 400 }],
+      "@typescript-eslint/no-empty-function": "off",
+    },
+  },
 ]);
