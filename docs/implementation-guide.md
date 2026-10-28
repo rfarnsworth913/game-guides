@@ -141,19 +141,13 @@ The configuration now completes linting without fatal project-association errors
 
 ### Browser integration prerequisite
 
-`npm test` already runs the normal API/security, Angular, and parser suites without a live database or Auth0 tenant. `npm run ui:e2e` is separate. Its current smoke script sets legacy OIDC/session fixtures while the runtime uses Auth0 bearer tokens.
+`npm test` runs API/security, Angular, and parser suites without a live database or Auth0 tenant. `npm run ui:e2e` now builds and runs the isolated bearer-token browser suite. See [Browser integration](browser-integration.md) for commands, coverage, isolation, and cleanup details.
 
-Before making E2E required:
+The replacement suite uses generated RS256 test tokens through the actual `Auth0Security` validator, the real Angular SDK with a pre-authenticated cache fixture, a disposable database (including catalog, schema backups, and account progress), temporary uploads, and isolated browser contexts. Production authentication and upload defaults are unchanged. The suite checks guest operation, editor permissions, invalid token rejection, account isolation, completion persistence, concurrent catalog/progress updates, uploads, and logout/cache clearing. Issued bearer JWTs remain valid after browser logout until expiry.
 
-1. Update the smoke harness to use an isolated test issuer/JWKS and test-signed access tokens through the actual Auth0 validation path, or a dedicated test application/tenant for interactive provider testing.
-2. Keep test-only issuer/key injection confined to the test harness. Never weaken production token validation or add a production authentication bypass.
-3. Use a disposable MongoDB database and isolated browser profiles. Isolate the schema-backup and player-progress collections and uploaded assets too; inspect cleanup rather than assuming a random catalog collection isolates everything.
-4. Verify guest operation, editor authorization, account isolation, completion persistence, concurrent edits, image uploads, and logout behavior. Current bearer-token logout does not revoke every previously issued JWT.
-5. Run this job on a hosted Ubuntu runner with a disposable MongoDB service and the browser libraries Puppeteer needs. Adapt host-port/origin assumptions in the existing launcher as needed.
+`.github/workflows/browser-integration.yml` runs it on Ubuntu with a disposable MongoDB service and Puppeteer browser libraries. After the hosted workflow passes, make **Browser integration / browser-integration** a required branch check alongside unit tests and lint. This remains an explicit tracked prerequisite until the hosted run and branch protection configuration are confirmed. A passing unit-test workflow alone is not the final all-tests gate.
 
-Keep E2E as an explicit tracked prerequisite until it works. A passing unit-test workflow alone is not the final "all tests" gate.
-
-## 6. Add GitHub Actions and CodeRabbit
+Auth0 hosted login, Google/MFA, refresh-token rotation, and remote provider logout still require a dedicated provider test tenant/application; they are not claimed by the pre-authenticated browser suite.
 
 ### CI workflow
 

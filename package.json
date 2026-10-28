@@ -25,7 +25,8 @@
     "middleware:test": "tsx --test projects/middleware/src/*.test.ts",
     "lint:ci": "eslint projects/common projects/middleware/src projects/data-parser/src projects/guides-app/src",
     "common:lint": "eslint projects/common",
-    "middleware:lint": "eslint projects/middleware/src"
+    "middleware:lint": "eslint projects/middleware/src",
+    "ui:e2e:build": "ng build --configuration e2e"
   },
   "private": true,
   "type": "module",
