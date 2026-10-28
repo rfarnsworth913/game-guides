@@ -123,19 +123,19 @@ Create `setup/ci-review` from the now-integrated `dev`.
 
 ### Lint prerequisite
 
-The current `lint` script does not name source directories. UI lint targets TypeScript only. ESLint's project service also fails to associate shared files with a TypeScript project, and the full run reports additional code errors and warnings.
+Lint configuration is implemented as of October 27, 2026:
 
-1. Add explicit source scopes for common, middleware, parsers, Angular TypeScript, and Angular templates. Exclude generated output, dependencies, database files, and `.angular` globally.
-2. Use the existing parser `tsconfig.lint.json` override as a pattern. Configure appropriate lint TSConfigs/project associations for the other projects, including tests. Do not disable type-aware rules for the whole repository merely to silence configuration failures.
-3. Scope Jest rules to Jest tests; Vitest and Node test files should not inherit incompatible Jest-only rules.
-4. Separate errors that prevent useful checking from legacy formatting preferences. Fix the former first, then agree on the intended formatting rules. A dedicated formatting PR is easier to review than reformatting during feature changes.
-5. Declare any directly imported ESLint/configuration packages as direct development dependencies, rather than relying on incidental transitive installations. Add this script after configuring those scopes:
+1. `lint` delegates to `lint:ci`, which explicitly checks common, middleware, parser, and Angular sources. `ui:lint` includes external HTML templates and inline component templates.
+2. Each project has a `tsconfig.lint.json` covering its source and tests. ESLint uses these explicit projects with type-aware rules enabled; it does not rely on the project service discovering shared files.
+3. Jest rules apply only to parser Jest tests. Angular Vitest tests and middleware Node tests retain shared TypeScript checks without Jest rules. Angular component rules and inline template processing apply only to UI sources.
+4. Generated output, dependencies, database files, backups, temporary files, coverage, and `.angular` are ignored globally. Existing formatting preferences remain unchanged; avoid applying repository-wide autofixes during feature changes.
+5. `typescript-eslint`, previously a transitive dependency, is now a direct development dependency. The lockfile is updated. The CI script is:
 
 ```json
 "lint:ci": "eslint projects/common projects/middleware/src projects/data-parser/src projects/guides-app/src"
 ```
 
-This example fails on errors and reports warnings. Once the warning baseline is cleaned up, add `--max-warnings=0` if you want warnings to block merges. Do not use `continue-on-error` or `|| true` for the required lint gate.
+The configuration now completes linting without fatal project-association errors. The repository still has existing code errors and formatting warnings; see [the lint baseline](lint-baseline-2026-10-27.md). `lint:ci` fails on errors and reports warnings, without `continue-on-error` or `|| true`. Once the warning baseline is cleaned up, optionally add `--max-warnings=0`.
 
 6. Run `npm run lint:ci` locally until it exits successfully.
 
