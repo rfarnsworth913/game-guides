@@ -1,0 +1,185 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+.teams-toolbar,
+.team-heading,
+.team-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.teams-toolbar h2,
+.team-heading h3 {
+    margin: 0;
+}
+.teams-toolbar p,
+.teams-help,
+.team-heading > span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.7;
+}
+.teams-toolbar h2 span {
+    font-size: 14px;
+    color: var(--muted);
+    margin-left: 8px;
+}
+.teams-help a {
+    display: inline-block;
+    margin-left: 8px;
+}
+.teams-search {
+    width: 100%;
+    margin: 10px 0 22px;
+    box-sizing: border-box;
+}
+.teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+    gap: 18px;
+    align-items: start;
+}
+.team-card {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+}
+.team-heading h3 {
+    font-size: 17px;
+    overflow-wrap: anywhere;
+}
+.team-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+    gap: 8px;
+    margin: 20px 0;
+}
+.team-slot {
+    min-width: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 4px;
+    border-radius: 10px;
+    background: var(--color-bg-primary);
+}
+.team-slot img,
+.team-initial {
+    width: 52px;
+    height: 58px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+.team-initial {
+    display: grid;
+    place-items: center;
+    background: var(--color-accent-subtle);
+    color: var(--color-primary);
+    font-size: 22px;
+}
+.team-slot strong {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+.team-slot small {
+    font-size: 10px;
+    color: var(--muted);
+}
+.empty-slot {
+    border: 1px dashed var(--line);
+    background: transparent;
+}
+.team-actions {
+    justify-content: flex-start;
+    margin-top: 18px;
+}
+.team-notes {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--muted);
+    font-size: 13px;
+}
+.teams-empty {
+    grid-column: 1/-1;
+    padding: 28px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    text-align: center;
+}
+.teams-empty p {
+    color: var(--muted);
+}
+.teams-message {
+    color: var(--color-success);
+}
+:host .team-editor {
+    width: calc(100vw - 40px);
+    max-width: 760px;
+}
+.team-character-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+.team-editor .team-character {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin: 0;
+    cursor: pointer;
+    min-width: 0;
+}
+.team-character.selected {
+    border-color: var(--color-primary);
+    background: var(--color-accent-subtle);
+}
+.team-character input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: var(--color-primary);
+}
+.team-character img {
+    width: 40px;
+    height: 48px;
+    object-fit: contain;
+}
+.team-character span {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.team-character small {
+    color: var(--muted);
+}
+.team-editor > label {
+    display: block;
+    margin: 18px 0;
+}
+.team-editor > label input,
+.team-editor textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 8px;
+}
+@media (max-width: 600px) {
+    .team-card {
+        padding: 14px;
+    }
+    .team-slots {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

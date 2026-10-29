@@ -11,6 +11,7 @@ import { Achievements } from './achievements';
 import { Story } from './story';
 import { Characters } from './characters';
 import { Events } from './events';
+import { Teams } from './teams';
 import { EventType } from '../../../../common/enums/event-types.enum';
 import { guideUrl } from '../../../../common/characters';
 import { eventDate } from './event-calendar';
@@ -22,7 +23,7 @@ import { storyProgress } from './story-progress';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, BackToTop],
+    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })
@@ -297,7 +298,7 @@ export class Workspace {
     }
     exportData(): void {
         const url = URL.createObjectURL(
-            new Blob([JSON.stringify({ version: 1, entries: this.store.entries(), characterRules: this.store.characterRules() }, null, 2)], {
+            new Blob([JSON.stringify({ version: 1, entries: this.store.entries(), characterRules: this.store.characterRules(), personalTeams: this.store.teams() }, null, 2)], {
                 type: 'application/json',
             }),
         );
@@ -323,6 +324,11 @@ export class Workspace {
             const merged = new Map(this.store.entries().map((e) => [e.id, e]));
             entries.forEach((e) => merged.set(e.id, e));
             if (await this.store.replace([...merged.values()], rules)) {
+                const teams = JSON.parse(raw).personalTeams;
+                if (teams && !await this.store.restoreTeams(teams)) {
+                    this.notice.set('Entries imported, but teams could not be restored: ' + this.store.error());
+                    return;
+                }
                 this.notice.set('Backup imported. Matching entries were updated.');
             }
         } catch {

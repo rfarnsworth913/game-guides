@@ -99,6 +99,32 @@ describe('Character collection persistence', () => {
         );
     });
     afterEach(() => vi.unstubAllGlobals());
+    it('saves personal teams for non-editors, reloads them privately, and preserves characters on deletion', async () => {
+        const alice = new WorkspaceStore(auth('alice')); await alice.initialize();
+        const team = { id: 'my-team', name: 'My team', members: ['vesna'], notes: 'Rotation' };
+        expect(await alice.saveTeam('genshin', team)).toBe(false);
+        await alice.saveCharacterCollection('vesna', emptyCharacterCollection());
+        expect(await alice.saveTeam('genshin', team)).toBe(true);
+        const restored = new WorkspaceStore(auth('alice')); await restored.initialize();
+        expect(restored.teams()['genshin']).toEqual([team]);
+        const bob = new WorkspaceStore(auth('bob')); await bob.initialize();
+        expect(bob.teams()['genshin']).toEqual([]);
+        expect(await restored.deleteTeam('genshin', 'my-team')).toBe(true);
+        expect(restored.entries()[0].characterCollection!.owned).toBe(true);
+        expect(requests.filter(request => request.method === 'PUT')).toHaveLength(0);
+    });
+    it('persists guest teams and imports them with owned characters through the explicit account action', async () => {
+        const guest = new WorkspaceStore(); await guest.initialize();
+        await guest.saveCharacterCollection('vesna', emptyCharacterCollection());
+        const team = { id: 'guest-team', name: 'Guest team', members: ['vesna'], notes: '' };
+        expect(await guest.saveTeam('genshin', team)).toBe(true);
+        const restored = new WorkspaceStore(); await restored.initialize();
+        expect(restored.teams()['genshin']).toEqual([team]);
+        const alice = new WorkspaceStore(auth('alice')); await alice.initialize();
+        expect(alice.teams()['genshin']).toEqual([]);
+        expect(await alice.importGuestProgress()).toBe(true);
+        expect(alice.teams()['genshin']).toEqual([team]);
+    });
     it('lets a player add, edit, reload and remove a personal build without modifying the shared character', async () => {
         const alice = new WorkspaceStore(auth('alice'));
         await alice.initialize();

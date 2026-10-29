@@ -1,4 +1,5 @@
 import { AuthStore } from './auth.store';
+import { Team, TEAM_PROGRESS_ID, teamSize, validTeams } from '../../../../common/teams';
 import { CharacterCollection, CharacterRules, characterCollectionFits, validCharacterCollection, validCharacterRules } from '../../../../common/characters';
 import { mergeUpdates } from './merge-updates';
 import { ProgressSnapshot, validProgressState } from '../../../../common/player-progress';
@@ -33,6 +34,7 @@ export class WorkspaceStore {
     readonly loading = signal(false);
     readonly saving = signal(false);
     readonly characterRules = signal<Record<string, CharacterRules>>({});
+    readonly teams = signal<Record<string, Team[]>>({});
     private snapshots = new Map<string, GameSnapshot>();
     private loadingPromise: Promise<boolean> | null = null;
     private player: Record<string, PlayerState> = {};
@@ -104,6 +106,7 @@ export class WorkspaceStore {
         };
     }
     private showSnapshots(): void {
+        this.teams.set(Object.fromEntries(GAMES.map(game => [game.id, structuredClone(this.player[`${game.id}/${TEAM_PROGRESS_ID}`]?.teams ?? [])])));
         this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
             [...this.snapshots.values()].flatMap((game) =>
@@ -165,6 +168,7 @@ export class WorkspaceStore {
                         );
                     }
                 }
+                if (!validProgressState(parsed.state)) throw new Error('Invalid local player data. Your stored data has not been overwritten.');
                 this.player = parsed.state as typeof this.player;
             }
             const legacyRaw = !signedIn ? localStorage.getItem(KEY) : null;
@@ -343,6 +347,51 @@ export class WorkspaceStore {
         }
         return this.save({ ...entry, characterCollection: structuredClone(collection) });
     }
+    async saveTeam(game: string, team: Team): Promise<boolean> {
+        return this.restoreTeams({ [game]: [team] });
+    }
+    async deleteTeam(game: string, id: string): Promise<boolean> {
+        return this.persistTeams({ [game]: (this.teams()[game] ?? []).filter(team => team.id !== id) });
+    }
+    async restoreTeams(value: unknown): Promise<boolean> {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) { this.error.set('Invalid team data.'); return false; }
+        const updates: Record<string, Team[]> = {};
+        for (const [game, incoming] of Object.entries(value)) {
+            if (!GAMES.some(item => item.id === game) || !validTeams(incoming)) { this.error.set('Invalid team data.'); return false; }
+            const existing = this.teams()[game] ?? [];
+            for (const team of incoming) {
+                if (JSON.stringify(existing.find(item => item.id === team.id)) === JSON.stringify(team)) continue;
+                if (team.members.length > teamSize(this.characterRules()[game]) || team.members.some(id => !this.entries().some(entry => entry.game === game && entry.id === id && entry.kind === 'characters' && entry.characterCollection?.owned))) {
+                    this.error.set('Choose characters from your collection and stay within this game’s team size.'); return false;
+                }
+            }
+            const merged = new Map(existing.map(team => [team.id, team]));
+            incoming.forEach(team => merged.set(team.id, structuredClone(team)));
+            updates[game] = [...merged.values()];
+        }
+        return this.persistTeams(updates);
+    }
+    private async persistTeams(updates: Record<string, Team[]>): Promise<boolean> {
+        if (this.saving() || this.loading() || !this.initialized()) return false;
+        if (!Object.entries(updates).every(([game, teams]) => GAMES.some(item => item.id === game) && validTeams(teams))) { this.error.set('Invalid team data.'); return false; }
+        const changes = Object.fromEntries(Object.entries(updates).map(([game, teams]) => [`${game}/${TEAM_PROGRESS_ID}`, { completed: false, quantity: 0, target: 0, teams: structuredClone(teams) }]));
+        this.saving.set(true); this.error.set('');
+        try {
+            if (this.auth?.user()) {
+                const progress = await this.writeProgress(changes);
+                this.player = progress.state; this.progressRevision = progress.revision;
+            } else {
+                const raw = localStorage.getItem('gg-player-v1');
+                const latest = raw ? JSON.parse(raw) : { version: 1, state: {} };
+                if (latest.version !== 1 || !validProgressState(latest.state)) throw new Error('Invalid local progress. Stored data has not been overwritten.');
+                const merged = mergeUpdates(this.player, { ...this.player, ...changes }, latest.state);
+                localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: merged }));
+                this.player = merged;
+            }
+            this.showSnapshots(); return true;
+        } catch (error) { this.error.set(error instanceof Error ? error.message : 'Could not save teams.'); return false; }
+        finally { this.saving.set(false); }
+    }
     private async readProgress(): Promise<ProgressSnapshot> {
         const response = await this.auth!.request('/api/me/progress');
         const data = await response.json();
@@ -387,6 +436,17 @@ export class WorkspaceStore {
             // Explicit account builds take precedence; never combine two different equipment sets.
             const collection = account?.characterCollection ?? guest.characterCollection;
             if (collection) result[key].characterCollection = structuredClone(collection);
+        }
+        for (const game of GAMES) {
+            const key = `${game.id}/${TEAM_PROGRESS_ID}`;
+            const incoming: Team[] | undefined = data.state[key]?.teams;
+            if (!incoming) continue;
+            const existing = this.player[key]?.teams ?? [];
+            const teams = new Map(existing.map(team => [team.id, team]));
+            for (const team of incoming) {
+                if (!teams.has(team.id) && team.members.length <= teamSize(this.characterRules()[game.id]) && team.members.every(id => (result[`${game.id}/${id}`] ?? this.player[`${game.id}/${id}`])?.characterCollection?.owned)) teams.set(team.id, structuredClone(team));
+            }
+            result[key] = { completed: false, quantity: 0, target: 0, teams: [...teams.values()] };
         }
         return result;
     }

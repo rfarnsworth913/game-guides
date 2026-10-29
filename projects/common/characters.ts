@@ -11,6 +11,7 @@ export type CharacterDefinition = {
     guides: CharacterGuide[];
 };
 export type CharacterRules = {
+    teamSize?: number;
     levelCap: number;
     ascensionRanks?: AscensionRank[];
     rarities: number[];
@@ -117,6 +118,7 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
         !record(value) ||
         !only(value, [
             'levelCap',
+            'teamSize',
             'ascensionRanks',
             'rarities',
             'weaponTypes',
@@ -152,6 +154,7 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
         new Set(items.map((item) => item['id'])).size === items.length;
     return (
         integer(value['levelCap'], 1, 1000) &&
+        (typeof value['teamSize'] === 'undefined' || integer(value['teamSize'], 1, 12)) &&
         (typeof value['ascensionRanks'] === 'undefined' ||
             (Array.isArray(value['ascensionRanks']) &&
                 value['ascensionRanks'].length <= 30 &&

@@ -2,6 +2,7 @@ import { lockedSecurity, Security } from './auth';
 import { ProgressRepository } from './progress';
 import { validProgressState } from '../../common/player-progress';
 import { characterCollectionFits, validCharacterRules } from '../../common/characters';
+import { TEAM_PROGRESS_ID, teamSize } from '../../common/teams';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
 import { GAMES, validCatalog, fromCatalog } from '../../common/workspace';
 import { storyCompletionKey } from '../../common/story-guide';
@@ -76,6 +77,7 @@ export function createApi(
                     !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0 ||
                     !('changes' in body) || !validProgressState(body.changes)) throw new ApiError(400, 'Invalid progress update.');
                 const previous = await progress.read(user.id);
+                const requestedChanges = body.changes;
                 if (previous.revision !== body.revision) throw new ApiError(409, 'Progress changed in another browser. Reload before retrying.');
                 const catalogs = new Map<string, Map<string, Awaited<ReturnType<typeof repository.read>>['entries'][number]>>();
                 const gameRules = new Map<string, Awaited<ReturnType<typeof repository.read>>['characterRules']>();
@@ -85,6 +87,18 @@ export function createApi(
                         const snapshot = await repository.read(game);
                         catalogs.set(game, new Map(snapshot.entries.map((entry) => [entry.id, entry])));
                         gameRules.set(game, snapshot.characterRules);
+                    }
+                    if (id === TEAM_PROGRESS_ID) {
+                        const existing = previous.state[key]?.teams ?? [];
+                        for (const team of state.teams ?? []) {
+                            if (JSON.stringify(existing.find(item => item.id === team.id)) === JSON.stringify(team)) continue;
+                            if (team.members.length > teamSize(gameRules.get(game)) || team.members.some(member => {
+                                const character = catalogs.get(game)!.get(member);
+                                const owned = requestedChanges[`${game}/${member}`]?.characterCollection ?? previous.state[`${game}/${member}`]?.characterCollection;
+                                return character?.kind !== 'characters' || !owned?.owned;
+                            })) throw new ApiError(400, 'Teams must fit the game size and use characters from your collection.');
+                        }
+                        continue;
                     }
                     const entry = catalogs.get(game)!.get(id);
                     if (!entry) throw new ApiError(400, 'Progress references unknown content.');

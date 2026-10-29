@@ -1,15 +1,17 @@
 import { PlayerState, GAMES } from './workspace';
 import { validRowCompletion } from './story-template';
 import { validCharacterCollection } from './characters';
+import { TEAM_PROGRESS_ID, validTeams } from './teams';
 export type ProgressSnapshot = { revision: number; state: Record<string, PlayerState> };
 export function validPlayerState(value: unknown): value is PlayerState {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const state = value as PlayerState;
     return (
         Object.keys(state).every((key) =>
-            ['completed', 'quantity', 'target', 'storyRowCompletion', 'characterCollection'].includes(key),
+            ['completed', 'quantity', 'target', 'storyRowCompletion', 'characterCollection', 'teams'].includes(key),
         ) &&
         typeof state.completed === 'boolean' &&
+        (typeof state.teams === 'undefined' || validTeams(state.teams)) &&
         [state.quantity, state.target].every(
             (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1e9,
         ) &&
@@ -39,7 +41,10 @@ export function validProgressState(value: unknown): value is Record<string, Play
                 slash > 0 &&
                 GAMES.some((game) => game.id === key.slice(0, slash)) &&
                 safeId(key.slice(slash + 1)) &&
-                validPlayerState(state)
+                validPlayerState(state) &&
+                (key.slice(slash + 1) === TEAM_PROGRESS_ID
+                    ? Array.isArray(state.teams) && !state.completed && state.quantity === 0 && state.target === 0 && !state.characterCollection && !state.storyRowCompletion
+                    : typeof state.teams === 'undefined')
             );
         })
     );

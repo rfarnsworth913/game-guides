@@ -845,6 +845,14 @@
             }
             <div class="character-form-grid">
                 <label
+                    >Maximum team size<input
+                        type="number"
+                        min="1"
+                        max="12"
+                        [ngModel]="draft.teamSize ?? 4"
+                        (ngModelChange)="draft.teamSize = $event"
+                /></label>
+                <label
                     >Maximum character level<input
                         type="number"
                         min="1"

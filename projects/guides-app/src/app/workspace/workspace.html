@@ -171,7 +171,7 @@
                 </div>
                 <div class="heading-action">
                     @if (
-                        ['inventory', 'teams', 'plans', 'events'].includes(
+                        ['inventory', 'plans', 'events'].includes(
                             page()
                         )
                     ) {
@@ -423,6 +423,8 @@
                 </section>
             } @else if (page() === 'characters') {
                 @if (context(); as game) { <gg-characters [game]="game.id" /> }
+            } @else if (page() === 'teams') {
+                @if (context(); as game) { <gg-teams [game]="game.id" /> }
             } @else if (page() === 'events') {
                 @if (context(); as game) { <gg-events [game]="game.id" (edit)="open('events', $event)" (remove)="pendingDelete = $event" /> }
             } @else if (page() === 'achievements') {

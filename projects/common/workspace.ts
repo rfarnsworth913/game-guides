@@ -1,4 +1,5 @@
 import { PatchOverview, validPatchOverview, validRowCompletion } from './story-template';
+import type { Team } from './teams';
 import { storyRowDone, storyTemplateFor } from './story-guide';
 import { CharacterCollection, CharacterDefinition, CharacterRules, validCharacterCollection, validCharacterDefinition, validCharacterRules } from './characters';
 export type Kind =
@@ -49,7 +50,7 @@ export type Entry = {
     day: string;
 };
 /** Player-owned state is stored separately; these fields never enter the shared catalog. */
-export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection'>;
+export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection'> & { teams?: Team[] };
 export type CatalogEntry = Omit<Entry, keyof PlayerState>;
 export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules };
 export const CATALOG_FIELDS = {
