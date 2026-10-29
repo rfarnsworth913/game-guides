@@ -2,6 +2,14 @@
 
 ## First use
 
+The character modal is now a development planner. It puts current and target levels, ascension, upgradeable skills, and configured progression tracks first, with guides and personal notes in a sidebar. Fixed-level skills and passives, empty equipment sections, and repeated reference descriptions are omitted from the main planner. Select the character name or portrait to view preserved shared reference information.
+
+Current values remain in the existing collection fields. Optional `target` stores an independent progression/equipment goal; missing targets display current values without creating a plan until a target is edited. Targets cannot be below current progression, and both states must fit the game's ascension and skill limits. Ascended characters must also meet the previous rank's level cap. Current values are never automatically raised to match goals.
+
+Personal `notes` and `personalGuides` use the existing player-progress storage and remain separate from shared descriptions and curated guides. Ownership can be changed without clearing the plan; explicit removal still clears the saved build after confirmation. Old records and shared links remain supported without migration.
+
+Material calculations currently show **Unavailable**: the existing inventory tracks quantities, but there are no character-specific upgrade transition recipes to calculate costs. No illustrative quantities or material completion percentages are shown. Equipment goals retain the existing slot names and item lists; item catalogs, weapon upgrade recipes, and inventory-driven material planning remain follow-up work once authoritative upgrade data is available.
+
 1. Open a game, then **Characters**.
 2. An editor selects **Game rules** and verifies the game's level cap, rarities, weapon/damage options, equipment slots, and progression tracks. Initial dialog values are editable starting values, not verified game presets. Rules are configured once per game.
 3. An editor uses **+ Catalog character** to create shared definitions: name, rarity, portrait, weapon type, damage type, roles, description, active/passive skills, and guide links.
@@ -19,11 +27,17 @@ Each existing game document keeps its shared `characters` array and now has an o
   "name": "Example Game",
   "characterRules": {
     "levelCap": 90,
+    "ascensionRanks": [
+      {"levelCap": 20, "skillLevelCap": 1},
+      {"levelCap": 40, "skillLevelCap": 4},
+      {"levelCap": 90, "skillLevelCap": 10}
+    ],
     "rarities": [4, 5],
     "weaponTypes": ["Sword"],
     "damageTypes": ["Physical"],
     "roles": ["DPS", "Support"],
-    "equipmentSlots": [{"id": "weapon", "label": "Weapon", "limit": 1}],
+    "enhancementCategories": ["Weapon", "Artifact"],
+    "equipmentSlots": [{"id": "weapon", "label": "Weapon", "limit": 1, "category": "Weapon"}],
     "progressionTracks": [{"id": "ascension", "label": "Ascension", "max": 6}]
   },
   "characters": [{
@@ -31,7 +45,7 @@ Each existing game document keeps its shared `characters` array and now has an o
     "name": "Vesna", "rarity": 5,
     "characterDefinition": {
       "weaponType": "Sword", "damageType": "Physical", "roles": ["DPS"],
-      "skills": [{"name": "Strike", "description": "Example skill"}],
+      "skills": [{"id": "strike", "name": "Strike", "description": "Example skill", "maxLevel": 8}],
       "passiveSkills": [],
       "guides": [{"title": "Build guide", "url": "https://example.com/vesna"}]
     }
@@ -50,6 +64,8 @@ Signed-in builds live in the existing per-account player-progress collection, ke
     "characterCollection": {
       "owned": true,
       "level": 50,
+      "ascensionRank": 2,
+      "skillLevels": {"strike": 6},
       "gear": {"weapon": ["Excalibur"]},
       "progression": {"ascension": 3}
     }
@@ -63,6 +79,8 @@ The existing API/state envelope preserves backward compatibility. `owned: false`
 
 - Only editors can change shared character definitions and rules; any authenticated player can change their own collection. Guest changes stay local.
 - The server validates personal levels, slot IDs, equipment counts, and progression limits against the current game rules.
+- Configure ascension ranks starting at rank 0 (unascended). Each rank unlocks a character level cap and a skill level cap. Character caps must strictly increase, skill caps cannot decrease, and the last character cap must equal the game's maximum level. An empty or omitted table disables ascension gating. Existing builds default to rank 0 and may need their rank updated when gates are configured.
+- Skills and passive skills each have a maximum level (1–1000; older skills default to 1). Personal skill levels default to 1 and cannot exceed either the skill's maximum or the selected ascension rank's skill cap. The server enforces both limits. Skill IDs remain stable when names change or other skills are removed; obsolete saved levels can be explicitly cleared in the collection editor.
 - Weapon/damage/role lists constrain new definitions when configured; empty lists allow custom values. Rarity options are enforced for new-format definitions.
 - Guides accept HTTP(S) URLs with no embedded credentials; new tabs use `noopener noreferrer`.
 - Personal state is rejected in shared catalog payloads. Shared fields are rejected in personal-build payloads.

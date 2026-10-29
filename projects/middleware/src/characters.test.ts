@@ -8,6 +8,8 @@ import {
     emptyCharacterCollection,
     validCharacterRules,
     validCharacterCollection,
+    validCharacterDefinition,
+    characterCollectionFits,
 } from '../../common/characters';
 import {
     CatalogEntry,
@@ -66,6 +68,163 @@ const state: PlayerState = {
         progression: { ascension: 3 },
     },
 };
+
+void test('enhancement categories are optional and slot assignments must reference a defined category', () => {
+    assert.equal(validCharacterRules(rules), true);
+    const categorized = {
+        ...rules,
+        enhancementCategories: ['Weapon', 'Artifact'],
+        equipmentSlots: [{ id: 'weapon', label: 'Weapon', limit: 1, category: 'Weapon' }],
+    };
+    assert.equal(validCharacterRules(categorized), true);
+    assert.equal(
+        validCharacterRules({ ...categorized, enhancementCategories: ['Artifact'] }),
+        false,
+    );
+    assert.equal(
+        validCharacterRules({ ...categorized, enhancementCategories: ['Weapon', 'Weapon'] }),
+        false,
+    );
+    assert.equal(validCharacterRules({ ...categorized, enhancementCategories: [''] }), false);
+    assert.equal(
+        validCharacterRules({
+            ...categorized,
+            equipmentSlots: [{ id: 'weapon', label: 'Weapon', limit: 1, category: '' }],
+        }),
+        true,
+    );
+});
+
+void test('development goals and personal data validate independently from shared definitions', () => {
+    const definition = {
+        ...emptyCharacterDefinition(),
+        skills: [{ id: 'strike', name: 'Strike', description: '', maxLevel: 10 }],
+    };
+    const current = { ...emptyCharacterCollection(), level: 50, skillLevels: { strike: 4 } };
+    const target = { level: 90, gear: {}, progression: {}, skillLevels: { strike: 8 } };
+    const plan = {
+        ...current,
+        target,
+        notes: 'Personal reminder',
+        personalGuides: [{ title: 'Guide', url: 'https://example.com' }],
+    };
+    assert.equal(validCharacterCollection(plan), true);
+    assert.equal(characterCollectionFits(plan, rules, definition), true);
+    assert.equal(
+        characterCollectionFits({ ...plan, target: { ...target, level: 49 } }, rules, definition),
+        false,
+    );
+    assert.equal(
+        characterCollectionFits(
+            { ...plan, target: { ...target, skillLevels: { strike: 3 } } },
+            rules,
+            definition,
+        ),
+        false,
+    );
+    assert.equal(
+        validCharacterCollection({
+            ...plan,
+            target: { ...target, notes: 'Invalid nested personal state' },
+        }),
+        false,
+    );
+    assert.equal(validCharacterCollection({ ...plan, notes: 'x'.repeat(5001) }), false);
+    assert.equal(
+        validCharacterCollection({
+            ...plan,
+            personalGuides: [{ title: 'Invalid', url: 'data:text/html,invalid' }],
+        }),
+        false,
+    );
+    assert.equal(
+        characterCollectionFits(
+            { ...plan, target: { ...target, progression: { ascension: 7 } } },
+            rules,
+            definition,
+        ),
+        false,
+    );
+});
+
+void test('ascension caps and individual skill maxima are enforced at boundaries', () => {
+    const gated: CharacterRules = {
+        ...rules,
+        ascensionRanks: [
+            { levelCap: 20, skillLevelCap: 1 },
+            { levelCap: 40, skillLevelCap: 4 },
+            { levelCap: 90, skillLevelCap: 10 },
+        ],
+    };
+    const definition = {
+        ...emptyCharacterDefinition(),
+        skills: [{ id: 'strike', name: 'Strike', description: '', maxLevel: 8 }],
+        passiveSkills: [{ id: 'passive', name: 'Passive', description: '', maxLevel: 1 }],
+    };
+    assert.equal(validCharacterRules(gated), true);
+    for (const ascensionRanks of [
+        [{ levelCap: 20, skillLevelCap: 1 }],
+        [{ levelCap: 90, skillLevelCap: 0 }],
+        [
+            { levelCap: 40, skillLevelCap: 4 },
+            { levelCap: 90, skillLevelCap: 1 },
+        ],
+        [
+            { levelCap: 90, skillLevelCap: 1 },
+            { levelCap: 90, skillLevelCap: 4 },
+        ],
+    ])
+        assert.equal(validCharacterRules({ ...rules, ascensionRanks }), false);
+    assert.equal(validCharacterDefinition(definition), true);
+    assert.equal(
+        validCharacterDefinition({
+            ...definition,
+            skills: [{ ...definition.skills[0], maxLevel: 0 }],
+        }),
+        false,
+    );
+    const build = {
+        ...emptyCharacterCollection(),
+        level: 40,
+        ascensionRank: 1,
+        skillLevels: { strike: 4 },
+    };
+    assert.equal(validCharacterCollection(build), true);
+    assert.equal(characterCollectionFits(build, gated, definition), true);
+    assert.equal(characterCollectionFits({ ...build, level: 41 }, gated, definition), false);
+    assert.equal(characterCollectionFits({ ...build, ascensionRank: 0 }, gated, definition), false);
+    assert.equal(characterCollectionFits({ ...build, ascensionRank: 3 }, gated, definition), false);
+    assert.equal(
+        characterCollectionFits({ ...build, skillLevels: { strike: 5 } }, gated, definition),
+        false,
+    );
+    assert.equal(
+        characterCollectionFits(
+            { ...build, ascensionRank: 2, skillLevels: { strike: 8 } },
+            gated,
+            definition,
+        ),
+        true,
+    );
+    assert.equal(
+        characterCollectionFits(
+            { ...build, ascensionRank: 2, skillLevels: { strike: 9 } },
+            gated,
+            definition,
+        ),
+        false,
+    );
+    assert.equal(
+        characterCollectionFits({ ...build, skillLevels: { passive: 2 } }, gated, definition),
+        false,
+    );
+    assert.equal(
+        characterCollectionFits({ ...build, skillLevels: { unknown: 1 } }, gated, definition),
+        false,
+    );
+    assert.equal(validCharacterCollection({ ...build, skillLevels: { strike: 1.5 } }), false);
+    assert.equal(characterCollectionFits(emptyCharacterCollection(), gated, definition), true);
+});
 
 test('character definitions exclude personal builds and validate nested data and safe guide links', () => {
     const shared = toCatalog(fromCatalog(character, state));
@@ -285,6 +444,67 @@ test('character API isolates collections, checks shared rules, and keeps catalog
         (await patch({ ...emptyCharacterCollection(), owned: false }, 'alice', 1)).status,
         200,
     );
+    snapshot.characterRules = {
+        ...rules,
+        ascensionRanks: [
+            { levelCap: 20, skillLevelCap: 1 },
+            { levelCap: 90, skillLevelCap: 6 },
+        ],
+    };
+    snapshot.entries = [
+        {
+            ...character,
+            characterDefinition: {
+                ...character.characterDefinition!,
+                skills: [{ id: 'strike', name: 'Strike', description: '', maxLevel: 4 }],
+            },
+        },
+    ];
+    assert.equal(
+        (await patch({ ...state.characterCollection, ascensionRank: 0 }, 'bob')).status,
+        400,
+    );
+    assert.equal(
+        (
+            await patch(
+                { ...state.characterCollection, ascensionRank: 1, skillLevels: { strike: 5 } },
+                'bob',
+            )
+        ).status,
+        400,
+    );
+    const enhanced = {
+        ...state.characterCollection,
+        ascensionRank: 1,
+        skillLevels: { strike: 4 },
+        target: {
+            level: 90,
+            ascensionRank: 1,
+            skillLevels: { strike: 4 },
+            gear: {},
+            progression: { ascension: 6 },
+        },
+        notes: 'Private development goal',
+        personalGuides: [{ title: 'Private guide', url: 'https://example.com/personal' }],
+    };
+    assert.equal(
+        (await patch({ ...enhanced, target: { ...enhanced.target, level: 49 } }, 'bob')).status,
+        400,
+    );
+    assert.equal(
+        (
+            await patch(
+                { ...enhanced, owned: false, target: { ...enhanced.target, level: 100 } },
+                'bob',
+            )
+        ).status,
+        400,
+    );
+    assert.equal((await patch(enhanced, 'bob')).status, 200);
+    const saved = await (
+        await fetch(base + '/api/me/progress', { headers: { Authorization: 'Bearer bob' } })
+    ).json();
+    assert.deepEqual(saved.state['genshin/vesna'].characterCollection, enhanced);
     assert.equal(snapshot.entries.length, 1);
     assert.equal(catalogWrites, 0);
     const updateRules = (characterRules: unknown) =>

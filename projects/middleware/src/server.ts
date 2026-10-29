@@ -90,7 +90,7 @@ export function createApi(
                     if (!entry) throw new ApiError(400, 'Progress references unknown content.');
                     if (state.characterCollection) {
                         const rules = gameRules.get(game);
-                        if (entry.kind !== 'characters' || (state.characterCollection.owned && (!rules || !characterCollectionFits(state.characterCollection, rules)))) {
+                        if (entry.kind !== 'characters' || ((state.characterCollection.owned || state.characterCollection.target) && (!rules || !characterCollectionFits(state.characterCollection, rules, entry.characterDefinition)))) {
                             throw new ApiError(400, 'Character level, equipment, or progression does not match this game\'s rules.');
                         }
                     }

@@ -130,16 +130,10 @@
     overflow-wrap: anywhere;
 }
 .character-detail-grid {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 28px;
-}
-.character-personal {
-    background: var(--color-bg-primary);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 20px;
-    align-self: start;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 24px;
 }
 .character-modal label {
     display: block;
@@ -169,10 +163,6 @@
     color: var(--color-primary);
     text-decoration: underline;
 }
-.character-personal > .primary {
-    width: 100%;
-    margin-top: 20px;
-}
 .character-remove {
     display: block;
     margin-top: 12px;
@@ -198,6 +188,9 @@
 .character-editor-row button {
     margin-bottom: 16px;
 }
+.character-editor-row-top {
+    align-items: start;
+}
 .character-modal fieldset {
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -212,7 +205,170 @@
     margin-top: 24px;
     border-top: 1px solid var(--line);
 }
+:host .character-planner {
+    max-width: 1180px;
+}
+:host .character-reference-button {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+}
+.character-reference-button span {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+.character-reference-button strong {
+    font-size: 23px;
+    overflow-wrap: anywhere;
+}
+.character-reference-button small {
+    color: var(--muted);
+}
+.character-detail-heading .character-reference-button img {
+    width: 64px;
+    height: 72px;
+}
+.character-planner .planner-owned {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
+    margin: 0;
+    font-size: 14px;
+}
+.planner-owned input {
+    width: auto;
+    margin: 0;
+}
+.planner-main,
+.planner-sidebar,
+.planner-skill {
+    min-width: 0;
+}
+.planner-main {
+    flex: 7 1 550px;
+}
+.planner-sidebar {
+    flex: 3 1 240px;
+    box-sizing: border-box;
+}
+.planner-pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+    gap: 14px;
+}
+.planner-skills {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+.character-planner h3 {
+    margin: 0 0 14px;
+    font-size: 17px;
+}
+.character-planner h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+.character-planner label {
+    margin: 8px 0;
+    color: var(--muted);
+}
+.character-planner input:not([type='checkbox']),
+.character-planner select,
+.character-planner textarea {
+    width: 100%;
+    min-height: 42px;
+    margin-top: 6px;
+    border-radius: 12px;
+    box-sizing: border-box;
+}
+.planner-section {
+    border-top: 1px solid var(--line);
+    margin-top: 22px;
+    padding-top: 20px;
+}
+.character-planner summary {
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+}
+.planner-sidebar,
+.planner-reference {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    overflow-wrap: anywhere;
+}
+.planner-reference {
+    margin-bottom: 24px;
+}
+.planner-sidebar {
+    position: sticky;
+    top: 0;
+}
+.planner-sidebar .character-guide-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.planner-sidebar .character-guide-links li {
+    margin: 16px 0;
+}
+.planner-sidebar .character-guide-links small {
+    display: block;
+    color: var(--muted);
+}
+.planner-link-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.planner-resource-editor {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+}
+.planner-badge {
+    border-radius: 20px;
+    background: var(--line);
+    padding: 4px 9px;
+    font-size: 11px;
+}
+.planner-materials p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+}
+.planner-footer {
+    align-items: center;
+}
+.planner-footer > span {
+    margin-right: auto;
+}
+.planner-footer .character-remove {
+    margin: 0;
+}
 @media (max-width: 720px) {
+    .planner-sidebar {
+        position: static;
+    }
+    .character-detail-heading {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    :host .character-reference-button {
+        flex-basis: 100%;
+    }
     .character-filters,
     .character-detail-grid,
     .character-form-grid,

@@ -7,6 +7,8 @@ import {
     CharacterCollection,
     CharacterDefinition,
     CharacterRules,
+    CharacterSkill,
+    CharacterProgression,
     emptyCharacterCollection,
     emptyCharacterDefinition,
     characterCollectionFits,
@@ -14,6 +16,7 @@ import {
     validCharacterCollection,
     validCharacterDefinition,
     validCharacterRules,
+    guideUrl,
 } from '../../../../common/characters';
 import { storyImageUrl } from '../../../../common/story-template';
 
@@ -73,11 +76,26 @@ export class Characters {
     );
     readonly validImage = storyImageUrl;
     readonly selected = computed(() => this.catalog().find((e) => e.id === this.selectedKey()));
+    readonly plannerSkills = computed(() => {
+        const entry = this.selected();
+        if (!entry) return [];
+        const data = this.definition(entry);
+        return [
+            ...data.skills.map((skill, index) => ({ ...skill, key: skill.id ?? `skill-${index}` })),
+            ...data.passiveSkills.map((skill, index) => ({
+                ...skill,
+                key: skill.id ?? `passive-${index}`,
+            })),
+        ].filter((skill) => (skill.maxLevel ?? 1) > 1);
+    });
+    readonly validGuide = guideUrl;
     private readonly selectedKey = signal('');
     collection: CharacterCollection | null = null;
     definitionEditor: Entry | null = null;
     rulesEditor: CharacterRules | null = null;
     confirmingRemoval = false;
+    showReference = false;
+    private savedDraft = '';
     error = '';
     readonly message = signal('');
     constructor() {
@@ -103,6 +121,8 @@ export class Characters {
                 level: Math.max(1, Math.trunc(entry.quantity)),
             },
         );
+        this.savedDraft = JSON.stringify(this.collection);
+        this.showReference = false;
         this.error = '';
         this.confirmingRemoval = false;
     }
@@ -124,15 +144,17 @@ export class Characters {
             !build ||
             !rules ||
             !validCharacterCollection(build) ||
-            !characterCollectionFits(build, rules)
+            !characterCollectionFits(build, rules, entry.characterDefinition)
         ) {
-            this.error = 'Check the level, equipment counts, and progression limits for this game.';
+            this.error =
+                'Check current and target values against the ascension, skill, and equipment limits. Targets cannot be below current progression. Personal links need a title and an HTTP(S) URL.';
             return;
         }
-        const owned = { ...structuredClone(build), owned: true };
+        const owned = structuredClone(build);
         if (await this.store.saveCharacterCollection(entry.id, owned)) {
             this.collection = owned;
-            this.message.set('Your character collection has been saved.');
+            this.savedDraft = JSON.stringify(owned);
+            this.message.set('Your character development plan has been saved.');
             this.error = '';
         } else this.error = this.store.error();
     }
@@ -150,30 +172,39 @@ export class Characters {
             this.message.set('Character removed from your collection.');
         } else this.error = this.store.error();
     }
-    gearText(id: string): string {
-        return this.collection?.gear[id]?.join('\n') ?? '';
+    gearText(id: string, target = false): string {
+        return (target ? this.targetProgress() : this.collection)?.gear[id]?.join('\n') ?? '';
     }
-    setGear(id: string, value: string): void {
+    setGear(id: string, value: string, target = false): void {
         if (!this.collection) return;
+        const progress = target ? this.ensureTarget() : this.collection;
         const items = this.lines(value);
-        if (items.length) this.collection.gear[id] = items;
-        else delete this.collection.gear[id];
+        if (items.length) progress.gear[id] = items;
+        else delete progress.gear[id];
     }
     orphanGear(): string[] {
-        return Object.keys(this.collection?.gear ?? {}).filter(
-            (id) => !this.rules()?.equipmentSlots.some((slot) => slot.id === id),
-        );
+        return [
+            ...new Set([
+                ...Object.keys(this.collection?.gear ?? {}),
+                ...Object.keys(this.collection?.target?.gear ?? {}),
+            ]),
+        ].filter((id) => !this.rules()?.equipmentSlots.some((slot) => slot.id === id));
     }
     orphanTracks(): string[] {
-        return Object.keys(this.collection?.progression ?? {}).filter(
-            (id) => !this.rules()?.progressionTracks.some((track) => track.id === id),
-        );
+        return [
+            ...new Set([
+                ...Object.keys(this.collection?.progression ?? {}),
+                ...Object.keys(this.collection?.target?.progression ?? {}),
+            ]),
+        ].filter((id) => !this.rules()?.progressionTracks.some((track) => track.id === id));
     }
     clearOrphanGear(id: string): void {
         if (this.collection) delete this.collection.gear[id];
+        if (this.collection?.target) delete this.collection.target.gear[id];
     }
     clearOrphanTrack(id: string): void {
         if (this.collection) delete this.collection.progression[id];
+        if (this.collection?.target) delete this.collection.target.progression[id];
     }
     editDefinition(entry?: Entry): void {
         if (!this.store.canEdit()) return;
@@ -198,6 +229,13 @@ export class Characters {
                   target: 0,
               };
         this.definitionEditor.characterDefinition ??= emptyCharacterDefinition();
+        const data = this.definitionEditor.characterDefinition;
+        data.skills.forEach((skill, index) => {
+            skill.id ??= `skill-${index}`;
+        });
+        data.passiveSkills.forEach((skill, index) => {
+            skill.id ??= `passive-${index}`;
+        });
     }
     async saveDefinition(): Promise<void> {
         const entry = this.definitionEditor;
@@ -223,7 +261,8 @@ export class Characters {
             entry.rarity > 20 ||
             (entry.icon && !storyImageUrl(entry.icon))
         ) {
-            this.error = 'Enter a name, rarity, valid skill names, and HTTP(S) guide links.';
+            this.error =
+                'Enter a name, rarity, valid skill names, maximum skill levels (1–1000), and HTTP(S) guide links.';
             return;
         }
         const rules = this.rules();
@@ -247,6 +286,7 @@ export class Characters {
                 weaponTypes: [],
                 damageTypes: [],
                 roles: [],
+                enhancementCategories: [],
                 equipmentSlots: [],
                 progressionTracks: [],
             },
@@ -258,7 +298,8 @@ export class Characters {
         for (const row of [...rules.equipmentSlots, ...rules.progressionTracks])
             row.label = row.label.trim();
         if (!validCharacterRules(rules)) {
-            this.error = 'Check the level cap, rarities, and named equipment/progression limits.';
+            this.error =
+                'Check the level cap, rarities, ascension rank caps, enhancement categories, and equipment/progression limits. Ascension level caps must increase to the game maximum and skill caps cannot decrease. Keep categories assigned to equipment slots or reassign those slots.';
             return;
         }
         if (
@@ -290,6 +331,96 @@ export class Characters {
             label: '',
             max: 6,
         });
+    }
+    addAscensionRank(): void {
+        if (!this.rulesEditor) return;
+        const ranks = (this.rulesEditor.ascensionRanks ??= []);
+        ranks.push({
+            levelCap: Math.min(this.rulesEditor.levelCap, (ranks.at(-1)?.levelCap ?? 0) + 20),
+            skillLevelCap: ranks.at(-1)?.skillLevelCap ?? 1,
+        });
+    }
+    addSkill(skills: CharacterSkill[]): void {
+        skills.push({ id: crypto.randomUUID(), name: '', description: '', maxLevel: 1 });
+    }
+    characterLevelCap(target = false): number {
+        return (
+            this.rules()?.ascensionRanks?.[
+                (target ? this.targetProgress() : this.collection)?.ascensionRank ?? 0
+            ]?.levelCap ??
+            this.rules()?.levelCap ??
+            1000
+        );
+    }
+    skillLevelCap(skill: CharacterSkill, target = false): number {
+        const rank =
+            this.rules()?.ascensionRanks?.[
+                (target ? this.targetProgress() : this.collection)?.ascensionRank ?? 0
+            ];
+        return Math.min(skill.maxLevel ?? 1, rank?.skillLevelCap ?? 1000);
+    }
+    setSkillLevel(key: string, level: number, target = false): void {
+        if (this.collection)
+            ((target ? this.ensureTarget() : this.collection).skillLevels ??= {})[key] = level;
+    }
+    targetProgress(): CharacterProgression | null {
+        return this.collection?.target ?? this.collection;
+    }
+    private ensureTarget(): CharacterProgression {
+        const build = this.collection!;
+        return (build.target ??= structuredClone({
+            level: build.level,
+            ascensionRank: build.ascensionRank ?? 0,
+            skillLevels: build.skillLevels ?? {},
+            gear: build.gear,
+            progression: build.progression,
+        }));
+    }
+    setTargetLevel(level: number): void {
+        this.ensureTarget().level = level;
+    }
+    setTargetRank(rank: number): void {
+        this.ensureTarget().ascensionRank = rank;
+    }
+    setTargetTrack(id: string, value: number): void {
+        this.ensureTarget().progression[id] = value;
+    }
+    levelMinimum(target = false): number {
+        const progress = target ? this.targetProgress() : this.collection;
+        return Math.max(
+            target ? this.collection?.level ?? 1 : 1,
+            this.rules()?.ascensionRanks?.[(progress?.ascensionRank ?? 0) - 1]?.levelCap ?? 1,
+        );
+    }
+    hasUnsavedChanges(): boolean {
+        return JSON.stringify(this.collection) !== this.savedDraft;
+    }
+    addPersonalGuide(): void {
+        if (this.collection) (this.collection.personalGuides ??= []).push({ title: '', url: '' });
+    }
+    movePersonalGuide(index: number, offset: number): void {
+        const guides = this.collection?.personalGuides;
+        if (!guides || index + offset < 0 || index + offset >= guides.length) return;
+        [guides[index], guides[index + offset]] = [guides[index + offset], guides[index]];
+    }
+    orphanSkills(): string[] {
+        const entry = this.selected();
+        if (!entry) return [];
+        const data = this.definition(entry);
+        const keys = [
+            ...data.skills.map((skill, index) => skill.id ?? `skill-${index}`),
+            ...data.passiveSkills.map((skill, index) => skill.id ?? `passive-${index}`),
+        ];
+        return [
+            ...new Set([
+                ...Object.keys(this.collection?.skillLevels ?? {}),
+                ...Object.keys(this.collection?.target?.skillLevels ?? {}),
+            ]),
+        ].filter((key) => !keys.includes(key));
+    }
+    clearOrphanSkill(key: string): void {
+        if (this.collection?.skillLevels) delete this.collection.skillLevels[key];
+        if (this.collection?.target?.skillLevels) delete this.collection.target.skillLevels[key];
     }
     csv(value: string): string[] {
         return [

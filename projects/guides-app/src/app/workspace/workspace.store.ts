@@ -338,7 +338,7 @@ export class WorkspaceStore {
     async saveCharacterCollection(id: string, collection: CharacterCollection): Promise<boolean> {
         const entry = this.entries().find(entry => entry.id === id && entry.kind === 'characters');
         const rules = entry && this.characterRules()[entry.game];
-        if (!entry || !validCharacterCollection(collection) || (collection.owned && (!rules || !characterCollectionFits(collection, rules)))) {
+        if (!entry || !validCharacterCollection(collection) || ((collection.owned || collection.target) && (!rules || !characterCollectionFits(collection, rules, entry.characterDefinition)))) {
             this.error.set('Check this character\'s level, equipment, and progression against the game rules.'); return false;
         }
         return this.save({ ...entry, characterCollection: structuredClone(collection) });
