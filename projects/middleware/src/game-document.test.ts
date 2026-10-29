@@ -61,6 +61,47 @@ test('migration refuses orphaned achievements instead of silently losing them', 
     );
 });
 
+void test('parser events are exposed with dates and stable period IDs without duplicating or changing database records', () => {
+    const event = {
+        title: 'Challenge',
+        url: 'https://example.com/challenge',
+        eventType: 'temporary',
+        startDate: '2026-10-01',
+        endDate: '2026-10-31',
+        icon: 'icons/game/challenge.svg',
+        completed: true,
+    };
+    const document = { events: [event] };
+    const [entry] = decodeEntries(document, 'genshin');
+    assert.equal(entry.name, event.title);
+    assert.equal(entry.wikiUrl, event.url);
+    assert.equal(entry.eventType, event.eventType);
+    assert.equal(entry.startDate, event.startDate);
+    assert.equal(entry.endDate, event.endDate);
+    assert.equal('completed' in entry, false);
+    assert.equal(validCatalog([entry], 'genshin'), true);
+    assert.equal(decodeEntries(document, 'genshin')[0].id, entry.id);
+    assert.notEqual(decodeEntries(document, 'hsr')[0].id, entry.id);
+    assert.notEqual(
+        decodeEntries(
+            { events: [{ ...event, startDate: '2026-11-01', endDate: '2026-11-30' }] },
+            'genshin',
+        )[0].id,
+        entry.id,
+    );
+    const merged = mergeEntries(document, [entry, category, achievement]);
+    assert.deepEqual(merged['events'], [event]);
+    assert.equal(
+        decodeEntries(merged, 'genshin').filter((item) => item.kind === 'events').length,
+        1,
+    );
+    const reordered = decodeEntries(
+        { events: [{ ...event, title: 'Another event' }, event] },
+        'genshin',
+    );
+    assert.equal(reordered.find((item) => item.name === event.title)?.id, entry.id);
+});
+
 test('nested achievement documents map to stable browser IDs, references, links and requirements', () => {
     const encoded = encodeEntries([category, achievement]);
     assert.equal(encoded['achievements'][0]._id, category.id);

@@ -10,6 +10,10 @@ import { Entry, GAMES, Kind, validEntries, parseBackup, WorkspaceStore } from '.
 import { Achievements } from './achievements';
 import { Story } from './story';
 import { Characters } from './characters';
+import { Events } from './events';
+import { EventType } from '../../../../common/enums/event-types.enum';
+import { guideUrl } from '../../../../common/characters';
+import { eventDate } from './event-calendar';
 import { BackToTop } from './back-to-top';
 import { DialogFocusDirective } from './dialog-focus';
 import { StoryPositionStore } from './story-position.store';
@@ -18,11 +22,12 @@ import { storyProgress } from './story-progress';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, BackToTop],
+    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })
 export class Workspace {
+    readonly eventTypes = [...Object.values(EventType), 'custom'];
     private readonly router = inject(Router);
     readonly store = inject(WorkspaceStore);
     readonly theme = inject(ThemeService);
@@ -263,6 +268,16 @@ export class Workspace {
             return;
         }
         this.editor.name = this.editor.name.trim();
+        if (this.editor.kind === 'events') {
+            const entry = this.editor;
+            if ((entry.wikiUrl && !guideUrl(entry.wikiUrl)) ||
+                (entry.startDate && !eventDate(entry.startDate)) ||
+                (entry.endDate && !eventDate(entry.endDate, true)) ||
+                (entry.startDate && entry.endDate && eventDate(entry.endDate, true)! <= eventDate(entry.startDate)!)) {
+                this.formError = 'Use an HTTP(S) event URL and valid dates, with the end on or after the start.';
+                return;
+            }
+        }
         if (!this.editor.name || !validEntries([this.editor])) {
             this.formError = 'Enter a name and valid non-negative numbers.';
             return;

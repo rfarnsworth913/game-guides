@@ -12,6 +12,9 @@ export type Kind =
     | 'achievement-category'
     | 'story-category';
 export type Entry = {
+    startDate?: string;
+    endDate?: string;
+    eventType?: string;
     characterDefinition?: CharacterDefinition;
     characterCollection?: CharacterCollection;
     patchOverview?: PatchOverview;
@@ -93,6 +96,9 @@ export function toCatalog(entry: Entry): CatalogEntry {
         requirements: entry.requirements,
         order: entry.order,
         day: entry.day,
+        ...(entry.startDate !== undefined ? { startDate: entry.startDate } : {}),
+        ...(entry.endDate !== undefined ? { endDate: entry.endDate } : {}),
+        ...(entry.eventType !== undefined ? { eventType: entry.eventType } : {}),
         ...(entry.characterDefinition !== undefined ? { characterDefinition: entry.characterDefinition } : {}),
         ...(entry.characterInformation !== undefined ? { characterInformation: entry.characterInformation } : {}),
         ...(entry.lore !== undefined ? { lore: entry.lore } : {}),
@@ -127,6 +133,9 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'requirements',
         'order',
         'day',
+        'startDate',
+        'endDate',
+        'eventType',
         'icon',
         'sectionImageUrl',
         'wikiUrl',
@@ -248,6 +257,7 @@ export function validEntries(value: unknown): value is Entry[] {
                 typeof e.category === 'string' &&
                 typeof e.day === 'string' &&
                 typeof e.completed === 'boolean' &&
+                [e.startDate, e.endDate, e.eventType].every((field) => typeof field === 'undefined' || (typeof field === 'string' && field.length <= 160)) &&
                 validPatchOverview(e.patchOverview) &&
                 validPatchOverview(e.mainStory) &&
                 validPatchOverview(e.sideStories) &&

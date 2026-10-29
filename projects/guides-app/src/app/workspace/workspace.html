@@ -423,6 +423,8 @@
                 </section>
             } @else if (page() === 'characters') {
                 @if (context(); as game) { <gg-characters [game]="game.id" /> }
+            } @else if (page() === 'events') {
+                @if (context(); as game) { <gg-events [game]="game.id" (edit)="open('events', $event)" (remove)="pendingDelete = $event" /> }
             } @else if (page() === 'achievements') {
                 @if (context(); as game) {
                     <gg-achievements [game]="game.id" />
@@ -695,6 +697,17 @@
                         >{{ e.kind === 'characters' ? 'Element / role' : 'Category'
                         }}<input name="category" [(ngModel)]="e.category" maxlength="80"
                     /></label>
+                }
+                @if (e.kind === 'events') {
+                    <label>Event type<select name="eventType" [(ngModel)]="e.eventType">
+                        <option value="">Other</option>
+                        @for (type of eventTypes; track type) { <option [value]="type">{{ type }}</option> }
+                    </select></label>
+                    <div class="form-grid">
+                        <label>Start date<input name="startDate" type="date" [(ngModel)]="e.startDate" /></label>
+                        <label>End date<input name="endDate" type="date" [(ngModel)]="e.endDate" [min]="e.startDate ?? ''" /></label>
+                    </div>
+                    <label>Event URL<input name="eventUrl" type="url" [(ngModel)]="e.wikiUrl" placeholder="https://" /></label>
                 }
                 @if (e.kind === 'characters') {
                     <label

@@ -1,4 +1,5 @@
 import { Document } from 'mongodb';
+import { createHash } from 'node:crypto';
 import { CATALOG_FIELDS, CatalogEntry, Kind, validCatalog } from '../../common/workspace';
 import { decodeStory, encodeStory, mergeStory } from './story-document';
 
@@ -71,12 +72,70 @@ function decodeAchievement(value: Document, game: string, kind: Kind, category =
     };
 }
 
+const eventDate = (value: unknown): string =>
+    value instanceof Date
+        ? Number.isFinite(value.getTime())
+            ? value.toISOString()
+            : ''
+        : typeof value === 'string'
+          ? value
+          : '';
+/** Parser records stay authoritative. The identity includes the period so renewed tasks start fresh. */
+function parsedEvent(value: Document, game: string, order: number): CatalogEntry {
+    const startDate = eventDate(value['startDate']);
+    const endDate = eventDate(value['endDate']);
+    const identity = JSON.stringify([
+        game,
+        String(value['_id'] ?? ''),
+        value['title'],
+        value['url'],
+        value['eventType'],
+        startDate,
+        endDate,
+    ]);
+    return {
+        id: 'parsed-event-' + createHash('sha256').update(identity).digest('hex').slice(0, 32),
+        game,
+        kind: 'events',
+        name: value['title'],
+        notes: '',
+        category: value['eventType'] ?? '',
+        eventType: value['eventType'] ?? '',
+        startDate,
+        endDate,
+        wikiUrl: typeof value['url'] === 'string' ? value['url'] : '',
+        icon: typeof value['icon'] === 'string' ? value['icon'] : '',
+        order,
+        rarity: 1,
+        members: [],
+        requirements: [],
+        day: '',
+    };
+}
+
+function parserEvents(document: Document): Document[] {
+    return (document['events'] ?? []).filter(
+        (entry: Document) =>
+            entry['kind'] !== 'events' &&
+            typeof entry['title'] === 'string' &&
+            entry['title'].trim(),
+    );
+}
+
 export function decodeEntries(document: Document, game: string): CatalogEntry[] {
     const entries: CatalogEntry[] = OTHER_ARRAYS.flatMap((field) =>
         (document[field] ?? []).filter(
             (entry: Document) => entry['kind'] === field && typeof entry['id'] === 'string',
         ),
     );
+    const ids = new Set(entries.map((entry) => entry.id));
+    for (const [index, value] of parserEvents(document).entries()) {
+        const entry = parsedEvent(value, game, index);
+        if (!ids.has(entry.id)) {
+            entries.push(entry);
+            ids.add(entry.id);
+        }
+    }
     entries.push(...decodeStory(document['story'] ?? [], game));
     for (const category of document['achievements'] ?? []) {
         entries.push(decodeAchievement(category, game, 'achievement-category'));
@@ -92,11 +151,18 @@ export function mergeEntries(document: Document, entries: CatalogEntry[]): Docum
     const arrays = encodeEntries(entries);
     arrays['story'] = mergeStory(document['story'] ?? [], entries);
     for (const field of OTHER_ARRAYS) {
+        const parsedIds = new Set(
+            field === 'events'
+                ? parserEvents(document).map(
+                      (entry, index) => parsedEvent(entry, entries[0]?.game ?? '', index).id,
+                  )
+                : [],
+        );
         arrays[field] = [
             ...(document[field] ?? []).filter(
                 (entry: Document) => !(entry['kind'] === field && typeof entry['id'] === 'string'),
             ),
-            ...arrays[field],
+            ...arrays[field].filter((entry: CatalogEntry) => !parsedIds.has(entry.id)),
         ];
     }
     return arrays;
