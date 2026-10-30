@@ -60,7 +60,7 @@
               "outputPath": "dist/guides-app-e2e",
               "fileReplacements": [
                 {
-                  "replace": "projects/common/auth0-config.ts",
+                  "replace": "projects/lib/constants/auth0-config.constants.ts",
                   "with": "projects/middleware/e2e/auth0-config.ts"
                 }
               ]

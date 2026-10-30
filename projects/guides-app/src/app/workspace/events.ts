@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from './workspace.store';
-import { guideUrl } from '../../../../common/characters';
+import { guideUrl } from '../../../../common/characters/characters';
 import { eventDate, eventTiming, eventType, eventTypeLabel, monthDays, occursOn } from './event-calendar';
 
 @Component({

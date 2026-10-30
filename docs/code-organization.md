@@ -1,42 +1,48 @@
-# Code Organization
+# Code organization
 
-This document provides an overview of how content is organized within the project, including the structure of directories, files, and common conventions used throughout the codebase.
+Shared declarations live in `projects/lib`; shared runtime behavior lives in `projects/common`.
 
-## Folder Structure
-
-### Common
-The `common` folder contains shared resources that are used across different parts of the project, such as constants, enums, and types. This helps maintain consistency and reduces duplication.
-
-```bash
-common/
-├─ constants/
-├─ enums/
-├─ types/
+```text
+projects/
+  lib/
+    constants/     Date formats, game registry, public Auth0 settings, story labels
+    enums/         Event and story tracking enums
+    types/         Shared data models, interfaces, and type aliases
+  common/
+    characters/    Character defaults, validation, and game-rule checks
+    farming/       Recipe validation, material calculations, and reset schedules
+    images/        Shared image helpers
+    player/        Player progress validation and team helpers
+    quests/        Quest adapters, story validation, tracking, and display helpers
+    workspace/     Catalog conversion, validation, backup parsing, and migrations
 ```
 
-#### common/constants
-The `constants` folder within `common` contains files that define constant values used throughout the project. This helps ensure consistency and makes it easier to manage values that are used in multiple places. For example, date formats can be defined here.
+## Library declarations
 
-Some rules on formatting for constants:
-* Use uppercase letters with underscores for constant names, e.g., `DATE_FORMAT`.
-* Group related constants together in a single file.
-* Avoid hardcoding values directly in the code; instead, reference the constants.
-* Provide meaningful names that clearly indicate the purpose of the constant.
+- Use `lib/constants/*.constants.ts` for shared values such as `GAMES`, `DATE_FORMAT`, and `AUTH0_PUBLIC`. Function factories such as `emptyPatchOverview()` belong in `common`, even when declared with `const`.
+- Use `lib/enums/*.enum.ts` for enums. Enum names and members use PascalCase.
+- Use `lib/types/*.type.ts` for shared types and interfaces. Group declarations by domain and use PascalCase names, such as `CharacterRules`, `StoryTableRow`, and `ProgressSnapshot`.
+- Each folder has an `index.ts` barrel. The types barrel uses type-only exports, and type dependencies use `import type` so models do not introduce runtime imports.
+- `lib` may reference its own declarations and external library types; it must not depend on runtime functions in `common`, Angular components, or middleware services. Credentials and private settings do not belong here. `AUTH0_PUBLIC` contains public SDK settings only.
 
-#### common/enums
-The `enums` folder within `common` contains files that define enumerations used throughout the project. Enums help represent a set of named values, making the code more readable and maintainable.
+## Shared behavior
 
-Some rules on formatting for enums:
-* Use PascalCase for enum names, e.g., `UserRole`.
-* Use PascalCase for enum values, e.g., `AdminUser`.
-* Group related enum values together in a single file.
-* Avoid using magic numbers or strings directly in the code; instead, reference the enums.
+Keep cross-application functions and validators in the appropriate `common` domain folder. Functions import their data contracts and constants from `lib`. Do not add compatibility copies of types to runtime modules; import the declaration from its canonical location.
 
-#### common/types
-The `types` folder within `common` contains files that define TypeScript types and interfaces used throughout the project. This helps ensure type safety and consistency across different parts of the codebase.
+Keep implementation-private types beside their code until they are shared. UI-only component types remain inside the Angular project, and server-only service types remain inside middleware. This split does not turn browser/server-specific code into shared code.
 
-Some rules on formatting for types:
-* Use PascalCase for type and interface names, e.g., `UserProfile`.
-* Group related types together in a single file.
-* Avoid using `any` type; prefer specific types or generics.
-* Provide meaningful names that clearly indicate the purpose of the type.
+For example:
+
+```ts
+import type { StoryTableRow } from '../../lib/types/story-template.type';
+import { StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
+import { worldQuestObjectives } from '../../common/quests/world-quest';
+```
+
+Relative paths depend on the importing file. The root TypeScript configuration also provides `@shared-lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. Parser Jest mappings support both aliases. The Angular application's existing `@lib/*` alias continues to mean its own `src/app/lib/*`; it is separate from the new shared library.
+
+## Project checks
+
+Both shared folders have dedicated TypeScript and lint configurations. `npm run lint:ci` includes both, with `lib:lint` and `common:lint` available separately. Type-aware rules remain enabled; existing lint policy and formatting findings are tracked separately.
+
+Run `npm test`, `npm run ui:build`, and `npm run ui:e2e` after changes affecting shared contracts or runtime code. Moving files does not require a database migration: stored shapes, IDs, and values remain the same.

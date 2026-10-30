@@ -1,4 +1,5 @@
-import { patchGroups, PatchOverview, preparePatchGroups, StoryTableRow } from './story-template';
+import { patchGroups, preparePatchGroups } from './story-template';
+import type { PatchOverview, StoryTableRow } from '../../lib/types/story-template.type';
 
 /** Pure, repeatable conversion. Parent records move intact; no content or progress key is deleted. */
 export function reworkMainQuestTemplate(source: PatchOverview, title: string): { template: PatchOverview; promoted: number; normalized: number; review: string[] } {

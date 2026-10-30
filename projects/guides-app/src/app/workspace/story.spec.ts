@@ -6,7 +6,7 @@ import { By } from '@angular/platform-browser';
 import { GameImagePicker } from './game-image-picker';
 import { Story } from './story';
 import { Entry, WorkspaceStore } from './workspace.store';
-import { emptyPatchOverview } from '../../../../common/story-template';
+import { emptyPatchOverview } from '../../../../common/quests/story-template';
 
 describe('Story incomplete filter', () => {
     it('edits a navigation icon with the compact picker and renders uploaded icons after saving', async () => {

@@ -1,6 +1,6 @@
 import { storyDashboard } from './story-dashboard';
 import { Entry } from './workspace.store';
-import { emptyPatchOverview } from '../../../../common/story-template';
+import { emptyPatchOverview } from '../../../../common/quests/story-template';
 
 const section: Entry = { id: 'region', game: 'endfield', kind: 'story-category', name: 'Valley IV', category: '', order: 0,
     notes: '', completed: false, quantity: 0, target: 0, rarity: 0, members: [], requirements: [], day: '' };

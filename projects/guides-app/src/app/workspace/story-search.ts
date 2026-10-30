@@ -1,6 +1,6 @@
 import { Entry } from './workspace.store';
-import { storyContentTypes } from '../../../../common/story-content-types';
-import { storyTemplateFor } from '../../../../common/story-guide';
+import { storyContentTypes } from '../../../../common/quests/story-content-types';
+import { storyTemplateFor } from '../../../../common/quests/story-guide';
 
 export type StorySearchResult = {
     id: string;

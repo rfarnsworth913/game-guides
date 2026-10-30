@@ -1,5 +1,5 @@
 import { Entry } from './workspace.store';
-import { characterCosts, hasCharacterGoal } from '../../../../common/farming';
+import { characterCosts, hasCharacterGoal } from '../../../../common/farming/farming';
 
 export type MaterialUsage = { id: string; name: string; quantity: number; characters: string[] };
 export type InventoryItemView = {

@@ -43,7 +43,7 @@ existing document name, `Honkai Star Rail`.
 - MongoDB stores game definitions: inventory items, characters, teams, plans, story steps,
   events, achievement categories, achievements, their descriptions/rewards, and ordering.
 - Guests keep player state in localStorage. Signed-in players sync completion, owned quantities
-  and targets to a separate MongoDB collection. Auth0 SDK sign-in uses public settings in `projects/common/auth0-config.ts`, with editor access configured
+  and targets to a separate MongoDB collection. Auth0 SDK sign-in uses public settings in `projects/lib/constants/auth0-config.constants.ts`, with editor access configured
   through the root .env; see [authentication setup](projects/middleware/README.md#authentication-and-account-progress).
   Without provider configuration, catalog/image edits are locked and guest completion still works.
 - Existing `gg-workspace-v1` data migrates on the first successful connection. Missing

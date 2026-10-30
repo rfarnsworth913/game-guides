@@ -1,8 +1,10 @@
 import { BSON, Collection, Document } from 'mongodb';
-import { CatalogEntry, GAMES, GameSnapshot } from '../../common/workspace';
+import type { CatalogEntry, GameSnapshot } from '../../lib/types/workspace.type';
+import { GAMES } from '../../lib/constants/workspace.constants';
 import { decodeEntries, mergeEntries, migrateDocument } from './game-document';
 import { normalizeStory } from './story-document';
-import { CharacterRules, characterDefinitionFits, validCharacterRules } from '../../common/characters';
+import type { CharacterRules } from '../../lib/types/character.type';
+import { characterDefinitionFits, validCharacterRules } from '../../common/characters/characters';
 
 // Match parser source IDs exactly; the UI display name for HSR includes a colon.
 export const gameDocumentName = (id: string) =>

@@ -17,6 +17,7 @@
     "module": "preserve",
     "paths": {
       "@common/*": ["./projects/common/*"],
+      "@shared-lib/*": ["./projects/lib/*"],
       "@guides-app/*": ["./projects/guides-app/src/app/*"]
     }
   },
@@ -39,6 +40,9 @@
     },
     {
       "path": "./projects/common/tsconfig.common.json"
+    },
+    {
+      "path": "./projects/lib/tsconfig.lib.json"
     }
   ]
 }

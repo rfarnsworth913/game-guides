@@ -1,7 +1,7 @@
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CharacterInformationTemplate } from './character-information';
-import { storyContentTypes } from '../../../../common/story-content-types';
+import { storyContentTypes } from '../../../../common/quests/story-content-types';
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, Injector, input, signal, viewChild } from '@angular/core';
 import { of } from 'rxjs';
 import { StoryPositionStore } from './story-position.store';
@@ -13,17 +13,11 @@ import { PatchOverviewTemplate } from './patch-overview';
 import { WorldQuestsTemplate } from './world-quests';
 import { LoreTemplate } from './lore';
 import { storyProgress } from './story-progress';
-import { storyTemplateFor } from '../../../../common/story-guide';
-import { reworkMainQuestTemplate } from '../../../../common/main-quest';
+import { storyTemplateFor } from '../../../../common/quests/story-guide';
+import { reworkMainQuestTemplate } from '../../../../common/quests/main-quest';
 import { GameImagePicker } from './game-image-picker';
 import { searchStoryGuides, StorySearchResult } from './story-search';
-import {
-    emptyPatchOverview,
-    validPatchOverview,
-    trimPatchOverviewText,
-    preparePatchGroups,
-    storyImageUrl,
-} from '../../../../common/story-template';
+import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, preparePatchGroups, storyImageUrl } from '../../../../common/quests/story-template';
 
 @Component({
     selector: 'gg-story',

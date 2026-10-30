@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { WorkspaceStore, GAMES } from './workspace.store';
 import { AuthStore } from './auth.store';
-import { CatalogEntry, PlayerState } from '../../../../common/workspace';
+import type { CatalogEntry, PlayerState } from '../../../../lib/types/workspace.type';
 
 const event: CatalogEntry = { id: 'parsed-event-test', game: 'genshin', kind: 'events', name: 'Daily Commissions',
     notes: '', category: 'daily', eventType: 'daily', startDate: '2026-10-29', endDate: '2026-10-29',

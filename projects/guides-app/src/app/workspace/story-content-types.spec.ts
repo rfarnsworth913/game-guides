@@ -1,4 +1,4 @@
-import { storyContentName, storyContentTypes } from '../../../../common/story-content-types';
+import { storyContentName, storyContentTypes } from '../../../../common/quests/story-content-types';
 
 describe('game story terminology', () => {
     it('maps game names while retaining stable category IDs', () => {

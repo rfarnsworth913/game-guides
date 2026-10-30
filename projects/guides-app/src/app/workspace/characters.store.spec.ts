@@ -1,12 +1,10 @@
 import { signal } from '@angular/core';
 import { WorkspaceStore, GAMES, Entry } from './workspace.store';
 import { AuthStore } from './auth.store';
-import {
-    CharacterRules,
-    emptyCharacterCollection,
-    emptyCharacterDefinition,
-} from '../../../../common/characters';
-import { GameSnapshot, PlayerState, toCatalog, parseBackup } from '../../../../common/workspace';
+import type { CharacterRules } from '../../../../lib/types/character.type';
+import { emptyCharacterCollection, emptyCharacterDefinition } from '../../../../common/characters/characters';
+import type { GameSnapshot, PlayerState } from '../../../../lib/types/workspace.type';
+import { toCatalog, parseBackup } from '../../../../common/workspace/workspace';
 
 const rules: CharacterRules = {
     levelCap: 90,

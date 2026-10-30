@@ -1,8 +1,10 @@
-import { PlayerState, GAMES } from './workspace';
-import { validRowCompletion } from './story-template';
-import { validCharacterCollection } from './characters';
-import { TEAM_PROGRESS_ID, validTeams } from './teams';
-export type ProgressSnapshot = { revision: number; state: Record<string, PlayerState> };
+import type { PlayerState } from '../../lib/types/workspace.type';
+import { GAMES } from '../../lib/constants/workspace.constants';
+import { validRowCompletion } from '../quests/story-template';
+import { validCharacterCollection } from '../characters/characters';
+import { TEAM_PROGRESS_ID } from '../../lib/constants/team.constants';
+import { validTeams } from './teams';
+
 export function validPlayerState(value: unknown): value is PlayerState {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
     const state = value as PlayerState;

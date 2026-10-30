@@ -1,7 +1,8 @@
-import { httpUrl, patchGroups, type PatchOverview, type StoryTableRow } from './story-template';
-import type { StoryContext } from './story-guide';
-import { StoryRequirementType } from './enums/story-tracking.enum';
-import type { WorldQuestGroup, WorldQuestSection } from './types/world-quest.type';
+import { httpUrl, patchGroups } from './story-template';
+import type { PatchOverview, StoryTableRow } from '../../lib/types/story-template.type';
+import type { StoryContext } from '../../lib/types/story-context.type';
+import { StoryRequirementType } from '../../lib/enums/story-tracking.enum';
+import type { WorldQuestGroup, WorldQuestSection } from '../../lib/types/world-quest.type';
 
 export function worldQuestObjectives(rows: StoryTableRow[]): StoryTableRow[] {
     return [...new Map(rows.filter(row => !row.rowType || row.rowType === 'quest').map(row => [row.id, row])).values()];

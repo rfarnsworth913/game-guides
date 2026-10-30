@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import { DataFile } from "@common/types";
+import type { DataFile } from '@shared-lib/types';
 import { Logger } from "./services";
 import * as Parsers from "./parsers";
 

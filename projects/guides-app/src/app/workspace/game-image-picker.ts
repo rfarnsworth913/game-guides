@@ -1,10 +1,11 @@
-import { inject } from '@angular/core';
+import { inject, Component, computed, ElementRef, input, model, signal, viewChild } from '@angular/core';
 import { AuthStore } from './auth.store';
-import { Component, computed, ElementRef, input, model, signal, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { storyImageUrl } from '../../../../common/story-template';
 
-import { GameImage, ImageCategory, friendlyImageName } from '../../../../common/game-images';
+import { FormsModule } from '@angular/forms';
+import { storyImageUrl } from '../../../../common/quests/story-template';
+
+import type { GameImage, ImageCategory } from '../../../../lib/types/game-image.type';
+import { friendlyImageName } from '../../../../common/images/game-images';
 
 @Component({
     selector: 'gg-game-image-picker',

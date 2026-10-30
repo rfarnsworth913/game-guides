@@ -8,9 +8,9 @@ import { Collection, Document } from 'mongodb';
 import { AuthService, LoginDocument, SessionDocument, safeReturnTo } from './auth';
 import { ProgressDocument, ProgressRepository } from './progress';
 import { createApi } from './server';
-import { validProgressState } from '../../common/player-progress';
-import { CatalogEntry } from '../../common/workspace';
-import { StoryTrackingMode } from '../../common/enums/story-tracking.enum';
+import { validProgressState } from '../../common/player/player-progress';
+import type { CatalogEntry } from '../../lib/types/workspace.type';
+import { StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
 
 function memory<T extends Document>() {
     const docs = new Map<string, T>();

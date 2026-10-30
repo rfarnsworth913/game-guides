@@ -10,8 +10,9 @@ import { Auth0Security } from '../src/auth0';
 import { GameRepository } from '../src/repository';
 import { ProgressRepository, type ProgressDocument } from '../src/progress';
 import { createApi } from '../src/server';
-import { GAMES, type CatalogEntry } from '../../common/workspace';
-import { emptyPatchOverview } from '../../common/story-template';
+import { GAMES } from '../../lib/constants/workspace.constants';
+import type { CatalogEntry } from '../../lib/types/workspace.type';
+import { emptyPatchOverview } from '../../common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.

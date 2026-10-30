@@ -1,6 +1,6 @@
 import { Component, computed, input, output, signal } from '@angular/core';
-import { FarmingMaterial } from '../../../../common/farming';
-import { storyImageUrl } from '../../../../common/story-template';
+import type { FarmingMaterial } from '../../../../lib/types/farming.type';
+import { storyImageUrl } from '../../../../common/quests/story-template';
 
 @Component({
     selector: 'gg-farming-material',

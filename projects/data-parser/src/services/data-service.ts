@@ -1,7 +1,7 @@
 import * as dotenv from "dotenv";
 import * as mongoDB from "mongodb";
 
-import { Event, RootDocument, Version } from "@common/types";
+import type { Event, RootDocument, Version } from '@shared-lib/types';
 import { Logger } from "./logger";
 
 

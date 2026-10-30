@@ -1,5 +1,5 @@
-export type Team = { id: string; name: string; members: string[]; notes: string };
-export const TEAM_PROGRESS_ID = '@teams';
+import type { Team } from '../../lib/types/team.type';
+
 export const teamSize = (rules?: { teamSize?: number }): number => rules?.teamSize ?? 4;
 export function validTeams(value: unknown): value is Team[] {
     return (

@@ -3,8 +3,8 @@ import { expect, jest } from "@jest/globals";
 import * as dotenv from "dotenv";
 import { type Document, MongoClient, ObjectId, type UpdateFilter } from "mongodb";
 
-import { EventType } from "@common/enums";
-import { Event, RootDocument, Version } from "@common/types";
+import { EventType } from '@shared-lib/enums';
+import type { Event, RootDocument, Version } from '@shared-lib/types';
 import { DataService } from "./data-service";
 import { Logger } from "./logger";
 

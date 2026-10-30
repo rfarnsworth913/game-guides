@@ -1,5 +1,6 @@
 import { Document } from 'mongodb';
-import { CatalogEntry, fromCatalog, migrateStory, toCatalog } from '../../common/workspace';
+import type { CatalogEntry } from '../../lib/types/workspace.type';
+import { fromCatalog, migrateStory, toCatalog } from '../../common/workspace/workspace';
 
 export function normalizeStory(entries: CatalogEntry[]): CatalogEntry[] {
     return migrateStory(entries.map((entry) => fromCatalog(entry))).map(toCatalog);

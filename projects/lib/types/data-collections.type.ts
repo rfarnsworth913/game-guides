@@ -1,7 +1,5 @@
-import * as mongoDB from "mongodb";
-
-import { EventType } from "../enums/event-types.enum.js";
-
+import type * as mongoDB from "mongodb";
+import type { EventType } from '../enums/event-types.enum';
 
 export type RootDocument = {
     _id: mongoDB.ObjectId;

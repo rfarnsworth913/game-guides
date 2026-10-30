@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { Entry, fromCatalog, toCatalog, validCatalog } from '../../common/workspace';
-import { emptyPatchOverview, validPatchOverview } from '../../common/story-template';
-import { storyCompletionKey, storyRowDone, validStoryContext } from '../../common/story-guide';
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../common/enums/story-tracking.enum';
+import type { Entry } from '../../lib/types/workspace.type';
+import { fromCatalog, toCatalog, validCatalog } from '../../common/workspace/workspace';
+import { emptyPatchOverview, validPatchOverview } from '../../common/quests/story-template';
+import { storyCompletionKey, storyRowDone, validStoryContext } from '../../common/quests/story-guide';
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
 import { decodeStory, encodeStory, mergeStory } from './story-document';
 
 const section: Entry = { id: 'region', game: 'genshin', kind: 'story-category', name: 'Existing region',

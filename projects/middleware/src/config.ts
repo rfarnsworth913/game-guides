@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { resolve } from 'node:path';
-import { AUTH0_PUBLIC } from '../../common/auth0-config';
+import { AUTH0_PUBLIC } from '../../lib/constants/auth0-config.constants';
 
 // Identical environment keys to projects/data-parser/src/services/data-service.ts.
 export function readConfig() {

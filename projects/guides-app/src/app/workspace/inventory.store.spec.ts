@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { WorkspaceStore, GAMES } from './workspace.store';
 import { AuthStore } from './auth.store';
-import { CatalogEntry, PlayerState } from '../../../../common/workspace';
+import type { CatalogEntry, PlayerState } from '../../../../lib/types/workspace.type';
 
 const item: CatalogEntry = {
     id: 'book',

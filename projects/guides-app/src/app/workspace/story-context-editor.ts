@@ -1,9 +1,9 @@
 import { Component, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { StoryContext } from '../../../../common/story-guide';
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../../../common/enums/story-tracking.enum';
-import { worldQuestPrerequisites } from '../../../../common/world-quest';
-import { WORLD_QUEST_SUBTYPES } from '../../../../common/constants/world-quest.constants';
+import type { StoryContext } from '../../../../lib/types/story-context.type';
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../../../lib/enums/story-tracking.enum';
+import { worldQuestPrerequisites } from '../../../../common/quests/world-quest';
+import { WORLD_QUEST_SUBTYPES } from '../../../../lib/constants/world-quest.constants';
 
 @Component({
     selector: 'gg-story-context-editor',

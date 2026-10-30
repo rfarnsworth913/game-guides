@@ -2,11 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Characters } from './characters';
 import { WorkspaceStore, Entry } from './workspace.store';
-import {
-    CharacterRules,
-    emptyCharacterCollection,
-    emptyCharacterDefinition,
-} from '../../../../common/characters';
+import type { CharacterRules } from '../../../../lib/types/character.type';
+import { emptyCharacterCollection, emptyCharacterDefinition } from '../../../../common/characters/characters';
 
 const character: Entry = {
     id: 'vesna',

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { BSON, Document } from 'mongodb';
-import { mainQuestRecords, reworkMainQuestTemplate } from '../../common/main-quest';
-import { validPatchOverview } from '../../common/story-template';
+import { mainQuestRecords, reworkMainQuestTemplate } from '../../common/quests/main-quest';
+import { validPatchOverview } from '../../common/quests/story-template';
 
 /** Replaces only the requested quest payload; parser and unrelated fields are retained. */
 export function reworkMainQuestDocument(document: Document, categories: readonly ('main-story' | 'side-stories')[] = ['main-story']) {

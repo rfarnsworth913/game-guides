@@ -1,71 +1,8 @@
-import { PatchOverview, validPatchOverview, validRowCompletion } from './story-template';
-import type { Team } from './teams';
-import { storyRowDone, storyTemplateFor } from './story-guide';
-import { CharacterCollection, CharacterDefinition, CharacterRules, validCharacterCollection, validCharacterDefinition, validCharacterRules } from './characters';
-export type Kind =
-    | 'inventory'
-    | 'characters'
-    | 'teams'
-    | 'plans'
-    | 'story'
-    | 'events'
-    | 'achievements'
-    | 'achievement-category'
-    | 'story-category';
-export type Entry = {
-    region?: string;
-    maxStack?: number;
-    startDate?: string;
-    endDate?: string;
-    eventType?: string;
-    characterDefinition?: CharacterDefinition;
-    characterCollection?: CharacterCollection;
-    patchOverview?: PatchOverview;
-    mainStory?: PatchOverview;
-    sideStories?: PatchOverview;
-    eventStory?: PatchOverview;
-    worldQuests?: PatchOverview;
-    lore?: PatchOverview;
-    characterInformation?: PatchOverview;
-    storyRowCompletion?: Record<string, boolean>;
-    storySection?: string;
-    icon?: string;
-    sectionImageUrl?: string;
-    wikiUrl?: string;
-    reward?: string;
-    rewardIcon?: string;
-    description?: string;
-    requirementText?: string;
-    id: string;
-    game: string;
-    kind: Kind;
-    name: string;
-    notes: string;
-    quantity: number;
-    target: number;
-    category: string;
-    rarity: number;
-    members: string[];
-    requirements: { item: string; amount: number }[];
-    completed: boolean;
-    order: number;
-    day: string;
-};
-/** Player-owned state is stored separately; these fields never enter the shared catalog. */
-export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection'> & { teams?: Team[] };
-export type CatalogEntry = Omit<Entry, keyof PlayerState>;
-export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules };
-export const CATALOG_FIELDS = {
-    inventory: 'inventory',
-    characters: 'characters',
-    teams: 'teams',
-    plans: 'plans',
-    story: 'story',
-    events: 'events',
-    achievements: 'achievements',
-    'achievement-category': 'achievementCategories',
-    'story-category': 'storyCategories',
-} as const;
+import { validPatchOverview, validRowCompletion } from '../quests/story-template';
+import { storyRowDone, storyTemplateFor } from '../quests/story-guide';
+import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '../characters/characters';
+import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
+import { GAMES } from '../../lib/constants/workspace.constants';
 
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
     const template = storyTemplateFor(entry);
@@ -189,57 +126,6 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),
     );
 }
-export const GAMES = [
-    {
-        id: 'genshin',
-        name: 'Genshin Impact',
-        short: 'GI',
-        color: '#dcb975',
-        subtitle: 'Teyvat awaits',
-    },
-    {
-        id: 'hsr',
-        name: 'Honkai: Star Rail',
-        short: 'HSR',
-        color: '#ae9bff',
-        subtitle: 'Beyond the stars',
-    },
-    {
-        id: 'nte',
-        name: 'Neverness to Everness',
-        short: 'NTE',
-        color: '#ef94cf',
-        subtitle: 'Explore a new world',
-    },
-    {
-        id: 'wuwa',
-        name: 'Wuthering Waves',
-        short: 'WW',
-        color: '#75cbbb',
-        subtitle: 'Echoes of Solaris',
-    },
-    {
-        id: 'zzz',
-        name: 'Zenless Zone Zero',
-        short: 'ZZZ',
-        color: '#dfed70',
-        subtitle: 'Welcome to New Eridu',
-    },
-    {
-        id: 'endfield',
-        name: 'Arknights: Endfield',
-        short: 'AE',
-        color: '#eea575',
-        subtitle: 'A new frontier',
-    },
-    {
-        id: 'ffxiv',
-        name: 'Final Fantasy XIV',
-        short: 'FFXIV',
-        color: '#8fb7e8',
-        subtitle: 'Adventure in Eorzea',
-    },
-];
 export function validEntries(value: unknown): value is Entry[] {
     return (
         Array.isArray(value) &&

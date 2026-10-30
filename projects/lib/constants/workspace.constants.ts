@@ -1,0 +1,62 @@
+export const CATALOG_FIELDS = {
+    inventory: 'inventory',
+    characters: 'characters',
+    teams: 'teams',
+    plans: 'plans',
+    story: 'story',
+    events: 'events',
+    achievements: 'achievements',
+    'achievement-category': 'achievementCategories',
+    'story-category': 'storyCategories',
+} as const;
+export const GAMES = [
+    {
+        id: 'genshin',
+        name: 'Genshin Impact',
+        short: 'GI',
+        color: '#dcb975',
+        subtitle: 'Teyvat awaits',
+    },
+    {
+        id: 'hsr',
+        name: 'Honkai: Star Rail',
+        short: 'HSR',
+        color: '#ae9bff',
+        subtitle: 'Beyond the stars',
+    },
+    {
+        id: 'nte',
+        name: 'Neverness to Everness',
+        short: 'NTE',
+        color: '#ef94cf',
+        subtitle: 'Explore a new world',
+    },
+    {
+        id: 'wuwa',
+        name: 'Wuthering Waves',
+        short: 'WW',
+        color: '#75cbbb',
+        subtitle: 'Echoes of Solaris',
+    },
+    {
+        id: 'zzz',
+        name: 'Zenless Zone Zero',
+        short: 'ZZZ',
+        color: '#dfed70',
+        subtitle: 'Welcome to New Eridu',
+    },
+    {
+        id: 'endfield',
+        name: 'Arknights: Endfield',
+        short: 'AE',
+        color: '#eea575',
+        subtitle: 'A new frontier',
+    },
+    {
+        id: 'ffxiv',
+        name: 'Final Fantasy XIV',
+        short: 'FFXIV',
+        color: '#8fb7e8',
+        subtitle: 'Adventure in Eorzea',
+    },
+];

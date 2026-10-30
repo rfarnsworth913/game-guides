@@ -1,24 +1,21 @@
 import { AuthStore } from './auth.store';
-import { Team, TEAM_PROGRESS_ID, teamSize, validTeams } from '../../../../common/teams';
-import { CharacterCollection, CharacterRules, characterCollectionFits, validCharacterCollection, validCharacterRules } from '../../../../common/characters';
+import type { Team } from '../../../../lib/types/team.type';
+import { TEAM_PROGRESS_ID } from '../../../../lib/constants/team.constants';
+import { teamSize, validTeams } from '../../../../common/player/teams';
+import type { CharacterCollection, CharacterRules } from '../../../../lib/types/character.type';
+import { characterCollectionFits, validCharacterCollection, validCharacterRules } from '../../../../common/characters/characters';
 import { mergeUpdates } from './merge-updates';
-import { ProgressSnapshot, validProgressState } from '../../../../common/player-progress';
+import type { ProgressSnapshot } from '../../../../lib/types/player-progress.type';
+import { validProgressState } from '../../../../common/player/player-progress';
 import { Inject, Injectable, Optional, computed, signal } from '@angular/core';
-import { validRowCompletion } from '../../../../common/story-template';
-import type { PlayerState } from '../../../../common/workspace';
+import { validRowCompletion } from '../../../../common/quests/story-template';
+import type { PlayerState, Entry, GameSnapshot } from '../../../../lib/types/workspace.type';
 
-import {
-    Entry,
-    GAMES,
-    validEntries,
-    parseBackup,
-    toCatalog,
-    fromCatalog,
-    GameSnapshot,
-    validCatalog,
-} from '../../../../common/workspace';
-export type { Entry, Kind } from '../../../../common/workspace';
-export { GAMES, validEntries, parseBackup } from '../../../../common/workspace';
+import { GAMES } from '../../../../lib/constants/workspace.constants';
+import { validEntries, parseBackup, toCatalog, fromCatalog, validCatalog } from '../../../../common/workspace/workspace';
+export type { Entry, Kind } from '../../../../lib/types/workspace.type';
+export { GAMES } from '../../../../lib/constants/workspace.constants';
+export { validEntries, parseBackup } from '../../../../common/workspace/workspace';
 const KEY = 'gg-workspace-v1';
 class RequestError extends Error {
     constructor(readonly status: number, message: string) { super(message); }

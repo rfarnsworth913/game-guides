@@ -2,7 +2,7 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners } from "@angular/
 import { provideRouter } from "@angular/router";
 import { provideHttpClient } from '@angular/common/http';
 import { provideAuth0 } from '@auth0/auth0-angular';
-import { AUTH0_PUBLIC } from '../../../common/auth0-config';
+import { AUTH0_PUBLIC } from '../../../lib/constants/auth0-config.constants';
 
 import { routes } from "./app.routes";
 

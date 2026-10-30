@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Entry, fromCatalog, toCatalog, validCatalog, parseBackup } from '../../common/workspace';
-import { validPatchOverview, patchGroups, preparePatchGroups } from '../../common/story-template';
+import type { Entry } from '../../lib/types/workspace.type';
+import { fromCatalog, toCatalog, validCatalog, parseBackup } from '../../common/workspace/workspace';
+import { validPatchOverview, patchGroups, preparePatchGroups } from '../../common/quests/story-template';
 import { encodeEntries, decodeEntries } from './game-document';
 
 const section: Entry = {

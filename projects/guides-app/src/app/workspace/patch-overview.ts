@@ -1,4 +1,4 @@
-import { storyContentName } from '../../../../common/story-content-types';
+import { storyContentName } from '../../../../common/quests/story-content-types';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
@@ -7,19 +7,14 @@ import { Entry, WorkspaceStore, GAMES } from './workspace.store';
 import { StoryContentList } from './story-content-list';
 import { StoryContextEditor } from './story-context-editor';
 import { NotesMarkdownPipe } from './markdown';
-import { worldQuestPrerequisites } from '../../../../common/world-quest';
+import { worldQuestPrerequisites } from '../../../../common/quests/world-quest';
 import { PatchBadge } from './patch-badge';
-import type { StoryGroup } from '../../../../common/types/story-group.type';
-import { StoryAvailability } from '../../../../common/enums/story-tracking.enum';
-import { StoryContext, storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from '../../../../common/story-guide';
-import {
-    emptyPatchOverview,
-    httpUrl,
-    storyImageUrl,
-    StoryTableRow,
-    patchGroups,
-    preparePatchGroups,
-} from '../../../../common/story-template';
+import type { StoryGroup } from '../../../../lib/types/story-group.type';
+import { StoryAvailability } from '../../../../lib/enums/story-tracking.enum';
+import type { StoryContext } from '../../../../lib/types/story-context.type';
+import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from '../../../../common/quests/story-guide';
+import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from '../../../../common/quests/story-template';
+import type { StoryTableRow } from '../../../../lib/types/story-template.type';
 
 @Component({
     selector: 'gg-patch-overview',

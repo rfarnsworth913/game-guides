@@ -1,5 +1,5 @@
 import { AuthStore } from './auth.store';
-import { toCatalog } from '../../../../common/workspace';
+import { toCatalog } from '../../../../common/workspace/workspace';
 import { Entry, WorkspaceStore, validEntries, parseBackup, GAMES } from './workspace.store';
 
 const item = (id: string, kind: Entry['kind'] = 'inventory'): Entry => ({

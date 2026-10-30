@@ -1,26 +1,13 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { characterCosts } from '../../../../common/farming';
+import { characterCosts } from '../../../../common/farming/farming';
 import { FarmingMaterialTile } from './farming-material';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from './workspace.store';
 import { DialogFocusDirective } from './dialog-focus';
 import { GameImagePicker } from './game-image-picker';
-import {
-    CharacterCollection,
-    CharacterDefinition,
-    CharacterRules,
-    CharacterSkill,
-    CharacterProgression,
-    emptyCharacterCollection,
-    emptyCharacterDefinition,
-    characterCollectionFits,
-    characterDefinitionFits,
-    validCharacterCollection,
-    validCharacterDefinition,
-    validCharacterRules,
-    guideUrl,
-} from '../../../../common/characters';
-import { storyImageUrl } from '../../../../common/story-template';
+import type { CharacterCollection, CharacterDefinition, CharacterRules, CharacterSkill, CharacterProgression } from '../../../../lib/types/character.type';
+import { emptyCharacterCollection, emptyCharacterDefinition, characterCollectionFits, characterDefinitionFits, validCharacterCollection, validCharacterDefinition, validCharacterRules, guideUrl } from '../../../../common/characters/characters';
+import { storyImageUrl } from '../../../../common/quests/story-template';
 
 @Component({
     selector: 'gg-characters',

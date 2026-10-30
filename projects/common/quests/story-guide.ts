@@ -1,27 +1,7 @@
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from './enums/story-tracking.enum';
-import type { Entry } from './workspace';
-import type { StoryTableRow } from './story-template';
-
-/** Optional additions to the existing records. Legacy IDs and completion keys stay unchanged. */
-export type StoryContext = {
-    trackingMode?: StoryTrackingMode;
-    availability?: StoryAvailability;
-    startDate?: string;
-    endDate?: string;
-    cycleId?: string;
-    resetSchedule?: string;
-    chapter?: string;
-    region?: string;
-    area?: string;
-    chain?: string;
-    subtype?: string;
-    difficulty?: string;
-    requirements?: { type: StoryRequirementType; text: string; targetId?: string }[];
-    /** Undefined/null means undocumented; an explicit empty list means no prerequisites. */
-    prerequisites?: { type: StoryRequirementType; text: string; targetId?: string }[] | null;
-    requirementsOperator?: 'allOf' | 'anyOf';
-    relatedContentIds?: string[];
-};
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
+import type { Entry } from '../../lib/types/workspace.type';
+import type { StoryTableRow } from '../../lib/types/story-template.type';
+import type { StoryContext } from '../../lib/types/story-context.type';
 
 export function validStoryContext(value: unknown): value is StoryContext | undefined {
     if (value === undefined) return true;

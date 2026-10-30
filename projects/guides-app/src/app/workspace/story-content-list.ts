@@ -1,14 +1,16 @@
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { Entry } from './workspace.store';
 import { NotesMarkdownPipe } from './markdown';
-import { httpUrl, patchGroups, PatchOverview, StoryTableRow } from '../../../../common/story-template';
-import { storyCompletionKey, StoryContext, storyRowDone, storyTrackingMode } from '../../../../common/story-guide';
-import { StoryTrackingMode } from '../../../../common/enums/story-tracking.enum';
-import { storyContentName } from '../../../../common/story-content-types';
+import { httpUrl, patchGroups } from '../../../../common/quests/story-template';
+import type { PatchOverview, StoryTableRow } from '../../../../lib/types/story-template.type';
+import { storyCompletionKey, storyRowDone, storyTrackingMode } from '../../../../common/quests/story-guide';
+import type { StoryContext } from '../../../../lib/types/story-context.type';
+import { StoryTrackingMode } from '../../../../lib/enums/story-tracking.enum';
+import { storyContentName } from '../../../../common/quests/story-content-types';
 import { NgTemplateOutlet } from '@angular/common';
-import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from '../../../../common/world-quest';
-import type { WorldQuestSection } from '../../../../common/types/world-quest.type';
-import { WORLD_QUEST_SUBTYPES } from '../../../../common/constants/world-quest.constants';
+import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from '../../../../common/quests/world-quest';
+import type { WorldQuestSection } from '../../../../lib/types/world-quest.type';
+import { WORLD_QUEST_SUBTYPES } from '../../../../lib/constants/world-quest.constants';
 import { PatchBadge } from './patch-badge';
 
 @Component({

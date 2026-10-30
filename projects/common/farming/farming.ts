@@ -1,9 +1,8 @@
-import type { CharacterCollection, CharacterDefinition } from './characters';
-import type { Entry } from './workspace';
-import type { FarmingConfig, FarmingServer, FarmingSource, UpgradeRecipe } from './farming-config';
+import type { CharacterCollection, CharacterDefinition } from '../../lib/types/character.type';
+import type { Entry } from '../../lib/types/workspace.type';
+import type { FarmingConfig, FarmingServer, FarmingSource, UpgradeRecipe } from '../../lib/types/farming-config.type';
+import type { CostIssue, CharacterCost, FarmingMaterial, FarmingGroup } from '../../lib/types/farming.type';
 
-export type CostIssue = { characterId: string; message: string };
-export type CharacterCost = { costs: Map<string, number>; issues: string[] };
 const gearChanged = (collection: CharacterCollection) =>
     [
         ...new Set([
@@ -135,14 +134,6 @@ export function characterCosts(
         {issues.push('Equipment goals do not yet have numeric upgrade recipes.');}
     return { costs, issues };
 }
-export type FarmingMaterial = {
-    item: Entry;
-    required: number;
-    owned: number;
-    missing: number;
-    characters: string[];
-    plans: string[];
-};
 export function farmingRequirements(
     entries: Entry[],
     game: string,
@@ -216,12 +207,6 @@ export function farmingRequirements(
     });
     return { materials, issues };
 }
-export type FarmingGroup = {
-    id: string;
-    source: FarmingSource | null;
-    materials: FarmingMaterial[];
-    characters: string[];
-};
 export function farmingGroups(
     materials: FarmingMaterial[],
     config?: FarmingConfig,

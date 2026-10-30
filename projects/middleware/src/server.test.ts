@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { AddressInfo } from 'node:net';
 import { createApi } from './server';
 import { ApiError } from './repository';
-import { CatalogEntry, GameSnapshot, GAMES, validCatalog } from '../../common/workspace';
+import type { CatalogEntry, GameSnapshot } from '../../lib/types/workspace.type';
+import { GAMES } from '../../lib/constants/workspace.constants';
+import { validCatalog } from '../../common/workspace/workspace';
 
 test('API validation, revision conflicts, origin checks, and parsed-data reads', async (t) => {
     const state = new Map(

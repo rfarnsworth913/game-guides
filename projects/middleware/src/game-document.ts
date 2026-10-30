@@ -1,6 +1,8 @@
 import { Document } from 'mongodb';
 import { createHash } from 'node:crypto';
-import { CATALOG_FIELDS, CatalogEntry, Kind, validCatalog } from '../../common/workspace';
+import { CATALOG_FIELDS } from '../../lib/constants/workspace.constants';
+import type { CatalogEntry, Kind } from '../../lib/types/workspace.type';
+import { validCatalog } from '../../common/workspace/workspace';
 import { decodeStory, encodeStory, mergeStory } from './story-document';
 
 export const GAME_ARRAYS = [

@@ -3,10 +3,10 @@ import { mkdir, readdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { IncomingMessage, ServerResponse } from 'node:http';
-import { GAMES } from '../../common/workspace';
+import { GAMES } from '../../lib/constants/workspace.constants';
 import { ApiError } from './repository';
-import { ImageDetails } from '../../common/game-images';
-import { httpUrl } from '../../common/story-template';
+import type { ImageDetails } from '../../lib/types/game-image.type';
+import { httpUrl } from '../../common/quests/story-template';
 
 export const imageRoot = fileURLToPath(new URL('../../guides-app/src/assets/', import.meta.url));
 const types: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' };

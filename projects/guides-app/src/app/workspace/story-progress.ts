@@ -1,5 +1,5 @@
 import { Entry } from './workspace.store';
-import { storyRowDone, storyTemplateFor } from '../../../../common/story-guide';
+import { storyRowDone, storyTemplateFor } from '../../../../common/quests/story-guide';
 
 export function storyTemplate(entry: Entry) {
     return storyTemplateFor(entry);

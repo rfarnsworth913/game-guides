@@ -200,7 +200,7 @@ older server-side `/api/auth/login` and `/api/auth/callback` routes or cookie se
    token audience; it does not need to be a reachable website. Configure user access for
    the SPA if your tenant requires explicit API client grants.
 5. Public domain, client ID and API audience settings live together in
-   `projects/common/auth0-config.ts`, imported by Angular and middleware. If using an
+   `projects/lib/constants/auth0-config.constants.ts`, imported by Angular and middleware. If using an
    existing API, put its exact Identifier in `audience` there. Do not use the SPA client ID
    or the Auth0 Management API as this app's audience.
 6. Set `APP_ORIGIN=http://localhost:4200` in root `.env`. Set `AUTH0_EDITOR_SUBJECTS` to

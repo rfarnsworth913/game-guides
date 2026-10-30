@@ -1,6 +1,6 @@
 import { storyProgress } from './story-progress';
 import { Entry } from './workspace.store';
-import { emptyPatchOverview } from '../../../../common/story-template';
+import { emptyPatchOverview } from '../../../../common/quests/story-template';
 
 describe('story completion', () => {
     it('counts quest rows and standalone entries but excludes headings and global notes', () => {

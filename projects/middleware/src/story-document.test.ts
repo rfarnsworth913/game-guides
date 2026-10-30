@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CatalogEntry, validCatalog } from '../../common/workspace';
+import type { CatalogEntry } from '../../lib/types/workspace.type';
+import { validCatalog } from '../../common/workspace/workspace';
 import { decodeEntries, encodeEntries, mergeEntries, migrateDocument } from './game-document';
 
 const section: CatalogEntry = {

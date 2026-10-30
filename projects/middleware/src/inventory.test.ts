@@ -3,13 +3,8 @@ import assert from 'node:assert/strict';
 import { AddressInfo } from 'node:net';
 import { createApi } from './server';
 import { editorFixture } from './test-support';
-import {
-    CatalogEntry,
-    PlayerState,
-    fromCatalog,
-    toCatalog,
-    validCatalog,
-} from '../../common/workspace';
+import type { CatalogEntry, PlayerState } from '../../lib/types/workspace.type';
+import { fromCatalog, toCatalog, validCatalog } from '../../common/workspace/workspace';
 import { decodeEntries, encodeEntries } from './game-document';
 
 const item: CatalogEntry = {

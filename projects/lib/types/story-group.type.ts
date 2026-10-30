@@ -1,4 +1,4 @@
-import type { StoryTableRow } from "../story-template";
+import type { StoryTableRow } from './story-template.type';
 
 export type StoryGroup = {
     id: string;

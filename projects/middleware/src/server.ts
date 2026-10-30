@@ -1,11 +1,13 @@
 import { lockedSecurity, Security } from './auth';
 import { ProgressRepository } from './progress';
-import { validProgressState } from '../../common/player-progress';
-import { characterCollectionFits, validCharacterRules } from '../../common/characters';
-import { TEAM_PROGRESS_ID, teamSize } from '../../common/teams';
+import { validProgressState } from '../../common/player/player-progress';
+import { characterCollectionFits, validCharacterRules } from '../../common/characters/characters';
+import { TEAM_PROGRESS_ID } from '../../lib/constants/team.constants';
+import { teamSize } from '../../common/player/teams';
 import { createServer, IncomingMessage, ServerResponse } from 'node:http';
-import { GAMES, validCatalog, fromCatalog } from '../../common/workspace';
-import { storyCompletionKey } from '../../common/story-guide';
+import { GAMES } from '../../lib/constants/workspace.constants';
+import { validCatalog, fromCatalog } from '../../common/workspace/workspace';
+import { storyCompletionKey } from '../../common/quests/story-guide';
 import { ApiError, GameRepository } from './repository';
 import { handleGameImages, imageRoot } from './game-images';
 
@@ -179,7 +181,7 @@ export function createApi(
                 );
             }
             if ('characterRules' in body && !validCharacterRules(body.characterRules)) throw new ApiError(400, 'Invalid character rules.');
-            respond(response, 200, await repository.write(id, body.entries, Number(body.revision), 'characterRules' in body ? body.characterRules as import('../../common/characters').CharacterRules : undefined));
+            respond(response, 200, await repository.write(id, body.entries, Number(body.revision), 'characterRules' in body ? body.characterRules as import("../../lib/types/character.type").CharacterRules : undefined));
         };
         handle().catch((error: unknown) => {
             const known = error instanceof ApiError;

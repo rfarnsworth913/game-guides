@@ -2,9 +2,9 @@ import { Component, computed, effect, inject, input, output, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from './workspace.store';
 import { DialogFocusDirective } from './dialog-focus';
-import { guideUrl } from '../../../../common/characters';
-import { storyImageUrl } from '../../../../common/story-template';
-import { characterCosts, hasCharacterGoal } from '../../../../common/farming';
+import { guideUrl } from '../../../../common/characters/characters';
+import { storyImageUrl } from '../../../../common/quests/story-template';
+import { characterCosts, hasCharacterGoal } from '../../../../common/farming/farming';
 import { inventoryItems, InventoryItemView, readyPlans } from './inventory-model';
 
 @Component({

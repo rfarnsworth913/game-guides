@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from './patch-overview';
 import { Entry, WorkspaceStore } from './workspace.store';
-import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from '../../../../common/story-template';
-import { reworkMainQuestTemplate } from '../../../../common/main-quest';
+import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from '../../../../common/quests/story-template';
+import { reworkMainQuestTemplate } from '../../../../common/quests/main-quest';
 
 describe('Patch Overview grouped row editor', () => {
     it.each(['main-story', 'side-stories'])('allows regular cutscene groups within %s without creating or promoting a parent quest', category => {

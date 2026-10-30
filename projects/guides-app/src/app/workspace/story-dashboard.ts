@@ -1,7 +1,7 @@
 import { Entry } from './workspace.store';
 import { storyProgress, storyTemplate } from './story-progress';
 import { StoryPosition } from './story-position.store';
-import { storyRowDone } from '../../../../common/story-guide';
+import { storyRowDone } from '../../../../common/quests/story-guide';
 
 export function storyDashboard(entries: Entry[], game: string, position?: StoryPosition) {
     const sections = entries.filter(e => e.game === game && e.kind === 'story-category').sort(ordered);
