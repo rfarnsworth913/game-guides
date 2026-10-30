@@ -16,6 +16,7 @@ async function run(args) {
     if (code !== 0) throw new Error(`Browser integration process exited with status ${code}.`);
 }
 try {
+    await run([resolve('node_modules/typescript/bin/tsc'), '-p', 'projects/middleware/e2e/tsconfig.json']);
     await run([resolve('node_modules/@angular/cli/bin/ng.js'), 'build', '--configuration', 'e2e']);
     await run(['--import', 'tsx', 'projects/middleware/e2e/stack-smoke.ts']);
 } catch (error) {

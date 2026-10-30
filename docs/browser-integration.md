@@ -2,7 +2,7 @@
 
 Run `npm run ui:e2e` with a local MongoDB instance available on `127.0.0.1:27017`. Set `E2E_MONGODB_URI` explicitly to use another test MongoDB instance. Install the Puppeteer browser first with `npx puppeteer browsers install chrome`; on Ubuntu, add `--install-deps` to install browser system libraries.
 
-The command builds the real Angular application using the explicit `e2e` configuration, then starts a static UI server and the real API on automatically assigned loopback ports. It does not start, stop, or reconfigure your normal application or MongoDB server. The harness does not read `.env` or use `DB_NAME`, `DB_COLLECTION`, or production upload directories.
+The command type-checks the E2E harness, builds the real Angular application using the explicit `e2e` configuration, then starts a static UI server and the real API on automatically assigned loopback ports. It does not start, stop, or reconfigure your normal application or MongoDB server. The harness does not read `.env` or use `DB_NAME`, `DB_COLLECTION`, or production upload directories.
 
 ## Authentication boundary
 
@@ -26,4 +26,4 @@ The suite verifies guest local completion and reload persistence; signed-in comp
 
 `.github/workflows/browser-integration.yml` runs this suite separately on Ubuntu with MongoDB 7 and Puppeteer's browser dependencies. After observing it pass on GitHub, add **Browser integration / browser-integration** to required branch checks alongside unit tests and lint. The workflow's presence does not itself configure branch protection. Keep provider-specific testing tracked separately; this automated suite is not a claim that hosted provider flows were exercised.
 
-The obsolete cookie/session smoke implementation is no longer used by `ui:e2e`. `story-smoke.mjs` and `patch-smoke.mjs` remain legacy helpers and are not coverage for the current UI.
+The obsolete scripts under `scripts/` and the unused middleware story, patch, and parser smoke helpers have been removed. `projects/middleware/stack-smoke.mjs` remains the active launcher for the maintained E2E suite. Parser persistence and legacy migration checks remain in the normal parser/middleware test suites.
