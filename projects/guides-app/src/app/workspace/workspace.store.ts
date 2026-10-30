@@ -347,6 +347,14 @@ export class WorkspaceStore {
         }
         return this.save({ ...entry, characterCollection: structuredClone(collection) });
     }
+    async saveInventoryQuantities(game: string, changes: Record<string, number>): Promise<boolean> {
+        const updates = Object.entries(changes);
+        if (!updates.length || !updates.every(([id, quantity]) => {
+            const item = this.entries().find(entry => entry.game === game && entry.id === id && entry.kind === 'inventory');
+            return !!item && Number.isSafeInteger(quantity) && quantity >= 0 && quantity <= (item.maxStack ?? 1e9);
+        })) { this.error.set('Enter whole quantities between zero and each item’s stack limit.'); return false; }
+        return this.replace(this.entries().map(entry => entry.game === game && entry.kind === 'inventory' && Object.hasOwn(changes, entry.id) ? { ...entry, quantity: changes[entry.id] } : entry));
+    }
     async saveTeam(game: string, team: Team): Promise<boolean> {
         return this.restoreTeams({ [game]: [team] });
     }

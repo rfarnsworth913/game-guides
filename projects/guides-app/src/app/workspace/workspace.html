@@ -423,6 +423,8 @@
                 </section>
             } @else if (page() === 'characters') {
                 @if (context(); as game) { <gg-characters [game]="game.id" /> }
+            } @else if (page() === 'inventory') {
+                @if (context(); as game) { <gg-inventory [game]="game.id" (edit)="open('inventory', $event)" (remove)="pendingDelete = $event" /> }
             } @else if (page() === 'teams') {
                 @if (context(); as game) { <gg-teams [game]="game.id" /> }
             } @else if (page() === 'events') {
@@ -722,6 +724,10 @@
                     /></label>
                 }
                 @if (e.kind === 'inventory') {
+                    <gg-game-image-picker [game]="e.game" label="Item artwork" [value]="e.icon ?? ''" (valueChange)="e.icon = $event" />
+                    <label>Region (optional)<input name="region" [(ngModel)]="e.region" maxlength="160" /></label>
+                    <label>Stack limit (optional)<input name="maxStack" type="number" min="1" max="1000000000" step="1" [ngModel]="e.maxStack" (ngModelChange)="setMaxStack($event)" /></label>
+                    <label>Item reference URL (optional)<input name="itemUrl" type="url" [(ngModel)]="e.wikiUrl" placeholder="https://" /></label>
                     <label
                         >Farming availability<select name="day" [(ngModel)]="e.day">
                             @for (day of days; track day) {

@@ -102,6 +102,9 @@ export function createApi(
                     }
                     const entry = catalogs.get(game)!.get(id);
                     if (!entry) throw new ApiError(400, 'Progress references unknown content.');
+                    if (entry.kind === 'inventory' && (!Number.isSafeInteger(state.quantity) || state.quantity > (entry.maxStack ?? 1e9))) {
+                        throw new ApiError(400, 'Inventory quantities must be whole numbers within the item stack limit.');
+                    }
                     if (state.characterCollection) {
                         const rules = gameRules.get(game);
                         if (entry.kind !== 'characters' || ((state.characterCollection.owned || state.characterCollection.target) && (!rules || !characterCollectionFits(state.characterCollection, rules, entry.characterDefinition)))) {

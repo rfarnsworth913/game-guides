@@ -1,0 +1,455 @@
+<section class="inventory-page" aria-label="Inventory materials and resources">
+    <div class="inventory-summary">
+        <article>
+            <span>Items owned</span><strong>{{ fullNumber.format(ownedCount()) }}</strong
+            ><small>Distinct materials with stock</small>
+        </article>
+        <article>
+            <span>Needed for plans</span><strong>{{ fullNumber.format(neededCount()) }}</strong
+            ><small>Material types in active plans</small>
+        </article>
+        <article title="Each plan is checked independently. Shared inventory is not reserved.">
+            <span>Plans ready</span><strong>{{ readyCount() }}</strong
+            ><small>Requirements covered individually</small>
+        </article>
+    </div>
+    <div class="inventory-toolbar">
+        <input
+            type="search"
+            aria-label="Search inventory"
+            placeholder="Search materials, items, categories…"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+        />
+        <button
+            type="button"
+            [attr.aria-expanded]="filtersOpen()"
+            aria-controls="inventory-filters"
+            (click)="filtersOpen.set(!filtersOpen())"
+        >
+            Filters
+        </button>
+        <select
+            aria-label="Inventory display"
+            [ngModel]="detailed()"
+            (ngModelChange)="detailed.set($event)"
+        >
+            <option [ngValue]="false">Compact grid</option>
+            <option [ngValue]="true">Detailed grid</option>
+        </select>
+    </div>
+    <div class="inventory-categories" aria-label="Inventory categories">
+        <button
+            type="button"
+            [class.active]="category() === null"
+            [attr.aria-pressed]="category() === null"
+            (click)="category.set(null)"
+        >
+            All items
+        </button>
+        @for (value of categories(); track value) {
+            <button
+                type="button"
+                [class.active]="category() === value"
+                [attr.aria-pressed]="category() === value"
+                (click)="category.set(value)"
+            >
+                {{ value || 'Uncategorized' }}
+            </button>
+        }
+    </div>
+    @if (filtersOpen()) {
+        <div id="inventory-filters" class="inventory-filters">
+            <label
+                ><input
+                    type="checkbox"
+                    [ngModel]="ownedOnly()"
+                    (ngModelChange)="ownedOnly.set($event)"
+                />
+                Owned only</label
+            >
+            <label
+                ><input
+                    type="checkbox"
+                    [ngModel]="missingOnly()"
+                    (ngModelChange)="missingOnly.set($event)"
+                />
+                Missing for plans</label
+            >
+            <label
+                ><input
+                    type="checkbox"
+                    [ngModel]="coveredOnly()"
+                    (ngModelChange)="coveredOnly.set($event)"
+                />
+                Requirements covered</label
+            >
+            <label
+                >Rarity<select [ngModel]="rarity()" (ngModelChange)="rarity.set($event)">
+                    <option value="">All rarities</option>
+                    @for (value of rarities(); track value) {
+                        <option [value]="value">{{ value }} stars</option>
+                    }
+                </select></label
+            >
+            @if (regions().length) {
+                <label
+                    >Region<select [ngModel]="region()" (ngModelChange)="region.set($event)">
+                        <option value="">All regions</option>
+                        @for (value of regions(); track value) {
+                            <option [value]="value">{{ value }}</option>
+                        }
+                    </select></label
+                >
+            }
+            <button type="button" (click)="resetFilters()">Reset filters</button>
+        </div>
+    }
+    <div class="inventory-section-heading">
+        <h2>
+            Materials <small>{{ filtered().length }}</small>
+        </h2>
+        <div class="inventory-controls">
+            <label class="inventory-check"
+                ><input
+                    type="checkbox"
+                    [ngModel]="quickEdit()"
+                    (ngModelChange)="quickEdit.set($event)"
+                />
+                Quick edit</label
+            >
+            <select
+                aria-label="Sort inventory"
+                [ngModel]="sort()"
+                (ngModelChange)="sort.set($event)"
+            >
+                <option value="name">Name A–Z</option>
+                <option value="quantity">Quantity: high to low</option>
+                <option value="rarity">Rarity: high to low</option>
+                <option value="missing">Missing: high to low</option>
+            </select>
+            <button type="button" (click)="startBulk()" [disabled]="busy() || !visible().length">
+                Bulk entry
+            </button>
+        </div>
+    </div>
+    <details class="inventory-plan-info">
+        <summary>About plan requirements</summary>
+        <p class="inventory-help">
+            Quantities are shared across your plans for this game. Requirements use saved material
+            plans; character goals need upgrade recipes before their costs can be calculated.
+            Inventory is not reserved between plans.
+        </p>
+    </details>
+    @if (error() && !selected() && !bulk) {
+        <p role="alert" class="alert">{{ error() }}</p>
+    }
+    @if (message()) {
+        <p role="status" class="inventory-message">{{ message() }}</p>
+    }
+    @if (store.loading()) {
+        <p role="status">Loading inventory…</p>
+    }
+    <div class="inventory-grid" [class.detailed]="detailed()">
+        @for (view of visible(); track view.item.id) {
+            <article
+                class="inventory-tile"
+                [class.is-needed]="view.missing > 0"
+                [class.is-covered]="view.required > 0 && view.missing === 0"
+                [attr.data-rarity]="view.item.rarity"
+            >
+                <button
+                    type="button"
+                    class="inventory-item-button"
+                    [disabled]="busy()"
+                    (click)="open(view)"
+                    [title]="label(view)"
+                    [attr.aria-label]="label(view)"
+                >
+                    <span class="inventory-artwork">
+                        @if (image(view.item); as icon) {
+                            <img
+                                [src]="icon"
+                                alt=""
+                                loading="lazy"
+                                (error)="imageFailed(view.item)"
+                            />
+                        } @else {
+                            <span class="inventory-initial" aria-hidden="true">{{
+                                view.item.name.slice(0, 2)
+                            }}</span>
+                        }
+                        <small class="inventory-rarity" aria-hidden="true"
+                            >{{ view.item.rarity }}★</small
+                        >
+                    </span>
+                    <span class="inventory-item-copy">
+                        <strong class="inventory-quantity">{{
+                            compactNumber.format(view.owned)
+                        }}</strong>
+                        @if (detailed() || !image(view.item)) {
+                            <span class="inventory-item-name">{{ view.item.name }}</span>
+                        }
+                        @if (detailed()) {
+                            <small>{{ view.item.category || 'Uncategorized' }}</small>
+                        }
+                        @if (view.required) {
+                            <small class="inventory-need"
+                                >Need {{ compactNumber.format(view.required) }}</small
+                            >
+                            @if (detailed()) {
+                                <small>{{
+                                    view.missing
+                                        ? compactNumber.format(view.missing) + ' missing'
+                                        : 'Requirement covered'
+                                }}</small
+                                ><progress
+                                    [max]="view.required"
+                                    [value]="view.owned"
+                                    [attr.aria-label]="view.item.name + ' collection progress'"
+                                ></progress>
+                            }
+                        }
+                    </span>
+                </button>
+                @if (quickEdit()) {
+                    <div class="inventory-quick-edit">
+                        <button
+                            type="button"
+                            (click)="quickAdjust(view, -1)"
+                            [disabled]="busy() || view.owned === 0"
+                            [attr.aria-label]="'Remove one ' + view.item.name"
+                        >
+                            −
+                        </button>
+                        <span [title]="fullNumber.format(view.owned)">{{
+                            compactNumber.format(view.owned)
+                        }}</span>
+                        <button
+                            type="button"
+                            (click)="quickAdjust(view, 1)"
+                            [disabled]="busy() || view.owned >= limit(view.item)"
+                            [attr.aria-label]="'Add one ' + view.item.name"
+                        >
+                            +
+                        </button>
+                    </div>
+                }
+            </article>
+        } @empty {
+            @if (!busy()) {
+                <div class="inventory-empty">
+                    <h3>
+                        {{ items().length ? 'No matching materials' : 'No inventory items yet' }}
+                    </h3>
+                    <p>
+                        {{
+                            items().length
+                                ? 'Try another category, search, or filter.'
+                                : 'An editor can add materials and their in-game artwork to the shared catalog. Your owned quantities stay personal.'
+                        }}
+                    </p>
+                    @if (items().length) {
+                        <button type="button" (click)="resetFilters()">Clear filters</button>
+                    }
+                </div>
+            }
+        }
+    </div>
+    @if (visible().length < filtered().length) {
+        <button
+            type="button"
+            class="inventory-load-more"
+            (click)="visibleCount.set(visibleCount() + 96)"
+        >
+            Show more ({{ visible().length }} / {{ filtered().length }})
+        </button>
+    }
+</section>
+@if (selected(); as view) {
+    <div class="modal-backdrop">
+        <section
+            class="modal inventory-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-item-title"
+            ggDialogFocus
+            (keydown.escape)="close()"
+        >
+            <div class="inventory-detail-heading">
+                @if (image(view.item); as icon) {
+                    <img [src]="icon" alt="" (error)="imageFailed(view.item)" />
+                }
+                <div>
+                    <h2 id="inventory-item-title">{{ view.item.name }}</h2>
+                    <p>
+                        {{ view.item.category || 'Material' }} · {{ view.item.rarity }}★
+                        @if (view.item.region) {
+                            · {{ view.item.region }}
+                        }
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    (click)="close()"
+                    [disabled]="busy()"
+                    aria-label="Close item details"
+                >
+                    ×
+                </button>
+            </div>
+            @if (error()) {
+                <p class="alert" role="alert">{{ error() }}</p>
+            }
+            <dl class="inventory-detail-stats">
+                <div>
+                    <dt>Owned</dt>
+                    <dd
+                        [title]="fullNumber.format(view.owned)"
+                        [attr.aria-label]="fullNumber.format(view.owned)"
+                    >
+                        {{ compactNumber.format(view.owned) }}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Required</dt>
+                    <dd
+                        [title]="fullNumber.format(view.required)"
+                        [attr.aria-label]="fullNumber.format(view.required)"
+                    >
+                        {{ compactNumber.format(view.required) }}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Missing</dt>
+                    <dd
+                        [title]="fullNumber.format(view.missing)"
+                        [attr.aria-label]="fullNumber.format(view.missing)"
+                    >
+                        {{ compactNumber.format(view.missing) }}
+                    </dd>
+                </div>
+            </dl>
+            <label class="inventory-exact"
+                >Set exact quantity<input
+                    type="number"
+                    min="0"
+                    step="1"
+                    [max]="limit(view.item)"
+                    [ngModel]="quantity()"
+                    (ngModelChange)="quantity.set($event)"
+                    [disabled]="busy()"
+            /></label>
+            <div class="inventory-detail-actions">
+                <button
+                    type="button"
+                    (click)="adjustDraft(-1)"
+                    [disabled]="busy() || (quantity() ?? 0) <= 0"
+                >
+                    − Remove</button
+                ><button
+                    type="button"
+                    (click)="adjustDraft(1)"
+                    [disabled]="busy() || (quantity() ?? 0) >= limit(view.item)"
+                >
+                    + Add</button
+                ><button
+                    type="button"
+                    class="primary"
+                    (click)="save()"
+                    [disabled]="
+                        busy() || !validQuantity(view.item, quantity()) || quantity() === view.owned
+                    "
+                >
+                    Save quantity
+                </button>
+            </div>
+            @if (message()) {
+                <p role="status" class="inventory-message">{{ message() }}</p>
+            }
+            <h3>Used by active plans</h3>
+            @for (usage of view.usages; track usage.id) {
+                <div class="inventory-usage">
+                    <span
+                        >{{ usage.name }}
+                        @if (usage.characters.length) {
+                            <small> · {{ usage.characters.join(', ') }}</small>
+                        }</span
+                    ><strong>{{ fullNumber.format(usage.quantity) }}</strong>
+                </div>
+            } @empty {
+                <p class="inventory-help">No saved material plans require this item.</p>
+            }
+            @if (wiki(view.item); as url) {
+                <p>
+                    <a [href]="url" target="_blank" rel="noopener noreferrer">Item reference ↗</a>
+                </p>
+            }
+            @if (store.canEdit()) {
+                <div class="inventory-detail-actions">
+                    <button
+                        type="button"
+                        (click)="close(); edit.emit(view.item)"
+                        [disabled]="busy()"
+                    >
+                        Edit catalog item</button
+                    ><button
+                        type="button"
+                        (click)="close(); remove.emit(view.item)"
+                        [disabled]="busy()"
+                    >
+                        Delete catalog item
+                    </button>
+                </div>
+            }
+        </section>
+    </div>
+}
+@if (bulk; as quantities) {
+    <div class="modal-backdrop">
+        <section
+            class="modal inventory-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-bulk-title"
+            ggDialogFocus
+            (keydown.escape)="close()"
+        >
+            <div class="inventory-detail-heading">
+                <h2 id="inventory-bulk-title">Bulk quantity entry</h2>
+                <button
+                    type="button"
+                    (click)="close()"
+                    [disabled]="busy()"
+                    aria-label="Close bulk entry"
+                >
+                    ×
+                </button>
+            </div>
+            <p class="inventory-help">
+                Update the {{ bulkItems().length }} items displayed when you opened this panel. All
+                edited quantities save together.
+            </p>
+            @if (error()) {
+                <p class="alert" role="alert">{{ error() }}</p>
+            }
+            @for (view of bulkItems(); track view.item.id) {
+                <label class="inventory-bulk-row"
+                    ><span>{{ view.item.name }}</span
+                    ><input
+                        type="number"
+                        min="0"
+                        step="1"
+                        [max]="limit(view.item)"
+                        [(ngModel)]="quantities[view.item.id]"
+                        [disabled]="busy()"
+                /></label>
+            }
+            <div class="inventory-detail-actions">
+                <button type="button" class="primary" (click)="saveBulk()" [disabled]="busy()">
+                    Save quantities</button
+                ><button type="button" (click)="close()" [disabled]="busy()">Cancel</button>
+            </div>
+        </section>
+    </div>
+}

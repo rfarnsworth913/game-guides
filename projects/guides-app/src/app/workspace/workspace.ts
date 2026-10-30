@@ -12,6 +12,8 @@ import { Story } from './story';
 import { Characters } from './characters';
 import { Events } from './events';
 import { Teams } from './teams';
+import { Inventory } from './inventory';
+import { GameImagePicker } from './game-image-picker';
 import { EventType } from '../../../../common/enums/event-types.enum';
 import { guideUrl } from '../../../../common/characters';
 import { eventDate } from './event-calendar';
@@ -23,7 +25,7 @@ import { storyProgress } from './story-progress';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, BackToTop],
+    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, GameImagePicker, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })
@@ -287,6 +289,11 @@ export class Workspace {
             this.editor = null;
             this.notice.set('Game data saved. Player progress stays on this device.');
         }
+    }
+    setMaxStack(value: number | null): void {
+        if (!this.editor) return;
+        if (value === null) delete this.editor.maxStack;
+        else this.editor.maxStack = value;
     }
     async toggleDone(entry: Entry): Promise<void> {
         await this.store.save({ ...entry, completed: !entry.completed });

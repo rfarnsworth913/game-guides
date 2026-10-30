@@ -13,6 +13,8 @@ export type Kind =
     | 'achievement-category'
     | 'story-category';
 export type Entry = {
+    region?: string;
+    maxStack?: number;
     startDate?: string;
     endDate?: string;
     eventType?: string;
@@ -97,6 +99,8 @@ export function toCatalog(entry: Entry): CatalogEntry {
         requirements: entry.requirements,
         order: entry.order,
         day: entry.day,
+        ...(entry.region !== undefined ? { region: entry.region } : {}),
+        ...(entry.maxStack !== undefined ? { maxStack: entry.maxStack } : {}),
         ...(entry.startDate !== undefined ? { startDate: entry.startDate } : {}),
         ...(entry.endDate !== undefined ? { endDate: entry.endDate } : {}),
         ...(entry.eventType !== undefined ? { eventType: entry.eventType } : {}),
@@ -134,6 +138,8 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'requirements',
         'order',
         'day',
+        'region',
+        'maxStack',
         'startDate',
         'endDate',
         'eventType',
@@ -258,6 +264,9 @@ export function validEntries(value: unknown): value is Entry[] {
                 typeof e.category === 'string' &&
                 typeof e.day === 'string' &&
                 typeof e.completed === 'boolean' &&
+                (e.region === undefined || (e.kind === 'inventory' && typeof e.region === 'string' && e.region.length <= 160)) &&
+                (e.maxStack === undefined || (e.kind === 'inventory' && Number.isSafeInteger(e.maxStack) && e.maxStack >= 1 && e.maxStack <= 1e9)) &&
+                (e.kind !== 'inventory' || (Number.isSafeInteger(e.quantity) && e.quantity <= (e.maxStack ?? 1e9))) &&
                 [e.startDate, e.endDate, e.eventType].every((field) => typeof field === 'undefined' || (typeof field === 'string' && field.length <= 160)) &&
                 validPatchOverview(e.patchOverview) &&
                 validPatchOverview(e.mainStory) &&
