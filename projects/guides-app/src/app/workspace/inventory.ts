@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from './workspace.store';
 import { DialogFocusDirective } from './dialog-focus';
 import { guideUrl } from '../../../../common/characters';
+import { storyImageUrl } from '../../../../common/story-template';
+import { characterCosts, hasCharacterGoal } from '../../../../common/farming';
 import { inventoryItems, InventoryItemView, readyPlans } from './inventory-model';
 
 @Component({
@@ -54,6 +56,7 @@ export class Inventory {
     );
     readonly ownedCount = computed(() => this.items().filter((view) => view.owned > 0).length);
     readonly neededCount = computed(() => this.items().filter((view) => view.required > 0).length);
+    readonly incompleteCharacters = computed(() => this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'characters' && entry.characterCollection?.owned && hasCharacterGoal(entry.characterCollection) && characterCosts(entry.characterDefinition, entry.characterCollection).issues.length).length);
     readonly readyCount = computed(() => readyPlans(this.store.entries(), this.game()));
     readonly filtered = computed(() =>
         this.items()
@@ -140,7 +143,7 @@ export class Inventory {
         if (!item.icon || this.failedImages().has(`${item.id}:${item.icon}`)) {return null;}
         if (/^\/?(icons|images|assets)\/[\w/.,% -]+$/i.test(item.icon))
             {return '/' + item.icon.replace(/^\//, '');}
-        return guideUrl(item.icon) ? item.icon : null;
+        return storyImageUrl(item.icon);
     }
     imageFailed(item: Entry): void {
         this.failedImages.update((ids) => new Set([...ids, `${item.id}:${item.icon}`]));

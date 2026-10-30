@@ -1,4 +1,5 @@
 import { Entry } from './workspace.store';
+import { characterCosts, hasCharacterGoal } from '../../../../common/farming';
 
 export type MaterialUsage = { id: string; name: string; quantity: number; characters: string[] };
 export type InventoryItemView = {
@@ -43,6 +44,10 @@ export function inventoryItems(entries: Entry[], game: string): InventoryItemVie
                 ]);}
         });
     }
+    for (const character of entries.filter(entry => entry.game === game && entry.kind === 'characters' && entry.characterCollection?.owned && hasCharacterGoal(entry.characterCollection))) {
+        const result = characterCosts(character.characterDefinition, character.characterCollection);
+        result.costs.forEach((quantity, id) => usageByItem.set(id, [...(usageByItem.get(id) ?? []), { id: character.id, name: `${character.name} development`, quantity, characters: [character.name] }]));
+    }
     return entries
         .filter((entry) => entry.game === game && entry.kind === 'inventory')
         .map((item) => {
@@ -64,7 +69,7 @@ export function readyPlans(entries: Entry[], game: string): number {
             .filter((entry) => entry.game === game && entry.kind === 'inventory')
             .map((entry) => [entry.id, entry.quantity]),
     );
-    return entries.filter((entry) => {
+    const materialPlans = entries.filter((entry) => {
         if (
             entry.game !== game ||
             entry.kind !== 'plans' ||
@@ -78,4 +83,10 @@ export function readyPlans(entries: Entry[], game: string): number {
         );
         return [...needs].every(([id, quantity]) => (items.get(id) ?? 0) >= quantity);
     }).length;
+    const characterPlans = entries.filter(entry => {
+        if (entry.game !== game || entry.kind !== 'characters' || !entry.characterCollection?.owned || !hasCharacterGoal(entry.characterCollection)) return false;
+        const result = characterCosts(entry.characterDefinition, entry.characterCollection);
+        return !result.issues.length && [...result.costs].every(([id, quantity]) => (items.get(id) ?? 0) >= quantity);
+    }).length;
+    return materialPlans + characterPlans;
 }

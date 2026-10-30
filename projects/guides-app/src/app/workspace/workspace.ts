@@ -13,6 +13,7 @@ import { Characters } from './characters';
 import { Events } from './events';
 import { Teams } from './teams';
 import { Inventory } from './inventory';
+import { Farming } from './farming';
 import { GameImagePicker } from './game-image-picker';
 import { EventType } from '../../../../common/enums/event-types.enum';
 import { guideUrl } from '../../../../common/characters';
@@ -25,7 +26,7 @@ import { storyProgress } from './story-progress';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, GameImagePicker, BackToTop],
+    imports: [AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop],
     templateUrl: './workspace.html',
     styleUrl: './workspace.scss',
 })

@@ -1,0 +1,244 @@
+<div class="modal-backdrop">
+    <section
+        class="modal farming-data-editor"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="farming-data-title"
+        ggDialogFocus
+        (keydown.escape)="close()"
+    >
+        <div class="data-toolbar">
+            <h2 id="farming-data-title">Farming data</h2>
+            <button
+                type="button"
+                (click)="close()"
+                [disabled]="store.saving()"
+                aria-label="Close farming data"
+            >
+                ×
+            </button>
+        </div>
+        <p>
+            Enter verified game data. Unconfigured recipes and schedules remain unavailable. These
+            definitions are shared with everyone in this game.
+        </p>
+        <div class="data-toolbar" aria-label="Farming data section">
+            @for (value of ['sources', 'recipes', 'servers']; track value) {
+                <button
+                    type="button"
+                    [attr.aria-pressed]="tab() === value"
+                    (click)="tab.set($any(value))"
+                >
+                    {{ value }}
+                </button>
+            }
+        </div>
+        @if (error) {
+            <p class="alert" role="alert">{{ error }}</p>
+        }
+        <fieldset [disabled]="store.saving()">
+            @if (tab() === 'sources') {
+                @for (source of data.sources; track source.id) {
+                    <section class="data-card">
+                        <div class="data-pair">
+                            <label
+                                >Source name<input
+                                    [(ngModel)]="source.name"
+                                    maxlength="160" /></label
+                            ><label
+                                >Source category<input
+                                    [(ngModel)]="source.category"
+                                    maxlength="160"
+                                    placeholder="Use this game's category name"
+                            /></label>
+                        </div>
+                        <div class="data-pair">
+                            <label
+                                >Region<input [(ngModel)]="source.region" maxlength="160" /></label
+                            ><label
+                                >Location<input [(ngModel)]="source.location" maxlength="160"
+                            /></label>
+                        </div>
+                        <label
+                            >Map or farming guide URL<input
+                                type="url"
+                                [(ngModel)]="source.url"
+                                placeholder="https://"
+                        /></label>
+                        <label
+                            >Restrictions or farming notes<textarea
+                                rows="2"
+                                [(ngModel)]="source.restrictions"
+                                maxlength="2000"
+                            ></textarea>
+                        </label>
+                        <details>
+                            <summary>Materials ({{ source.materialIds.length }} selected)</summary>
+                            <div class="data-choices">
+                                @for (item of items(); track item.id) {
+                                    <label
+                                        ><input
+                                            type="checkbox"
+                                            [checked]="source.materialIds.includes(item.id)"
+                                            (change)="toggleMaterial(source, item.id)"
+                                        />{{ item.name }}</label
+                                    >
+                                } @empty {
+                                    <p>Add inventory items first.</p>
+                                }
+                            </div>
+                        </details>
+                        <p>
+                            Verified availability days. Leave all unchecked for unknown
+                            availability.
+                        </p>
+                        <div class="data-toolbar">
+                            @for (day of weekdays; track day.id) {
+                                <label
+                                    ><input
+                                        type="checkbox"
+                                        [checked]="source.days?.includes(day.id) ?? false"
+                                        (change)="toggleDay(source, day.id)"
+                                    />{{ day.label }}</label
+                                >
+                            }
+                        </div>
+                        <button type="button" (click)="data.sources.splice($index, 1)">
+                            Remove source
+                        </button>
+                    </section>
+                } @empty {
+                    <p>No farming sources configured.</p>
+                }
+                <button type="button" (click)="addSource()">+ Farming source</button>
+            } @else if (tab() === 'servers') {
+                <p>
+                    Each server needs its actual time zone and daily reset time. No game's reset
+                    time is assumed.
+                </p>
+                @for (server of data.servers; track server.id) {
+                    <section class="data-card">
+                        <label>Server name<input [(ngModel)]="server.name" /></label
+                        ><label
+                            >Time zone (IANA)<input
+                                [(ngModel)]="server.timeZone"
+                                placeholder="For example, Asia/Shanghai"
+                        /></label>
+                        <div class="data-pair">
+                            <label
+                                >Reset hour<input
+                                    type="number"
+                                    min="0"
+                                    max="23"
+                                    [(ngModel)]="server.resetHour" /></label
+                            ><label
+                                >Reset minute<input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    [(ngModel)]="server.resetMinute"
+                            /></label>
+                        </div>
+                        <button type="button" (click)="data.servers.splice($index, 1)">
+                            Remove server
+                        </button>
+                    </section>
+                }
+                <button type="button" (click)="addServer()">+ Server schedule</button>
+            } @else {
+                <label
+                    >Character<select [(ngModel)]="characterId">
+                        @for (character of characters(); track character.id) {
+                            <option [value]="character.id">{{ character.name }}</option>
+                        }
+                    </select></label
+                >
+                <p>
+                    Record each verified upgrade transition separately. Empty material costs mean a
+                    verified free upgrade; an absent transition means unknown cost.
+                </p>
+                @for (recipe of recipes[characterId] ?? []; track $index) {
+                    <section class="data-card">
+                        <label
+                            >Upgrade type<select
+                                [(ngModel)]="recipe.kind"
+                                (ngModelChange)="changeKind(recipe)"
+                            >
+                                <option value="level">Character level</option>
+                                <option value="ascension">Ascension</option>
+                                <option value="skill">Skill level</option>
+                                <option value="progression">Additional progression</option>
+                            </select></label
+                        >
+                        @if (recipe.kind === 'skill') {
+                            <label
+                                >Skill<select [(ngModel)]="recipe.key">
+                                    @for (skill of skills(); track skill.id) {
+                                        <option [value]="skill.id">{{ skill.name }}</option>
+                                    }
+                                </select></label
+                            >
+                        }
+                        @if (recipe.kind === 'progression') {
+                            <label
+                                >Progression track<select [(ngModel)]="recipe.key">
+                                    @for (track of tracks(); track track.id) {
+                                        <option [value]="track.id">{{ track.label }}</option>
+                                    }
+                                </select></label
+                            >
+                        }
+                        <div class="data-pair">
+                            <label
+                                >From<input
+                                    type="number"
+                                    min="0"
+                                    max="999"
+                                    [ngModel]="recipe.from"
+                                    (ngModelChange)="changeFrom(recipe, $event)" /></label
+                            ><label>To<input type="number" [ngModel]="recipe.to" readonly /></label>
+                        </div>
+                        @for (cost of recipe.materials; track $index) {
+                            <div class="data-pair">
+                                <label
+                                    >Material<select [(ngModel)]="cost.item">
+                                        @for (item of items(); track item.id) {
+                                            <option [value]="item.id">{{ item.name }}</option>
+                                        }
+                                    </select></label
+                                ><label
+                                    >Quantity<input
+                                        type="number"
+                                        min="1"
+                                        max="1000000000"
+                                        [(ngModel)]="cost.amount" /></label
+                                ><button type="button" (click)="recipe.materials.splice($index, 1)">
+                                    Remove material
+                                </button>
+                            </div>
+                        }
+                        <div class="data-toolbar">
+                            <button
+                                type="button"
+                                (click)="addCost(recipe)"
+                                [disabled]="!items().length"
+                            >
+                                + Material cost</button
+                            ><button type="button" (click)="recipes[characterId].splice($index, 1)">
+                                Remove transition
+                            </button>
+                        </div>
+                    </section>
+                }
+                <button type="button" (click)="addRecipe()" [disabled]="!characterId">
+                    + Upgrade transition
+                </button>
+            }
+        </fieldset>
+        <div class="data-toolbar">
+            <button type="button" class="primary" (click)="save()" [disabled]="store.saving()">
+                Save farming data</button
+            ><button type="button" (click)="close()" [disabled]="store.saving()">Cancel</button>
+        </div>
+    </section>
+</div>

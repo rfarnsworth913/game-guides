@@ -372,57 +372,9 @@
                     }
                 </div>
             } @else if (page() === 'farming') {
-                <section class="panel">
-                    <div class="section-title">
-                        <h2>Combined material requirements</h2>
-                        <span class="pill">{{ plans().length }} active plans</span>
-                    </div>
-                    <p class="section-subtitle">
-                        Requirements are added across plans, then compared with your inventory.
-                        Completing a plan removes its requirements; inventory is adjusted manually.
-                    </p>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Material</th>
-                                    <th>Game</th>
-                                    <th>Owned</th>
-                                    <th>Required</th>
-                                    <th>Missing</th>
-                                    <th>Farm on</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (m of materials(); track m.id) {
-                                    <tr>
-                                        <td>{{ m.name }}</td>
-                                        <td>{{ gameName(m.game) }}</td>
-                                        <td>{{ m.own }}</td>
-                                        <td>{{ m.need }}</td>
-                                        <td [class.ready]="m.missing === 0">
-                                            {{ m.missing || 'Ready' }}
-                                        </td>
-                                        <td>{{ m.day }}</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                    @if (!materials().length) {
-                        <div class="empty">
-                            <h3>No materials to farm yet</h3>
-                            <p>
-                                Add inventory items, then attach required quantities to your plans.
-                            </p>
-                            <a class="secondary" [routerLink]="sectionLink('plans')"
-                                >Go to plans &#8594;</a
-                            >
-                        </div>
-                    }
-                </section>
+                @if (context(); as game) { <gg-farming [game]="game.id" /> }
             } @else if (page() === 'characters') {
-                @if (context(); as game) { <gg-characters [game]="game.id" /> }
+                @if (context(); as game) { <gg-characters [game]="game.id" [focusId]="settingsParams()?.get('character') ?? ''" /> }
             } @else if (page() === 'inventory') {
                 @if (context(); as game) { <gg-inventory [game]="game.id" (edit)="open('inventory', $event)" (remove)="pendingDelete = $event" /> }
             } @else if (page() === 'teams') {

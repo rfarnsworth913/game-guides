@@ -102,6 +102,10 @@ export class GameRepository {
         const document = await this.document(id);
         const rules = characterRules ?? document['characterRules'];
         if (rules !== undefined && !validCharacterRules(rules)) throw new ApiError(400, 'Invalid character rules.');
+        const farmingSources = validCharacterRules(rules) ? rules.farming?.sources ?? [] : [];
+        if (farmingSources.some(source => source.materialIds.some(id => !entries.some(entry => entry.id === id && entry.kind === 'inventory')))) {
+            throw new ApiError(400, 'Farming sources must reference materials in this game’s inventory catalog.');
+        }
         if (rules && entries.some(entry => entry.characterDefinition && !characterDefinitionFits(entry.characterDefinition, entry.rarity, rules))) {
             throw new ApiError(400, 'Character definitions do not match the game\'s rarity, weapon, damage, or role options. Update the options or definitions together.');
         }

@@ -1,8 +1,10 @@
 /** Shared game rules and definitions contain no account state. */
+import { FarmingConfig, UpgradeRecipe, validFarmingConfig, validRecipes } from './farming-config';
 export type CharacterSkill = { id?: string; name: string; description: string; maxLevel?: number };
 export type AscensionRank = { levelCap: number; skillLevelCap: number };
 export type CharacterGuide = { title: string; url: string };
 export type CharacterDefinition = {
+    recipes?: UpgradeRecipe[];
     weaponType: string;
     damageType: string;
     roles: string[];
@@ -11,6 +13,7 @@ export type CharacterDefinition = {
     guides: CharacterGuide[];
 };
 export type CharacterRules = {
+    farming?: FarmingConfig;
     teamSize?: number;
     levelCap: number;
     ascensionRanks?: AscensionRank[];
@@ -68,7 +71,7 @@ export function guideUrl(value: string): boolean {
 export function validCharacterDefinition(value: unknown): value is CharacterDefinition {
     if (
         !record(value) ||
-        !only(value, ['weaponType', 'damageType', 'roles', 'skills', 'passiveSkills', 'guides'])
+        !only(value, ['weaponType', 'damageType', 'roles', 'skills', 'passiveSkills', 'guides', 'recipes'])
     )
         return false;
     const skills = (items: unknown) =>
@@ -87,6 +90,7 @@ export function validCharacterDefinition(value: unknown): value is CharacterDefi
         new Set(items.map((item, index) => item.id ?? `legacy-${index}`)).size === items.length;
     return (
         text(value['weaponType']) &&
+        (typeof value['recipes'] === 'undefined' || validRecipes(value['recipes'])) &&
         text(value['damageType']) &&
         labels(value['roles']) &&
         skills(value['skills']) &&
@@ -119,6 +123,7 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
         !only(value, [
             'levelCap',
             'teamSize',
+            'farming',
             'ascensionRanks',
             'rarities',
             'weaponTypes',
@@ -154,6 +159,7 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
         new Set(items.map((item) => item['id'])).size === items.length;
     return (
         integer(value['levelCap'], 1, 1000) &&
+        (typeof value['farming'] === 'undefined' || validFarmingConfig(value['farming'])) &&
         (typeof value['teamSize'] === 'undefined' || integer(value['teamSize'], 1, 12)) &&
         (typeof value['ascensionRanks'] === 'undefined' ||
             (Array.isArray(value['ascensionRanks']) &&

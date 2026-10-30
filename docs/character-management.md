@@ -8,7 +8,7 @@ Current values remain in the existing collection fields. Optional `target` store
 
 Personal `notes` and `personalGuides` use the existing player-progress storage and remain separate from shared descriptions and curated guides. Ownership can be changed without clearing the plan; explicit removal still clears the saved build after confirmation. Old records and shared links remain supported without migration.
 
-Material calculations currently show **Unavailable**: the existing inventory tracks quantities, but there are no character-specific upgrade transition recipes to calculate costs. No illustrative quantities or material completion percentages are shown. Equipment goals retain the existing slot names and item lists; item catalogs, weapon upgrade recipes, and inventory-driven material planning remain follow-up work once authoritative upgrade data is available.
+Material calculations use verified transition recipes configured through Farming ? Configure farming data. Current/target changes immediately update known material costs, using the shared inventory quantities. Missing transitions remain explicitly unavailable/partial; no illustrative quantities are shown. Equipment goals retain the existing item-name lists, so numeric equipment and weapon upgrade costs remain unsupported. See [Farming planner](farming-planner.md) for data configuration and scheduling.
 
 1. Open a game, then **Characters**.
 2. An editor selects **Game rules** and verifies the game's level cap, rarities, weapon/damage options, equipment slots, and progression tracks. Initial dialog values are editable starting values, not verified game presets. Rules are configured once per game.

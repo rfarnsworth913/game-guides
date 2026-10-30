@@ -1,4 +1,6 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { characterCosts } from '../../../../common/farming';
+import { FarmingMaterialTile } from './farming-material';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from './workspace.store';
 import { DialogFocusDirective } from './dialog-focus';
@@ -22,12 +24,14 @@ import { storyImageUrl } from '../../../../common/story-template';
 
 @Component({
     selector: 'gg-characters',
-    imports: [FormsModule, DialogFocusDirective, GameImagePicker],
+    imports: [FormsModule, DialogFocusDirective, GameImagePicker, FarmingMaterialTile],
     templateUrl: './characters.html',
     styleUrl: './characters.scss',
 })
 export class Characters {
     readonly game = input.required<string>();
+    readonly focusId = input('');
+    private lastFocus = '';
     readonly store = inject(WorkspaceStore);
     readonly tab = signal<'collection' | 'catalog'>('collection');
     readonly search = signal('');
@@ -112,6 +116,15 @@ export class Characters {
             this.damageType.set('');
             this.message.set('');
         });
+        effect(() => {
+            const key = `${this.game()}/${this.focusId()}`;
+            const entry = this.focusId() ? this.catalog().find(entry => entry.id === this.focusId()) : null;
+            if (entry && this.store.initialized() && this.lastFocus !== key) {
+                this.lastFocus = key;
+                untracked(() => this.details(entry));
+            }
+            if (!this.focusId()) this.lastFocus = '';
+        });
     }
     details(entry: Entry): void {
         this.selectedKey.set(entry.id);
@@ -134,6 +147,11 @@ export class Characters {
     }
     definition(entry: Entry): CharacterDefinition {
         return entry.characterDefinition ?? emptyCharacterDefinition();
+    }
+    materialPlan(entry: Entry) {
+        const result = characterCosts(entry.characterDefinition, this.collection ?? emptyCharacterCollection());
+        const materials = this.store.entries().filter(item => item.game === this.game() && item.kind === 'inventory' && result.costs.has(item.id)).map(item => ({ item, owned: item.quantity, required: result.costs.get(item.id)!, missing: Math.max(0, result.costs.get(item.id)! - item.quantity), characters: [entry.id], plans: [] }));
+        return { materials, issues: result.issues };
     }
     async saveCollection(): Promise<void> {
         const entry = this.selected(),

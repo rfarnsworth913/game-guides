@@ -1,0 +1,24 @@
+<button
+    type="button"
+    (click)="selected.emit(material())"
+    [disabled]="!interactive()"
+    [title]="label()"
+    [attr.aria-label]="label()"
+    [attr.data-rarity]="material().item.rarity"
+>
+    <span class="art">
+        @if (image(); as icon) {
+            <img [src]="icon" alt="" loading="lazy" (error)="failed.set(icon)" />
+        } @else {
+            <span aria-hidden="true">{{ material().item.name.slice(0, 1) }}</span>
+        }
+    </span>
+    <strong>{{ material().owned }} / {{ material().required }}</strong
+    ><small>{{ material().item.name }}</small>
+    <progress
+        [max]="material().required"
+        [value]="material().owned"
+        [attr.aria-label]="material().item.name + ' inventory coverage'"
+    ></progress>
+    <span class="sr">{{ material().missing }} missing</span>
+</button>

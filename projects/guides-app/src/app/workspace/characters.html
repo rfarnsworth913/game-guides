@@ -462,15 +462,14 @@
                                 class="planner-section planner-materials"
                                 aria-labelledby="materials-title"
                             >
-                                <div class="section-title">
-                                    <h3 id="materials-title">Required materials</h3>
-                                    <span class="planner-badge">Unavailable</span>
+                                @let plan = materialPlan(entry);
+                                <div class="section-title"><h3 id="materials-title">Required materials</h3><span class="planner-badge">{{ plan.issues.length ? 'Unavailable / partial' : 'Verified recipes' }}</span></div>
+                                @for (issue of plan.issues; track $index) { <p>{{ issue }}</p> }
+                                <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:10px">
+                                    @for (row of plan.materials; track row.item.id) { <gg-farming-material [material]="row" [interactive]="false" /> }
                                 </div>
-                                <p>
-                                    Upgrade recipes are not available for this character. Material
-                                    requirements cannot yet be calculated from your current
-                                    progression and goals.
-                                </p>
+                                @if (!plan.materials.length && !plan.issues.length) { <p>No additional materials are needed for the saved goals.</p> }
+                                <p><a [href]="'/games/' + game() + '/farming'">Open farming planner ?</a></p>
                             </section>
                         } @else {
                             <p class="rules-notice">

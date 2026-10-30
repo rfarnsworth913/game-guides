@@ -5,7 +5,7 @@
             ><small>Distinct materials with stock</small>
         </article>
         <article>
-            <span>Needed for plans</span><strong>{{ fullNumber.format(neededCount()) }}</strong
+            <span>Needed for plans</span><strong>{{ incompleteCharacters() && !neededCount() ? '?' : fullNumber.format(neededCount()) }}</strong
             ><small>Material types in active plans</small>
         </article>
         <article title="Each plan is checked independently. Shared inventory is not reserved.">
@@ -137,10 +137,11 @@
         <summary>About plan requirements</summary>
         <p class="inventory-help">
             Quantities are shared across your plans for this game. Requirements use saved material
-            plans; character goals need upgrade recipes before their costs can be calculated.
+            plans and configured character upgrade recipes. Incomplete recipes contribute only known costs.
             Inventory is not reserved between plans.
         </p>
     </details>
+    @if (incompleteCharacters()) { <p class="inventory-help" role="status">{{ incompleteCharacters() }} character plans have incomplete upgrade recipes. Counts show known costs only; check the farming planner for missing data.</p> }
     @if (error() && !selected() && !bulk) {
         <p role="alert" class="alert">{{ error() }}</p>
     }

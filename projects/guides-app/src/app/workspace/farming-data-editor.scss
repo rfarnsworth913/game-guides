@@ -1,0 +1,60 @@
+:host .farming-data-editor {
+    width: calc(100vw - 40px);
+    max-width: 900px;
+}
+.data-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin: 14px 0;
+}
+.data-toolbar button[aria-pressed='true'] {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+.data-pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 12px;
+    align-items: end;
+}
+.data-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 18px 0;
+}
+.data-card label {
+    display: block;
+    margin: 10px 0;
+    font-size: 12px;
+}
+.data-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+}
+.data-choices label,
+.data-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+input[type='checkbox'] {
+    width: auto;
+}
+fieldset {
+    border: 0;
+    padding: 0;
+    min-width: 0;
+}
+p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+summary {
+    cursor: pointer;
+}

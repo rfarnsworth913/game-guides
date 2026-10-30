@@ -39,7 +39,7 @@ const character: Entry = {
 };
 
 describe('Character management', () => {
-    async function setup(editor = false) {
+    async function setup(editor = false, focusId = '') {
         const entries = signal([structuredClone(character)]);
         const saveCharacterCollection = vi.fn(async (id, collection) => {
             entries.update((values) =>
@@ -76,6 +76,7 @@ describe('Character management', () => {
         }).compileComponents();
         const fixture = TestBed.createComponent(Characters);
         fixture.componentRef.setInput('game', 'genshin');
+        fixture.componentRef.setInput('focusId', focusId);
         fixture.detectChanges();
         return {
             fixture,
@@ -85,6 +86,13 @@ describe('Character management', () => {
             root: fixture.nativeElement as HTMLElement,
         };
     }
+    it('opens a linked character plan on the initial render and permits closing it', async () => {
+        const { fixture, root } = await setup(false, 'vesna');
+        await fixture.whenStable(); fixture.detectChanges();
+        expect(root.querySelector('[role="dialog"]')?.textContent).toContain('Vesna');
+        fixture.componentInstance.closeDetails(); fixture.detectChanges();
+        expect(root.querySelector('[role="dialog"]')).toBeNull();
+    });
     it('shows game rules for editors and opens the shared rules form', async () => {
         const { fixture, root } = await setup(true);
         const rulesButton = [...root.querySelectorAll<HTMLButtonElement>('button')].find(

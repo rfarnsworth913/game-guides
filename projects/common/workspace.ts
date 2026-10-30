@@ -185,6 +185,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
                 e.storySection === undefined ||
                 ids.get(e.storySection)?.kind === 'story-category') &&
             e.members.every((id) => ids.get(id)?.kind === 'characters') &&
+            (e.characterDefinition?.recipes ?? []).every(recipe => recipe.materials.every(cost => ids.get(cost.item)?.kind === 'inventory')) &&
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),
     );
 }
