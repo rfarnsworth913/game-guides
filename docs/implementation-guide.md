@@ -132,7 +132,7 @@ Lint configuration is implemented as of October 27, 2026:
 5. `typescript-eslint`, previously a transitive dependency, is now a direct development dependency. The lockfile is updated. The CI script is:
 
 ```json
-"lint:ci": "eslint projects/lib projects/common projects/middleware/src projects/data-parser/src projects/guides-app/src"
+"lint:ci": "eslint projects/lib projects/common projects/middleware/src projects/middleware/scripts projects/data-parser/src projects/guides-app/src"
 ```
 
 The configuration now completes linting without fatal project-association errors. The repository still has existing code errors and formatting warnings; see [the lint baseline](lint-baseline-2026-10-27.md). `lint:ci` fails on errors and reports warnings, without `continue-on-error` or `|| true`. Once the warning baseline is cleaned up, optionally add `--max-warnings=0`.

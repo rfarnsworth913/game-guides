@@ -255,3 +255,82 @@ logout and API sync smoke test still requires the dashboard settings above and a
 References:
 - https://github.com/auth0/auth0-angular
 - https://auth0.com/docs/quickstart/backend/nodejs
+
+
+## Middleware architecture
+
+The backend remains one Node HTTP application with one MongoDB client/pool per process. No new framework or public endpoints were introduced. The Angular API contract and persisted MongoDB documents are unchanged.
+
+```text
+src/
+  app/                    Startup, HTTP server factory, ordered route dispatch, API dependency ports
+  config/                 Environment loading and allowed-origin checks
+  core/
+    auth/                 Security contract, fail-closed default, legacy regression implementation
+      providers/          Auth0 bearer-token validation
+    database/             MongoClient construction shared by runtime and migration entry points
+    errors/               ApiError and uniform HTTP error handling
+    http/                 Bounded JSON reading, JSON responses, per-server rate limits
+  modules/
+    auth/                 Provider-backed auth route dispatch
+    health/               Health route and database ping
+    games/                Catalog routes, controller, validation service, MongoDB repository
+    progress/             Account progress routes, controller, orchestration, MongoDB repository
+    images/               Image routes, controller, validation service/schema, filesystem repository
+    characters/           Character progress validation
+    inventory/            Inventory quantity validation
+    teams/                Team ownership and capacity checks
+    farming/              Existing shared farming regression tests
+    documents/            Game document conversion and migrations
+      stories/            Story conversion and completion-history validation
+      main-quests/        Main/character quest document conversion
+  tests/
+    integration/          Auth, games, and image HTTP integration suites
+    helpers/              Explicit test-only editor fixture
+scripts/
+  start.mjs               Development stack launcher
+  database.mjs            Local database lifecycle helper
+  stack-smoke.mjs         E2E type-check/build/runner launcher
+  test.mjs                Cross-platform recursive middleware test discovery
+  migrate.ts              Existing schema migration command
+  migrations/             Existing backed-up quest migration command
+e2e/                      Disposable database, signed-token and browser integration harness
+```
+
+`app/server.ts` applies response headers, rate limiting, and allowed-origin validation before routing. `app/routes.ts` preserves the original route order: provider auth handling, account progress, images, health, games. Route modules own method checks and authorization; controllers parse requests and return responses; services validate and coordinate work; repositories own MongoDB or filesystem persistence. Progress validation still applies to one complete request and commits through one existing account-progress revision check.
+
+Auth0 uses `core/auth/auth.types.ts` for the application security contract and `core/auth/providers/auth0.provider.ts` for the provider. The legacy session/OIDC implementation is retained for its existing regression coverage; production startup continues to instantiate Auth0 only. Test fixtures and signing keys are not production authentication options.
+
+`GameRepository` owns shared game documents and their schema backups, so it lives under Games rather than a generic database folder. `ProgressRepository` retains the existing account collection, revision handling and account keys. The image repository preserves the original `projects/guides-app/src/assets/<game>/` files, metadata sidecars, MIME handling, public URLs and upload limits. No live data migration or file move is required for this code reorganization.
+
+Cross-application declarations remain in `projects/lib`; reusable game algorithms remain in `projects/common`. No duplicate backend shared-model layer or empty repositories were added for domains stored inside catalog/progress documents. `app/app.types.ts` contains the backend-only dependency ports used by routes and services.
+
+### Commands and tests
+
+Key source moves:
+
+| Previous location | Current location |
+| --- | --- |
+| `src/main.ts`, `src/server.ts` | `src/app/app.ts`, `src/app/server.ts`; domain dispatch is in `src/app/routes.ts` |
+| `src/config.ts` | `src/config/environment.ts` |
+| `src/auth.ts`, `src/auth0.ts` | `src/core/auth/` contract/service/default and `providers/auth0.provider.ts` |
+| `src/repository.ts` | `src/modules/games/games.repository.ts`; `ApiError` is in `src/core/errors/` |
+| `src/progress.ts` | `src/modules/progress/progress.repository.ts`; orchestration is in `progress.service.ts` |
+| `src/game-images.ts` | `src/modules/images/` routes, controller, service, schema, and filesystem repository |
+| `src/game-document.ts`, story/quest helpers | `src/modules/documents/` and its story/main-quest folders |
+| Root launchers and executable migrations | `scripts/` and `scripts/migrations/` |
+| Flat HTTP tests and `src/test-support.ts` | `src/tests/integration/` and `src/tests/helpers/` |
+
+Existing npm task names are preserved. Operational source paths moved, so prefer the npm commands over obsolete `src/main.ts`/`src/migrate.ts` paths.
+
+- `npm run middleware:start` runs the new application bootstrap with watch mode.
+- `npm start` and `npm run db:start` run the moved operational launchers.
+- `npm run middleware:migrate` and `npm run middleware:main-quests -- <arguments>` retain their previous behavior. Backup/apply migrations were not run as part of this refactor.
+- `npm run middleware:check` includes runtime code and TypeScript operational scripts.
+- `npm run middleware:test` discovers every nested `src/**/*.test.ts` cross-platform. Unit/domain tests stay beside their code; HTTP suites and explicit fixtures live under `src/tests`.
+- `npm run test:security` selects the same Auth0 and legacy security regression suites through the shared runner.
+- `npm test`, `npm run ui:build`, and `npm run ui:e2e` remain the full project checks. E2E additionally exercises the real application entry against its disposable database.
+
+### Deferred work
+
+Existing lint/formatting debt is not silently disabled. The legacy session implementation can be retired in a separate decision once its compatibility/regression requirements are reviewed. Farming still uses canonical shared calculations and has no independent API or persistence; separate farming, inventory and character endpoints/collections are future features, not part of this refactor. Hosted Auth0 login and production deployment continue to require their separate integration setup.

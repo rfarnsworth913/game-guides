@@ -88,7 +88,7 @@ Completing a plan removes its farming requirements without consuming inventory.
 | `npm run middleware:test` | API validation and security tests |
 | `npm run ui:e2e` | Type-check, build, and run browser integration tests with a disposable database, uploads, and browser profiles |
 
-Security tests are mandatory in `npm test`, discovered by the middleware's `*.test.ts` pattern.
+Security tests are mandatory in `npm test`, discovered by the middleware's recursive `*.test.ts` discovery.
 They cover Auth0 token signatures, issuer/audience/expiry and authorized client checks, legacy session regressions, editor permissions,
 account isolation, and conflicting progress writes. Frontend tests also check account sync and guest
 import isolation. The standard suite runs once, exits nonzero on failure, and needs no live provider

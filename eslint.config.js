@@ -17,7 +17,7 @@ const config = defineConfig([
   {
     ...jsdoc.configs["flat/recommended"],
 
-    files: ["projects/lib/**/*.ts", "projects/common/**/*.ts", "projects/middleware/src/**/*.ts", "projects/data-parser/src/**/*.ts", "projects/guides-app/src/**/*.ts"],
+    files: ["projects/lib/**/*.ts", "projects/common/**/*.ts", "projects/middleware/src/**/*.ts", "projects/middleware/scripts/**/*.ts", "projects/data-parser/src/**/*.ts", "projects/guides-app/src/**/*.ts"],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,

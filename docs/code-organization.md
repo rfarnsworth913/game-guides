@@ -94,3 +94,8 @@ No empty traditional-game features, game adapters, guards, or interceptors were 
 Global SCSS now lives in `projects/guides-app/src/styles`, with the Angular build pointing to that entry. Component styles stay beside components. Uploaded assets keep their existing `src/assets/<game>/` storage paths and API URLs: reorganizing code does not require rewriting stored image URLs or moving database-managed uploads.
 
 The same test commands continue to work. Browser integration additionally checks dashboard, game collection, settings, progression, and every main game-feature route after deferred loading. Hosted-provider login remains outside the isolated test harness.
+
+
+## Middleware
+
+Middleware is organized into `src/app`, `src/config`, `src/core`, and domain-specific `src/modules`, with HTTP integration tests in `src/tests/integration` and helpers in `src/tests/helpers`. Operational launchers and migrations live in `projects/middleware/scripts`; the disposable browser harness remains in `projects/middleware/e2e`. See the [middleware architecture](../projects/middleware/README.md#middleware-architecture) for ownership, moved files, commands, and deferred work.
