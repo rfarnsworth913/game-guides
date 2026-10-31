@@ -1,7 +1,7 @@
 import { Component, inject, signal } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
 
-import { ThemeService } from "./services/theme-switcher/theme.service";
+import { ThemeService } from "./core/theme/theme.service";
 import { AuthService } from '@auth0/auth0-angular';
 
 @Component({

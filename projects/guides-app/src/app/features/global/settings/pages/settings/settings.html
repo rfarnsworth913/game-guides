@@ -1,0 +1,31 @@
+<section class="panel settings">
+                    <h2>Your workspace, your data</h2>
+                    <p>
+                        Game definitions are stored in MongoDB. Your completion status, owned
+                        quantities, and level targets stay in this browser. Export a backup before
+                        clearing browser data.
+                    </p>
+                    @if (settingsTab() !== 'data') {
+                        <h3>Appearance</h3>
+                        <label>Theme
+                            <select [ngModel]="theme.preference()" (ngModelChange)="theme.setPreference($event)">
+                                <option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option>
+                            </select>
+                        </label>
+                    }
+                    <h3>Data &amp; backups</h3>
+                    <p>
+                        Export includes shared game data and your local progress. Import updates
+                        shared game definitions in MongoDB and restores player progress on this
+                        device. Matching IDs are updated.
+                    </p>
+                    <div class="actions">
+                        <button class="primary" (click)="exportData()">Export JSON backup</button
+                        ><label class="secondary upload"
+                            >Import backup<input
+                                type="file"
+                                accept="application/json,.json"
+                                (change)="importData($event)"
+                        /></label>
+                    </div>
+                </section>

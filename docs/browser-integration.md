@@ -22,7 +22,7 @@ Failure screenshots are saved to ignored `tmp/e2e-artifacts/`; no tokens or priv
 
 ## Coverage and CI
 
-The suite verifies guest local completion and reload persistence; signed-in completion and restoration in a fresh context; account isolation; editor-only UI and API access; invalid signatures/claims; shared UI edits; real image upload/download/persistence; concurrent catalog and progress revision conflicts; browser logout; and cleanup. Ordinary API, Angular, and parser tests remain in `npm test`.
+The suite also loads every extracted global/game feature through the existing routes, including their deferred bundles. It verifies guest local completion and reload persistence; signed-in completion and restoration in a fresh context; account isolation; editor-only UI and API access; invalid signatures/claims; shared UI edits; real image upload/download/persistence; concurrent catalog and progress revision conflicts; browser logout; and cleanup. Ordinary API, Angular, and parser tests remain in `npm test`.
 
 `.github/workflows/browser-integration.yml` runs this suite separately on Ubuntu with MongoDB 7 and Puppeteer's browser dependencies. After observing it pass on GitHub, add **Browser integration / browser-integration** to required branch checks alongside unit tests and lint. The workflow's presence does not itself configure branch protection. Keep provider-specific testing tracked separately; this automated suite is not a claim that hosted provider flows were exercised.
 

@@ -39,10 +39,58 @@ import { StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
 import { worldQuestObjectives } from '../../common/quests/world-quest';
 ```
 
-Relative paths depend on the importing file. The root TypeScript configuration also provides `@shared-lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. Parser Jest mappings support both aliases. The Angular application's existing `@lib/*` alias continues to mean its own `src/app/lib/*`; it is separate from the new shared library.
+Relative paths depend on the importing file. The root TypeScript configuration also provides `@shared-lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. Parser Jest mappings support both aliases. The Angular application's `@models/*` alias points to its UI-only `src/app/models/*`; cross-application contracts remain in `projects/lib`.
 
 ## Project checks
 
 Both shared folders have dedicated TypeScript and lint configurations. `npm run lint:ci` includes both, with `lib:lint` and `common:lint` available separately. Type-aware rules remain enabled; existing lint policy and formatting findings are tracked separately.
 
 Run `npm test`, `npm run ui:build`, and `npm run ui:e2e` after changes affecting shared contracts or runtime code. Moving files does not require a database migration: stored shapes, IDs, and values remain the same.
+
+## Angular application
+
+The Angular app follows feature ownership under `projects/guides-app/src/app`:
+
+```text
+core/
+  auth/                      Auth0-backed account state
+  state/                     Shared catalog/account synchronization and merge handling
+  theme/                     Global theme service and preferences
+shared/
+  components/                Header, theme controls, back-to-top, image selector
+  directives/                Dialog focus handling
+  pipes/                     Safe Markdown rendering
+models/types/                UI-only theme types; imported with @models/*
+games/registry/              Game-specific presentation configuration
+features/
+  global/
+    accounts/                Account dropdown, profile, and data actions
+    dashboard/               Dashboard, game collection, and their shared read model
+    settings/                Appearance and backup import/export
+  gacha/
+    achievements/
+    characters/
+    events/
+    farming/
+    inventory/
+    overview/
+    progression/
+    story-guide/
+    teams/
+    shared/components/       Domain UI such as material tiles and patch badges
+layouts/
+  main-layout/               Active workspace shell, navigation, and common entry editor
+  game-layout/               Existing alternate gacha layout/sidebar components
+```
+
+Feature components, templates, styles, local state, utilities, models, and tests stay together. Larger features such as story guides separate their page, template components, utilities, and position state. Smaller features do not need empty service/model folders.
+
+The active shell composes pages; dashboard, game collection, settings, and progression are standalone feature components. Major views are loaded through Angular deferred blocks only when selected. The existing route matcher remains in place so changing story sections keeps the shell mounted and preserves readable/legacy URLs. The older alternate game layout and overview remain available but are not the active shell.
+
+`core/state/WorkspaceStore` coordinates the shared catalog and account-progress lifecycle across features. Feature-specific view state and preferences stay in the feature, rather than moving every service into core. The repository-level `projects/common` and `projects/lib` split is unchanged; Angular-specific UI declarations belong in app models or their owning feature.
+
+No empty traditional-game features, game adapters, guards, or interceptors were introduced. Add them when there is real behavior to own. Current game mechanics remain shared data-driven rules from the API, without duplicating a planner for each game.
+
+Global SCSS now lives in `projects/guides-app/src/styles`, with the Angular build pointing to that entry. Component styles stay beside components. Uploaded assets keep their existing `src/assets/<game>/` storage paths and API URLs: reorganizing code does not require rewriting stored image URLs or moving database-managed uploads.
+
+The same test commands continue to work. Browser integration additionally checks dashboard, game collection, settings, progression, and every main game-feature route after deferred loading. Hosted-provider login remains outside the isolated test harness.

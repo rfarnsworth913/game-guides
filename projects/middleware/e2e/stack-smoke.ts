@@ -273,6 +273,24 @@ try {
     assert.deepEqual(progressConflicts.map(response => response.status).sort(), [200, 409]);
     console.log('PASS concurrent catalog and account progress writes reject stale revisions.');
 
+    // Verify every extracted page can load its own deferred bundle through existing URLs.
+    for (const [route, selector] of [
+        ['/dashboard', 'gg-dashboard .stats'],
+        ['/games', 'gg-game-collection .game-card'],
+        ['/games/genshin/dashboard', 'gg-dashboard .stats'],
+        ['/settings?tab=data', 'gg-settings .settings'],
+        ['/games/genshin/plans', 'gg-progression .collection-empty'],
+        ['/games/genshin/characters', 'gg-characters'],
+        ['/games/genshin/inventory', 'gg-inventory'],
+        ['/games/genshin/teams', 'gg-teams'],
+        ['/games/genshin/events', 'gg-events'],
+        ['/games/genshin/achievements', 'gg-achievements'],
+    ]) {
+        await editor.goto(origin + route, { waitUntil: 'networkidle0' });
+        await editor.waitForSelector(selector!);
+    }
+    console.log('PASS global and game feature pages load through their existing routes.');
+
     await editor.click('[popovertarget=profile-menu]');
     await Promise.all([
         editor.waitForNavigation({ waitUntil: 'networkidle0' }),

@@ -1,0 +1,162 @@
+<div class="toolbar">
+                    <input
+                        aria-label="Search entries"
+                        type="search"
+                        placeholder="Search your collection…"
+                        [ngModel]="search()"
+                        (ngModelChange)="search.set($event)"
+                    /><select
+                        aria-label="Filter category"
+                        [ngModel]="category()"
+                        (ngModelChange)="category.set($event)"
+                    >
+                        <option value="">All categories</option>
+                        @for (c of categories(); track c) {
+                            <option>{{ c }}</option>
+                        }
+                    </select>
+                    @if (page() === 'inventory' || page() === 'characters') {
+                        <select
+                            aria-label="Filter rarity"
+                            [ngModel]="rarity()"
+                            (ngModelChange)="rarity.set($event)"
+                        >
+                            <option value="">All rarities</option>
+                            @for (r of [1, 2, 3, 4, 5, 6]; track r) {
+                                <option [value]="r">{{ r }} stars</option>
+                            }</select
+                        ><button (click)="grid = !grid">{{ grid ? 'Table' : 'Grid' }}</button>
+                    }
+                    <span class="results">{{ rows().length }} entries</span>
+                </div>
+                @if (!rows().length) {
+                    <section class="panel empty collection-empty">
+                        <span class="empty-symbol">&#9635;</span>
+                        <h2>
+                            {{
+                                search() || category() || rarity()
+                                    ? 'No matching entries'
+                                    : 'A fresh start for your ' + title().toLowerCase()
+                            }}
+                        </h2>
+                        <p>
+                            {{
+                                search() || category() || rarity()
+                                    ? 'Try a different search or filter.'
+                                    : 'Add your first entry to start tracking your progress. Your collection begins with you.'
+                            }}
+                        </p>
+                        <button [disabled]="!store.canEdit()" class="primary" (click)="open(page())">+ Add an entry</button>
+                    </section>
+                } @else if (!grid && (page() === 'inventory' || page() === 'characters')) {
+                    <section class="panel table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Game</th>
+                                    <th>Category</th>
+                                    <th>Rarity</th>
+                                    <th>{{ page() === 'inventory' ? 'Quantity' : 'Level' }}</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (e of rows(); track e.id) {
+                                    <tr>
+                                        <td>{{ e.name }}</td>
+                                        <td>{{ gameName(e.game) }}</td>
+                                        <td>{{ e.category }}</td>
+                                        <td>{{ e.rarity }} stars</td>
+                                        <td>{{ e.quantity }}</td>
+                                        <td>
+                                            <button [disabled]="!store.canEdit()" (click)="open(e.kind, e)">Edit</button
+                                            ><button [disabled]="!store.canEdit()" (click)="removeEntry.emit(e)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </section>
+                } @else {
+                    <div [class]="page() === 'story' ? 'timeline' : 'entry-grid'">
+                        @for (e of rows(); track e.id) {
+                            <article class="panel entry" [class.completed]="e.completed">
+                                <div class="section-title">
+                                    <span class="eyebrow">{{ gameName(e.game) }}</span
+                                    ><span class="pill">{{
+                                        e.kind === 'story'
+                                            ? e.category
+                                            : e.kind === 'plans' ||
+                                                e.kind === 'events' ||
+                                                e.kind === 'achievements'
+                                              ? e.completed
+                                                  ? 'Complete'
+                                                  : 'In progress'
+                                              : e.kind === 'teams'
+                                                ? e.members.length + ' members'
+                                                : e.rarity + ' stars'
+                                    }}</span>
+                                </div>
+                                <h2>
+                                    @if (e.kind === 'story') {
+                                        <span class="step-number">{{
+                                            e.order.toString().padStart(2, '0')
+                                        }}</span>
+                                    }
+                                    {{ e.name }}
+                                </h2>
+                                @if (e.kind === 'inventory') {
+                                    <strong class="quantity"
+                                        >{{ e.quantity }} <small>owned</small></strong
+                                    >
+                                    <p>{{ e.category }} · {{ e.day }}</p>
+                                }
+                                @if (e.kind === 'characters') {
+                                    <strong class="quantity"
+                                        >{{ e.quantity
+                                        }}<small> / {{ e.target }} level</small></strong
+                                    >
+                                    <p>{{ e.category }}</p>
+                                }
+                                @if (e.kind === 'teams' || e.kind === 'plans') {
+                                    <div class="member-list">
+                                        @for (id of e.members; track id) {
+                                            <span class="pill">{{ nameOf(id) }}</span>
+                                        }
+                                    </div>
+                                }
+                                @if (e.kind === 'plans') {
+                                    <div class="section-title">
+                                        <small>Material readiness</small
+                                        ><strong>{{ store.progress(e) }}%</strong>
+                                    </div>
+                                    <progress max="100" [value]="store.progress(e)"></progress>
+                                    @for (m of store.materials([e]); track m.id) {
+                                        <div class="requirement-line">
+                                            <span>{{ m.name }}</span
+                                            ><span>{{ m.own }} / {{ m.need }}</span>
+                                        </div>
+                                    }
+                                }
+                                <p class="entry-notes">{{ e.notes }}</p>
+                                <div class="entry-actions">
+                                    @if (
+                                        e.kind === 'story' ||
+                                        e.kind === 'plans' ||
+                                        e.kind === 'events' ||
+                                        e.kind === 'achievements'
+                                    ) {
+                                        <button class="secondary" (click)="toggleDone(e)">
+                                            {{ e.completed ? 'Reopen' : 'Complete' }}
+                                        </button>
+                                    }
+                                    <button [disabled]="!store.canEdit()" (click)="open(e.kind, e)">Edit</button
+                                    ><button [disabled]="!store.canEdit()" class="delete" (click)="removeEntry.emit(e)">
+                                        Delete
+                                    </button>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }

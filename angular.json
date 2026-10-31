@@ -30,7 +30,7 @@
               }
             ],
             "styles": [
-              "projects/guides-app/styles/styles.scss"
+              "projects/guides-app/src/styles/styles.scss"
             ]
           },
           "configurations": {

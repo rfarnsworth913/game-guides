@@ -18,7 +18,7 @@ export const routes: Routes = [
     },
     {
         matcher: gameWorkspaceMatcher,
-        loadComponent: async () => import('./workspace/workspace').then((m) => m.Workspace),
+        loadComponent: async () => import("./layouts/main-layout/workspace").then((m) => m.Workspace),
     },
     ...[
         'inventory',
@@ -36,7 +36,7 @@ export const routes: Routes = [
     })),
     {
         path: ':page',
-        loadComponent: async () => import('./workspace/workspace').then((m) => m.Workspace),
+        loadComponent: async () => import("./layouts/main-layout/workspace").then((m) => m.Workspace),
     },
     { path: '**', redirectTo: 'dashboard' },
 ];
