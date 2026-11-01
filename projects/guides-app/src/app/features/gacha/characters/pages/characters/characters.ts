@@ -3,7 +3,7 @@ import { characterCosts } from "../../../../../../../../common/farming/farming";
 import { FarmingMaterialTile } from "../../../shared/components/material-tile/farming-material";
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus";
+import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import type { CharacterCollection, CharacterDefinition, CharacterRules, CharacterSkill, CharacterProgression } from "../../../../../../../../lib/types/character.type";
 import { emptyCharacterCollection, emptyCharacterDefinition, characterCollectionFits, characterDefinitionFits, validCharacterCollection, validCharacterDefinition, validCharacterRules, guideUrl } from "../../../../../../../../common/characters/characters";

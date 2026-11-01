@@ -157,7 +157,7 @@ describe('Character collection persistence', () => {
             }),
         ).toBe(true);
         expect(reloaded.entries()[0].characterCollection?.owned).toBe(false);
-        expect(snapshots[0].entries[0]).toEqual(toCatalog(character));
+        expect(snapshots.find(game => game.id === character.game)?.entries[0]).toEqual(toCatalog(character));
         expect(requests.filter((request) => request.method === 'PUT')).toHaveLength(0);
         expect(local.has('gg-player-v1')).toBe(false);
     });

@@ -23,7 +23,7 @@ import { EventType } from "../../../../../lib/enums/event-types.enum";
 import { guideUrl } from "../../../../../common/characters/characters";
 import { eventDate } from "../../features/gacha/events/utils/event-calendar";
 import { BackToTop } from "../../shared/components/back-to-top/back-to-top";
-import { DialogFocusDirective } from "../../shared/directives/dialog-focus";
+import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialog-focus";
 
 @Component({
     selector: 'gg-workspace',

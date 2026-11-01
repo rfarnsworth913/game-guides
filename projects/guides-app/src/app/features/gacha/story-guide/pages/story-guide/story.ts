@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { StoryPositionStore } from "../../state/story-position.store";
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
-import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus";
+import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
 import { PatchOverviewTemplate } from "../../components/templates/patch-overview/patch-overview";
 import { WorldQuestsTemplate } from "../../components/templates/world-quests/world-quests";

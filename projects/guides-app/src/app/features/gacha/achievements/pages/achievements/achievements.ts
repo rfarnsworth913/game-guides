@@ -1,7 +1,7 @@
 import { Component, computed, HostListener, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus";
+import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
 
 @Component({

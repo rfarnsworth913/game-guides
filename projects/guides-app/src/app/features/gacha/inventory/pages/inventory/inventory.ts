@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus";
+import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { guideUrl } from "../../../../../../../../common/characters/characters";
 import { storyImageUrl } from "../../../../../../../../common/quests/story-template";
 import { characterCosts, hasCharacterGoal } from "../../../../../../../../common/farming/farming";

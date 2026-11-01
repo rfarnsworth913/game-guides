@@ -1,6 +1,6 @@
 import { Document } from 'mongodb';
 import { createHash } from 'node:crypto';
-import { CATALOG_FIELDS } from "../../../../lib/constants/workspace.constants";
+import { LEGACY_CATALOG_FIELDS } from "../../../../lib/constants/workspace.constants";
 import type { CatalogEntry, Kind } from "../../../../lib/types/workspace.type";
 import { validCatalog } from "../../../../common/workspace/workspace";
 import { decodeStory, encodeStory, mergeStory } from "./stories/story-document";
@@ -175,7 +175,7 @@ export function migrateDocument(document: Document): Document {
     const arrays: Document = {};
     for (const field of GAME_ARRAYS) arrays[field] = document[field] ?? [];
     if (catalog) {
-        const entries = Object.values(CATALOG_FIELDS).flatMap(
+        const entries = Object.values(LEGACY_CATALOG_FIELDS).flatMap(
             (field) => catalog[field] ?? [],
         ) as CatalogEntry[];
         if (entries.length && !validCatalog(entries, entries[0].game)) {

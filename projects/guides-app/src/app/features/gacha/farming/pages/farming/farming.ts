@@ -2,7 +2,7 @@ import { Component, computed, DestroyRef, effect, inject, input, signal } from '
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus";
+import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { FarmingMaterialTile } from "../../../shared/components/material-tile/farming-material";
 import { FarmingDataEditor } from "../../components/farming-data-editor/farming-data-editor";
 import type { FarmingGroup, FarmingMaterial } from "../../../../../../../../lib/types/farming.type";
