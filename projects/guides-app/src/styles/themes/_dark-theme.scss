@@ -5,5 +5,5 @@
 :root,
 :root.theme-dark,
 [data-theme="dark"] {
-  @include apply-theme($dark-theme);
+    @include apply-theme($dark-theme);
 }
