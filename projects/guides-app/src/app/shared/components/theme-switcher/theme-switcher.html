@@ -4,6 +4,7 @@
     (click)="toggleTheme()"
     [attr.aria-label]="'Switch to ' + (currentTheme === 'light' ? 'dark' : 'light') + ' theme'"
     title="Toggle theme">
+
     @if (currentTheme === "light") {
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -43,4 +44,5 @@
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
         </svg>
     }
+
 </button>

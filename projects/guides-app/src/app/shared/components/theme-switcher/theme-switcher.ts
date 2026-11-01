@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { CommonModule } from "@angular/common";
 
+import { ThemeService } from "@core/theme/theme.service";
 import { GlobalTheme } from "@models/types";
-import { ThemeService } from "../../../core/theme/theme.service";
+
 
 @Component({
     selector: "gg-theme-switcher",
