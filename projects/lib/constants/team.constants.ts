@@ -1,1 +1,1 @@
-export const TEAM_PROGRESS_ID = '@teams';
+export const TEAM_PROGRESS_ID = "@teams";

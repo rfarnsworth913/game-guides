@@ -304,7 +304,7 @@
                 @if (eventHasDetails()) {
                     <details class="guide-event-participation">
                         <summary>Participation requirements and event details</summary>
-                        @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | notesMarkdown"></div> }
+                        @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
                         @for (gate of eventGates(); track $index) {
                             <p class="guide-requirement"><strong>{{ gate.type }}:</strong> {{ gate.text }}
                                 @for (target of eventRelated(gate.targetId); track target.id) { <a [href]="eventRelatedUrl(target)">{{ target.name }}</a> }

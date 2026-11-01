@@ -1,15 +1,16 @@
 @use "sass:map";
 
+
 // Topic colors stay consistent across games, regions and patch versions.
 $story-topics: (
-  patch-overview: (accent: #38a8d9, light: #e0f2fe, dark: #132733),
-  main-story: (accent: #a78bfa, light: #ede9fe, dark: #28243a),
-  side-stories: (accent: #19b8ad, light: #ccfbf1, dark: #132e2d),
-  world-quests: (accent: #46b78b, light: #dcfce7, dark: #192e29),
-  events: (accent: #e7a34b, light: #fef3c7, dark: #30291e),
-  endgame-activity: (accent: #e16c70, light: #ffe4e6, dark: #321f27),
-  lore: (accent: #8595e8, light: #e0e7ff, dark: #22293a),
-  character-information: (accent: #e08aae, light: #fce7f3, dark: #302431),
+  patch-overview: (accent: rgba(56, 168, 217, 1), light: rgba(224, 242, 254, 1), dark: rgba(19, 39, 51, 1)),
+  main-story: (accent: rgba(167, 139, 250, 1), light: rgba(237, 233, 254, 1), dark: rgba(40, 36, 58, 1)),
+  side-stories: (accent: rgba(25, 184, 173, 1), light: rgba(204, 251, 241, 1), dark: rgba(19, 46, 45, 1)),
+  world-quests: (accent: rgba(70, 183, 139, 1), light: rgba(220, 252, 231, 1), dark: rgba(25, 46, 41, 1)),
+  events: (accent: rgba(231, 163, 75, 1), light: rgba(254, 243, 199, 1), dark: rgba(48, 41, 30, 1)),
+  endgame-activity: (accent: rgba(225, 108, 112, 1), light: rgba(255, 228, 230, 1), dark: rgba(50, 31, 39, 1)),
+  lore: (accent: rgba(133, 149, 232, 1), light: rgba(224, 231, 255, 1), dark: rgba(34, 41, 58, 1)),
+  character-information: (accent: rgba(224, 138, 174, 1), light: rgba(252, 231, 243, 1), dark: rgba(48, 36, 49, 1)),
 );
 
 :root {

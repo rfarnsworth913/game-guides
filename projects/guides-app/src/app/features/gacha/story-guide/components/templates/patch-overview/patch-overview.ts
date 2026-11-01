@@ -6,7 +6,7 @@ import { GameImagePicker } from "../../../../../../shared/components/image-selec
 import { Entry, WorkspaceStore, GAMES } from "../../../../../../core/state/workspace.store";
 import { StoryContentList } from "../../content-list/story-content-list";
 import { StoryContextEditor } from "../../context-editor/story-context-editor";
-import { NotesMarkdownPipe } from "../../../../../../shared/pipes/markdown";
+import { MarkdownPipe } from "../../../../../../shared/pipes/markdown/markdown";
 import { worldQuestPrerequisites } from "../../../../../../../../../common/quests/world-quest";
 import { PatchBadge } from "../../../../shared/components/patch-badge/patch-badge";
 import type { StoryGroup } from "../../../../../../../../../lib/types/story-group.type";
@@ -18,7 +18,7 @@ import type { StoryTableRow } from "../../../../../../../../../lib/types/story-t
 
 @Component({
     selector: 'gg-patch-overview',
-    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, NotesMarkdownPipe, PatchBadge],
+    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, MarkdownPipe, PatchBadge],
     templateUrl: "./patch-overview.html",
     styleUrl: "./patch-overview.scss",
 })

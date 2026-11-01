@@ -1,6 +1,6 @@
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { Entry } from "../../../../../core/state/workspace.store";
-import { NotesMarkdownPipe } from "../../../../../shared/pipes/markdown";
+import { MarkdownPipe } from "../../../../../shared/pipes/markdown/markdown";
 import { httpUrl, patchGroups } from "../../../../../../../../common/quests/story-template";
 import type { PatchOverview, StoryTableRow } from "../../../../../../../../lib/types/story-template.type";
 import { storyCompletionKey, storyRowDone, storyTrackingMode } from "../../../../../../../../common/quests/story-guide";
@@ -15,7 +15,7 @@ import { PatchBadge } from "../../../shared/components/patch-badge/patch-badge";
 
 @Component({
     selector: 'gg-story-content-list',
-    imports: [NotesMarkdownPipe, NgTemplateOutlet, PatchBadge],
+    imports: [MarkdownPipe, NgTemplateOutlet, PatchBadge],
     templateUrl: "./story-content-list.html",
 })
 export class StoryContentList {

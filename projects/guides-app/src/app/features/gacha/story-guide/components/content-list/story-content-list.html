@@ -46,8 +46,8 @@
                 @if (group.mainQuest; as mainQuest) {
                     @if (mainQuest.notes || mainQuest.notesRight || mainQuest.context?.requirements?.length) {
                         <div class="guide-main-quest-details">
-                            <div class="notes-markdown" [innerHTML]="mainQuest.notes | notesMarkdown"></div>
-                            @if (mainQuest.notesRight) { <div class="notes-markdown" [innerHTML]="mainQuest.notesRight | notesMarkdown"></div> }
+                            <div class="notes-markdown" [innerHTML]="mainQuest.notes | ggMarkdown"></div>
+                            @if (mainQuest.notesRight) { <div class="notes-markdown" [innerHTML]="mainQuest.notesRight | ggMarkdown"></div> }
                             @for (requirement of mainQuest.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
                         </div>
                     }
@@ -66,7 +66,7 @@
 <ng-template #objective let-row let-rowAnchor="rowAnchor">
     <article class="guide-content-row story-search-target" [class.guide-row-done]="done(row)" [class.guide-subquest]="row.subQuest && !questTemplate() && !worldQuest() && !eventTemplate()" [class.guide-row-heading]="row.rowType === 'heading'" [id]="rowAnchor || anchor(row)" [attr.data-story-row]="row.id" tabindex="-1">
         @if (row.rowType === 'heading') { <h5>@if (httpUrl(row.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content }} <span aria-hidden="true">&#8599;</span></a> } @else { {{ row.content }} }</h5> }
-        @else if (row.rowType === 'note') { <div class="notes-markdown guide-global-note" [innerHTML]="row.notes | notesMarkdown"></div> }
+        @else if (row.rowType === 'note') { <div class="notes-markdown guide-global-note" [innerHTML]="row.notes | ggMarkdown"></div> }
         @else {
             <label class="guide-row-tracking"><input type="checkbox" [checked]="done(row)" [disabled]="disabled() || !canTrack(row)" [attr.aria-label]="label(row) + ': ' + (row.content || 'Untitled content')" (change)="toggleRow($event, row)" /></label>
             <div class="guide-row-body">
@@ -115,8 +115,8 @@
                                 <div class="guide-section-content" [class.collapsed]="!notesOpen" [id]="notesId" [attr.aria-hidden]="!notesOpen" [attr.inert]="!notesOpen ? '' : null">
                                 <div class="guide-section-clip"><div class="guide-notes-content">
                                 <div [class.guide-split-notes]="row.notesRight !== undefined">
-                                    @if (row.notes) { <div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div> }
-                                    @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | notesMarkdown"></div> }
+                                    @if (row.notes) { <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div> }
+                                    @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
                                 </div>
                                 @for (item of worldNotes(row); track $index) { <p class="guide-requirement"><strong>{{ item.type }}:</strong> {{ item.text }}</p> }
                                 </div></div></div>
@@ -131,8 +131,8 @@
                     <details class="guide-row-details">
                         <summary>{{ reference() ? 'Reference details' : 'Notes & requirements' }}</summary>
                         <div [class.guide-split-notes]="row.notesRight !== undefined">
-                            <div class="notes-markdown" [innerHTML]="row.notes | notesMarkdown"></div>
-                            @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | notesMarkdown"></div> }
+                            <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div>
+                            @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
                         </div>
                         @for (requirement of row.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
                         @for (entry of related(row.context?.relatedContentIds); track entry.id) { <a class="guide-related" [href]="relatedUrl(entry)">Related: {{ entry.name }}</a> }
