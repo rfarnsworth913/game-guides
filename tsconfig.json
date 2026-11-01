@@ -17,7 +17,9 @@
     "module": "preserve",
     "paths": {
       "@common/*": ["./projects/common/*"],
+      "@lib/*": ["./projects/lib/*"],
       "@shared-lib/*": ["./projects/lib/*"],
+      "@models/*": ["./projects/guides-app/src/app/models/*"],
       "@guides-app/*": ["./projects/guides-app/src/app/*"]
     }
   },

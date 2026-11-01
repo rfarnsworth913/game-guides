@@ -17,6 +17,7 @@ const config: Config = {
     },
     moduleNameMapper: {
         "^@common/(.*)$": "<rootDir>/../common/$1",
+        "^@lib/(.*)$": "<rootDir>/../lib/$1",
         "^@shared-lib/(.*)$": "<rootDir>/../lib/$1",
         "^chalk$": "<rootDir>/src/test/mocks/chalk.ts",
         "^puppeteer$": "<rootDir>/src/test/mocks/puppeteer.ts",
