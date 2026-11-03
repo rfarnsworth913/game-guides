@@ -41,7 +41,7 @@ jobs:
       - name: Install Linux browser libraries
         shell: bash
         run: |
-          deps_file="$(node --input-type=module -e 'import puppeteer from "puppeteer"; import { dirname, join } from "node:path"; console.log(join(dirname(puppeteer.executablePath()), "deb.deps"));')"
+          deps_file="$(node --input-type=module -e 'import puppeteer from "puppeteer"; import { dirname, join } from "node:path"; console.log(join(dirname(await puppeteer.executablePath()), "deb.deps"));')"
           test -f "$deps_file"
           sudo apt-get update
           sudo apt-get satisfy -y --no-install-recommends "$(tr '\n' ',' < "$deps_file")"
