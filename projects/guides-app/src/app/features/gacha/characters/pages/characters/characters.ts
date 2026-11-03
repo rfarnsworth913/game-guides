@@ -69,7 +69,7 @@ export class Characters {
     readonly selected = computed(() => this.catalog().find((e) => e.id === this.selectedKey()));
     readonly plannerSkills = computed(() => {
         const entry = this.selected();
-        if (!entry) return [];
+        if (!entry) {return [];}
         const data = this.definition(entry);
         return [
             ...data.skills.map((skill, index) => ({ ...skill, key: skill.id ?? `skill-${index}` })),
@@ -110,7 +110,7 @@ export class Characters {
                 this.lastFocus = key;
                 untracked(() => this.details(entry));
             }
-            if (!this.focusId()) this.lastFocus = '';
+            if (!this.focusId()) {this.lastFocus = '';}
         });
     }
     details(entry: Entry): void {
@@ -161,11 +161,11 @@ export class Characters {
             this.savedDraft = JSON.stringify(owned);
             this.message.set('Your character development plan has been saved.');
             this.error = '';
-        } else this.error = this.store.error();
+        } else {this.error = this.store.error();}
     }
     async removeCollection(): Promise<void> {
         const entry = this.selected();
-        if (!entry) return;
+        if (!entry) {return;}
         if (
             await this.store.saveCharacterCollection(entry.id, {
                 ...emptyCharacterCollection(),
@@ -175,17 +175,17 @@ export class Characters {
             this.confirmingRemoval = false;
             this.closeDetails();
             this.message.set('Character removed from your collection.');
-        } else this.error = this.store.error();
+        } else {this.error = this.store.error();}
     }
     gearText(id: string, target = false): string {
         return (target ? this.targetProgress() : this.collection)?.gear[id]?.join('\n') ?? '';
     }
     setGear(id: string, value: string, target = false): void {
-        if (!this.collection) return;
+        if (!this.collection) {return;}
         const progress = target ? this.ensureTarget() : this.collection;
         const items = this.lines(value);
-        if (items.length) progress.gear[id] = items;
-        else delete progress.gear[id];
+        if (items.length) {progress.gear[id] = items;}
+        else {Reflect.deleteProperty(progress.gear, id);}
     }
     orphanGear(): string[] {
         return [
@@ -204,15 +204,15 @@ export class Characters {
         ].filter((id) => !this.rules()?.progressionTracks.some((track) => track.id === id));
     }
     clearOrphanGear(id: string): void {
-        if (this.collection) delete this.collection.gear[id];
-        if (this.collection?.target) delete this.collection.target.gear[id];
+        if (this.collection) {Reflect.deleteProperty(this.collection.gear, id);}
+        if (this.collection?.target) {Reflect.deleteProperty(this.collection.target.gear, id);}
     }
     clearOrphanTrack(id: string): void {
-        if (this.collection) delete this.collection.progression[id];
-        if (this.collection?.target) delete this.collection.target.progression[id];
+        if (this.collection) {Reflect.deleteProperty(this.collection.progression, id);}
+        if (this.collection?.target) {Reflect.deleteProperty(this.collection.target.progression, id);}
     }
     editDefinition(entry?: Entry): void {
-        if (!this.store.canEdit()) return;
+        if (!this.store.canEdit()) {return;}
         this.closeDetails();
         this.error = '';
         this.definitionEditor = entry
@@ -244,7 +244,7 @@ export class Characters {
     }
     async saveDefinition(): Promise<void> {
         const entry = this.definitionEditor;
-        if (!entry || !this.store.canEdit()) return;
+        if (!entry || !this.store.canEdit()) {return;}
         entry.name = entry.name.trim();
         entry.notes = entry.notes.trim();
         const data = entry.characterDefinition!;
@@ -279,10 +279,10 @@ export class Characters {
         if (await this.store.save(entry)) {
             this.definitionEditor = null;
             this.message.set('Shared character information saved.');
-        } else this.error = this.store.error();
+        } else {this.error = this.store.error();}
     }
     editRules(): void {
-        if (!this.store.canEdit()) return;
+        if (!this.store.canEdit()) {return;}
         this.error = '';
         this.rulesEditor = structuredClone(
             this.rules() ?? {
@@ -299,9 +299,9 @@ export class Characters {
     }
     async saveRules(): Promise<void> {
         const rules = this.rulesEditor;
-        if (!rules || !this.store.canEdit()) return;
+        if (!rules || !this.store.canEdit()) {return;}
         for (const row of [...rules.equipmentSlots, ...rules.progressionTracks])
-            row.label = row.label.trim();
+            {row.label = row.label.trim();}
         if (!validCharacterRules(rules)) {
             this.error =
                 'Check the level cap, rarities, ascension rank caps, enhancement categories, and equipment/progression limits. Ascension level caps must increase to the game maximum and skill caps cannot decrease. Keep categories assigned to equipment slots or reassign those slots.';
@@ -321,7 +321,7 @@ export class Characters {
         if (await this.store.saveCharacterRules(this.game(), rules)) {
             this.rulesEditor = null;
             this.message.set('Game rules saved for all characters.');
-        } else this.error = this.store.error();
+        } else {this.error = this.store.error();}
     }
     addSlot(): void {
         this.rulesEditor?.equipmentSlots.push({
@@ -338,7 +338,7 @@ export class Characters {
         });
     }
     addAscensionRank(): void {
-        if (!this.rulesEditor) return;
+        if (!this.rulesEditor) {return;}
         const ranks = (this.rulesEditor.ascensionRanks ??= []);
         ranks.push({
             levelCap: Math.min(this.rulesEditor.levelCap, (ranks.at(-1)?.levelCap ?? 0) + 20),
@@ -366,7 +366,7 @@ export class Characters {
     }
     setSkillLevel(key: string, level: number, target = false): void {
         if (this.collection)
-            ((target ? this.ensureTarget() : this.collection).skillLevels ??= {})[key] = level;
+            {((target ? this.ensureTarget() : this.collection).skillLevels ??= {})[key] = level;}
     }
     targetProgress(): CharacterProgression | null {
         return this.collection?.target ?? this.collection;
@@ -401,16 +401,16 @@ export class Characters {
         return JSON.stringify(this.collection) !== this.savedDraft;
     }
     addPersonalGuide(): void {
-        if (this.collection) (this.collection.personalGuides ??= []).push({ title: '', url: '' });
+        if (this.collection) {(this.collection.personalGuides ??= []).push({ title: '', url: '' });}
     }
     movePersonalGuide(index: number, offset: number): void {
         const guides = this.collection?.personalGuides;
-        if (!guides || index + offset < 0 || index + offset >= guides.length) return;
+        if (!guides || index + offset < 0 || index + offset >= guides.length) {return;}
         [guides[index], guides[index + offset]] = [guides[index + offset], guides[index]];
     }
     orphanSkills(): string[] {
         const entry = this.selected();
-        if (!entry) return [];
+        if (!entry) {return [];}
         const data = this.definition(entry);
         const keys = [
             ...data.skills.map((skill, index) => skill.id ?? `skill-${index}`),
@@ -424,8 +424,8 @@ export class Characters {
         ].filter((key) => !keys.includes(key));
     }
     clearOrphanSkill(key: string): void {
-        if (this.collection?.skillLevels) delete this.collection.skillLevels[key];
-        if (this.collection?.target?.skillLevels) delete this.collection.target.skillLevels[key];
+        if (this.collection?.skillLevels) {Reflect.deleteProperty(this.collection.skillLevels, key);}
+        if (this.collection?.target?.skillLevels) {Reflect.deleteProperty(this.collection.target.skillLevels, key);}
     }
     csv(value: string): string[] {
         return [

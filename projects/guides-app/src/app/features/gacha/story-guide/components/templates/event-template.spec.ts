@@ -19,7 +19,7 @@ describe('Event banner, metadata bar and content groups', () => {
         const fixture = TestBed.createComponent(PatchOverviewTemplate);
         fixture.componentRef.setInput('entry', entry);
         fixture.detectChanges();
-        return { fixture, entry, data, save, root: fixture.nativeElement as HTMLElement };
+        return { fixture, entry, data, save, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('restores the banner and regular groups with a metadata bar immediately above the groups', () => {
         const { root } = setup();
@@ -86,6 +86,7 @@ describe('Event banner, metadata bar and content groups', () => {
         trimPatchOverviewText(data);
         expect(data.groups![0].contentUrl).toBe('https://example.com/event');
         expect(validPatchOverview(data)).toBe(true);
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
         expect(validPatchOverview({ ...data, groups: [{ ...data.groups![0], contentUrl: 'javascript:alert(1)' }] })).toBe(false);
     });
     it('does not guess missing availability or the introduced patch in a multi-patch event', () => {

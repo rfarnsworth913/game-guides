@@ -12,14 +12,15 @@ export function reworkMainQuestTemplate(source: PatchOverview, title: string): {
     // Preserve older ungrouped records by creating an explicit group only when there are rows.
     if (template.rows.some(row => !row.groupId)) {
         let id = 'main-quest-overview';
-        while (template.groups!.some(group => group.id === id)) id += '-legacy';
+        const groupIds = new Set(template.groups!.map(group => group.id));
+        while (groupIds.has(id)) {id += '-legacy';}
         template.groups!.push({ id, title });
-        for (const row of template.rows) if (!row.groupId) row.groupId = id;
+        for (const row of template.rows) {if (!row.groupId) {row.groupId = id;}}
     }
     for (const group of patchGroups(template)) {
         const savedGroup = template.groups!.find(item => item.id === group.id);
-        if (!savedGroup) continue;
-        if (savedGroup.groupType === 'content') continue;
+        if (!savedGroup) {continue;}
+        if (savedGroup.groupType === 'content') {continue;}
         if (!savedGroup.mainQuest) {
             const quests = group.rows.filter(row => !row.rowType || row.rowType === 'quest');
             const first = quests[0];
@@ -29,7 +30,7 @@ export function reworkMainQuestTemplate(source: PatchOverview, title: string): {
                 savedGroup.mainQuest = first;
                 template.rows = template.rows.filter(row => row.id !== first.id);
                 promoted++;
-            } else if (quests.length) review.push(group.title);
+            } else if (quests.length) {review.push(group.title);}
         }
         for (const row of template.rows.filter(row => row.groupId === group.id)) {
             if (row.subQuest) { row.subQuest = false; normalized++; }

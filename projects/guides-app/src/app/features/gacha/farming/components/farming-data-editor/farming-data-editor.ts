@@ -15,6 +15,7 @@ export class FarmingDataEditor {
     readonly game = input.required<string>();
     readonly closed = output<void>();
     readonly store = inject(WorkspaceStore);
+    readonly tabs = ['sources', 'recipes', 'servers'] as const;
     readonly tab = signal<'sources' | 'recipes' | 'servers'>('sources');
     readonly weekdays = [
         { id: 1, label: 'Mon' },

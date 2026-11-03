@@ -16,7 +16,7 @@ export class GamesService {
             throw new ApiError(400, 'Invalid catalog, references, or revision. Player state must not be sent to the server.');
         }
         if ('characterRules' in body && !validCharacterRules(body.characterRules))
-            throw new ApiError(400, 'Invalid character rules.');
-        return this.repository.write(id, body.entries, Number(body.revision), 'characterRules' in body ? body.characterRules as CharacterRules : undefined);
+            {throw new ApiError(400, 'Invalid character rules.');}
+        return this.repository.write(id, body.entries, Number(body.revision), 'characterRules' in body ? body.characterRules as CharacterRules : globalThis.undefined);
     }
 }

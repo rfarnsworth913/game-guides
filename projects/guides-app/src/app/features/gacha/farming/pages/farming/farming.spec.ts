@@ -132,7 +132,7 @@ describe('Farming planner', () => {
         fixture.componentRef.setInput('game', 'genshin');
         fixture.detectChanges();
         await fixture.whenStable();
-        return { fixture, store, root: fixture.nativeElement as HTMLElement };
+        return { fixture, store, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('selects active owned characters, aggregates costs once, and remembers selection across navigation', async () => {
         const { fixture, root } = await setup();
@@ -157,7 +157,7 @@ describe('Farming planner', () => {
         ]);
         restored.componentInstance.clear();
         restored.detectChanges();
-        expect((restored.nativeElement as HTMLElement).textContent).toContain(
+        expect(((restored.nativeElement as HTMLElement) as HTMLElement).textContent).toContain(
             'Select characters to plan your farming',
         );
     });

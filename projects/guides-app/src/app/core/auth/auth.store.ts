@@ -1,10 +1,11 @@
-import { Inject, Injectable, Optional, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { AuthService as Auth0Service } from '@auth0/auth0-angular';
 import { filter, firstValueFrom, take } from 'rxjs';
 export type Account = { id: string; name: string; editor: boolean };
 @Injectable({ providedIn: 'root' })
 export class AuthStore {
-    constructor(@Optional() @Inject(Auth0Service) private readonly sdk: Auth0Service | null = null) {
+    private readonly sdk = inject(Auth0Service, { optional: true });
+    constructor() {
         this.sdk?.error$.subscribe((error) => this.error.set(error.message || 'Authentication failed. Please sign in again.'));
     }
     get usesAuth0(): boolean { return this.sdk !== null; }

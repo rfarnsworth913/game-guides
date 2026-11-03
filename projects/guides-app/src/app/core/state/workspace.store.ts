@@ -7,7 +7,7 @@ import { characterCollectionFits, validCharacterCollection, validCharacterRules 
 import { mergeUpdates } from "./merge-updates";
 import type { ProgressSnapshot } from "../../../../../lib/types/player-progress.type";
 import { validProgressState } from "../../../../../common/player/player-progress";
-import { Inject, Injectable, Optional, computed, signal } from '@angular/core';
+import { inject, Injectable, computed, signal } from '@angular/core';
 import { validRowCompletion } from "../../../../../common/quests/story-template";
 import type { PlayerState, Entry, GameSnapshot } from "../../../../../lib/types/workspace.type";
 
@@ -22,7 +22,7 @@ class RequestError extends Error {
 }
 @Injectable({ providedIn: 'root' })
 export class WorkspaceStore {
-    constructor(@Optional() @Inject(AuthStore) readonly auth: AuthStore | null = null) {}
+    readonly auth = inject(AuthStore, { optional: true });
     readonly canEdit = computed(() => this.auth ? this.auth.user()?.editor === true : true);
     private progressRevision = 0;
     readonly error = signal('');
@@ -68,13 +68,13 @@ export class WorkspaceStore {
             try {
                 return this.snapshot(await this.request(`games/${base.id}/catalog`, { revision: current.revision, entries, ...(rules ? { characterRules: rules } : {}) }));
             } catch (error) {
-                if (!(error instanceof RequestError) || error.status !== 409) throw error;
+                if (!(error instanceof RequestError) || error.status !== 409) {throw error;}
                 current = this.snapshot(await this.request(`games/${base.id}`));
-                if (current.id !== base.id) throw new Error('Invalid game response.');
+                if (current.id !== base.id) {throw new Error('Invalid game response.', { cause: error });}
                 const index = (values: GameSnapshot['entries']) => Object.fromEntries(values.map(entry => [entry.id, entry]));
                 entries = Object.values(mergeUpdates(index(base.entries), index(edited), index(current.entries)));
-                if (editedRules) rules = mergeUpdates(base.characterRules, editedRules, current.characterRules);
-                if (!validCatalog(entries, base.id)) throw new Error('Another tab changed related guide content. Review the latest guide before retrying.');
+                if (editedRules) {rules = mergeUpdates(base.characterRules, editedRules, current.characterRules);}
+                if (!validCatalog(entries, base.id)) {throw new Error('Another tab changed related guide content. Review the latest guide before retrying.', { cause: error });}
             }
         }
         throw new Error('This game is being updated repeatedly. Your edit is still open; try saving again shortly.');
@@ -157,7 +157,7 @@ export class WorkspaceStore {
                         !Number.isFinite(state.target) ||
                         Number(state.target) < 0 ||
                         !validRowCompletion(
-                            'storyRowCompletion' in state ? state.storyRowCompletion : undefined,
+                            'storyRowCompletion' in state ? state.storyRowCompletion : globalThis.undefined,
                         ) || ('characterCollection' in state && !validCharacterCollection(state.characterCollection))
                     ) {
                         throw new Error(
@@ -165,7 +165,7 @@ export class WorkspaceStore {
                         );
                     }
                 }
-                if (!validProgressState(parsed.state)) throw new Error('Invalid local player data. Your stored data has not been overwritten.');
+                if (!validProgressState(parsed.state)) {throw new Error('Invalid local player data. Your stored data has not been overwritten.');}
                 this.player = parsed.state as typeof this.player;
             }
             const legacyRaw = !signedIn ? localStorage.getItem(KEY) : null;
@@ -272,8 +272,8 @@ export class WorkspaceStore {
             }
             if (!this.auth?.user()) {
                 const raw = localStorage.getItem('gg-player-v1');
-                const latest = raw ? JSON.parse(raw) : { version: 1, state: {} };
-                if (latest.version !== 1 || !validProgressState(latest.state)) throw new Error('Invalid local player data. Your stored data has not been overwritten.');
+                const latest = (raw ? JSON.parse(raw) : { version: 1, state: {} }) as { version?: unknown; state?: unknown };
+                if (latest.version !== 1 || !validProgressState(latest.state)) {throw new Error('Invalid local player data. Your stored data has not been overwritten.');}
                 const merged = mergeUpdates(this.player, player, latest.state);
                 localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: merged }));
                 this.player = merged;
@@ -291,7 +291,7 @@ export class WorkspaceStore {
                 if (JSON.stringify(catalog) === JSON.stringify(previous) && (!editedRules || JSON.stringify(editedRules) === JSON.stringify(snapshot.characterRules))) {
                     continue;
                 }
-                if (!this.canEdit()) throw new Error('An editor account is required to change guide content.');
+                if (!this.canEdit()) {throw new Error('An editor account is required to change guide content.');}
                 const saved = await this.writeCatalog(snapshot, catalog, editedRules);
                 this.snapshots.set(game.id, saved);
                 wroteCatalog = true;
@@ -326,9 +326,9 @@ export class WorkspaceStore {
         this.entries.set([]); this.initialized.set(false);
     }
     async saveCharacterRules(game: string, rules: CharacterRules): Promise<boolean> {
-        if (!this.canEdit() || !this.initialized() || this.saving() || this.loading() || !validCharacterRules(rules)) return false;
+        if (!this.canEdit() || !this.initialized() || this.saving() || this.loading() || !validCharacterRules(rules)) {return false;}
         const base = this.snapshots.get(game);
-        if (!base) return false;
+        if (!base) {return false;}
         this.saving.set(true); this.error.set('');
         try {
             const saved = await this.writeCatalog(base, base.entries, rules);
@@ -365,7 +365,7 @@ export class WorkspaceStore {
             if (!GAMES.some(item => item.id === game) || !validTeams(incoming)) { this.error.set('Invalid team data.'); return false; }
             const existing = this.teams()[game] ?? [];
             for (const team of incoming) {
-                if (JSON.stringify(existing.find(item => item.id === team.id)) === JSON.stringify(team)) continue;
+                if (JSON.stringify(existing.find(item => item.id === team.id)) === JSON.stringify(team)) {continue;}
                 if (team.members.length > teamSize(this.characterRules()[game]) || team.members.some(id => !this.entries().some(entry => entry.game === game && entry.id === id && entry.kind === 'characters' && entry.characterCollection?.owned))) {
                     this.error.set('Choose characters from your collection and stay within this game’s team size.'); return false;
                 }
@@ -377,7 +377,7 @@ export class WorkspaceStore {
         return this.persistTeams(updates);
     }
     private async persistTeams(updates: Record<string, Team[]>): Promise<boolean> {
-        if (this.saving() || this.loading() || !this.initialized()) return false;
+        if (this.saving() || this.loading() || !this.initialized()) {return false;}
         if (!Object.entries(updates).every(([game, teams]) => GAMES.some(item => item.id === game) && validTeams(teams))) { this.error.set('Invalid team data.'); return false; }
         const changes = Object.fromEntries(Object.entries(updates).map(([game, teams]) => [`${game}/${TEAM_PROGRESS_ID}`, { completed: false, quantity: 0, target: 0, teams: structuredClone(teams) }]));
         this.saving.set(true); this.error.set('');
@@ -387,8 +387,8 @@ export class WorkspaceStore {
                 this.player = progress.state; this.progressRevision = progress.revision;
             } else {
                 const raw = localStorage.getItem('gg-player-v1');
-                const latest = raw ? JSON.parse(raw) : { version: 1, state: {} };
-                if (latest.version !== 1 || !validProgressState(latest.state)) throw new Error('Invalid local progress. Stored data has not been overwritten.');
+                const latest = (raw ? JSON.parse(raw) : { version: 1, state: {} }) as { version?: unknown; state?: unknown };
+                if (latest.version !== 1 || !validProgressState(latest.state)) {throw new Error('Invalid local progress. Stored data has not been overwritten.');}
                 const merged = mergeUpdates(this.player, { ...this.player, ...changes }, latest.state);
                 localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: merged }));
                 this.player = merged;
@@ -399,8 +399,8 @@ export class WorkspaceStore {
     }
     private async readProgress(): Promise<ProgressSnapshot> {
         const response = await this.auth!.request('/api/me/progress');
-        const data = await response.json();
-        if (!response.ok || !Number.isSafeInteger(data.revision) || data.revision < 0 || !validProgressState(data.state)) throw new Error('Could not load account progress.');
+        const data = await response.json() as Record<string, unknown>;
+        if (!response.ok || !Number.isSafeInteger(data['revision']) || Number(data['revision']) < 0 || !validProgressState(data['state'])) {throw new Error('Could not load account progress.');}
         return data as ProgressSnapshot;
     }
     private async writeProgress(changes: ProgressSnapshot['state']): Promise<ProgressSnapshot> {
@@ -408,30 +408,32 @@ export class WorkspaceStore {
         const edited = { ...base, ...changes };
         let current = { revision: this.progressRevision, state: base };
         for (let attempt = 0; attempt < 3; attempt++) {
-            const merged = mergeUpdates(base, edited, current.state);
-            const updates = Object.fromEntries(Object.entries(merged).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(current.state[key])));
+            const state = current.state;
+            const merged = mergeUpdates(base, edited, state);
+            const updates = Object.fromEntries(Object.entries(merged).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(state[key])));
             const response = await this.auth!.request('/api/me/progress', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ revision: current.revision, changes: updates }) });
-            const data = await response.json();
+            const data = await response.json() as Record<string, unknown>;
             if (!response.ok) {
-                if (response.status !== 409) throw new Error(data.error || 'Could not sync account progress.');
-                current = await this.readProgress();
+                if (response.status !== 409) {throw new Error(typeof data['error'] === 'string' ? data['error'] : 'Could not sync account progress.');}
+                const latest = await this.readProgress();
+                current = latest;
                 continue;
             }
-            if (!Number.isSafeInteger(data.revision) || data.revision < 0 || !validProgressState(data.state)) throw new Error('Invalid progress response.');
+            if (!Number.isSafeInteger(data['revision']) || Number(data['revision']) < 0 || !validProgressState(data['state'])) {throw new Error('Invalid progress response.');}
             return data as ProgressSnapshot;
         }
         throw new Error('Progress is being updated repeatedly. Try saving again shortly.');
     }
     guestImport(): ProgressSnapshot['state'] {
         const raw = localStorage.getItem('gg-player-v1');
-        if (!raw) return {};
-        const data = JSON.parse(raw);
-        if (data.version !== 1 || !validProgressState(data.state)) throw new Error('Invalid guest progress. Export a backup before continuing.');
+        if (!raw) {return {};}
+        const data = JSON.parse(raw) as { version?: unknown; state?: unknown };
+        if (data.version !== 1 || !validProgressState(data['state'])) {throw new Error('Invalid guest progress. Export a backup before continuing.');}
         const result: ProgressSnapshot['state'] = {};
         for (const entry of this.entries()) {
-            const key = this.playerKey(entry); const guest = data.state[key];
-            if (!guest) continue;
+            const key = this.playerKey(entry); const guest = data['state'][key];
+            if (!guest) {continue;}
             const account = this.player[key];
             // Include historical cycle keys and old row IDs; importing must not erase earlier tracking.
             const completion = Object.fromEntries([...new Set([...Object.keys(guest.storyRowCompletion ?? {}), ...Object.keys(account?.storyRowCompletion ?? {})])]
@@ -440,23 +442,23 @@ export class WorkspaceStore {
                 quantity: Math.max(guest.quantity, account?.quantity ?? 0), target: Math.max(guest.target, account?.target ?? 0), storyRowCompletion: completion };
             // Explicit account builds take precedence; never combine two different equipment sets.
             const collection = account?.characterCollection ?? guest.characterCollection;
-            if (collection) result[key].characterCollection = structuredClone(collection);
+            if (collection) {result[key].characterCollection = structuredClone(collection);}
         }
         for (const game of GAMES) {
             const key = `${game.id}/${TEAM_PROGRESS_ID}`;
-            const incoming: Team[] | undefined = data.state[key]?.teams;
-            if (!incoming) continue;
+            const incoming: Team[] | undefined = data['state'][key]?.teams;
+            if (!incoming) {continue;}
             const existing = this.player[key]?.teams ?? [];
             const teams = new Map(existing.map(team => [team.id, team]));
             for (const team of incoming) {
-                if (!teams.has(team.id) && team.members.length <= teamSize(this.characterRules()[game.id]) && team.members.every(id => (result[`${game.id}/${id}`] ?? this.player[`${game.id}/${id}`])?.characterCollection?.owned)) teams.set(team.id, structuredClone(team));
+                if (!teams.has(team.id) && team.members.length <= teamSize(this.characterRules()[game.id]) && team.members.every(id => (result[`${game.id}/${id}`] ?? this.player[`${game.id}/${id}`])?.characterCollection?.owned)) {teams.set(team.id, structuredClone(team));}
             }
             result[key] = { completed: false, quantity: 0, target: 0, teams: [...teams.values()] };
         }
         return result;
     }
     async importGuestProgress(): Promise<boolean> {
-        if (!this.auth?.user() || this.saving() || !this.initialized()) return false;
+        if (!this.auth?.user() || this.saving() || !this.initialized()) {return false;}
         this.saving.set(true); this.error.set('');
         try {
             const progress = await this.writeProgress(this.guestImport());

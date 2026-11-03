@@ -13,11 +13,11 @@ export class ProgressService {
         if (!body || typeof body !== 'object' || Object.keys(body).some((key) => !['revision', 'changes'].includes(key)) ||
             !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0 ||
             !('changes' in body) || !validProgressState(body.changes))
-            throw new ApiError(400, 'Invalid progress update.');
+            {throw new ApiError(400, 'Invalid progress update.');}
         const previous = await progress.read(userId);
         const requestedChanges = body.changes;
         if (previous.revision !== body.revision)
-            throw new ApiError(409, 'Progress changed in another browser. Reload before retrying.');
+            {throw new ApiError(409, 'Progress changed in another browser. Reload before retrying.');}
         const catalogs = new Map<string, Map<string, Awaited<ReturnType<typeof repository.read>>['entries'][number]>>();
         const gameRules = new Map<string, Awaited<ReturnType<typeof repository.read>>['characterRules']>();
         for (const [key, state] of Object.entries(body.changes)) {
@@ -35,7 +35,7 @@ export class ProgressService {
             }
             const entry = catalogs.get(game)!.get(id);
             if (!entry)
-                throw new ApiError(400, 'Progress references unknown content.');
+                {throw new ApiError(400, 'Progress references unknown content.');}
             validateInventoryProgress(entry, state);
             validateCharacterProgress(entry, state, gameRules.get(game));
             validateStoryProgress(entry, state, previous.state[key]?.storyRowCompletion ?? {});

@@ -7,14 +7,14 @@ import { join } from 'node:path';
 import { AddressInfo } from 'node:net';
 import { createApi } from "../../app/server";
 
-test('game image uploads persist, list per game, serve immediately and reject unsafe input', async (t) => {
+await test('game image uploads persist, list per game, serve immediately and reject unsafe input', async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'guides-images-'));
     const server = createApi({
         async read() { throw new Error('Unexpected database call'); },
         async write() { throw new Error('Unexpected database call'); },
         async parsed() { throw new Error('Unexpected database call'); },
     }, ['http://localhost:4200'], async () => true, root, editorFixture);
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve); });
     t.after(async () => {
         await new Promise<void>((resolve) => { server.close(() => resolve()); server.closeAllConnections(); });
         await rm(root, { recursive: true, force: true });
@@ -40,13 +40,14 @@ test('game image uploads persist, list per game, serve immediately and reject un
     assert.equal((await update(metadata)).status, 200);
     assert.deepEqual(await (await fetch(endpoint)).json(), { images: [{ ...image, details: metadata }] });
     assert.deepEqual(JSON.parse(await readFile(join(root, 'arknights-endfield', `${image.name}.json`), 'utf8')), metadata);
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
     assert.equal((await update({ ...metadata, sourceUrl: 'javascript:alert(1)' })).status, 400);
     assert.equal((await update({ ...metadata, category: 'unsupported' })).status, 400);
     assert.equal((await update(metadata, 'https://unrelated.example')).status, 403);
     assert.equal((await update({ ...metadata, title: 'Updated' })).status, 200);
     assert.deepEqual(await (await fetch(`${base}/api/games/genshin/images`)).json(), { images: [] });
     assert.equal((await fetch(`${base}/api/games/genshin/images/${image.name}`)).status, 404);
-    assert.notEqual((await (await upload()).json()).name, image.name);
+    assert.notEqual(((await (await upload()).json()) as { name: string }).name, image.name);
     assert.equal((await upload('<svg></svg>', 'image/svg+xml')).status, 415);
     assert.equal((await upload('<script>bad</script>')).status, 415);
     const mislabeled = await upload(png, 'image/jpeg');

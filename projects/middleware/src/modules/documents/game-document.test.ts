@@ -39,7 +39,7 @@ const achievement: CatalogEntry = {
     order: 2,
 };
 
-test('existing nested string orders migrate to integers without changing IDs or revision', () => {
+await test('existing nested string orders migrate to integers without changing IDs or revision', () => {
     const document = encodeEntries([category, achievement]);
     document['achievements'][0].order = '10';
     document['achievements'][0].achievements[0].order = '2';
@@ -51,7 +51,7 @@ test('existing nested string orders migrate to integers without changing IDs or 
     assert.equal(validCatalog([{ ...category, order: 1.5 }], 'genshin'), false);
 });
 
-test('migration refuses orphaned achievements instead of silently losing them', () => {
+await test('migration refuses orphaned achievements instead of silently losing them', () => {
     assert.throws(
         () =>
             migrateDocument({
@@ -62,7 +62,7 @@ test('migration refuses orphaned achievements instead of silently losing them', 
     );
 });
 
-void test('parser events are exposed with dates and stable period IDs without duplicating or changing database records', () => {
+await test('parser events are exposed with dates and stable period IDs without duplicating or changing database records', () => {
     const event = {
         title: 'Challenge',
         url: 'https://example.com/challenge',
@@ -103,7 +103,7 @@ void test('parser events are exposed with dates and stable period IDs without du
     assert.equal(reordered.find((item) => item.name === event.title)?.id, entry.id);
 });
 
-test('nested achievement documents map to stable browser IDs, references, links and requirements', () => {
+await test('nested achievement documents map to stable browser IDs, references, links and requirements', () => {
     const encoded = encodeEntries([category, achievement]);
     assert.equal(encoded['achievements'][0]._id, category.id);
     assert.equal(encoded['achievements'][0].order, 10);
@@ -118,7 +118,7 @@ test('nested achievement documents map to stable browser IDs, references, links 
     assert.ok(validCatalog(decoded, 'genshin'));
 });
 
-test('migration retains parser records, version and revision while removing parser progress defaults', () => {
+await test('migration retains parser records, version and revision while removing parser progress defaults', () => {
     const original = {
         name: 'Genshin Impact',
         version: { title: '6.0', releaseDate: '2026-01-01', url: 'https://example.com' },
@@ -139,7 +139,7 @@ test('migration retains parser records, version and revision while removing pars
     });
     assert.equal(migrated['events'].length, 2);
     assert.equal(migrated['achievements'][0].achievements[0]._id, achievement.id);
-    for (const field of GAME_ARRAYS) assert.ok(Array.isArray(migrated[field]));
+    for (const field of GAME_ARRAYS) {assert.ok(Array.isArray(migrated[field]));}
     const next = mergeEntries(migrated, []);
     assert.deepEqual(next['events'], [migrated['events'][0]]);
     assert.deepEqual(next['achievements'], []);

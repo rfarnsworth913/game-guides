@@ -17,10 +17,10 @@ try {
     await repository.initialize();
     const auth = new Auth0Security(config.auth0);
     const progress = new ProgressRepository(db.collection<ProgressDocument>(`${config.collection}_player_progress`));
-    const server = createApi(repository, config.origins, () => db.command({ ping: 1 }), undefined, auth, progress);
-    server.on('error', async () => {
+    const server = createApi(repository, config.origins, () => db.command({ ping: 1 }), globalThis.undefined, auth, progress);
+    server.on('error', () => {
         console.error('Middleware could not listen. Check MIDDLEWARE_PORT.');
-        await client.close();
+        client.close().catch(error => console.error('Could not close MongoDB:', error));
         process.exitCode = 1;
     });
     server.listen(config.port, '127.0.0.1', () =>

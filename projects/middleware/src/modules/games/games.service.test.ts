@@ -4,7 +4,7 @@ import { GamesService } from './games.service';
 import { ApiError } from '../../core/errors/app-error';
 import type { CatalogRepository } from '../../app/app.types';
 
-test('catalog validation rejects malformed rules before persistence and retains revision conflicts', async () => {
+await test('catalog validation rejects malformed rules before persistence and retains revision conflicts', async () => {
     let writes = 0;
     const repository: CatalogRepository = {
         async read() { throw new Error('Read is not used here.'); },

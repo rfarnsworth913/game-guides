@@ -17,9 +17,9 @@ export function createApi(repository: CatalogRepository, origins: string[], ping
             response.setHeader('X-Content-Type-Options', 'nosniff');
             response.setHeader('Referrer-Policy', 'same-origin');
             if (path.startsWith('/api/auth/') && path !== '/api/auth/session')
-                rateLimit(request, true);
+                {rateLimit(request, true);}
             else if (!['GET', 'HEAD'].includes(request.method ?? ''))
-                rateLimit(request, false);
+                {rateLimit(request, false);}
             assertOrigin(request, origins);
             await dispatchRoutes(request, response, url, dependencies);
         };

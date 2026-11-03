@@ -56,7 +56,7 @@ const patch: Entry = {
     },
     storyRowCompletion: { merged: true, split: false },
 };
-test('patch template survives database round trips while row completion stays out of shared documents', () => {
+await test('patch template survives database round trips while row completion stays out of shared documents', () => {
     const catalog = [section, patch].map(toCatalog);
     assert.ok(validCatalog(catalog, 'genshin'));
     const document = encodeEntries(catalog);
@@ -64,7 +64,7 @@ test('patch template survives database round trips while row completion stays ou
     assert.ok(!JSON.stringify(document).includes('completed'));
     const decoded = decodeEntries(document, 'genshin').find((entry) => entry.id === patch.id)!;
     assert.deepEqual(decoded.patchOverview, patch.patchOverview);
-    assert.equal(fromCatalog(decoded).storyRowCompletion, undefined);
+    assert.equal(fromCatalog(decoded).storyRowCompletion, globalThis.undefined);
     assert.equal(
         fromCatalog(decoded, {
             completed: false,
@@ -80,11 +80,13 @@ test('patch template survives database round trips while row completion stays ou
         patch.storyRowCompletion,
     );
 });
-test('template validation rejects unsafe URLs, duplicate row IDs and nested completion state', () => {
+await test('template validation rejects unsafe URLs, duplicate row IDs and nested completion state', () => {
     assert.ok(validPatchOverview({ ...patch.patchOverview, imageUrl: '/api/games/genshin/images/header.png' }));
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
     assert.equal(validPatchOverview({ ...patch.patchOverview, versionImageUrl: 'javascript:alert(1)' }), false);
     assert.equal(validPatchOverview({ ...patch.patchOverview, imageUrl: '/api/games/genshin/images/../secret.png' }), false);
     assert.equal(
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
         validPatchOverview({ ...patch.patchOverview, imageUrl: 'javascript:alert(1)' }),
         false,
     );
@@ -106,7 +108,7 @@ test('template validation rejects unsafe URLs, duplicate row IDs and nested comp
     );
 });
 
-test('legacy content types become editable groups without changing row IDs or notes', () => {
+await test('legacy content types become editable groups without changing row IDs or notes', () => {
     const overview = structuredClone(patch.patchOverview!);
     const ids = overview.rows.map((row) => row.id);
     assert.deepEqual(
@@ -122,6 +124,7 @@ test('legacy content types become editable groups without changing row IDs or no
     assert.ok(validPatchOverview(overview));
     overview.rows[0].contentUrl = 'https://example.com/trailer';
     assert.ok(validPatchOverview(overview));
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
     overview.rows[0].contentUrl = 'javascript:alert(1)';
     assert.equal(validPatchOverview(overview), false);
     overview.rows[0].contentUrl = '';
@@ -130,12 +133,12 @@ test('legacy content types become editable groups without changing row IDs or no
 });
 
 
-test('main story definitions persist independently and completion stays local', () => {
-    const main: Entry = { ...patch, category: 'main-story', patchOverview: undefined,
+await test('main story definitions persist independently and completion stays local', () => {
+    const main: Entry = { ...patch, category: 'main-story', patchOverview: globalThis.undefined,
         mainStory: { ...patch.patchOverview!, region: 'Mondstadt', subtitle: 'City of Freedom', patchVersion: '1.0-1.2', groups: [{ id: 'story', title: 'Story', defaultPatch: '1.1' }] } };
     const catalog = [section, main].map(toCatalog);
     // JSON transport omits undefined fields.
-    const transported = JSON.parse(JSON.stringify(catalog));
+    const transported: unknown = JSON.parse(JSON.stringify(catalog));
     assert.ok(validCatalog(transported, 'genshin'));
     const document = encodeEntries(transported);
     const decoded = decodeEntries(document, 'genshin').find((entry) => entry.id === main.id)!;
@@ -147,14 +150,14 @@ test('main story definitions persist independently and completion stays local', 
 });
 
 
-test('world quest headings and notes persist but do not count toward completion', () => {
-    const quest: Entry = { ...patch, category: 'world-quests', patchOverview: undefined,
+await test('world quest headings and notes persist but do not count toward completion', () => {
+    const quest: Entry = { ...patch, category: 'world-quests', patchOverview: globalThis.undefined,
         worldQuests: { ...patch.patchOverview!, rows: [
             { ...patch.patchOverview!.rows[0], id: 'heading', rowType: 'heading', content: 'Mondstadt' },
             { ...patch.patchOverview!.rows[0], id: 'note', rowType: 'note', notes: '**Global note**' },
             { ...patch.patchOverview!.rows[0], rowType: 'quest' },
         ] } };
-    const catalog = JSON.parse(JSON.stringify([section, quest].map(toCatalog)));
+    const catalog: unknown = JSON.parse(JSON.stringify([section, quest].map(toCatalog)));
     assert.ok(validCatalog(catalog, 'genshin'));
     const decoded = decodeEntries(encodeEntries(catalog), 'genshin').find((entry) => entry.id === quest.id)!;
     assert.deepEqual(decoded.worldQuests, quest.worldQuests);
@@ -164,44 +167,44 @@ test('world quest headings and notes persist but do not count toward completion'
 });
 
 
-test('side story definitions round-trip with player completion kept local', () => {
-    const side: Entry = { ...patch, category: 'side-stories', patchOverview: undefined,
+await test('side story definitions round-trip with player completion kept local', () => {
+    const side: Entry = { ...patch, category: 'side-stories', patchOverview: globalThis.undefined,
         sideStories: structuredClone(patch.patchOverview!) };
-    const catalog = JSON.parse(JSON.stringify([section, side].map(toCatalog)));
+    const catalog: unknown = JSON.parse(JSON.stringify([section, side].map(toCatalog)));
     assert.ok(validCatalog(catalog, 'genshin'));
     const document = encodeEntries(catalog);
     const decoded = decodeEntries(document, 'genshin').find((entry) => entry.id === side.id)!;
     assert.deepEqual(decoded.sideStories, side.sideStories);
-    assert.equal(decoded.patchOverview, undefined);
+    assert.equal(decoded.patchOverview, globalThis.undefined);
     assert.ok(!JSON.stringify(document).includes('storyRowCompletion'));
     assert.equal(fromCatalog(decoded).completed, false);
     assert.equal(fromCatalog(decoded, { completed: false, quantity: 0, target: 0,
         storyRowCompletion: { merged: true, split: true } }).completed, true);
 });
 
-test('event story definitions persist with row progress stored only on the device', () => {
-    const event: Entry = { ...patch, category: 'events', patchOverview: undefined,
+await test('event story definitions persist with row progress stored only on the device', () => {
+    const event: Entry = { ...patch, category: 'events', patchOverview: globalThis.undefined,
         eventStory: structuredClone(patch.patchOverview!) };
-    const catalog = JSON.parse(JSON.stringify([section, event].map(toCatalog)));
+    const catalog: unknown = JSON.parse(JSON.stringify([section, event].map(toCatalog)));
     assert.ok(validCatalog(catalog, 'genshin'));
     const document = encodeEntries(catalog);
     const decoded = decodeEntries(document, 'genshin').find((entry) => entry.id === event.id)!;
     assert.deepEqual(decoded.eventStory, event.eventStory);
-    assert.equal(decoded.patchOverview, undefined);
+    assert.equal(decoded.patchOverview, globalThis.undefined);
     assert.ok(!JSON.stringify(document).includes('storyRowCompletion'));
     assert.equal(fromCatalog(decoded).completed, false);
     assert.equal(fromCatalog(decoded, { completed: false, quantity: 0, target: 0,
         storyRowCompletion: { merged: true, split: true } }).completed, true);
 });
 
-test('character information headings and notes persist without affecting completion', () => {
-    const quest: Entry = { ...patch, category: 'character-information', patchOverview: undefined,
+await test('character information headings and notes persist without affecting completion', () => {
+    const quest: Entry = { ...patch, category: 'character-information', patchOverview: globalThis.undefined,
         characterInformation: { ...patch.patchOverview!, rows: [
             { ...patch.patchOverview!.rows[0], id: 'heading', rowType: 'heading', content: 'Mondstadt' },
             { ...patch.patchOverview!.rows[0], id: 'note', rowType: 'note', notes: '**Global note**' },
             { ...patch.patchOverview!.rows[0], rowType: 'quest' },
         ] } };
-    const catalog = JSON.parse(JSON.stringify([section, quest].map(toCatalog)));
+    const catalog: unknown = JSON.parse(JSON.stringify([section, quest].map(toCatalog)));
     assert.ok(validCatalog(catalog, 'genshin'));
     const decoded = decodeEntries(encodeEntries(catalog), 'genshin').find((entry) => entry.id === quest.id)!;
     assert.deepEqual(decoded.characterInformation, quest.characterInformation);
@@ -211,14 +214,14 @@ test('character information headings and notes persist without affecting complet
 });
 
 
-test('lore headings and notes persist but do not count toward completion', () => {
-    const quest: Entry = { ...patch, category: 'lore', patchOverview: undefined,
+await test('lore headings and notes persist but do not count toward completion', () => {
+    const quest: Entry = { ...patch, category: 'lore', patchOverview: globalThis.undefined,
         lore: { ...patch.patchOverview!, rows: [
             { ...patch.patchOverview!.rows[0], id: 'heading', rowType: 'heading', content: 'Mondstadt' },
             { ...patch.patchOverview!.rows[0], id: 'note', rowType: 'note', notes: '**Global note**' },
             { ...patch.patchOverview!.rows[0], rowType: 'quest' },
         ] } };
-    const catalog = JSON.parse(JSON.stringify([section, quest].map(toCatalog)));
+    const catalog: unknown = JSON.parse(JSON.stringify([section, quest].map(toCatalog)));
     assert.ok(validCatalog(catalog, 'genshin'));
     const decoded = decodeEntries(encodeEntries(catalog), 'genshin').find((entry) => entry.id === quest.id)!;
     assert.deepEqual(decoded.lore, quest.lore);

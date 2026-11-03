@@ -235,9 +235,9 @@ export class Workspace {
         }
     }
     setMaxStack(value: number | null): void {
-        if (!this.editor) return;
-        if (value === null) delete this.editor.maxStack;
-        else this.editor.maxStack = value;
+        if (!this.editor) {return;}
+        if (value === null) {delete this.editor.maxStack;}
+        else {this.editor.maxStack = value;}
     }
     async remove(): Promise<void> {
         if (this.pendingDelete && (await this.store.remove(this.pendingDelete.id))) {

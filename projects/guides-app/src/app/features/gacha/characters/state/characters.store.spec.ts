@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
+
 import { WorkspaceStore, GAMES, Entry } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
 import type { CharacterRules } from "../../../../../../../lib/types/character.type";
@@ -42,14 +43,14 @@ describe('Character collection persistence', () => {
         const method = init?.method ?? 'GET';
         requests.push({ account, path, method });
         if (path === '/api/games')
-            return {
+            {return {
                 ok: true,
                 json: async () => structuredClone({ games: snapshots }),
-            } as Response;
+            } as Response;}
         if (path === '/api/me/progress') {
             let value = accounts.get(account) ?? { revision: 0, state: {} };
             if (method === 'PATCH') {
-                const body = JSON.parse(init!.body as string);
+                const body = JSON.parse(init!.body as string) as { changes: Record<string, PlayerState>; entries: GameSnapshot['entries']; characterRules?: CharacterRules };
                 value = {
                     revision: value.revision + 1,
                     state: { ...value.state, ...body.changes },
@@ -59,7 +60,7 @@ describe('Character collection persistence', () => {
             return { ok: true, json: async () => structuredClone(value) } as Response;
         }
         if (method === 'PUT') {
-            const body = JSON.parse(init!.body as string);
+            const body = JSON.parse(init!.body as string) as { changes: Record<string, PlayerState>; entries: GameSnapshot['entries']; characterRules?: CharacterRules };
             const game = snapshots.find((game) => path.includes('/' + game.id + '/'))!;
             game.entries = body.entries;
             game.characterRules = body.characterRules ?? game.characterRules;
@@ -98,33 +99,33 @@ describe('Character collection persistence', () => {
     });
     afterEach(() => vi.unstubAllGlobals());
     it('saves personal teams for non-editors, reloads them privately, and preserves characters on deletion', async () => {
-        const alice = new WorkspaceStore(auth('alice')); await alice.initialize();
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await alice.initialize();
         const team = { id: 'my-team', name: 'My team', members: ['vesna'], notes: 'Rotation' };
         expect(await alice.saveTeam('genshin', team)).toBe(false);
         await alice.saveCharacterCollection('vesna', emptyCharacterCollection());
         expect(await alice.saveTeam('genshin', team)).toBe(true);
-        const restored = new WorkspaceStore(auth('alice')); await restored.initialize();
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await restored.initialize();
         expect(restored.teams()['genshin']).toEqual([team]);
-        const bob = new WorkspaceStore(auth('bob')); await bob.initialize();
+        const bob = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('bob') }] }), () => new WorkspaceStore()); await bob.initialize();
         expect(bob.teams()['genshin']).toEqual([]);
         expect(await restored.deleteTeam('genshin', 'my-team')).toBe(true);
         expect(restored.entries()[0].characterCollection!.owned).toBe(true);
         expect(requests.filter(request => request.method === 'PUT')).toHaveLength(0);
     });
     it('persists guest teams and imports them with owned characters through the explicit account action', async () => {
-        const guest = new WorkspaceStore(); await guest.initialize();
+        const guest = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await guest.initialize();
         await guest.saveCharacterCollection('vesna', emptyCharacterCollection());
         const team = { id: 'guest-team', name: 'Guest team', members: ['vesna'], notes: '' };
         expect(await guest.saveTeam('genshin', team)).toBe(true);
-        const restored = new WorkspaceStore(); await restored.initialize();
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await restored.initialize();
         expect(restored.teams()['genshin']).toEqual([team]);
-        const alice = new WorkspaceStore(auth('alice')); await alice.initialize();
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await alice.initialize();
         expect(alice.teams()['genshin']).toEqual([]);
         expect(await alice.importGuestProgress()).toBe(true);
         expect(alice.teams()['genshin']).toEqual([team]);
     });
     it('lets a player add, edit, reload and remove a personal build without modifying the shared character', async () => {
-        const alice = new WorkspaceStore(auth('alice'));
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await alice.initialize();
         expect(alice.canEdit()).toBe(false);
         expect(
@@ -134,10 +135,10 @@ describe('Character collection persistence', () => {
                 gear: { weapon: ['Excalibur'] },
             }),
         ).toBe(true);
-        const bob = new WorkspaceStore(auth('bob'));
+        const bob = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('bob') }] }), () => new WorkspaceStore());
         await bob.initialize();
         expect(bob.entries()[0].characterCollection).toBeUndefined();
-        const reloaded = new WorkspaceStore(auth('alice'));
+        const reloaded = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await reloaded.initialize();
         expect(reloaded.entries()[0].characterCollection).toMatchObject({
             level: 50,
@@ -162,13 +163,13 @@ describe('Character collection persistence', () => {
         expect(local.has('gg-player-v1')).toBe(false);
     });
     it('persists guest collections locally and imports them only with the explicit account action', async () => {
-        const guest = new WorkspaceStore();
+        const guest = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         await guest.initialize();
         await guest.saveCharacterCollection('vesna', { ...emptyCharacterCollection(), level: 25 });
-        const restored = new WorkspaceStore();
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         await restored.initialize();
         expect(restored.entries()[0].characterCollection?.level).toBe(25);
-        const alice = new WorkspaceStore(auth('alice'));
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await alice.initialize();
         expect(alice.entries()[0].characterCollection).toBeUndefined();
         expect(await alice.importGuestProgress()).toBe(true);
@@ -176,7 +177,7 @@ describe('Character collection persistence', () => {
         expect(local.has('gg-player-v1')).toBe(true);
     });
     it('blocks invalid levels and cross-game slots, and reserves game rules for editors', async () => {
-        const alice = new WorkspaceStore(auth('alice'));
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await alice.initialize();
         expect(
             await alice.saveCharacterCollection('vesna', {
@@ -192,14 +193,14 @@ describe('Character collection persistence', () => {
         ).toBe(false);
         expect(await alice.saveCharacterRules('genshin', rules)).toBe(false);
         expect(requests.filter((request) => request.method !== 'GET')).toHaveLength(0);
-        const editor = new WorkspaceStore(auth('editor', true));
+        const editor = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('editor', true) }] }), () => new WorkspaceStore());
         await editor.initialize();
         expect(await editor.saveCharacterRules('genshin', { ...rules, levelCap: 100 })).toBe(true);
         expect(editor.characterRules()['genshin'].levelCap).toBe(100);
         expect(editor.entries()[0].characterCollection).toBeUndefined();
     });
     it('restores shared game rules together with catalog data and rejects malformed rule backups', async () => {
-        const editor = new WorkspaceStore(auth('editor', true));
+        const editor = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('editor', true) }] }), () => new WorkspaceStore());
         await editor.initialize();
         const backup = {
             version: 1,

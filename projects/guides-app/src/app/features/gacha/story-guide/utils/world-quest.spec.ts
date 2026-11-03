@@ -33,7 +33,7 @@ describe('World Quest hierarchy', () => {
         fixture.componentRef.setInput('data', data);
         fixture.componentRef.setInput('entry', entryFor(data));
         fixture.detectChanges();
-        return { fixture, data, root: fixture.nativeElement as HTMLElement };
+        return { fixture, data, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('adapts legacy headings without mutating content, IDs or release versions', () => {
         const data = fixtureData();
@@ -115,7 +115,7 @@ describe('World Quest hierarchy', () => {
         const data = fixtureData();
         fixture.componentRef.setInput('entry', entryFor(data));
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         const checkbox = root.querySelector<HTMLInputElement>('#story-row-guide-second input')!;
         checkbox.click();
         expect(checkbox.checked).toBe(false);
@@ -166,6 +166,7 @@ describe('World Quest hierarchy', () => {
         fixture.detectChanges();
         expect(toggle.getAttribute('aria-expanded')).toBe('false');
         expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(5);
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
         changed.rows[0].contentUrl = 'javascript:alert(1)';
         expect(validPatchOverview(changed)).toBe(false);
         fixture.componentRef.setInput('data', structuredClone(changed));
@@ -259,7 +260,7 @@ describe('World Quest hierarchy', () => {
         fixture.componentRef.setInput('entry', entryFor(fixtureData()));
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.textContent).toContain('Organize by');
         expect(root.textContent).toContain('Include existing objectives');
         expect(root.textContent).toContain('Secondary Heading Link');

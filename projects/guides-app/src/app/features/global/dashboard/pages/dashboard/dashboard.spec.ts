@@ -1,5 +1,7 @@
+import { Injector, runInInjectionContext, signal } from '@angular/core';
+import { AuthStore } from '../../../../../core/auth/auth.store';
 import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+
 import { provideRouter } from '@angular/router';
 import { DashboardPage } from './dashboard';
 import { WorkspaceStore, GAMES, type Entry } from '../../../../../core/state/workspace.store';
@@ -7,7 +9,7 @@ import { StoryPositionStore } from '../../../../gacha/story-guide/state/story-po
 
 describe('Dashboard feature ownership', () => {
     it('scopes summaries to the selected game and emits plan editing to the shell', () => {
-        const store = new WorkspaceStore();
+        const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         const entry = (id: string, game: string, kind: Entry['kind']): Entry => ({
             id, game, kind, name: id, category: '', notes: '', order: 0, rarity: 1, day: '',
             members: [], requirements: [], quantity: 0, target: 1, completed: false,
@@ -28,7 +30,7 @@ describe('Dashboard feature ownership', () => {
         expect(fixture.componentInstance.dashboardStories().map(game => game.id)).toEqual(['genshin']);
         let selected: Entry | undefined;
         fixture.componentInstance.editPlan.subscribe(value => { selected = value; });
-        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.plan-row')!.click();
+        ((fixture.nativeElement as HTMLElement) as HTMLElement).querySelector<HTMLButtonElement>('.plan-row')!.click();
         expect(selected).toBe(plan);
     });
 });

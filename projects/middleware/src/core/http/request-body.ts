@@ -6,7 +6,7 @@ export async function jsonBody(request: IncomingMessage): Promise<unknown> {
     }
     const chunks: Buffer[] = [];
     let size = 0;
-    for await (const chunk of request) {
+    for await (const chunk of request as AsyncIterable<Buffer | string>) {
         size += Buffer.byteLength(chunk);
         if (size > 8 * 1024 * 1024) {
             throw new ApiError(413, 'Request is too large.');

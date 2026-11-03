@@ -3,6 +3,9 @@ import { storyProgress, storyTemplate } from "./story-progress";
 import { StoryPosition } from "../state/story-position.store";
 import { storyRowDone } from "../../../../../../../common/quests/story-guide";
 
+function ordered(a: Entry, b: Entry): number { return a.order - b.order || a.name.localeCompare(b.name); }
+
+
 export function storyDashboard(entries: Entry[], game: string, position?: StoryPosition) {
     const sections = entries.filter(e => e.game === game && e.kind === 'story-category').sort(ordered);
     const stories = sections.flatMap(section => entries.filter(e => e.game === game && e.kind === 'story' && e.storySection === section.id).sort(ordered));
@@ -17,9 +20,7 @@ export function storyDashboard(entries: Entry[], game: string, position?: StoryP
     return {
         game, ...progress, resume, section, row, nextRow, visitedAt: visited ? position?.visitedAt ?? 0 : 0,
         lastLocation: visited ? [section?.name, visited.name, position?.rowId && rows.find(row => row.id === position.rowId)?.content].filter(Boolean).join(' / ') : '',
-        fragment: resume ? row ? `story-row-${resume.id}-${row.id}` : `${storyTemplate(resume) ? 'story-template' : 'story-content'}-${resume.id}` : undefined,
+        fragment: resume ? row ? `story-row-${resume.id}-${row.id}` : `${storyTemplate(resume) ? 'story-template' : 'story-content'}-${resume.id}` : globalThis.undefined,
         action: visited ? 'Resume guide' : next ? 'Start guide' : progress.total ? 'Review guide' : 'Open guide',
     };
 }
-
-function ordered(a: Entry, b: Entry): number { return a.order - b.order || a.name.localeCompare(b.name); }

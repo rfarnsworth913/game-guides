@@ -27,7 +27,7 @@ describe('Story incomplete filter', () => {
         fixture.changeDetectorRef.markForCheck();
         fixture.detectChanges();
         await fixture.whenStable();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.querySelector('.navigation-category-icon > span')?.textContent).toBe('Icon or Icon URL');
         expect(root.querySelector('.navigation-category-icon .compact-icon-button')).not.toBeNull();
         const picker = fixture.debugElement.query(By.css('.navigation-category-icon gg-game-image-picker')).componentInstance as GameImagePicker;
@@ -45,6 +45,7 @@ describe('Story incomplete filter', () => {
         expect(root.querySelector('#story-tab-section img')?.getAttribute('src')).toBe('/api/games/genshin/images/mondstadt.webp');
         expect(component.iconUrl('https://example.com/icon.png')).toBe('https://example.com/icon.png');
         expect(component.iconUrl('*')).toBeNull();
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
         expect(component.iconUrl('javascript:alert(1)')).toBeNull();
         expect(component.iconUrl('/api/games/genshin/images/../secret.png')).toBeNull();
     });
@@ -68,7 +69,7 @@ describe('Story incomplete filter', () => {
         const component = fixture.componentInstance;
         expect(component.outlineChapters().map(chapter => [chapter.id, chapter.children.map(child => child.id)]))
             .toEqual([['patch', ['event']], ['main', ['world', 'character', 'later-event', 'later-world']]]);
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.querySelectorAll('.outline-chapter').length).toBe(2);
         expect(root.querySelector('.outline-group')).toBeNull();
         expect(root.querySelector('.story-outline h3')?.textContent).toBe('Story Navigation');
@@ -123,12 +124,12 @@ describe('Story incomplete filter', () => {
         const fixture = TestBed.createComponent(Story);
         fixture.componentRef.setInput('game', 'genshin');
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         const rect = (top: number, bottom: number) => ({ top, bottom } as DOMRect);
         vi.spyOn(root.querySelector<HTMLElement>('.story-sticky-header')!, 'getBoundingClientRect').mockReturnValue(rect(0, 100));
         const parent = root.querySelector<HTMLElement>('#story-content-first')!;
         const child = root.querySelector<HTMLElement>('#story-content-second')!;
-        for (const target of [parent, child]) vi.spyOn(target, 'getClientRects').mockReturnValue([rect(0, 500)] as unknown as DOMRectList);
+        for (const target of [parent, child]) {vi.spyOn(target, 'getClientRects').mockReturnValue([rect(0, 500)] as unknown as DOMRectList);}
         const center = 100 + (window.innerHeight - 100) / 2;
         vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue(rect(-300, center + 300));
         const childBounds = vi.spyOn(child, 'getBoundingClientRect').mockReturnValue(rect(center + 50, center + 300));
@@ -164,7 +165,7 @@ describe('Story incomplete filter', () => {
         fixture.changeDetectorRef.markForCheck();
         fixture.detectChanges();
         await fixture.whenStable();
-        const modal = fixture.nativeElement.querySelector('.create-subsection-modal') as HTMLElement;
+        const modal = (fixture.nativeElement as HTMLElement).querySelector('.create-subsection-modal') as HTMLElement;
         expect(modal.querySelector('h2')?.textContent).toContain('Create Subsection');
         expect([...modal.querySelectorAll('form > label')].map((label) => label.firstChild?.textContent?.trim())).toEqual(['Content Template', 'Navigation Category', 'Section Title']);
         expect(modal.querySelector('gg-patch-overview')).toBeNull();
@@ -197,15 +198,15 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         fixture.componentInstance.editMode.set(true);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('.story-drag-handle').length).toBe(2);
+        expect((fixture.nativeElement as HTMLElement).querySelectorAll('.story-drag-handle').length).toBe(2);
         fixture.componentInstance.startReorder({ button: 0, pointerId: 1, preventDefault() {},
             currentTarget: { setPointerCapture() {}, hasPointerCapture: () => false } } as unknown as PointerEvent, first);
         fixture.detectChanges();
-        expect([...fixture.nativeElement.querySelectorAll('.story-entry-body')].every((body: any) => body.hidden)).toBe(true);
+        expect([...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.story-entry-body')].every((body: HTMLElement) => body.hidden)).toBe(true);
         fixture.componentInstance.cancelReorder();
         fixture.detectChanges();
         expect(replace).not.toHaveBeenCalled();
-        expect(fixture.nativeElement.querySelector('.story-entry-body').hidden).toBe(false);
+        expect((fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.story-entry-body')!.hidden).toBe(false);
         await fixture.componentInstance.reorderEntry(first.id, second.id, true);
         expect(entries().find((entry) => entry.id === first.id)?.order).toBe(1);
         expect(entries().find((entry) => entry.id === second.id)?.order).toBe(0);
@@ -228,21 +229,21 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         fixture.componentInstance.editMode.set(true);
         fixture.detectChanges();
-        const deleteButton = () => [...fixture.nativeElement.querySelectorAll('.story-actions button')]
-            .find((button: any) => button.textContent.trim() === 'Delete section') as HTMLButtonElement;
+        const deleteButton = () => [...(fixture.nativeElement as HTMLElement).querySelectorAll('.story-actions button')]
+            .find((button: Element) => button.textContent?.trim() === 'Delete section') as HTMLButtonElement;
         deleteButton().click();
         fixture.detectChanges();
         expect(remove).not.toHaveBeenCalled();
-        const dialog = fixture.nativeElement.querySelector('[role="alertdialog"]') as HTMLElement;
+        const dialog = (fixture.nativeElement as HTMLElement).querySelector('[role="alertdialog"]') as HTMLElement;
         expect(dialog.textContent).toContain('Delete Valley IV?');
         expect(dialog.textContent).toContain('every subsection');
         (dialog.querySelector('button') as HTMLButtonElement).click();
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('[role="alertdialog"]')).toBeNull();
         expect(remove).not.toHaveBeenCalled();
         deleteButton().click();
         fixture.detectChanges();
-        (fixture.nativeElement.querySelector('[role="alertdialog"] button.danger') as HTMLButtonElement).click();
+        ((fixture.nativeElement as HTMLElement).querySelector('[role="alertdialog"] button.danger') as HTMLButtonElement).click();
         await fixture.whenStable();
         expect(remove).toHaveBeenCalledExactlyOnceWith(section.id);
     });
@@ -266,13 +267,13 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         fixture.componentInstance.incompleteOnly.set(true);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('.patch-hero')).toBeNull();
-        expect(fixture.nativeElement.textContent).toContain('Laevatain');
-        expect(fixture.nativeElement.textContent).toContain('Operator Profile');
-        expect(fixture.nativeElement.querySelectorAll('gg-story-content-list').length).toBe(1);
+        expect((fixture.nativeElement as HTMLElement).querySelector('.patch-hero')).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Laevatain');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Operator Profile');
+        expect((fixture.nativeElement as HTMLElement).querySelectorAll('gg-story-content-list').length).toBe(1);
         fixture.componentInstance.incompleteOnly.set(false);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('.patch-hero')).not.toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('.patch-hero')).not.toBeNull();
     });
 });
 
@@ -314,12 +315,12 @@ describe('Story tab persistence', () => {
         const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region',
             mainStory: { ...emptyPatchOverview(), rows: [{ id: 'quest', content: 'Next quest', contentType: '', patch: '1.0', notes: '' }] } };
         const { fixture, fragment } = setup([section('region'), chapter]);
-        const target = fixture.nativeElement.querySelector('#story-row-chapter-quest') as HTMLElement;
+        const target = (fixture.nativeElement as HTMLElement).querySelector('#story-row-chapter-quest') as HTMLElement;
         target.scrollIntoView = vi.fn();
         fragment.next('story-row-chapter-quest');
         fixture.detectChanges();
         await fixture.whenStable();
-        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        await new Promise<void>(resolve => { requestAnimationFrame(() => resolve()); });
         expect(target.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
         expect(fixture.componentInstance.positions.positions()['zzz']).toMatchObject({ entryId: 'chapter', rowId: 'quest' });
     });
@@ -327,7 +328,7 @@ describe('Story tab persistence', () => {
     it('remembers clicked tabs after recreation and keeps each game independent', () => {
         const data = [section('first'), section('second', 'zzz', 1), section('other', 'genshin')];
         const { fixture } = setup(data);
-        (fixture.nativeElement.querySelector('#story-tab-second') as HTMLButtonElement).click();
+        ((fixture.nativeElement as HTMLElement).querySelector('#story-tab-second') as HTMLButtonElement).click();
         fixture.detectChanges();
         expect(localStorage.getItem('gg-story-tab-v1:zzz')).toBe('second');
         fixture.componentRef.setInput('game', 'genshin');

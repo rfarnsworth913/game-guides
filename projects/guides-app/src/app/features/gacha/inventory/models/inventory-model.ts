@@ -84,7 +84,7 @@ export function readyPlans(entries: Entry[], game: string): number {
         return [...needs].every(([id, quantity]) => (items.get(id) ?? 0) >= quantity);
     }).length;
     const characterPlans = entries.filter(entry => {
-        if (entry.game !== game || entry.kind !== 'characters' || !entry.characterCollection?.owned || !hasCharacterGoal(entry.characterCollection)) return false;
+        if (entry.game !== game || entry.kind !== 'characters' || !entry.characterCollection?.owned || !hasCharacterGoal(entry.characterCollection)) {return false;}
         const result = characterCosts(entry.characterDefinition, entry.characterCollection);
         return !result.issues.length && [...result.costs].every(([id, quantity]) => (items.get(id) ?? 0) >= quantity);
     }).length;

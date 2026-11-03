@@ -11,5 +11,5 @@ export function validateStoryProgress(entry: CatalogEntry, state: PlayerState, h
     // private history, but do not allow new or changed unknown completion keys.
     if (Object.entries(state.storyRowCompletion ?? {}).some(([id, value]) => !rowIds.has(id) &&
         !(Object.hasOwn(history, id) && history[id] === value)))
-        throw new ApiError(400, 'Progress references unknown rows.');
+        {throw new ApiError(400, 'Progress references unknown rows.');}
 }

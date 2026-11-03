@@ -37,7 +37,7 @@ export class Story {
     private visitedGame = '';
     private scrollFrame: number | null = null;
     private rememberTarget(target: Element): void {
-        if (this.editMode()) return;
+        if (this.editMode()) {return;}
         const entryId = target.closest<HTMLElement>('[data-story-entry]')?.dataset['storyEntry'];
         if (entryId && this.subsections().some(entry => entry.id === entryId)) {
             this.positions.remember(this.game(), entryId, target.closest<HTMLElement>('[data-story-row]')?.dataset['storyRow']);
@@ -45,19 +45,19 @@ export class Story {
     }
     @HostListener('click', ['$event'])
     rememberInteraction(event: MouseEvent): void {
-        if (event.target instanceof Element) this.rememberTarget(event.target);
+        if (event.target instanceof Element) {this.rememberTarget(event.target);}
     }
     @HostListener('window:scroll')
     rememberScroll(): void {
-        if (this.editMode() || this.scrollFrame !== null) return;
+        if (this.editMode() || this.scrollFrame !== null) {return;}
         this.scrollFrame = requestAnimationFrame(() => {
             this.scrollFrame = null;
             this.updateOutlineFromScroll();
             const content = this.host.nativeElement.querySelector('.story-subsections')?.getBoundingClientRect();
-            if (!content || content.bottom <= 0) return;
+            if (!content || content.bottom <= 0) {return;}
             const y = Math.max(20, (this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0) + 32);
             const target = document.elementFromPoint(Math.min(window.innerWidth - 20, content.left + content.width / 2), y);
-            if (target && this.host.nativeElement.contains(target)) this.rememberTarget(target);
+            if (target && this.host.nativeElement.contains(target)) {this.rememberTarget(target);}
         });
     }
     readonly searchQuery = signal('');
@@ -83,7 +83,7 @@ export class Story {
     private dragHandle: HTMLElement | null = null;
 
     startReorder(event: PointerEvent, entry: Entry): void {
-        if (event.button !== 0 || !this.editMode() || this.busy()) return;
+        if (event.button !== 0 || !this.editMode() || this.busy()) {return;}
         event.preventDefault();
         this.dragHandle = event.currentTarget as HTMLElement;
         this.dragPointer = event.pointerId;
@@ -93,7 +93,7 @@ export class Story {
     }
     @HostListener('document:pointermove', ['$event'])
     moveReorder(event: PointerEvent): void {
-        if (this.dragPointer !== event.pointerId || !this.dragId()) return;
+        if (this.dragPointer !== event.pointerId || !this.dragId()) {return;}
         event.preventDefault();
         const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-story-entry]');
         const valid = target && this.host.nativeElement.contains(target);
@@ -103,16 +103,16 @@ export class Story {
             this.dropAfter.set(event.clientY > bounds.top + bounds.height / 2);
         }
         const headerBottom = this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0;
-        if (event.clientY < headerBottom + 35) window.scrollBy(0, -20);
-        else if (event.clientY > window.innerHeight - 45) window.scrollBy(0, 20);
+        if (event.clientY < headerBottom + 35) {window.scrollBy(0, -20);}
+        else if (event.clientY > window.innerHeight - 45) {window.scrollBy(0, 20);}
     }
     @HostListener('document:pointerup', ['$event'])
     async finishReorder(event: PointerEvent): Promise<void> {
-        if (this.dragPointer !== event.pointerId) return;
+        if (this.dragPointer !== event.pointerId) {return;}
         const source = this.dragId();
         const target = this.dropId();
         try {
-            if (source && target && source !== target) await this.reorderEntry(source, target, this.dropAfter());
+            if (source && target && source !== target) {await this.reorderEntry(source, target, this.dropAfter());}
         } finally { this.cancelReorder(); }
     }
     @HostListener('document:pointercancel')
@@ -127,24 +127,24 @@ export class Story {
         this.dropId.set('');
     }
     async reorderEntry(source: string, target: string, after: boolean): Promise<void> {
-        if (!this.editMode() || this.busy() || source === target) return;
+        if (!this.editMode() || this.busy() || source === target) {return;}
         const entries = [...this.subsections()];
         const moved = entries.find((entry) => entry.id === source);
-        if (!moved || !entries.some((entry) => entry.id === target)) return;
+        if (!moved || !entries.some((entry) => entry.id === target)) {return;}
         const siblings = entries.filter((entry) => entry.id !== source);
         siblings.splice(siblings.findIndex((entry) => entry.id === target) + (after ? 1 : 0), 0, moved);
         const updates = new Map(siblings.map((entry, order) => [entry.id, { ...entry, order }]));
         if (await this.store.replace(this.store.entries().map((entry) => updates.get(entry.id) ?? entry))) {
             this.reorderNotice.set(`Moved ${moved.name} to position ${siblings.findIndex((entry) => entry.id === source) + 1}.`);
-        } else this.reorderNotice.set(this.store.error() || 'Could not save the new order.');
+        } else {this.reorderNotice.set(this.store.error() || 'Could not save the new order.');}
     }
     async reorderWithKeyboard(event: KeyboardEvent, entry: Entry): Promise<void> {
-        if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        if (!['ArrowUp', 'ArrowDown'].includes(event.key)) {return;}
         event.preventDefault();
         const entries = this.subsections();
         const direction = event.key === 'ArrowUp' ? -1 : 1;
         const target = entries[entries.indexOf(entry) + direction];
-        if (target) await this.reorderEntry(entry.id, target.id, direction > 0);
+        if (target) {await this.reorderEntry(entry.id, target.id, direction > 0);}
     }
     readonly canEdit = computed(() => this.store.canEdit?.() ?? true);
     readonly editMode = signal(false);
@@ -152,12 +152,12 @@ export class Story {
     readonly showCategoryProgress = signal(false);
     readonly sectionImage = computed(() => {
         const image = storyImageUrl(this.active()?.sectionImageUrl ?? '');
-        if (image) return image;
+        if (image) {return image;}
         const icon = storyImageUrl(this.active()?.icon ?? '');
-        if (icon) return icon;
+        if (icon) {return icon;}
         for (const entry of this.subsections()) {
             const image = storyImageUrl((entry.patchOverview ?? entry.mainStory ?? entry.sideStories ?? entry.eventStory)?.imageUrl ?? '');
-            if (image) return image;
+            if (image) {return image;}
         }
         return null;
     });
@@ -168,15 +168,15 @@ export class Story {
     readonly resetting = signal(false);
     confirmReset = false;
     showEntry(entry: Entry): boolean {
-        if (!this.incompleteOnly() || this.editMode()) return true;
+        if (!this.incompleteOnly() || this.editMode()) {return true;}
         const progress = storyProgress([entry]);
         return progress.completed < progress.total;
     }
     async resetProgress(): Promise<void> {
-        if (!this.confirmReset || this.busy()) return;
+        if (!this.confirmReset || this.busy()) {return;}
         this.resetting.set(true);
         try {
-            if (await this.store.resetStoryProgress(this.game())) this.confirmReset = false;
+            if (await this.store.resetStoryProgress(this.game())) {this.confirmReset = false;}
         } finally { this.resetting.set(false); }
     }
     readonly activeOutline = signal('');
@@ -207,7 +207,7 @@ export class Story {
             const distance = (bounds: { top: number; bottom: number }) => Math.max(bounds.top - center, center - bounds.bottom, 0);
             return distance(a) - distance(b) || b.top - a.top;
         })[0];
-        if (nearest) this.activeOutline.set(nearest.target.id);
+        if (nearest) {this.activeOutline.set(nearest.target.id);}
     }
     outlineChapterActive(id: string, children: Entry[]): boolean {
         return this.activeOutline() === 'story-content-' + id ||
@@ -217,9 +217,9 @@ export class Story {
         const entries = this.subsections();
         const chapters: { entry: Entry | null; children: Entry[] }[] = [];
         for (const entry of entries) {
-            if (['patch-overview', 'main-story'].includes(entry.category)) chapters.push({ entry, children: [] });
+            if (['patch-overview', 'main-story'].includes(entry.category)) {chapters.push({ entry, children: [] });}
             else {
-                if (!chapters.length) chapters.push({ entry: null, children: [] });
+                if (!chapters.length) {chapters.push({ entry: null, children: [] });}
                 chapters[chapters.length - 1].children.push(entry);
             }
         }
@@ -233,7 +233,7 @@ export class Story {
         this.expandedOutline.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
     }
     openOutlineChapter(event: Event, id: string, hasChildren: boolean): void {
-        if (hasChildren && this.outlineCollapsed(id)) this.toggleOutline(id);
+        if (hasChildren && this.outlineCollapsed(id)) {this.toggleOutline(id);}
         this.jumpTo(event, 'story-content-' + id);
     }
     collapseOutline(): void {
@@ -247,10 +247,10 @@ export class Story {
         return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity'].includes(entry.category);
     }
     attachedQuests(entry: Entry): Entry[] {
-        if (this.editMode() || !['main-story', 'side-stories', 'patch-overview', 'events'].includes(entry.category)) return [];
+        if (this.editMode() || !['main-story', 'side-stories', 'patch-overview', 'events'].includes(entry.category)) {return [];}
         const entries = this.subsections();
         const attached: Entry[] = [];
-        for (let i = entries.indexOf(entry) + 1; i < entries.length && ['world-quests', 'lore', 'character-information'].includes(entries[i].category); i++) attached.push(entries[i]);
+        for (let i = entries.indexOf(entry) + 1; i < entries.length && ['world-quests', 'lore', 'character-information'].includes(entries[i].category); i++) {attached.push(entries[i]);}
         return attached;
     }
     displayedSubsections(): Entry[] {
@@ -262,7 +262,7 @@ export class Story {
 
     jumpTo(event: Event, id: string): void {
         const target = document.getElementById(id);
-        if (!target) return;
+        if (!target) {return;}
         event.preventDefault();
         this.activeOutline.set(id);
         this.rememberTarget(target);
@@ -278,7 +278,7 @@ export class Story {
         document.dispatchEvent(new CustomEvent('story-guide-reveal', { detail: id }));
         requestAnimationFrame(() => {
             const target = document.getElementById(id);
-            if (!target || !this.host.nativeElement.contains(target)) return;
+            if (!target || !this.host.nativeElement.contains(target)) {return;}
             target.scrollIntoView({ block: 'start', behavior });
             target.focus({ preventScroll: true });
             this.rememberTarget(target);
@@ -345,22 +345,22 @@ export class Story {
                 this.activeOutline.set('');
             }
         });
-        inject(DestroyRef).onDestroy(() => { if (this.scrollFrame !== null) cancelAnimationFrame(this.scrollFrame); });
+        inject(DestroyRef).onDestroy(() => { if (this.scrollFrame !== null) {cancelAnimationFrame(this.scrollFrame);} });
         effect(() => {
             const entries = this.subsections();
-            if (this.editMode() || this.fragment() || !entries.length) return;
+            if (this.editMode() || this.fragment() || !entries.length) {return;}
             const remembered = this.positions.positions()[this.game()];
             const valid = entries.some(entry => entry.id === remembered?.entryId);
             if (this.visitedGame !== this.game()) {
                 this.visitedGame = this.game();
-                this.positions.remember(this.game(), valid ? remembered.entryId : entries[0].id, valid ? remembered.rowId : undefined, true);
-            } else if (!valid) this.positions.remember(this.game(), entries[0].id);
+                this.positions.remember(this.game(), valid ? remembered.entryId : entries[0].id, valid ? remembered.rowId : globalThis.undefined, true);
+            } else if (!valid) {this.positions.remember(this.game(), entries[0].id);}
         });
         effect(() => {
             const fragment = this.fragment();
             const key = `${this.game()}/${this.active()?.id}/${fragment}`;
             this.subsections();
-            if (!fragment || !fragment.startsWith('story-') || key === this.resumedTarget) return;
+            if (!fragment || !fragment.startsWith('story-') || key === this.resumedTarget) {return;}
             this.incompleteOnly.set(false);
             afterNextRender(() => {
                 this.resumedTarget = key;
@@ -369,7 +369,7 @@ export class Story {
         });
         effect((onCleanup) => {
             const header = this.stickyHeader()?.nativeElement;
-            if (!header || typeof ResizeObserver === 'undefined') return;
+            if (!header || typeof ResizeObserver === 'undefined') {return;}
             const update = () => this.host.nativeElement.style.setProperty('--story-sticky-height', `${header.getBoundingClientRect().height}px`);
             const observer = new ResizeObserver(update);
             observer.observe(header);
@@ -405,17 +405,17 @@ export class Story {
 
     selectSection(id: string): void {
         const section = this.sections().find((section) => section.id === id);
-        if (!section) return;
-        void this.router.navigate(['/', this.game(), 'story', this.sectionSlug(section)], {
+        if (!section) {return;}
+        this.router.navigate(['/', this.game(), 'story', this.sectionSlug(section)], {
             queryParams: { section: null },
             queryParamsHandling: 'merge',
             preserveFragment: true,
-        });
+        }).catch(() => this.store.error.set('Could not navigate to this story section.'));
         this.selected.set(id);
         if (!this.editMode()) {
             const first = this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && entry.storySection === id)
                 .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))[0];
-            if (first) this.positions.remember(this.game(), first.id);
+            if (first) {this.positions.remember(this.game(), first.id);}
         }
         try {
             localStorage.setItem(`gg-story-tab-v1:${this.game()}`, id);
@@ -425,7 +425,7 @@ export class Story {
     }
 
     toggleEditMode(): void {
-        if (!this.canEdit() || this.busy() || this.editor || this.deleting) return;
+        if (!this.canEdit() || this.busy() || this.editor || this.deleting) {return;}
         this.editMode.update((value) => !value);
     }
 
@@ -443,7 +443,7 @@ export class Story {
         return storyImageUrl(icon);
     }
     open(kind: 'story' | 'story-category', entry?: Entry): void {
-        if (!this.editMode() || this.busy()) return;
+        if (!this.editMode() || this.busy()) {return;}
         this.error = '';
         const siblings = kind === 'story' ? this.subsections() : this.sections();
         this.editor = entry
@@ -498,28 +498,28 @@ export class Story {
     }
     async save(): Promise<void> {
         const entry = this.editor;
-        if (!entry || !this.editMode() || this.busy()) return;
+        if (!entry || !this.editMode() || this.busy()) {return;}
         if (this.isNewSubsection() && !this.validNewSubsection()) {
             this.error = 'Choose a content template and navigation category, and enter a section title.';
             return;
         }
         entry.name = entry.name.trim();
         entry.notes = entry.notes.trim();
-        if (entry.icon !== undefined) entry.icon = entry.icon.trim();
-        if (entry.sectionImageUrl !== undefined) {
+        if (entry.icon !== globalThis.undefined) {entry.icon = entry.icon.trim();}
+        if (entry.sectionImageUrl !== globalThis.undefined) {
             entry.sectionImageUrl = entry.sectionImageUrl.trim();
             if (entry.sectionImageUrl && !storyImageUrl(entry.sectionImageUrl)) {
                 this.error = 'Choose an uploaded section image or enter an HTTP(S) image URL.';
                 return;
             }
         }
-        if (entry.patchOverview) trimPatchOverviewText(entry.patchOverview);
-        if (entry.mainStory) trimPatchOverviewText(entry.mainStory);
-        if (entry.worldQuests) trimPatchOverviewText(entry.worldQuests);
-        if (entry.lore) trimPatchOverviewText(entry.lore);
-        if (entry.sideStories) trimPatchOverviewText(entry.sideStories);
-        if (entry.characterInformation) trimPatchOverviewText(entry.characterInformation);
-        if (entry.eventStory) trimPatchOverviewText(entry.eventStory);
+        if (entry.patchOverview) {trimPatchOverviewText(entry.patchOverview);}
+        if (entry.mainStory) {trimPatchOverviewText(entry.mainStory);}
+        if (entry.worldQuests) {trimPatchOverviewText(entry.worldQuests);}
+        if (entry.lore) {trimPatchOverviewText(entry.lore);}
+        if (entry.sideStories) {trimPatchOverviewText(entry.sideStories);}
+        if (entry.characterInformation) {trimPatchOverviewText(entry.characterInformation);}
+        if (entry.eventStory) {trimPatchOverviewText(entry.eventStory);}
         if (!validPatchOverview(entry.lore) || !validPatchOverview(entry.eventStory) || !validPatchOverview(entry.characterInformation) || !validPatchOverview(entry.sideStories) || !validPatchOverview(entry.worldQuests) || !validPatchOverview(entry.patchOverview) || !validPatchOverview(entry.mainStory)) {
             this.error =
                 'Check the content template: give each group a name, select uploaded images or use HTTP(S) image URLs, and use HTTP(S) source and content links.';
@@ -539,7 +539,7 @@ export class Story {
         if (await this.store.save({ ...entry, name: entry.name.trim() })) {
             this.selectSection(entry.kind === 'story-category' ? entry.id : entry.storySection!);
             this.editor = null;
-        } else this.error = this.store.error();
+        } else {this.error = this.store.error();}
     }
     async remove(): Promise<void> {
         if (
@@ -548,7 +548,7 @@ export class Story {
             !this.busy() &&
             (await this.store.remove(this.deleting.id))
         )
-            this.deleting = null;
+            {this.deleting = null;}
     }
     async toggle(entry: Entry): Promise<void> {
         await this.store.save({ ...entry, completed: !entry.completed });
@@ -558,7 +558,7 @@ export class Story {
         const index = sections.findIndex((section) => section.id === this.active()?.id);
         const target = index + direction;
         if (!this.editMode() || this.busy() || index < 0 || target < 0 || target >= sections.length)
-            return;
+            {return;}
         [sections[index], sections[target]] = [sections[target], sections[index]];
         const updates = new Map(
             sections.map((section, order) => [section.id, { ...section, order }]),
@@ -590,7 +590,6 @@ export class Story {
         event.preventDefault();
         this.selectSection(sections[target].id);
         (event.currentTarget as HTMLElement)
-            .querySelectorAll<HTMLButtonElement>('[role="tab"]')
-            [target]?.focus();
+            .querySelectorAll<HTMLButtonElement>('[role="tab"]')[target]?.focus();
     }
 }

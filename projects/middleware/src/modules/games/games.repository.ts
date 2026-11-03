@@ -42,7 +42,7 @@ export class GameRepository {
                 { upsert: true },
             );
             const fields = migrateDocument(document);
-            const migrated = { ...document, ...fields };
+            const migrated: Record<string, unknown> = { ...document, ...fields };
             delete migrated['catalog'];
             this.checkSize(migrated);
             const result = await this.collection.updateOne(document, {
@@ -95,8 +95,8 @@ export class GameRepository {
     async write(id: string, entries: CatalogEntry[], revision: number, characterRules?: CharacterRules): Promise<GameSnapshot> {
         entries = normalizeStory(entries);
         const document = await this.document(id);
-        const rules = characterRules ?? document['characterRules'];
-        if (rules !== undefined && !validCharacterRules(rules)) throw new ApiError(400, 'Invalid character rules.');
+        const rules: unknown = characterRules ?? document['characterRules'];
+        if (rules !== globalThis.undefined && !validCharacterRules(rules)) {throw new ApiError(400, 'Invalid character rules.');}
         const farmingSources = validCharacterRules(rules) ? rules.farming?.sources ?? [] : [];
         if (farmingSources.some(source => source.materialIds.some(id => !entries.some(entry => entry.id === id && entry.kind === 'inventory')))) {
             throw new ApiError(400, 'Farming sources must reference materials in this game’s inventory catalog.');
@@ -107,7 +107,7 @@ export class GameRepository {
         const fields = { ...mergeEntries(document, entries), ...(rules ? { characterRules: rules } : {}), _revision: revision + 1 };
         this.checkSize({ ...document, ...fields });
         const result = await this.collection.updateOne(
-            { _id: document['_id'], _revision: revision },
+            { _id: document['_id'] as import('mongodb').ObjectId, _revision: revision },
             { $set: fields },
         );
         if (result.matchedCount !== 1) {

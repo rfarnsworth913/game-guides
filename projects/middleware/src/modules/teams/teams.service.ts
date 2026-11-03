@@ -6,12 +6,12 @@ export function validateTeamProgress(game: string, key: string, state: PlayerSta
     const existing = previous[key]?.teams ?? [];
     for (const team of state.teams ?? []) {
         if (JSON.stringify(existing.find(item => item.id === team.id)) === JSON.stringify(team))
-            continue;
+            {continue;}
         if (team.members.length > teamSize(rules) || team.members.some(member => {
             const character = catalog.get(member);
             const owned = requestedChanges[`${game}/${member}`]?.characterCollection ?? previous[`${game}/${member}`]?.characterCollection;
             return character?.kind !== 'characters' || !owned?.owned;
         }))
-            throw new ApiError(400, 'Teams must fit the game size and use characters from your collection.');
+            {throw new ApiError(400, 'Teams must fit the game size and use characters from your collection.');}
     }
 }

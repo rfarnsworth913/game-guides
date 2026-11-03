@@ -138,11 +138,11 @@
             }
         </div>
         <div class="farm-tabs" aria-label="Farming view">
-            @for (view of ['groups', 'list', 'schedule']; track view) {
+            @for (view of views; track view) {
                 <button
                     type="button"
                     [attr.aria-pressed]="prefs().view === view"
-                    (click)="setPrefs({ view: $any(view) })"
+                    (click)="setPrefs({ view: view })"
                 >
                     {{ view }}
                 </button>

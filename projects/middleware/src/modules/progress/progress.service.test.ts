@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ProgressService } from './progress.service';
 import type { CatalogRepository, AccountProgressRepository } from '../../app/app.types';
 
-test('progress rejects invalid payloads and stale revisions before catalog lookup or persistence', async () => {
+await test('progress rejects invalid payloads and stale revisions before catalog lookup or persistence', async () => {
     let reads = 0;
     let writes = 0;
     const catalog: CatalogRepository = {
@@ -23,7 +23,7 @@ test('progress rejects invalid payloads and stale revisions before catalog looku
     assert.equal(writes, 0);
 });
 
-test('progress service retains the verified account ID and revision at the persistence boundary', async () => {
+await test('progress service retains the verified account ID and revision at the persistence boundary', async () => {
     let written = '';
     const catalog: CatalogRepository = {
         async read() { throw new Error('Empty changes need no catalog.'); },

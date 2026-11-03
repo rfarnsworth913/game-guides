@@ -2,6 +2,11 @@ import { Component, ElementRef, computed, inject, output, signal, viewChild } fr
 import { RouterLink } from '@angular/router';
 import { AuthStore } from "../../../../../core/auth/auth.store";
 import { WorkspaceStore } from "../../../../../core/state/workspace.store";
+
+export function accountInitials(name?: string): string {
+    return (name?.trim().split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('') || 'P').toUpperCase();
+}
+
 @Component({
     selector: 'gg-account-menu',
     imports: [RouterLink],
@@ -21,14 +26,14 @@ export class AccountMenu {
     }
     openImport(): void {
         this.preview();
-        if (this.importCount() !== null) this.importDialog().nativeElement.showModal();
+        if (this.importCount() !== null) {this.importDialog().nativeElement.showModal();}
     }
     readonly importCount = signal<number | null>(null);
     readonly message = signal('');
     async logout(): Promise<void> {
         if (await this.auth.logout()) {
             this.store.clearAccountProgress();
-            if (!this.auth.usesAuth0) window.location.reload();
+            if (!this.auth.usesAuth0) {window.location.reload();}
         }
     }
     preview(): void {
@@ -53,8 +58,4 @@ export class AccountMenu {
             this.message.set('Browser progress imported into your account.');
         }
     }
-}
-
-export function accountInitials(name?: string): string {
-    return (name?.trim().split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join('') || 'P').toUpperCase();
 }

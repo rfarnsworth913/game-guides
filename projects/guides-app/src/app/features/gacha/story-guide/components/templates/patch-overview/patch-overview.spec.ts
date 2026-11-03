@@ -15,7 +15,7 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('entry', entry);
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         [...root.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === '+ Add Content Group')!.click();
         const component = fixture.componentInstance;
         const group = data.groups![0];
@@ -53,7 +53,7 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('entry', entry);
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.textContent).toContain(label + ' Title');
         expect(root.textContent).toContain(label + ' Link');
         expect(root.querySelector('.row-flags')?.textContent).not.toContain('Sub-quest');
@@ -153,10 +153,10 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
         if (category === 'events') {
-            expect(fixture.nativeElement.textContent).toContain('Events Banner');
-            expect(fixture.nativeElement.textContent).not.toContain('Patch Details');
+            expect((fixture.nativeElement as HTMLElement).textContent).toContain('Events Banner');
+            expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Patch Details');
         }
-        const groups = fixture.nativeElement.querySelectorAll('.patch-edit-group') as NodeListOf<HTMLElement>;
+        const groups = (fixture.nativeElement as HTMLElement).querySelectorAll('.patch-edit-group') as NodeListOf<HTMLElement>;
         expect(groups.length).toBe(2);
         (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();
         fixture.detectChanges();
@@ -178,7 +178,7 @@ describe('Patch Overview grouped row editor', () => {
         fixture.changeDetectorRef.markForCheck();
         fixture.detectChanges();
         expect(component.rowsForGroup('').map((row) => row.id)).toEqual([last.id, first.id]);
-        expect(fixture.nativeElement.textContent).toContain('Overview (ungrouped)');
+        expect((fixture.nativeElement as HTMLElement).textContent).toContain('Overview (ungrouped)');
         expect(data.rows.length).toBe(3);
     });
 });

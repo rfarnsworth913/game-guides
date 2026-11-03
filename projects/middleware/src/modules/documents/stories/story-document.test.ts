@@ -28,7 +28,7 @@ const step: CatalogEntry = {
     notes: 'Follow the wind.',
 };
 
-test('section overview images persist separately from navigation icons and can be cleared', () => {
+await test('section overview images persist separately from navigation icons and can be cleared', () => {
     const withImage = { ...section, sectionImageUrl: '/api/games/genshin/images/mondstadt.png' };
     assert.ok(validCatalog([withImage, step], 'genshin'));
     const document = encodeEntries([withImage, step]);
@@ -39,7 +39,7 @@ test('section overview images persist separately from navigation icons and can b
     assert.equal(decodeEntries(cleared, 'genshin')[0].icon, 'wind');
 });
 
-test('story sections use category/content wrappers and preserve stable subsection IDs on round trip', () => {
+await test('story sections use category/content wrappers and preserve stable subsection IDs on round trip', () => {
     const document = encodeEntries([section, step]);
     assert.deepEqual(document['story'][0], {
         category: {
@@ -57,7 +57,7 @@ test('story sections use category/content wrappers and preserve stable subsectio
     assert.equal(validCatalog([section, { ...step, storySection: 'missing' }], 'genshin'), false);
 });
 
-test('legacy story migration creates General while preserving notes, ordering and IDs', () => {
+await test('legacy story migration creates General while preserving notes, ordering and IDs', () => {
     const { storySection, ...legacy } = step;
     const migrated = migrateDocument({ story: [legacy], _schemaVersion: 2, _revision: 4 });
     const parent = migrated['story'][0].category;
@@ -70,11 +70,11 @@ test('legacy story migration creates General while preserving notes, ordering an
     assert.deepEqual(migrateDocument(migrated), migrated);
 });
 
-test('section edits preserve extra content fields; removal clears nested story data', () => {
+await test('section edits preserve extra content fields; removal clears nested story data', () => {
     const document = encodeEntries([section, step]);
-    document['story'][0].category.content.summary = 'Keep this future template content';
+    document['story'][0].category.content['summary'] = 'Keep this future template content';
     const edited = mergeEntries(document, [{ ...section, name: 'New title' }, step]);
     assert.equal(edited['story'][0].category.title, 'New title');
-    assert.equal(edited['story'][0].category.content.summary, 'Keep this future template content');
+    assert.equal(edited['story'][0].category.content['summary'], 'Keep this future template content');
     assert.deepEqual(mergeEntries(edited, [])['story'], []);
 });

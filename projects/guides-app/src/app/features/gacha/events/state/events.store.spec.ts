@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
+
 import { WorkspaceStore, GAMES } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
 import type { CatalogEntry, PlayerState } from "../../../../../../../lib/types/workspace.type";
@@ -36,22 +37,22 @@ describe('Event completion persistence', () => {
     });
     afterEach(() => vi.unstubAllGlobals());
     it('saves and reloads personal completion without editing catalog data or another account', async () => {
-        const alice = new WorkspaceStore(auth('alice'));
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         expect(await alice.initialize()).toBe(true);
         expect(await alice.save({ ...alice.entries()[0], completed: true })).toBe(true);
-        const restored = new WorkspaceStore(auth('alice'));
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await restored.initialize();
         expect(restored.entries()[0].completed).toBe(true);
         expect(restored.entries()[0].startDate).toBe(event.startDate);
-        const bob = new WorkspaceStore(auth('bob')); await bob.initialize();
+        const bob = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('bob') }] }), () => new WorkspaceStore()); await bob.initialize();
         expect(bob.entries()[0].completed).toBe(false);
         expect(methods).not.toContain('PUT');
         expect(methods).toContain('PATCH');
     });
     it('saves guest completion in the existing browser progress record', async () => {
-        const guest = new WorkspaceStore(); await guest.initialize();
+        const guest = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await guest.initialize();
         expect(await guest.save({ ...guest.entries()[0], completed: true })).toBe(true);
-        const restored = new WorkspaceStore(); await restored.initialize();
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await restored.initialize();
         expect(restored.entries()[0].completed).toBe(true);
         expect(storage.has('gg-player-v1')).toBe(true);
         expect(methods).not.toContain('PUT');

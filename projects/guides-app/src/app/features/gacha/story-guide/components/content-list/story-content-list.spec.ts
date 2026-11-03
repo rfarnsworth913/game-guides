@@ -20,7 +20,7 @@ describe('Unified story reading view', () => {
         fixture.componentRef.setInput('entry', entry);
         fixture.componentRef.setInput('data', data);
         fixture.detectChanges();
-        return { fixture, data, entry, root: fixture.nativeElement as HTMLElement };
+        return { fixture, data, entry, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('preserves row anchors, Markdown, split notes and sub-quest hierarchy without giving headings checkboxes', () => {
         const { fixture, data, root } = setup();

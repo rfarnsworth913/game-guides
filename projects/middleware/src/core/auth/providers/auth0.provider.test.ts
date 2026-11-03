@@ -20,7 +20,7 @@ const request = (value?: string, origin = config.origin) => ({ method: 'GET', ur
     ...(value ? { authorization: 'Bearer ' + value } : {}), origin,
 } }) as IncomingMessage;
 
-test('Auth0 API SDK validates issuer, audience, expiry, signature and authorized client', async () => {
+await test('Auth0 API SDK validates issuer, audience, expiry, signature and authorized client', async () => {
     const security = verifier();
     const alice = await security.requireUser(request(token()));
     assert.equal(alice.id, createHash('sha256').update('https://tenant.example/\nalice').digest('hex'));
@@ -36,7 +36,7 @@ test('Auth0 API SDK validates issuer, audience, expiry, signature and authorized
     await assert.rejects(security.requireUser(request()), { status: 401 });
 });
 
-test('Auth0 editing permissions come from the server allowlist and writes check the origin', async () => {
+await test('Auth0 editing permissions come from the server allowlist and writes check the origin', async () => {
     const security = verifier();
     await assert.rejects(security.requireEditor(request(token({ editor: true }))), { status: 403 });
     assert.equal((await security.requireEditor(request(token({ sub: 'editor' })))).editor, true);

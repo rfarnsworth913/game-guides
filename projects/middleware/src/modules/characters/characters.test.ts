@@ -58,7 +58,7 @@ const state: PlayerState = {
     },
 };
 
-void test('enhancement categories are optional and slot assignments must reference a defined category', () => {
+await test('enhancement categories are optional and slot assignments must reference a defined category', () => {
     assert.equal(validCharacterRules(rules), true);
     const categorized = {
         ...rules,
@@ -84,7 +84,7 @@ void test('enhancement categories are optional and slot assignments must referen
     );
 });
 
-void test('development goals and personal data validate independently from shared definitions', () => {
+await test('development goals and personal data validate independently from shared definitions', () => {
     const definition = {
         ...emptyCharacterDefinition(),
         skills: [{ id: 'strike', name: 'Strike', description: '', maxLevel: 10 }],
@@ -136,7 +136,7 @@ void test('development goals and personal data validate independently from share
     );
 });
 
-void test('ascension caps and individual skill maxima are enforced at boundaries', () => {
+await test('ascension caps and individual skill maxima are enforced at boundaries', () => {
     const gated: CharacterRules = {
         ...rules,
         ascensionRanks: [
@@ -163,7 +163,7 @@ void test('ascension caps and individual skill maxima are enforced at boundaries
             { levelCap: 90, skillLevelCap: 4 },
         ],
     ])
-        assert.equal(validCharacterRules({ ...rules, ascensionRanks }), false);
+        {assert.equal(validCharacterRules({ ...rules, ascensionRanks }), false);}
     assert.equal(validCharacterDefinition(definition), true);
     assert.equal(
         validCharacterDefinition({
@@ -215,7 +215,7 @@ void test('ascension caps and individual skill maxima are enforced at boundaries
     assert.equal(characterCollectionFits(emptyCharacterCollection(), gated, definition), true);
 });
 
-test('character definitions exclude personal builds and validate nested data and safe guide links', () => {
+await test('character definitions exclude personal builds and validate nested data and safe guide links', () => {
     const shared = toCatalog(fromCatalog(character, state));
     assert.equal(validCatalog([shared], 'genshin'), true);
     assert.equal('characterCollection' in shared, false);
@@ -237,6 +237,7 @@ test('character definitions exclude personal builds and validate nested data and
                     ...shared,
                     characterDefinition: {
                         ...character.characterDefinition,
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
                         guides: [{ title: 'Bad', url: 'javascript:alert(1)' }],
                     },
                 },
@@ -256,7 +257,7 @@ test('character definitions exclude personal builds and validate nested data and
     assert.equal(
         validCharacterCollection({
             ...state.characterCollection,
-            gear: JSON.parse('{"__proto__":["bad"]}'),
+            gear: JSON.parse('{"__proto__":["bad"]}') as unknown,
         }),
         false,
     );
@@ -272,8 +273,8 @@ test('character definitions exclude personal builds and validate nested data and
     );
 });
 
-test('game-wide character rules survive catalog writes and remain separate from character definitions', async () => {
-    let document: Document = {
+await test('game-wide character rules survive catalog writes and remain separate from character definitions', async () => {
+    let document: Record<string, unknown> & { characters: CatalogEntry[] } = {
         _id: 'game',
         name: 'Genshin Impact',
         _revision: 0,
@@ -289,8 +290,8 @@ test('game-wide character rules survive catalog writes and remain separate from 
     const collection = {
         findOne: async () => structuredClone(document),
         updateOne: async (filter: Document, update: Document) => {
-            if (filter['_revision'] !== document['_revision']) return { matchedCount: 0 };
-            document = { ...document, ...update['$set'] };
+            if (filter['_revision'] !== document['_revision']) {return { matchedCount: 0 };}
+            document = { ...document, ...update['$set'] as Record<string, unknown> };
             return { matchedCount: 1 };
         },
     } as unknown as Collection<Document>;
@@ -308,7 +309,7 @@ test('game-wide character rules survive catalog writes and remain separate from 
     );
 });
 
-test('character API isolates collections, checks shared rules, and keeps catalog edits editor-only', async (t) => {
+await test('character API isolates collections, checks shared rules, and keeps catalog edits editor-only', async (t) => {
     let snapshot: GameSnapshot = {
         id: 'genshin',
         name: 'Genshin Impact',
@@ -324,12 +325,12 @@ test('character API isolates collections, checks shared rules, and keeps catalog
         },
         async requireUser(request) {
             const id = request.headers.authorization?.replace('Bearer ', '');
-            if (!id) throw new ApiError(401, 'Sign in required');
+            if (!id) {throw new ApiError(401, 'Sign in required');}
             return { id, name: id, editor: id === 'editor', csrf: '' };
         },
         async requireEditor(request) {
             const user = await this.requireUser(request);
-            if (!user.editor) throw new ApiError(403, 'Editor required');
+            if (!user.editor) {throw new ApiError(403, 'Editor required');}
             return user;
         },
     };
@@ -354,7 +355,7 @@ test('character API isolates collections, checks shared rules, and keeps catalog
         },
         ['http://localhost:4200'],
         async () => true,
-        undefined,
+        globalThis.undefined,
         security,
         {
             async read(user) {
@@ -362,14 +363,14 @@ test('character API isolates collections, checks shared rules, and keeps catalog
             },
             async patch(user, revision, changes) {
                 const current = accounts.get(user) ?? { revision: 0, state: {} };
-                if (revision !== current.revision) throw new ApiError(409, 'Stale progress');
+                if (revision !== current.revision) {throw new ApiError(409, 'Stale progress');}
                 const next = { revision: revision + 1, state: { ...current.state, ...changes } };
                 accounts.set(user, next);
                 return next;
             },
         },
     );
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve); });
     t.after(
         () =>
             new Promise<void>((resolve) => {
@@ -393,11 +394,11 @@ test('character API isolates collections, checks shared rules, and keeps catalog
         });
     assert.equal((await patch(state.characterCollection)).status, 200);
     assert.deepEqual(
-        (
+        ((
             await (
                 await fetch(base + '/api/me/progress', { headers: { Authorization: 'Bearer bob' } })
             ).json()
-        ).state,
+        ) as { state: unknown }).state,
         {},
     );
     assert.equal((await patch({ ...state.characterCollection, level: 91 }, 'bob')).status, 400);
@@ -492,7 +493,7 @@ test('character API isolates collections, checks shared rules, and keeps catalog
     assert.equal((await patch(enhanced, 'bob')).status, 200);
     const saved = await (
         await fetch(base + '/api/me/progress', { headers: { Authorization: 'Bearer bob' } })
-    ).json();
+    ).json() as { state: Record<string, { characterCollection: unknown }> };
     assert.deepEqual(saved.state['genshin/vesna'].characterCollection, enhanced);
     assert.equal(snapshot.entries.length, 1);
     assert.equal(catalogWrites, 0);

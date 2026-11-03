@@ -26,7 +26,7 @@ describe('Story reading positions', () => {
         expect(positions.positions()).toEqual({});
         user.set({ id: 'alice' });
         expect(positions.positions()['endfield']).toMatchObject({ entryId: 'alice-section', rowId: 'row-1' });
-        const saved = JSON.parse(localStorage.getItem('gg-story-position-v1:alice')!);
+        const saved = JSON.parse(localStorage.getItem('gg-story-position-v1:alice')!) as Record<string, { entryId: string }> ;
         expect(saved['genshin'].entryId).toBe('mondstadt');
         user.set(null);
         expect(positions.positions()['endfield'].entryId).toBe('guest-section');

@@ -28,7 +28,7 @@ describe("Markdown Pipe", () => {
         const fixture = TestBed.createComponent(MarkdownHost);
         fixture.componentInstance.notes = "<img src=x onerror=\"alert(1)\">\n\n[Unsafe](javascript:alert%281%29)";
         fixture.detectChanges();
-        const element = fixture.nativeElement as HTMLElement;
+        const element = ((fixture.nativeElement as HTMLElement) as HTMLElement) as HTMLElement;
         const link = element.querySelector("a");
 
         expect(element.querySelector("img")).toBeNull();

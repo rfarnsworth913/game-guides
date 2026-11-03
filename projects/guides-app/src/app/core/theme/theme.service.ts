@@ -34,7 +34,7 @@ export class ThemeService implements OnDestroy {
         return this.preference() === 'system' ? (this.systemTheme?.matches ? 'dark' : 'light') : this.preference() as GlobalTheme;
     }
     setPreference(preference: 'system' | GlobalTheme): void {
-        if (!['system', 'light', 'dark'].includes(preference)) return;
+        if (!['system', 'light', 'dark'].includes(preference)) {return;}
         this.preference.set(preference);
         this.activeTheme.set(this.resolveTheme());
         this.applyTheme();

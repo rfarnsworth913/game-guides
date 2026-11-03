@@ -10,7 +10,7 @@ export async function dispatchRoutes(request: IncomingMessage, response: ServerR
     // Keep original precedence, including security handling before protected domain routes.
     for (const route of [authRoutes, progressRoutes, imageRoutes, healthRoutes, gameRoutes]) {
         if (await route(request, response, url, dependencies))
-            return;
+            {return;}
     }
     throw new ApiError(404, 'API route not found.');
 }

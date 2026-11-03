@@ -1,3 +1,5 @@
+import { AuthService } from '@auth0/auth0-angular';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { AuthStore } from "../auth/auth.store";
 import { toCatalog } from "../../../../../common/workspace/workspace";
 import { Entry, WorkspaceStore, validEntries, parseBackup, GAMES } from "./workspace.store";
@@ -21,7 +23,7 @@ const item = (id: string, kind: Entry['kind'] = 'inventory'): Entry => ({
 describe('WorkspaceStore', () => {
     let data: Map<string, string>;
     async function readyStore() {
-        const store = new WorkspaceStore();
+        const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         await store.initialize();
         return store;
     }
@@ -233,7 +235,7 @@ describe('WorkspaceStore', () => {
                     entries: Array<unknown>;
                     revision: number;
                 };
-                if (body.revision !== game.revision) return { ok: false, status: 409, json: async () => ({ error: 'This game changed in another session.' }) };
+                if (body.revision !== game.revision) {return { ok: false, status: 409, json: async () => ({ error: 'This game changed in another session.' }) };}
                 game.entries = body.entries;
                 game.revision++;
                 return { ok: true, json: async () => structuredClone(game) };
@@ -357,15 +359,15 @@ describe('Account progress syncing', () => {
         vi.stubGlobal('localStorage', { getItem: vi.fn((key: string) => guest.get(key) ?? null),
             setItem: vi.fn((key: string, value: string) => guest.set(key, value)), removeItem: vi.fn((key: string) => guest.delete(key)) });
         vi.stubGlobal('fetch', vi.fn(async (url: string, options?: RequestInit) => {
-            if (url === '/api/auth/session') return { ok: true, json: async () => ({ configured: true,
-                user: signedIn ? { id: 'alice', name: 'Alice', editor: false } : null, csrf: signedIn ? 'csrf-token' : null }) };
-            if (url === '/api/games') return { ok: true, json: async () => ({ games: GAMES.map((game) => ({ id: game.id, name: game.name, revision: 0,
-                entries: game.id === 'genshin' ? [toCatalog(accountItem)] : [] })) }) };
+            if (url === '/api/auth/session') {return { ok: true, json: async () => ({ configured: true,
+                user: signedIn ? { id: 'alice', name: 'Alice', editor: false } : null, csrf: signedIn ? 'csrf-token' : null }) };}
+            if (url === '/api/games') {return { ok: true, json: async () => ({ games: GAMES.map((game) => ({ id: game.id, name: game.name, revision: 0,
+                entries: game.id === 'genshin' ? [toCatalog(accountItem)] : [] })) }) };}
             if (url === '/api/me/progress') {
                 if (options?.method === 'PATCH') {
-                    const body = JSON.parse(options.body as string);
+                    const body = JSON.parse(options.body as string) as { revision: number; changes: typeof remote.state } ;
                     expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-token');
-                    if (conflict || body.revision !== remote.revision) return { ok: false, status: 409, json: async () => ({ error: 'Progress changed in another browser. Reload before retrying.' }) };
+                    if (conflict || body.revision !== remote.revision) {return { ok: false, status: 409, json: async () => ({ error: 'Progress changed in another browser. Reload before retrying.' }) };}
                     remote = { revision: remote.revision + 1, state: { ...remote.state, ...body.changes } };
                 }
                 return { ok: true, json: async () => structuredClone(remote) };
@@ -374,7 +376,7 @@ describe('Account progress syncing', () => {
         }));
     });
     afterEach(() => vi.unstubAllGlobals());
-    const ready = async () => { const store = new WorkspaceStore(new AuthStore()); await store.initialize(); return store; };
+    const ready = async () => { const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: runInInjectionContext(Injector.create({ providers: [{ provide: AuthService, useValue: null }] }), () => new AuthStore()) }] }), () => new WorkspaceStore()); await store.initialize(); return store; };
     it('loads account state without importing guest data and sends completion changes with CSRF and revision', async () => {
         guest.set('gg-player-v1', JSON.stringify({ version: 1, state: { 'genshin/material': { completed: true, quantity: 99, target: 90 } } }));
         const original = guest.get('gg-player-v1');

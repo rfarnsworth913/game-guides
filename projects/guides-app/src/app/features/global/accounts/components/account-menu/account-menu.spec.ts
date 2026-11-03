@@ -19,7 +19,7 @@ describe('Account menu', () => {
         }).compileComponents();
         const fixture = TestBed.createComponent(AccountMenu);
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         return { fixture, root, store };
     }
 

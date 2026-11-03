@@ -1,4 +1,4 @@
-import { Document } from 'mongodb';
+import type { StoredStory } from '../stored-document.types';
 import type { CatalogEntry } from "../../../../../lib/types/workspace.type";
 import { fromCatalog, migrateStory, toCatalog } from "../../../../../common/workspace/workspace";
 
@@ -7,7 +7,7 @@ export function normalizeStory(entries: CatalogEntry[]): CatalogEntry[] {
 }
 
 /** A game owns an ordered array of { category: { title, order, icon, content } } sections. */
-export function encodeStory(entries: CatalogEntry[]): Document[] {
+export function encodeStory(entries: CatalogEntry[]): StoredStory[] {
     const normalized = normalizeStory(entries);
     return normalized
         .filter((entry) => entry.kind === 'story-category')
@@ -17,7 +17,7 @@ export function encodeStory(entries: CatalogEntry[]): Document[] {
                 title: section.name,
                 order: section.order,
                 icon: section.icon ?? '',
-                ...(section.sectionImageUrl !== undefined ? { imageUrl: section.sectionImageUrl } : {}),
+                ...(section.sectionImageUrl !== globalThis.undefined ? { imageUrl: section.sectionImageUrl } : {}),
                 content: {
                     subsections: normalized.filter(
                         (entry) => entry.kind === 'story' && entry.storySection === section.id,
@@ -27,21 +27,22 @@ export function encodeStory(entries: CatalogEntry[]): Document[] {
         }));
 }
 
-export function decodeStory(story: Document[], game: string): CatalogEntry[] {
+export function decodeStory(input: Array<Record<string, unknown>>, game: string): CatalogEntry[] {
+    const story = input as StoredStory[];
     const entries: CatalogEntry[] = [];
     for (const record of story) {
         if (record['kind'] === 'story') {
-            entries.push(record as CatalogEntry);
+            entries.push(record as unknown as CatalogEntry);
             continue;
         }
         const section = record['category'];
-        if (!section || typeof section !== 'object') continue;
+        if (!section || typeof section !== 'object') {continue;}
         entries.push({
             id: String(section._id),
             name: section.title,
             order: Number(section.order),
             icon: section.icon ?? '',
-            ...(section.imageUrl !== undefined ? { sectionImageUrl: section.imageUrl } : {}),
+            ...(section.imageUrl !== globalThis.undefined ? { sectionImageUrl: section.imageUrl } : {}),
             game,
             kind: 'story-category',
             notes: '',
@@ -58,7 +59,8 @@ export function decodeStory(story: Document[], game: string): CatalogEntry[] {
     return normalizeStory(entries);
 }
 
-export function mergeStory(story: Document[], entries: CatalogEntry[]): Document[] {
+export function mergeStory(input: Array<Record<string, unknown>>, entries: CatalogEntry[]): StoredStory[] {
+    const story = input as StoredStory[];
     const sections = encodeStory(entries).map((record) => {
         const previous = story.find((old) => old['category']?._id === record['category']._id)?.[
             'category'

@@ -29,7 +29,7 @@ function memory<T extends Document>() {
         },
         async insertOne(doc: T) {
             if (docs.has(String(doc['_id'])))
-                throw Object.assign(new Error('Duplicate'), { code: 11000 });
+                {throw Object.assign(new Error('Duplicate'), { code: 11000 });}
             docs.set(String(doc['_id']), structuredClone(doc));
         },
         async updateOne(
@@ -37,19 +37,19 @@ function memory<T extends Document>() {
             update: { $set?: Partial<T>; $inc?: Record<string, number> },
         ) {
             const doc = [...docs.values()].find((doc) => match(doc, query));
-            if (!doc) return { matchedCount: 0 };
+            if (!doc) {return { matchedCount: 0 };}
             Object.assign(doc, update.$set);
             for (const [key, value] of Object.entries(update.$inc ?? {}))
-                (doc as Document)[key] += value;
+                {(doc as Document)[key] += value;}
             return { matchedCount: 1 };
         },
         async deleteOne(query: Record<string, unknown>) {
             const doc = [...docs.values()].find((doc) => match(doc, query));
-            if (doc) docs.delete(String(doc['_id']));
+            if (doc) {docs.delete(String(doc['_id']));}
         },
         async findOneAndDelete(query: Record<string, unknown>) {
             const doc = await collection.findOne(query);
-            if (doc) docs.delete(String(doc['_id']));
+            if (doc) {docs.delete(String(doc['_id']));}
             return doc;
         },
     };
@@ -89,7 +89,7 @@ function setup() {
     return { auth, sessions, logins, add };
 }
 
-test('sessions enforce expiry, opaque cookie identity, origin, CSRF and editor permissions', async () => {
+await test('sessions enforce expiry, opaque cookie identity, origin, CSRF and editor permissions', async () => {
     const { auth, sessions, add } = setup();
     const raw = 'a'.repeat(43);
     add(raw, 'alice');
@@ -113,7 +113,7 @@ test('sessions enforce expiry, opaque cookie identity, origin, CSRF and editor p
     await assert.rejects(auth.requireUser(request(cookie + '; ' + cookie)), { status: 401 });
 });
 
-test('logout revokes the server session and expires the secure HttpOnly cookie', async () => {
+await test('logout revokes the server session and expires the secure HttpOnly cookie', async () => {
     const { auth, sessions, add } = setup();
     const raw = 'a'.repeat(43);
     add(raw, 'alice');
@@ -136,7 +136,7 @@ test('logout revokes the server session and expires the secure HttpOnly cookie',
     await assert.rejects(auth.requireUser(req), { status: 401 });
 });
 
-test('login redirects stay on this site and progress rejects arbitrary fields and unsafe keys', () => {
+await test('login redirects stay on this site and progress rejects arbitrary fields and unsafe keys', () => {
     for (const path of [
         '//evil.example',
         '/\\evil.example',
@@ -144,7 +144,7 @@ test('login redirects stay on this site and progress rejects arbitrary fields an
         '/api/auth/login',
         '/a\nb',
     ])
-        assert.equal(safeReturnTo(path), '/dashboard');
+        {assert.equal(safeReturnTo(path), '/dashboard');}
     assert.equal(
         safeReturnTo('/genshin/story/inazuma?view=guide#row'),
         '/genshin/story/inazuma?view=guide#row',
@@ -155,7 +155,7 @@ test('login redirects stay on this site and progress rejects arbitrary fields an
     assert.equal(validProgressState({ 'unknown/quest': playerState }), false);
 });
 
-test('progress repository isolates accounts and rejects stale revisions including racing first writes', async () => {
+await test('progress repository isolates accounts and rejects stale revisions including racing first writes', async () => {
     const db = memory<ProgressDocument>();
     const progress = new ProgressRepository(db.collection);
     await progress.patch('alice', 0, { 'genshin/quest': playerState });
@@ -169,7 +169,7 @@ test('progress repository isolates accounts and rejects stale revisions includin
     assert.equal((await progress.read('alice')).state['genshin/quest'].completed, true);
 });
 
-test('HTTP API denies anonymous edits, isolates progress, validates references and rejects CSRF', async (t) => {
+await test('HTTP API denies anonymous edits, isolates progress, validates references and rejects CSRF', async (t) => {
     const { auth, add } = setup();
     add('a'.repeat(43), 'alice');
     add('b'.repeat(43), 'bob');
@@ -206,8 +206,8 @@ test('HTTP API denies anonymous edits, isolates progress, validates references a
             return {};
         },
     };
-    const server = createApi(repository, [origin], async () => true, undefined, auth, progress);
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const server = createApi(repository, [origin], async () => true, globalThis.undefined, auth, progress);
+    await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve); });
     t.after(
         () =>
             new Promise<void>((resolve) => {
@@ -274,7 +274,7 @@ test('HTTP API denies anonymous edits, isolates progress, validates references a
     assert.equal((await patch({ 'genshin/quest': { ...recurring, storyRowCompletion: { ...recurring.storyRowCompletion, 'cycle:future:row': true } } }, {}, 4)).status, 400);
 });
 
-test('unconfigured authentication fails closed while public catalogs remain readable', async (t) => {
+await test('unconfigured authentication fails closed while public catalogs remain readable', async (t) => {
     const server = createApi(
         {
             async read(id) {
@@ -290,7 +290,7 @@ test('unconfigured authentication fails closed while public catalogs remain read
         [origin],
         async () => true,
     );
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve); });
     t.after(
         () =>
             new Promise<void>((resolve) => {
@@ -308,7 +308,7 @@ test('unconfigured authentication fails closed while public catalogs remain read
     });
 });
 
-test('OIDC code flow binds state, nonce and PKCE, rotates sessions and consumes login flows once', async () => {
+await test('OIDC code flow binds state, nonce and PKCE, rotates sessions and consumes login flows once', async () => {
     const { auth, sessions, logins, add } = setup();
     const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
     const key = {
@@ -335,9 +335,10 @@ test('OIDC code flow binds state, nonce and PKCE, rotates sessions and consumes 
     let invalidToken = false;
     configuration[oidc.customFetch] = async (input, options) => {
         const path = String(input);
-        if (path.endsWith('/jwks')) return Response.json({ keys: [key] });
+        if (path.endsWith('/jwks')) {return Response.json({ keys: [key] });}
         assert.ok(path.endsWith('/token'));
-        const body = new URLSearchParams(String(options?.body));
+        assert.ok(typeof options?.body === 'string' || options?.body instanceof URLSearchParams);
+        const body = new URLSearchParams(options.body);
         assert.equal(body.get('code_verifier'), verifier);
         const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'test-key' })).toString(
             'base64url',
@@ -380,7 +381,7 @@ test('OIDC code flow binds state, nonce and PKCE, rotates sessions and consumes 
             },
             writeHead(code: number, values: Record<string, unknown> = {}) {
                 status = code;
-                for (const [key, value] of Object.entries(values)) headers.set(key, value);
+                for (const [key, value] of Object.entries(values)) {headers.set(key, value);}
             },
             end() {},
         } as unknown as ServerResponse;

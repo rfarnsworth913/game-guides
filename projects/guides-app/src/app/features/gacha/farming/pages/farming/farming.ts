@@ -28,6 +28,7 @@ import {
     styleUrl: "./farming.scss",
 })
 export class Farming {
+    readonly views = ['groups', 'list', 'schedule'] as const;
     readonly game = input.required<string>();
     readonly store = inject(WorkspaceStore);
     readonly prefs = signal(defaultFarmingPreferences());

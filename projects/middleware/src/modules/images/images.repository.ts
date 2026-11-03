@@ -15,7 +15,7 @@ export class ImageRepository {
         }
         catch (error) {
             if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-                throw new ApiError(404, 'Image not found.');
+                {throw new ApiError(404, 'Image not found.');}
             throw error;
         }
     }
@@ -25,7 +25,7 @@ export class ImageRepository {
         }
         catch (error) {
             if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-                return undefined;
+                {return globalThis.undefined;}
             throw error;
         }
     }
@@ -35,7 +35,7 @@ export class ImageRepository {
         }
         catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
-                throw error;
+                {throw error;}
             return [];
         }
     }

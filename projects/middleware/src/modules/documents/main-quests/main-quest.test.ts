@@ -13,21 +13,21 @@ const template = (): PatchOverview => ({ ...emptyPatchOverview(), groups: [{ id:
     { id: 'two', groupId: 'group', contentType: '', content: 'Gunfire in the Silent Lands', patch: '7.0', notes: '', subQuest: true },
 ] });
 
-test('explicit content groups remain regular groups through quest conversion and validation', () => {
+await test('explicit content groups remain regular groups through quest conversion and validation', () => {
     const source = template();
     source.groups!.push({ id: 'cutscenes', title: 'Related Cutscenes', groupType: 'content' });
     const cutscene = { id: 'scene', groupId: 'cutscenes', contentType: '', content: 'Related Cutscenes', contentUrl: 'https://example.com/video', patch: '7.0', notes: 'Keep this linked video' };
     source.rows.push(cutscene);
     const result = reworkMainQuestTemplate(source, 'Related Cutscenes');
     assert.equal(result.promoted, 1);
-    assert.equal(result.template.groups![1].mainQuest, undefined);
+    assert.equal(result.template.groups![1].mainQuest, globalThis.undefined);
     assert.deepEqual(result.template.rows.find(row => row.id === 'scene'), cutscene);
     assert.ok(validPatchOverview(result.template));
     assert.equal(validPatchOverview({ ...result.template, groups: [{ ...result.template.groups![1], mainQuest: cutscene }] }), false);
     assert.equal(validPatchOverview({ ...result.template, groups: [{ ...result.template.groups![1], groupType: 'invalid' }] }), false);
 });
 
-test('main quest conversion moves the original parent intact and preserves child IDs, order, links and progress', () => {
+await test('main quest conversion moves the original parent intact and preserves child IDs, order, links and progress', () => {
     const original = template();
     const before = structuredClone(original);
     const result = reworkMainQuestTemplate(original, 'Everwinter Without Mercy');
@@ -48,14 +48,15 @@ test('main quest conversion moves the original parent intact and preserves child
     assert.deepEqual(loaded.storyRowCompletion, progress.storyRowCompletion);
 });
 
-test('main quest schema rejects duplicate IDs, unsafe links, and player fields in a heading', () => {
+await test('main quest schema rejects duplicate IDs, unsafe links, and player fields in a heading', () => {
     const migrated = reworkMainQuestTemplate(template(), 'Everwinter Without Mercy').template;
     assert.equal(validPatchOverview({ ...migrated, rows: [...migrated.rows, migrated.groups![0].mainQuest!] }), false);
+// eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
     assert.equal(validPatchOverview({ ...migrated, groups: [{ ...migrated.groups![0], mainQuest: { ...migrated.groups![0].mainQuest, contentUrl: 'javascript:alert(1)' } }] }), false);
     assert.equal(validPatchOverview({ ...migrated, groups: [{ ...migrated.groups![0], mainQuest: { ...migrated.groups![0].mainQuest, completed: true } }] }), false);
 });
 
-test('media groups and unrelated game document fields survive the main quest migration', () => {
+await test('media groups and unrelated game document fields survive the main quest migration', () => {
     const main = template();
     main.groups!.push({ id: 'media', title: 'Trailers' });
     main.rows.push({ id: 'video', groupId: 'media', contentType: '', content: 'A trailer', patch: '7.0', notes: '' });
@@ -71,13 +72,13 @@ test('media groups and unrelated game document fields survive the main quest mig
     assert.deepEqual(result.review, [{ guide: 'Everwinter Without Mercy', group: 'Trailers' }]);
     const entries = result.story[0]['category'].content.subsections;
     assert.deepEqual(entries[1], original.story[0].category!.content.subsections[1]);
-    assert.equal(entries[0].extra, 'keep');
-    assert.equal(result.story[0]['category'].content.other, 'keep');
+    assert.equal(entries[0]['extra'], 'keep');
+    assert.equal(result.story[0]['category'].content['other'], 'keep');
     assert.equal(result.story[1]['parser'], 'keep');
     assert.equal(reworkMainQuestDocument({ ...document, story: result.story }).guides, 0);
 });
 
-test('character quest migration changes only side story payloads and preserves their records', () => {
+await test('character quest migration changes only side story payloads and preserves their records', () => {
     const data = template();
     const main = { id: 'main', category: 'main-story', name: 'Everwinter Without Mercy', mainStory: structuredClone(data) };
     const side = { id: 'side', category: 'side-stories', name: 'Everwinter Without Mercy', sideStories: data };
@@ -87,12 +88,12 @@ test('character quest migration changes only side story payloads and preserves t
     assert.equal(result.promoted, 1);
     assert.equal(result.normalized, 2);
     assert.deepEqual(entries[0], main);
-    assert.deepEqual(entries[1].sideStories.groups[0].mainQuest, data.rows[0]);
-    assert.deepEqual(entries[1].sideStories.rows.map((row: { id: string }) => row.id), ['one', 'two']);
+    assert.deepEqual(entries[1].sideStories!.groups![0].mainQuest, data.rows[0]);
+    assert.deepEqual(entries[1].sideStories!.rows.map((row: { id: string }) => row.id), ['one', 'two']);
     assert.equal(reworkMainQuestDocument({ ...document, story: result.story }, ['side-stories']).guides, 0);
 });
 
-test('a meeting point quest heading is promoted without consuming reward or exploration rows', () => {
+await test('a meeting point quest heading is promoted without consuming reward or exploration rows', () => {
     const data = template();
     data.groups![0].title = 'Meeting Point';
     data.rows[0].content = 'Tidesong Cavern: Quests';
@@ -101,6 +102,6 @@ test('a meeting point quest heading is promoted without consuming reward or expl
     const result = reworkMainQuestTemplate(data, 'Tidesong Cavern');
     assert.equal(result.template.groups![0].mainQuest?.id, 'parent');
     assert.equal(result.template.groups![0].mainQuest?.content, 'Tidesong Cavern: Quests');
-    assert.equal(result.template.groups![1].mainQuest, undefined);
+    assert.equal(result.template.groups![1].mainQuest, globalThis.undefined);
     assert.deepEqual(result.template.rows.map(row => row.id), ['one', 'two', 'reward']);
 });

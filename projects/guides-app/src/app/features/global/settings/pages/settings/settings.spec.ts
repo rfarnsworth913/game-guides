@@ -14,7 +14,7 @@ describe('Settings feature', () => {
         const fixture = TestBed.createComponent(SettingsPage);
         fixture.componentRef.setInput('settingsTab', 'data');
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.querySelector('select')).toBeNull();
         expect(root.textContent).toContain('Export JSON backup');
         let notice = '';

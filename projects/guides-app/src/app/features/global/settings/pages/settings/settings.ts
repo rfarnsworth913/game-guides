@@ -34,11 +34,12 @@ export class SettingsPage {
             }
             const raw = await file.text();
             const entries = parseBackup(raw);
-            const rules = JSON.parse(raw).characterRules;
+            const backup = JSON.parse(raw) as { characterRules?: Parameters<WorkspaceStore['replace']>[1]; personalTeams?: unknown };
+            const rules = backup.characterRules;
             const merged = new Map(this.store.entries().map((e) => [e.id, e]));
             entries.forEach((e) => merged.set(e.id, e));
             if (await this.store.replace([...merged.values()], rules)) {
-                const teams = JSON.parse(raw).personalTeams;
+                const teams = backup.personalTeams;
                 if (teams && !await this.store.restoreTeams(teams)) {
                     this.notice.emit('Entries imported, but teams could not be restored: ' + this.store.error());
                     return;

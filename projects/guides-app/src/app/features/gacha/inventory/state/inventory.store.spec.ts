@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
+
 import { WorkspaceStore, GAMES } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
 import type { CatalogEntry, PlayerState } from "../../../../../../../lib/types/workspace.type";
@@ -80,21 +81,21 @@ describe('Inventory quantity persistence', () => {
     });
     afterEach(() => vi.unstubAllGlobals());
     it('saves a batch privately for a non-editor and reloads it without catalog writes', async () => {
-        const alice = new WorkspaceStore(auth('alice'));
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await alice.initialize();
         expect(await alice.saveInventoryQuantities('genshin', { book: 24, gem: 4 })).toBe(true);
-        const restored = new WorkspaceStore(auth('alice'));
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await restored.initialize();
         expect(restored.entries().find((entry) => entry.id === 'book')!.quantity).toBe(24);
-        const bob = new WorkspaceStore(auth('bob'));
+        const bob = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('bob') }] }), () => new WorkspaceStore());
         await bob.initialize();
         expect(bob.entries()[0].quantity).toBe(0);
         expect(methods.filter((method) => method === 'PATCH')).toHaveLength(1);
         expect(methods).not.toContain('PUT');
     });
     it('retains the saved quantity when another account tab edits the same item', async () => {
-        const first = new WorkspaceStore(auth('alice')),
-            second = new WorkspaceStore(auth('alice'));
+        const first = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()),
+            second = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         await first.initialize();
         await second.initialize();
         expect(await first.saveInventoryQuantities('genshin', { book: 10 })).toBe(true);
@@ -102,13 +103,13 @@ describe('Inventory quantity persistence', () => {
         expect(accounts.get('alice')!.state['genshin/book'].quantity).toBe(10);
     });
     it('persists guest quantities, rejects stale tab overwrites and validates all batch values first', async () => {
-        const first = new WorkspaceStore(),
-            second = new WorkspaceStore();
+        const first = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()),
+            second = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         await first.initialize();
         await second.initialize();
         expect(await first.saveInventoryQuantities('genshin', { book: 7 })).toBe(true);
         expect(await second.saveInventoryQuantities('genshin', { book: 8 })).toBe(false);
-        const restored = new WorkspaceStore();
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         await restored.initialize();
         expect(restored.entries()[0].quantity).toBe(7);
         for (const quantity of [-1, 1.5, 101])

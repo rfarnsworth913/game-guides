@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { ImageDetails } from '../../../../lib/types/game-image.type';
 import { ApiError } from '../../core/errors/app-error';
 import { imageRoot } from './images.repository';
 import { ImagesService } from './images.service';
@@ -13,17 +12,17 @@ export async function handleGameImages(request: IncomingMessage, response: Serve
     if (request.method === 'PUT' && filename) {
         await service.read(filename);
         if (!request.headers['content-type']?.startsWith('application/json'))
-            throw new ApiError(415, 'Use application/json.');
+            {throw new ApiError(415, 'Use application/json.');}
         const bodyChunks: Buffer[] = [];
         let bodySize = 0;
-        for await (const chunk of request) {
+        for await (const chunk of request as AsyncIterable<Buffer | string>) {
             const buffer = Buffer.from(chunk);
             bodySize += buffer.length;
             if (bodySize > 16384)
-                throw new ApiError(413, 'Image details are too large.');
+                {throw new ApiError(413, 'Image details are too large.');}
             bodyChunks.push(buffer);
         }
-        let value: ImageDetails;
+        let value: unknown;
         try {
             value = JSON.parse(Buffer.concat(bodyChunks).toString('utf8'));
         }
@@ -44,17 +43,17 @@ export async function handleGameImages(request: IncomingMessage, response: Serve
         return;
     }
     if (request.method !== 'POST' || filename)
-        throw new ApiError(405, 'Method not allowed.');
+        {throw new ApiError(405, 'Method not allowed.');}
     if (!Object.values(IMAGE_TYPES).includes(request.headers['content-type'] ?? ''))
-        throw new ApiError(415, 'Choose a PNG, JPEG, WebP, or GIF image.');
+        {throw new ApiError(415, 'Choose a PNG, JPEG, WebP, or GIF image.');}
     if (Number(request.headers['content-length']) > IMAGE_LIMIT)
-        throw new ApiError(413, 'Images must be 10 MB or smaller.');
+        {throw new ApiError(413, 'Images must be 10 MB or smaller.');}
     const chunks: Buffer[] = [];
     let size = 0;
-    for await (const chunk of request) {
+    for await (const chunk of request as AsyncIterable<Buffer | string>) {
         size += Buffer.byteLength(chunk);
         if (size > IMAGE_LIMIT)
-            throw new ApiError(413, 'Images must be 10 MB or smaller.');
+            {throw new ApiError(413, 'Images must be 10 MB or smaller.');}
         chunks.push(Buffer.from(chunk));
     }
     const data = Buffer.concat(chunks);

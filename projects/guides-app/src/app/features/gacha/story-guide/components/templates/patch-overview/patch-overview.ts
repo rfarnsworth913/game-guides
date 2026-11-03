@@ -10,7 +10,7 @@ import { MarkdownPipe } from "../../../../../../shared/pipes/markdown/markdown";
 import { worldQuestPrerequisites } from "../../../../../../../../../common/quests/world-quest";
 import { PatchBadge } from "../../../../shared/components/patch-badge/patch-badge";
 import type { StoryGroup } from "../../../../../../../../../lib/types/story-group.type";
-import { StoryAvailability } from "../../../../../../../../../lib/enums/story-tracking.enum";
+import { StoryAvailability, StoryTrackingMode } from "../../../../../../../../../lib/enums/story-tracking.enum";
 import type { StoryContext } from "../../../../../../../../../lib/types/story-context.type";
 import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from "../../../../../../../../../common/quests/story-guide";
 import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from "../../../../../../../../../common/quests/story-template";
@@ -34,13 +34,13 @@ export class PatchOverviewTemplate {
     readonly relatedEntries = computed(() => this.store.entries?.() ?? []);
     readonly done = (row: StoryTableRow) => storyRowDone(this.entry(), row);
     readonly canTrack = (row: StoryTableRow) => storyCompletionKey(this.entry(), row) !== null;
-    editorContext(): StoryContext { return this.data().context ??= {}; }
-    rowContext(row: StoryTableRow): StoryContext { return row.context ??= {}; }
+    editorContext(): StoryContext { const data = this.data(); data.context ??= {}; return data.context; }
+    rowContext(row: StoryTableRow): StoryContext { row.context ??= {}; return row.context; }
     readonly mainQuestTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
     readonly questEditorLabel = computed(() => this.entry().category === 'side-stories' ? storyContentName(this.entry().game, 'side-stories') : 'Main Quest');
     readonly eventTemplate = computed(() => this.entry().category === 'events');
     readonly eventPatchVersion = computed(() => {
-        if (this.data().patchVersion) return this.data().patchVersion;
+        if (this.data().patchVersion) {return this.data().patchVersion;}
         const versions = [...new Set(this.data().rows.filter(row => !row.rowType || row.rowType === 'quest').map(row => row.patch).filter(Boolean))];
         return versions.length === 1 ? versions[0] : '';
     });
@@ -67,7 +67,8 @@ export class PatchOverviewTemplate {
         return this.mainQuestTemplate() && group.groupType !== 'content';
     }
     ensureMainQuest(group: StoryGroup): StoryTableRow {
-        return group.mainQuest ??= { id: crypto.randomUUID(), groupId: group.id, content: group.title, contentUrl: '', contentType: '', patch: group.defaultPatch ?? '', notes: '' };
+        group.mainQuest ??= { id: crypto.randomUUID(), groupId: group.id, content: group.title, contentUrl: '', contentType: '', patch: group.defaultPatch ?? '', notes: '' };
+        return group.mainQuest;
     }
     setMainQuestTitle(group: StoryGroup, title: string): void {
         group.title = title;
@@ -75,16 +76,16 @@ export class PatchOverviewTemplate {
     }
     promoteMainQuest(row: StoryTableRow): void {
         const group = this.data().groups?.find(group => group.id === row.groupId);
-        if (!group || !this.isQuestGroup(group)) return;
+        if (!group || !this.isQuestGroup(group)) {return;}
         const previous = group.mainQuest;
         this.data().rows = this.data().rows.filter(item => item.id !== row.id);
-        if (previous) this.data().rows.unshift({ ...previous, groupId: group.id, subQuest: false });
+        if (previous) {this.data().rows.unshift({ ...previous, groupId: group.id, subQuest: false });}
         group.mainQuest = row;
         group.title = row.content;
     }
     trackingLabel(row?: StoryTableRow): string {
         const mode = storyTrackingMode(this.entry(), row);
-        return mode === 'recurring' ? 'This cycle' : mode.charAt(0).toUpperCase() + mode.slice(1);
+        return mode === StoryTrackingMode.Recurring ? 'This cycle' : mode.charAt(0).toUpperCase() + mode.slice(1);
     }
     readonly failedImage = signal('');
     readonly expandedRow = signal('');
@@ -111,15 +112,15 @@ export class PatchOverviewTemplate {
     startRowDrag(event: DragEvent, row: StoryTableRow): void {
         if (!this.editing()) { event.preventDefault(); return; }
         event.dataTransfer?.setData('text/plain', row.id);
-        if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+        if (event.dataTransfer) {event.dataTransfer.effectAllowed = 'move';}
         this.draggingRow.set(row.id);
         this.expandedRow.set('');
     }
     allowRowDrop(event: DragEvent, row: StoryTableRow): void {
         const source = this.data().rows.find((item) => item.id === this.draggingRow());
-        if (!source || (source.groupId ?? '') !== (row.groupId ?? '')) return;
+        if (!source || (source.groupId ?? '') !== (row.groupId ?? '')) {return;}
         event.preventDefault();
-        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        if (event.dataTransfer) {event.dataTransfer.dropEffect = 'move';}
         const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
         this.rowDropTarget.set(row.id);
         this.rowDropAfter.set(event.clientY > bounds.top + bounds.height / 2);
@@ -157,7 +158,7 @@ export class PatchOverviewTemplate {
     }
     groups() {
         const groups = patchGroups(this.data());
-        if (!this.incompleteOnly() || this.editing()) return groups;
+        if (!this.incompleteOnly() || this.editing()) {return groups;}
         return groups.map((group) => ({ ...group, rows: group.rows.filter((row) =>
             row.rowType === 'heading' || row.rowType === 'note' || !this.done(row),
         ) })).filter((group) => this.questCount(group.rows) > 0);
@@ -166,20 +167,20 @@ export class PatchOverviewTemplate {
         preparePatchGroups(this.data());
         const narrative = this.mainQuestTemplate();
         const group: StoryGroup = { id: crypto.randomUUID(), title: narrative && groupType === 'quest' ? 'New ' + this.questEditorLabel().toLowerCase() : 'New group', ...(narrative ? { groupType } : {}) };
-        if (this.isQuestGroup(group)) this.ensureMainQuest(group);
+        if (this.isQuestGroup(group)) {this.ensureMainQuest(group);}
         this.data().groups!.push(group);
     }
     removeGroup(id: string): void {
         preparePatchGroups(this.data());
         const parent = this.data().groups!.find(group => group.id === id)?.mainQuest;
-        if (parent) this.data().rows.push(parent);
+        if (parent) {this.data().rows.push(parent);}
         this.data().groups = this.data().groups!.filter((group) => group.id !== id);
-        for (const row of this.data().rows) if (row.groupId === id) delete row.groupId;
+        for (const row of this.data().rows) {if (row.groupId === id) {delete row.groupId;}}
     }
     moveGroup(index: number, direction: number): void {
         const groups = this.data().groups ?? [];
         const target = index + direction;
-        if (target < 0 || target >= groups.length) return;
+        if (target < 0 || target >= groups.length) {return;}
         [groups[index], groups[target]] = [groups[target], groups[index]];
     }
     rowsForGroup(id: string): StoryTableRow[] {
@@ -207,7 +208,7 @@ export class PatchOverviewTemplate {
         }
     }
     splitNotes(row: StoryTableRow, split: boolean): void {
-        if (split) row.notesRight = '';
+        if (split) {row.notesRight = '';}
         else {
             row.notes = [row.notes, row.notesRight].filter(Boolean).join('\n');
             delete row.notesRight;
@@ -216,7 +217,7 @@ export class PatchOverviewTemplate {
     moveRow(index: number, direction: number): void {
         const rows = this.data().rows;
         const target = this.rowTarget(index, direction);
-        if (target < 0) return;
+        if (target < 0) {return;}
         [rows[index], rows[target]] = [rows[target], rows[index]];
     }
     rowTarget(index: number, direction: number): number {
@@ -226,14 +227,14 @@ export class PatchOverviewTemplate {
             target >= 0 && target < rows.length;
             target += direction
         ) {
-            if (rows[target].groupId === rows[index].groupId) return target;
+            if (rows[target].groupId === rows[index].groupId) {return target;}
         }
         return -1;
     }
     async toggle(row: StoryTableRow): Promise<void> {
         const entry = this.entry();
         const key = storyCompletionKey(entry, row);
-        if (key === null || row.rowType === 'heading' || row.rowType === 'note') return;
+        if (key === null || row.rowType === 'heading' || row.rowType === 'note') {return;}
         this.completionError.set('');
         try {
             const saved = await this.store.save({

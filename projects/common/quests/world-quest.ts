@@ -28,7 +28,7 @@ export function worldQuestGroups(data: PatchOverview): WorldQuestGroup[] {
                 sections.push(section);
             }
             if (!title && section?.title && !section.heading && (!row.rowType || row.rowType === 'quest')) {
-                section = undefined;
+                section = globalThis.undefined;
             }
             if (!section) {
                 section = { id: `direct:${group.id}:${row.id}`, title: '', rows: [] };
@@ -48,7 +48,7 @@ export function worldQuestGroups(data: PatchOverview): WorldQuestGroup[] {
 
 /** Only existing structured gates are eligible for the legacy fallback. Notes are never parsed. */
 export function worldQuestPrerequisites(context?: StoryContext): NonNullable<StoryContext['prerequisites']> | null {
-    if (context?.prerequisites !== undefined) {
+    if (context?.prerequisites !== globalThis.undefined) {
         return context.prerequisites;
     }
     const gates = context?.requirements?.filter(requirement => [StoryRequirementType.Prerequisite, StoryRequirementType.Unlock, StoryRequirementType.TimeGate].includes(requirement.type));

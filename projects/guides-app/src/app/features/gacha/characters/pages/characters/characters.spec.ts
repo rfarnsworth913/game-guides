@@ -38,7 +38,7 @@ const character: Entry = {
 describe('Character management', () => {
     async function setup(editor = false, focusId = '') {
         const entries = signal([structuredClone(character)]);
-        const saveCharacterCollection = vi.fn(async (id, collection) => {
+        const saveCharacterCollection = vi.fn(async (id: string, collection: NonNullable<Entry['characterCollection']>) => {
             entries.update((values) =>
                 values.map((entry) =>
                     entry.id === id
@@ -80,7 +80,7 @@ describe('Character management', () => {
             store,
             entries,
             saveCharacterCollection,
-            root: fixture.nativeElement as HTMLElement,
+            root: (fixture.nativeElement as HTMLElement) as HTMLElement,
         };
     }
     it('opens a linked character plan on the initial render and permits closing it', async () => {
@@ -206,7 +206,7 @@ describe('Character management', () => {
             'vesna',
             expect.objectContaining({
                 level: 50,
-                target: expect.objectContaining({ level: 90 }),
+                target: (expect.objectContaining({ level: 90 }) as unknown),
                 notes: 'Farm on Monday',
                 personalGuides: [{ title: 'My guide', url: 'https://example.com/personal' }],
             }),

@@ -54,7 +54,7 @@ export class GameImagePicker {
     showIconMenu(event: Event): void {
         this.iconDraft.set(this.value());
         const menu = this.iconMenu()?.nativeElement;
-        if (!menu) return;
+        if (!menu) {return;}
         const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
         menu.style.left = `${Math.max(8, Math.min(bounds.right - 280, window.innerWidth - 296))}px`;
         menu.style.top = `${Math.max(8, Math.min(bounds.bottom + 8, window.innerHeight - 330))}px`;
@@ -71,13 +71,13 @@ export class GameImagePicker {
     }
     async savePendingDetails(): Promise<void> {
         const image = this.pending();
-        if (!image) return;
+        if (!image) {return;}
         this.savingDetails.set(true);
         this.error.set('');
         try {
             const response = await this.auth.request(image.url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(image.details ?? {}) });
             const result = await response.json() as GameImage & { error?: string };
-            if (!response.ok) throw new Error(result.error || 'Could not save image details.');
+            if (!response.ok) {throw new Error(result.error || 'Could not save image details.');}
             this.images.update((images) => images.map((item) => item.url === result.url ? result : item));
             this.pending.set(result);
             this.message.set('Library image details saved.');
@@ -85,7 +85,7 @@ export class GameImagePicker {
         finally { this.savingDetails.set(false); }
     }
     preventLibrarySubmit(event: Event): void {
-        if ((event.target as HTMLElement).tagName === 'INPUT') event.preventDefault();
+        if ((event.target as HTMLElement).tagName === 'INPUT') {event.preventDefault();}
         event.stopPropagation();
     }
 
@@ -96,9 +96,9 @@ export class GameImagePicker {
     }
     size(image: GameImage) { return this.dimensions()[image.url] ?? image.details; }
     kind(image: GameImage): string {
-        if (image.details?.category) return image.details.category;
+        if (image.details?.category) {return image.details.category;}
         const size = this.size(image);
-        if (!size?.width || !size.height) return '';
+        if (!size?.width || !size.height) {return '';}
         const ratio = size.width / size.height;
         return ratio >= 2.7 ? 'banner' : ratio < .9 ? 'character' : ratio < 1.2 ? 'icon' : 'landscape';
     }
@@ -117,7 +117,7 @@ export class GameImagePicker {
     }
     useSelected(): void {
         const image = this.pending();
-        if (!image) return;
+        if (!image) {return;}
         this.value.set(image.url);
         this.description.set(image.details?.description ?? '');
         this.sourceName.set(image.details?.sourceName ?? '');
@@ -131,7 +131,7 @@ export class GameImagePicker {
         this.cancelLibrary();
     }
     async saveDetails(): Promise<void> {
-        if (!this.value().startsWith(`/api/games/${this.game()}/images/`)) return;
+        if (!this.value().startsWith(`/api/games/${this.game()}/images/`)) {return;}
         this.savingDetails.set(true);
         this.error.set('');
         this.message.set('');
@@ -141,7 +141,7 @@ export class GameImagePicker {
                 ...this.dimensions()[this.value()] };
             const response = await this.auth.request(this.value(), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(details) });
             const result = await response.json() as GameImage & { error?: string };
-            if (!response.ok) throw new Error(result.error || 'Could not save library details.');
+            if (!response.ok) {throw new Error(result.error || 'Could not save library details.');}
             this.images.update((images) => [...images.filter((image) => image.url !== result.url), result]);
             this.message.set('Image details saved to the game library.');
         } catch (error) { this.error.set(error instanceof Error ? error.message : 'Could not save library details.'); }
@@ -159,11 +159,11 @@ export class GameImagePicker {
         this.error.set('');
         try {
             const response = await this.auth.request(`/api/games/${this.game()}/images`);
-            if (!response.ok) throw new Error('Could not load images. Please try again.');
+            if (!response.ok) {throw new Error('Could not load images. Please try again.');}
             const result = await response.json() as { images: GameImage[] };
             this.images.set(result.images);
             const selected = result.images.find((image) => image.url === this.value());
-            if (selected) this.selectImage(selected);
+            if (selected) {this.selectImage(selected);}
         } catch (error) {
             this.error.set(error instanceof Error ? error.message : 'Could not load images.');
         } finally {
@@ -174,7 +174,7 @@ export class GameImagePicker {
     async upload(event: Event): Promise<void> {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
-        if (!file) return;
+        if (!file) {return;}
         input.value = '';
         this.error.set('');
         if (file.size > 10 * 1024 * 1024) {
@@ -199,7 +199,7 @@ export class GameImagePicker {
                 body: file,
             });
             const result = await response.json() as GameImage & { error?: string };
-            if (!response.ok) throw new Error(result.error || 'Could not upload image.');
+            if (!response.ok) {throw new Error(result.error || 'Could not upload image.');}
             this.value.set(result.url);
             this.title.set(friendlyImageName(file.name));
             this.category.set(this.compact() ? 'icon' : this.banner() ? 'banner' : 'landscape');
@@ -212,7 +212,7 @@ export class GameImagePicker {
             this.images.update((images) => [...images, result]);
             this.failedPreview.set('');
             this.closeIconMenu();
-            if (this.open()) await this.browse();
+            if (this.open()) {await this.browse();}
         } catch (error) {
             this.error.set(error instanceof Error ? error.message : 'Could not upload image. Please try again.');
         } finally {

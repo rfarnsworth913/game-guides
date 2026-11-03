@@ -12,13 +12,13 @@ export function storyProgress(entries: Entry[]) {
         const template = storyTemplate(entry);
         if (['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity'].includes(entry.category)) {
             for (const row of template?.rows ?? []) {
-                if (row.rowType === 'heading' || row.rowType === 'note') continue;
+                if (row.rowType === 'heading' || row.rowType === 'note') {continue;}
                 total++;
-                if (storyRowDone(entry, row)) completed++;
+                if (storyRowDone(entry, row)) {completed++;}
             }
         } else {
             total++;
-            if (entry.completed) completed++;
+            if (entry.completed) {completed++;}
         }
     }
     return { total, completed, percent: total ? Math.round(completed / total * 100) : 0 };

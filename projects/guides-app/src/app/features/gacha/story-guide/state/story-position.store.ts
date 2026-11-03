@@ -13,14 +13,14 @@ export class StoryPositionStore {
     readonly positions = computed<Record<string, StoryPosition>>(() => {
         this.version();
         const key = this.key();
-        if (this.memory.has(key)) return this.memory.get(key)!;
+        if (this.memory.has(key)) {return this.memory.get(key)!;}
         try {
             const value: unknown = JSON.parse(localStorage.getItem(key) ?? '{}');
             if (value && typeof value === 'object' && !Array.isArray(value)) {
-                const positions = Object.fromEntries(Object.entries(value).filter(([, item]) =>
-                    item && typeof item === 'object' && typeof item.entryId === 'string' &&
-                    (item.rowId === undefined || typeof item.rowId === 'string') &&
-                    typeof item.visitedAt === 'number' && Number.isFinite(item.visitedAt),
+                const positions = Object.fromEntries(Object.entries(value as Record<string, unknown>).filter((entry): entry is [string, StoryPosition] => { const item = entry[1] as Partial<StoryPosition> | null; return (
+                    !!item && typeof item === 'object' && typeof item.entryId === 'string' &&
+                    (item.rowId === globalThis.undefined || typeof item.rowId === 'string') &&
+                    typeof item.visitedAt === 'number' && Number.isFinite(item.visitedAt)); },
                 ));
                 this.memory.set(key, positions);
                 return positions;
@@ -30,8 +30,8 @@ export class StoryPositionStore {
     });
     constructor() {
         const changed = (event: StorageEvent) => {
-            if (event.key === null) this.memory.clear();
-            else this.memory.delete(event.key);
+            if (event.key === null) {this.memory.clear();}
+            else {this.memory.delete(event.key);}
             if (event.key === this.key() || event.key === null) {
                 this.version.update(n => n + 1);
             }
@@ -41,7 +41,7 @@ export class StoryPositionStore {
     }
     remember(game: string, entryId: string, rowId?: string, revisit = false): void {
         const previous = this.positions()[game];
-        if (!revisit && previous?.entryId === entryId && previous.rowId === rowId) return;
+        if (!revisit && previous?.entryId === entryId && previous.rowId === rowId) {return;}
         const positions = { ...this.positions(), [game]: { entryId, ...(rowId ? { rowId } : {}), visitedAt: Date.now() } };
         this.memory.set(this.key(), positions);
         try { localStorage.setItem(this.key(), JSON.stringify(positions)); } catch { /* Keep the location for this session. */ }

@@ -8,7 +8,7 @@ import type { CatalogEntry, GameSnapshot } from "../../../../lib/types/workspace
 import { GAMES } from "../../../../lib/constants/workspace.constants";
 import { validCatalog } from "../../../../common/workspace/workspace";
 
-test('API validation, revision conflicts, origin checks, and parsed-data reads', async (t) => {
+await test('API validation, revision conflicts, origin checks, and parsed-data reads', async (t) => {
     const state = new Map(
         GAMES.map((game) => [
             game.id,
@@ -34,9 +34,9 @@ test('API validation, revision conflicts, origin checks, and parsed-data reads',
         },
         ['http://127.0.0.1:4200'],
         async () => true,
-        undefined, editorFixture,
+        globalThis.undefined, editorFixture,
     );
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve); });
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     t.after(
         () =>

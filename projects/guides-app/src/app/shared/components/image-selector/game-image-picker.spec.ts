@@ -18,7 +18,7 @@ describe('GameImagePicker', () => {
         fixture.componentRef.setInput('selectionOnly', true);
         fixture.componentRef.setInput('value', '/api/games/endfield/images/existing.webp');
         fixture.detectChanges();
-        const root = fixture.nativeElement as HTMLElement;
+        const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.querySelector('.image-preview')?.getAttribute('src')).toBe('/api/games/endfield/images/existing.webp');
         expect(root.querySelector('.image-details')).toBeNull();
         expect(root.querySelector('.image-advanced')).toBeNull();
@@ -44,16 +44,16 @@ describe('GameImagePicker', () => {
         fixture.componentRef.setInput('compact', true);
         fixture.componentRef.setInput('label', 'Damage Type Icon');
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('.compact-icon-button')).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('.image-picker')).toBeNull();
-        expect(fixture.nativeElement.querySelector('.image-preview')).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('.compact-icon-button')).not.toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('.image-picker')).toBeNull();
+        expect((fixture.nativeElement as HTMLElement).querySelector('.image-preview')).toBeNull();
         fixture.componentInstance.iconDraft.set('  Fire  ');
         fixture.componentInstance.useIconDraft();
         fixture.detectChanges();
         expect(fixture.componentInstance.value()).toBe('Fire');
-        expect(fixture.nativeElement.querySelector('.compact-icon-button').textContent).toContain('Fire');
-        const remove = [...fixture.nativeElement.querySelectorAll('.compact-icon-menu button')]
-            .find((button: any) => button.textContent.trim() === 'Remove Icon') as HTMLButtonElement;
+        expect((fixture.nativeElement as HTMLElement).querySelector('.compact-icon-button')!.textContent).toContain('Fire');
+        const remove = [...(fixture.nativeElement as HTMLElement).querySelectorAll('.compact-icon-menu button')]
+            .find((button: Element) => button.textContent?.trim() === 'Remove Icon') as HTMLButtonElement;
         remove.click();
         expect(fixture.componentInstance.value()).toBe('');
     });
@@ -61,18 +61,18 @@ describe('GameImagePicker', () => {
     it('loads the current game library and selects a previously uploaded image', async () => {
         const image = { name: 'banner.png', url: '/api/games/endfield/images/banner.png',
             details: { title: 'The Red Knight', category: 'banner', description: 'Knight artwork', sourceName: 'Official site', sourceUrl: 'https://example.com' } };
-        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ images: [image] }) });
+        const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true, json: async () => ({ images: [image] }) } as Response);
         vi.stubGlobal('fetch', fetchMock);
         const fixture = picker();
         await fixture.componentInstance.browse();
         fixture.detectChanges();
         expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images', expect.objectContaining({ credentials: 'same-origin' }));
-        const button = fixture.nativeElement.querySelector('.image-library button') as HTMLButtonElement;
+        const button = (fixture.nativeElement as HTMLElement).querySelector('.image-library button') as HTMLButtonElement;
         button.click();
         expect(fixture.componentInstance.value()).toBe('');
         expect(fixture.componentInstance.open()).toBe(true);
         fixture.detectChanges();
-        (fixture.nativeElement.querySelector('.use-selected') as HTMLButtonElement).click();
+        ((fixture.nativeElement as HTMLElement).querySelector('.use-selected') as HTMLButtonElement).click();
         expect(fixture.componentInstance.value()).toBe(image.url);
         expect(fixture.componentInstance.description()).toBe('Knight artwork');
         expect(fixture.componentInstance.sourceName()).toBe('Official site');
@@ -105,7 +105,7 @@ describe('GameImagePicker', () => {
 
     it('uploads image bytes and uses the returned reference', async () => {
         const image = { name: 'banner.png', url: '/api/games/endfield/images/banner.png' };
-        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => image });
+        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => image } as Response);
         vi.stubGlobal('fetch', fetchMock);
         const component = picker().componentInstance;
         const file = new File(['bytes'], 'Banner.png', { type: 'image/png' });
@@ -117,12 +117,12 @@ describe('GameImagePicker', () => {
 
     it.each(['', 'image/x-png', 'application/octet-stream'])('accepts PNG files with browser MIME metadata %j', async (type) => {
         const image = { name: 'banner.png', url: '/api/games/endfield/images/banner.png' };
-        const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => image });
+        const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true, json: async () => image } as Response);
         vi.stubGlobal('fetch', fetchMock);
         const component = picker().componentInstance;
         const file = new File(['bytes'], 'Banner.PNG', { type });
         await component.upload({ target: { files: [file], value: 'Banner.PNG' } } as unknown as Event);
-        expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images?name=Banner.PNG', expect.objectContaining({ headers: expect.any(Headers), body: file }));
+        expect(fetchMock).toHaveBeenCalledWith('/api/games/endfield/images?name=Banner.PNG', expect.objectContaining({ headers: expect.any(Headers) as unknown, body: file }));
         expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get('Content-Type')).toBe('image/png');
         expect(component.value()).toBe(image.url);
         expect(component.error()).toBe('');

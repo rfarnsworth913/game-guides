@@ -23,11 +23,11 @@
             definitions are shared with everyone in this game.
         </p>
         <div class="data-toolbar" aria-label="Farming data section">
-            @for (value of ['sources', 'recipes', 'servers']; track value) {
+            @for (value of tabs; track value) {
                 <button
                     type="button"
                     [attr.aria-pressed]="tab() === value"
-                    (click)="tab.set($any(value))"
+                    (click)="tab.set(value)"
                 >
                     {{ value }}
                 </button>

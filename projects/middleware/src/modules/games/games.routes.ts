@@ -10,14 +10,14 @@ export async function gameRoutes(request: IncomingMessage, response: ServerRespo
         return true;
     }
     const match = /^\/api\/games\/([a-z]+)(?:\/(catalog|parsed))?$/.exec(url.pathname);
-    if (!match) return false;
+    if (!match) {return false;}
     const id = match[1];
-    if (!GAMES.some(game => game.id === id)) throw new ApiError(404, 'Unknown game.');
+    if (!GAMES.some(game => game.id === id)) {throw new ApiError(404, 'Unknown game.');}
     if (request.method === 'GET') {
         await readGameController(response, dependencies.repository, id, match[2] === 'parsed');
         return true;
     }
-    if (request.method !== 'PUT' || match[2] !== 'catalog') throw new ApiError(405, 'Method not allowed.');
+    if (request.method !== 'PUT' || match[2] !== 'catalog') {throw new ApiError(405, 'Method not allowed.');}
     await dependencies.security.requireEditor(request);
     await writeGameController(request, response, dependencies.repository, id);
     return true;

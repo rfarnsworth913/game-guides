@@ -43,13 +43,13 @@ export class StoryContentList {
     readonly questTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
     readonly mainQuestName = computed(() => storyContentName(this.entry().game, this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
     readonly sharedPatch = computed(() => {
-        if (this.data().patchVersion) return this.data().patchVersion!;
+        if (this.data().patchVersion) {return this.data().patchVersion!;}
         const versions = [...new Set(this.rows().map(row => row.patch).filter(Boolean))];
         return versions.length === 1 ? versions[0] : '';
     });
     readonly groups = computed(() => {
         const groups = patchGroups(this.data());
-        if (!this.incompleteOnly()) return groups;
+        if (!this.incompleteOnly()) {return groups;}
         return groups.map(group => ({ ...group, rows: group.rows.filter(row =>
             row.rowType === 'heading' || row.rowType === 'note' || !this.done(row),
         ) })).filter(group => group.rows.some(row => !row.rowType || row.rowType === 'quest'));
@@ -120,7 +120,7 @@ export class StoryContentList {
     }
     @HostListener('document:story-guide-reveal', ['$event'])
     revealTarget(event: Event): void {
-        if (!(event instanceof CustomEvent) || ![...this.data().rows, ...(this.data().groups ?? []).flatMap(group => group.mainQuest ? [group.mainQuest] : [])].some(row => this.anchor(row) === event.detail)) return;
+        if (!(event instanceof CustomEvent) || ![...this.data().rows, ...(this.data().groups ?? []).flatMap(group => group.mainQuest ? [group.mainQuest] : [])].some(row => this.anchor(row) === event.detail)) {return;}
         this.collapsed.set([]);
         this.collapsedSections.set([]);
     }

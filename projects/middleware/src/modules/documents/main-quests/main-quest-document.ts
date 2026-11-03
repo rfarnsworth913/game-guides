@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { BSON, Document } from 'mongodb';
+import { BSON } from 'mongodb';
+import type { StoredStory, StoredQuestEntry } from '../stored-document.types';
+type Document = Record<string, unknown>;
 import { mainQuestRecords, reworkMainQuestTemplate } from "../../../../../common/quests/main-quest";
 import { validPatchOverview } from "../../../../../common/quests/story-template";
 
@@ -9,14 +11,14 @@ export function reworkMainQuestDocument(document: Document, categories: readonly
     let normalized = 0;
     let guides = 0;
     const review: { guide: string; group: string }[] = [];
-    const rewrite = (entry: Document): Document => {
-        if (!categories.includes(entry['category'])) return entry;
+    const rewrite = (entry: StoredQuestEntry): StoredQuestEntry => {
+        if (!categories.some(category => category === entry['category'])) {return entry;}
         const field = entry['category'] === 'side-stories' ? 'sideStories' : 'mainStory';
-        if (!entry[field]) return entry;
+        if (!entry[field]) {return entry;}
         const source = entry[field];
-        if (!validPatchOverview(source) || !source) throw new Error(`Invalid existing main quest template: ${entry['id']}`);
+        if (!validPatchOverview(source) || !source) {throw new Error(`Invalid existing main quest template: ${entry['id']}`);}
         const result = reworkMainQuestTemplate(source, entry['name']);
-        if (!validPatchOverview(result.template)) throw new Error(`Invalid migrated main quest template: ${entry['id']}`);
+        if (!validPatchOverview(result.template)) {throw new Error(`Invalid migrated main quest template: ${entry['id']}`);}
         const before = mainQuestRecords(source);
         const after = mainQuestRecords(result.template);
         assert.equal(before.length, after.length, 'Migration must retain every parent and quest record');
@@ -34,15 +36,15 @@ export function reworkMainQuestDocument(document: Document, categories: readonly
         promoted += result.promoted;
         normalized += result.normalized;
         review.push(...result.review.map(group => ({ guide: entry['name'], group })));
-        if (BSON.EJSON.stringify(source) === BSON.EJSON.stringify(result.template)) return entry;
+        if (BSON.EJSON.stringify(source) === BSON.EJSON.stringify(result.template)) {return entry;}
         guides++;
         return { ...entry, [field]: result.template };
     };
-    const story = (document['story'] ?? []).map((section: Document) => {
-        if (section['kind'] === 'story') return rewrite(section);
+    const story: Array<Record<string, unknown> & { category: { content: Record<string, unknown> & { subsections: StoredQuestEntry[] } } }> = ((document['story'] ?? []) as StoredStory[]).map((section: StoredStory) => {
+        if (section['kind'] === 'story') {return rewrite(section as unknown as StoredQuestEntry) as unknown as StoredStory;}
         const category = section['category'];
-        if (!category?.content?.subsections) return section;
-        return { ...section, category: { ...category, content: { ...category.content, subsections: category.content.subsections.map(rewrite) } } };
+        if (!category?.content?.subsections) {return section;}
+        return { ...section, category: { ...category, content: { ...category.content, subsections: category.content.subsections.map(entry => rewrite(entry)) } } };
     });
     return { story, guides, promoted, normalized, review };
 }

@@ -36,7 +36,7 @@ export function validCharacterDefinition(value: unknown): value is CharacterDefi
         !record(value) ||
         !only(value, ['weaponType', 'damageType', 'roles', 'skills', 'passiveSkills', 'guides', 'recipes'])
     )
-        return false;
+        {return false;}
     const skills = (items: unknown) =>
         Array.isArray(items) &&
         items.length <= 50 &&
@@ -50,7 +50,7 @@ export function validCharacterDefinition(value: unknown): value is CharacterDefi
                 label(item['name']) &&
                 text(item['description']),
         ) &&
-        new Set(items.map((item, index) => item.id ?? `legacy-${index}`)).size === items.length;
+        new Set(items.map((item: Record<string, unknown>, index) => item['id'] ?? `legacy-${index}`)).size === items.length;
     return (
         text(value['weaponType']) &&
         (typeof value['recipes'] === 'undefined' || validRecipes(value['recipes'])) &&
@@ -97,7 +97,7 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
             'progressionTracks',
         ])
     )
-        return false;
+        {return false;}
     const tracks = (items: unknown, field: string, max: number) =>
         Array.isArray(items) &&
         items.length <= 30 &&
@@ -119,7 +119,7 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
                 label(item['label']) &&
                 integer(item[field], field === 'limit' ? 1 : 0, max),
         ) &&
-        new Set(items.map((item) => item['id'])).size === items.length;
+        new Set(items.map((item: Record<string, unknown>) => item['id'])).size === items.length;
     return (
         integer(value['levelCap'], 1, 1000) &&
         (typeof value['farming'] === 'undefined' || validFarmingConfig(value['farming'])) &&
@@ -134,11 +134,11 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
                         integer(rank['levelCap'], 1, value['levelCap'] as number) &&
                         integer(rank['skillLevelCap'], 1, 1000) &&
                         (index === 0 ||
-                            (rank['levelCap'] > ranks[index - 1].levelCap &&
-                                rank['skillLevelCap'] >= ranks[index - 1].skillLevelCap)),
+                            (rank['levelCap'] > (ranks[index - 1] as Record<string, number>)['levelCap'] &&
+                                rank['skillLevelCap'] >= (ranks[index - 1] as Record<string, number>)['skillLevelCap'])),
                 ) &&
                 (!value['ascensionRanks'].length ||
-                    value['ascensionRanks'].at(-1).levelCap === value['levelCap']))) &&
+                    (value['ascensionRanks'].at(-1) as Record<string, unknown>)['levelCap'] === value['levelCap']))) &&
         Array.isArray(value['rarities']) &&
         value['rarities'].length > 0 &&
         value['rarities'].length <= 20 &&

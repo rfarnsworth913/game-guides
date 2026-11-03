@@ -104,7 +104,7 @@ describe('Inventory interface', () => {
         fixture.componentRef.setInput('game', 'genshin');
         fixture.detectChanges();
         await fixture.whenStable();
-        return { fixture, store, root: fixture.nativeElement as HTMLElement };
+        return { fixture, store, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('defaults to a compact game-scoped grid and filters by category, region, rarity, and missing plans', async () => {
         const { fixture, root } = await setup();

@@ -16,7 +16,7 @@ const guide: Entry = { ...section, id: 'old-guide-id', kind: 'story', category: 
             { id: 'old-row-id', groupId: 'old-group', content: 'Existing quest', contentType: '', contentUrl: 'https://example.com/quest', patch: '1.0', notes: '* Keep **Markdown**', notesRight: 'Second cell' },
         ] }, storyRowCompletion: { 'old-row-id': true } };
 
-test('redesign reads and round-trips existing guides without rewriting IDs, groups, links or tracking', () => {
+await test('redesign reads and round-trips existing guides without rewriting IDs, groups, links or tracking', () => {
     const original = structuredClone(guide);
     const catalog = [toCatalog(section), toCatalog(guide)];
     assert.ok(validCatalog(catalog, 'genshin'));
@@ -31,7 +31,7 @@ test('redesign reads and round-trips existing guides without rewriting IDs, grou
     assert.ok(mergeStory([parserRecord, ...document], catalog).some(record => record['parsed'] === parserRecord.parsed));
 });
 
-test('optional structured context survives shared catalog round trips while player state is rejected', () => {
+await test('optional structured context survives shared catalog round trips while player state is rejected', () => {
     const enriched = structuredClone(guide);
     enriched.worldQuests!.context = { region: 'Mondstadt', area: 'Windrise', chain: 'A chain across versions', availability: StoryAvailability.Permanent,
         relatedContentIds: ['achievement-1'], requirements: [{ type: StoryRequirementType.TimeGate, text: 'Wait until the next daily reset' }] };
@@ -47,7 +47,7 @@ test('optional structured context survives shared catalog round trips while play
     assert.equal(validPatchOverview({ ...enriched.worldQuests, context: { userProgress: {} } }), false);
 });
 
-test('recurring progress uses independent cycle keys and never overwrites lifetime or earlier cycles', () => {
+await test('recurring progress uses independent cycle keys and never overwrites lifetime or earlier cycles', () => {
     const activity: Entry = { ...guide, category: 'endgame-activity', eventStory: { ...emptyPatchOverview(), context: { trackingMode: StoryTrackingMode.Recurring, cycleId: 'season-1' },
         rows: [{ id: 'stage', contentType: '', content: 'Stage 1', patch: '', notes: '' }] },
         storyRowCompletion: { stage: true, 'cycle:season-1:stage': true } };
@@ -64,7 +64,7 @@ test('recurring progress uses independent cycle keys and never overwrites lifeti
     assert.equal(storyRowDone(activity, row), true);
 });
 
-test('world quest organization, memberships and explicit prerequisites round-trip without sharing private progress', () => {
+await test('world quest organization, memberships and explicit prerequisites round-trip without sharing private progress', () => {
     const enriched = structuredClone(guide);
     const data = enriched.worldQuests!;
     data.groups!.push({ id: 'chain-view', title: 'Quest chain', worldQuestMode: 'questChain', objectiveIds: ['old-row-id'] });
@@ -87,7 +87,7 @@ test('world quest organization, memberships and explicit prerequisites round-tri
     assert.equal(validStoryContext({ prerequisites: [{ type: StoryRequirementType.Prerequisite, text: 'Gate', completed: true }] }), false);
 });
 
-test('event group title links survive catalog round trips without changing stage IDs or private progress', () => {
+await test('event group title links survive catalog round trips without changing stage IDs or private progress', () => {
     const event: Entry = { ...structuredClone(guide), category: 'events', eventStory: structuredClone(guide.worldQuests) };
     delete event.worldQuests;
     event.eventStory!.groups![0].contentUrl = 'https://example.com/event';

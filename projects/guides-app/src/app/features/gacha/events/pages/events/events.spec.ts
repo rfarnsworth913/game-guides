@@ -18,7 +18,7 @@ describe('Event tracking', () => {
         const fixture = TestBed.createComponent(Events);
         fixture.componentRef.setInput('game', 'genshin');
         fixture.detectChanges();
-        return { fixture, store, root: fixture.nativeElement as HTMLElement };
+        return { fixture, store, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('shows scoped database events, opens their links and persists completion separately', async () => {
         const { fixture, store, root } = setup();

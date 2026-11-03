@@ -73,7 +73,7 @@ describe('Personal team builder', () => {
         fixture.componentRef.setInput('game', 'genshin');
         fixture.detectChanges();
         await fixture.whenStable();
-        return { fixture, store, root: fixture.nativeElement as HTMLElement };
+        return { fixture, store, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
     it('lets ordinary players create a team using only owned characters and the configured capacity', async () => {
         const { fixture, store, root } = await setup();

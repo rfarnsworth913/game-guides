@@ -1,9 +1,20 @@
-import { Document } from 'mongodb';
+import type { StoredGameDocument, StoredAchievementRow, StoredAchievement, StoredEvent, StoredStory } from './stored-document.types';
+type Document = Record<string, unknown>;
+type GameArrays = { story: StoredStory[]; achievements: StoredAchievement[]; events: StoredEvent[]; characters: CatalogEntry[]; inventory: CatalogEntry[]; plans: CatalogEntry[]; teams: CatalogEntry[] };
 import { createHash } from 'node:crypto';
 import { LEGACY_CATALOG_FIELDS } from "../../../../lib/constants/workspace.constants";
 import type { CatalogEntry, Kind } from "../../../../lib/types/workspace.type";
 import { validCatalog } from "../../../../common/workspace/workspace";
 import { decodeStory, encodeStory, mergeStory } from "./stories/story-document";
+
+function integerOrder(value: unknown): number {
+    const order = Number(value ?? 0);
+    if (!Number.isSafeInteger(order)) {
+        throw new Error('Achievement order must be an integer; original data was preserved.');
+    }
+    return order;
+}
+
 
 export const GAME_ARRAYS = [
     'achievements',
@@ -16,7 +27,7 @@ export const GAME_ARRAYS = [
 ] as const;
 const OTHER_ARRAYS = GAME_ARRAYS.filter((field) => field !== 'achievements' && field !== 'story');
 
-function achievement(entry: CatalogEntry): Document {
+function achievement(entry: CatalogEntry) {
     return {
         _id: entry.id,
         title: entry.name,
@@ -32,8 +43,8 @@ function achievement(entry: CatalogEntry): Document {
 }
 
 /** The HTTP adapter remains flat so browser progress keys and existing backups stay compatible. */
-export function encodeEntries(entries: CatalogEntry[]): Document {
-    const result: Document = {};
+export function encodeEntries(entries: CatalogEntry[]): GameArrays {
+    const result = {} as GameArrays;
     result['story'] = encodeStory(entries);
     for (const field of OTHER_ARRAYS) {
         result[field] = entries.filter((entry) => entry.kind === field);
@@ -52,12 +63,12 @@ export function encodeEntries(entries: CatalogEntry[]): Document {
     return result;
 }
 
-function decodeAchievement(value: Document, game: string, kind: Kind, category = ''): CatalogEntry {
+function decodeAchievement(value: StoredAchievementRow, game: string, kind: Kind, category = ''): CatalogEntry {
     return {
         id: String(value['_id']),
         game,
         kind,
-        name: value['title'],
+        name: value['title'] ?? '',
         order: Number(value['order'] ?? 0),
         icon: value['icon'] ?? '',
         reward: value['reward'] ?? '',
@@ -83,12 +94,12 @@ const eventDate = (value: unknown): string =>
           ? value
           : '';
 /** Parser records stay authoritative. The identity includes the period so renewed tasks start fresh. */
-function parsedEvent(value: Document, game: string, order: number): CatalogEntry {
+function parsedEvent(value: StoredEvent, game: string, order: number): CatalogEntry {
     const startDate = eventDate(value['startDate']);
     const endDate = eventDate(value['endDate']);
     const identity = JSON.stringify([
         game,
-        String(value['_id'] ?? ''),
+        String(value['_id'] as string | number | undefined ?? ''),
         value['title'],
         value['url'],
         value['eventType'],
@@ -99,7 +110,7 @@ function parsedEvent(value: Document, game: string, order: number): CatalogEntry
         id: 'parsed-event-' + createHash('sha256').update(identity).digest('hex').slice(0, 32),
         game,
         kind: 'events',
-        name: value['title'],
+        name: value['title'] ?? '',
         notes: '',
         category: value['eventType'] ?? '',
         eventType: value['eventType'] ?? '',
@@ -115,20 +126,21 @@ function parsedEvent(value: Document, game: string, order: number): CatalogEntry
     };
 }
 
-function parserEvents(document: Document): Document[] {
+function parserEvents(document: StoredGameDocument): StoredEvent[] {
     return (document['events'] ?? []).filter(
-        (entry: Document) =>
+        (entry: StoredEvent) =>
             entry['kind'] !== 'events' &&
             typeof entry['title'] === 'string' &&
             entry['title'].trim(),
     );
 }
 
-export function decodeEntries(document: Document, game: string): CatalogEntry[] {
+export function decodeEntries(input: Document, game: string): CatalogEntry[] {
+    const document = input as StoredGameDocument;
     const entries: CatalogEntry[] = OTHER_ARRAYS.flatMap((field) =>
         (document[field] ?? []).filter(
             (entry: Document) => entry['kind'] === field && typeof entry['id'] === 'string',
-        ),
+        ) as CatalogEntry[],
     );
     const ids = new Set(entries.map((entry) => entry.id));
     for (const [index, value] of parserEvents(document).entries()) {
@@ -149,7 +161,8 @@ export function decodeEntries(document: Document, game: string): CatalogEntry[] 
 }
 
 /** Keep parser records in the same root arrays, without converting them to editable UI records. */
-export function mergeEntries(document: Document, entries: CatalogEntry[]): Document {
+export function mergeEntries(input: Document, entries: CatalogEntry[]): GameArrays {
+    const document = input as StoredGameDocument;
     const arrays = encodeEntries(entries);
     arrays['story'] = mergeStory(document['story'] ?? [], entries);
     for (const field of OTHER_ARRAYS) {
@@ -160,20 +173,21 @@ export function mergeEntries(document: Document, entries: CatalogEntry[]): Docum
                   )
                 : [],
         );
-        arrays[field] = [
+        (arrays as Record<string, unknown>)[field] = [
             ...(document[field] ?? []).filter(
                 (entry: Document) => !(entry['kind'] === field && typeof entry['id'] === 'string'),
             ),
-            ...arrays[field].filter((entry: CatalogEntry) => !parsedIds.has(entry.id)),
+            ...(arrays[field] as CatalogEntry[]).filter((entry: CatalogEntry) => !parsedIds.has(entry.id)),
         ];
     }
     return arrays;
 }
 
-export function migrateDocument(document: Document): Document {
+export function migrateDocument(input: Document) {
+    const document = input as StoredGameDocument;
     const catalog = document['catalog'];
-    const arrays: Document = {};
-    for (const field of GAME_ARRAYS) arrays[field] = document[field] ?? [];
+    const arrays = {} as GameArrays;
+    for (const field of GAME_ARRAYS) {(arrays as Record<string, unknown>)[field] = document[field] ?? [];}
     if (catalog) {
         const entries = Object.values(LEGACY_CATALOG_FIELDS).flatMap(
             (field) => catalog[field] ?? [],
@@ -188,15 +202,15 @@ export function migrateDocument(document: Document): Document {
             // Root records predate the catalog and must not be overwritten by it.
             const existingIds = new Set(
                 arrays[field].map((entry: Document) =>
-                    String(entry['_id'] ?? entry['id'] ?? entry['category']?._id),
+                    String(entry['_id'] ?? entry['id'] ?? (entry['category'] as StoredStory['category'] | undefined)?._id),
                 ),
             );
-            arrays[field] = [
+            (arrays as Record<string, unknown>)[field] = [
                 ...arrays[field],
                 ...encoded[field].filter(
                     (entry: Document) =>
                         !existingIds.has(
-                            String(entry['_id'] ?? entry['id'] ?? entry['category']?._id),
+                            String(entry['_id'] ?? entry['id'] ?? (entry['category'] as StoredStory['category'] | undefined)?._id),
                         ),
                 ),
             ];
@@ -206,20 +220,20 @@ export function migrateDocument(document: Document): Document {
     if (legacyStory) {
         arrays['story'] = mergeStory(
             arrays['story'],
-            decodeStory(arrays['story'], legacyStory.game),
+            decodeStory(arrays['story'], legacyStory.game ?? ''),
         );
     }
-    arrays['achievements'] = arrays['achievements'].map((category: Document) => ({
+    arrays['achievements'] = arrays['achievements'].map((category: StoredAchievement) => ({
         ...category,
         order: integerOrder(category['order']),
-        achievements: (category['achievements'] ?? []).map((entry: Document) => ({
+        achievements: (category['achievements'] ?? []).map((entry: StoredAchievementRow) => ({
             ...entry,
             order: integerOrder(entry['order']),
         })),
     }));
     // Parser completion flags were defaults, not per-player progress.
     arrays['events'] = arrays['events'].map(
-        ({ completed, quantity, target, ...event }: Document) => event,
+        ({ completed, quantity, target, ...event }: StoredEvent) => event,
     );
     return {
         ...arrays,
@@ -227,12 +241,4 @@ export function migrateDocument(document: Document): Document {
         _schemaVersion: 2,
         _revision: Number(catalog?.revision ?? document['_revision'] ?? 0),
     };
-}
-
-function integerOrder(value: unknown): number {
-    const order = Number(value ?? 0);
-    if (!Number.isSafeInteger(order)) {
-        throw new Error('Achievement order must be an integer; original data was preserved.');
-    }
-    return order;
 }
