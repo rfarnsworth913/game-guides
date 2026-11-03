@@ -33,11 +33,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24.15.0'
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Install Chrome and Linux browser libraries
-        run: npx puppeteer browsers install chrome --install-deps
+      - name: Install Chrome
+        run: npx puppeteer browsers install chrome
+      - name: Install Linux browser libraries
+        shell: bash
+        run: |
+          deps_file="$(node --input-type=module -e 'import puppeteer from "puppeteer"; import { dirname, join } from "node:path"; console.log(join(dirname(puppeteer.executablePath()), "deb.deps"));')"
+          test -f "$deps_file"
+          sudo apt-get update
+          sudo apt-get satisfy -y --no-install-recommends "$(tr '\n' ',' < "$deps_file")"
       - name: Browser integration
         run: npm run ui:e2e
       - name: Failure screenshots

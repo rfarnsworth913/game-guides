@@ -1,6 +1,6 @@
 # Browser integration
 
-Run `npm run ui:e2e` with a local MongoDB instance available on `127.0.0.1:27017`. Set `E2E_MONGODB_URI` explicitly to use another test MongoDB instance. Install the Puppeteer browser first with `npx puppeteer browsers install chrome`; on Ubuntu, add `--install-deps` to install browser system libraries.
+Run `npm run ui:e2e` with a local MongoDB instance available on `127.0.0.1:27017`. Set `E2E_MONGODB_URI` explicitly to use another test MongoDB instance. Install the Puppeteer browser first with `npx puppeteer browsers install chrome`. On Ubuntu, installing system libraries requires root privileges. The CI workflow downloads Chrome as the runner user, then uses `sudo apt-get` to install the dependencies listed in that Chrome build's `deb.deps` file. Browser installation and tests continue to use the runner user's cache and permissions.
 
 The command type-checks the E2E harness, builds the real Angular application using the explicit `e2e` configuration, then starts a static UI server and the real API on automatically assigned loopback ports. It does not start, stop, or reconfigure your normal application or MongoDB server. The harness does not read `.env` or use `DB_NAME`, `DB_COLLECTION`, or production upload directories.
 
