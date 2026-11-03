@@ -45,6 +45,33 @@ jobs:
           test -f "$deps_file"
           sudo apt-get update
           sudo apt-get satisfy -y --no-install-recommends "$(tr '\n' ',' < "$deps_file")"
+      - name: Allow Chrome sandbox user namespaces
+        shell: bash
+        run: |
+          if [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]] && [[ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" == "1" ]]; then
+            chrome_path="$(node --input-type=module -e 'import puppeteer from "puppeteer"; console.log(await puppeteer.executablePath());')"
+            sudo tee /etc/apparmor.d/puppeteer-chrome >/dev/null <<EOF
+          abi <abi/4.0>,
+          include <tunables/global>
+          profile puppeteer-chrome "$chrome_path" flags=(unconfined) {
+            userns,
+          }
+          EOF
+            sudo apparmor_parser --replace /etc/apparmor.d/puppeteer-chrome
+          fi
+      - name: Verify Chrome can launch
+        run: |
+          node --input-type=module <<'JS'
+          import puppeteer from 'puppeteer';
+          const browser = await puppeteer.launch({ headless: true });
+          try {
+            const page = await browser.newPage();
+            await page.goto('about:blank');
+            console.log('Chrome launch verified:', await browser.version());
+          } finally {
+            await browser.close();
+          }
+          JS
       - name: Browser integration
         run: npm run ui:e2e
       - name: Failure screenshots

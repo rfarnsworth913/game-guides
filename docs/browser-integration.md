@@ -2,6 +2,8 @@
 
 Run `npm run ui:e2e` with a local MongoDB instance available on `127.0.0.1:27017`. Set `E2E_MONGODB_URI` explicitly to use another test MongoDB instance. Install the Puppeteer browser first with `npx puppeteer browsers install chrome`. On Ubuntu, installing system libraries requires root privileges. The CI workflow downloads Chrome as the runner user, then uses `sudo apt-get` to install the dependencies listed in that Chrome build's `deb.deps` file. Browser installation and tests continue to use the runner user's cache and permissions.
 
+On Ubuntu runners that restrict unprivileged user namespaces, the workflow loads an AppArmor profile allowing user namespaces for the exact downloaded Chrome executable. This follows [Chromium's AppArmor guidance](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md). Chrome's sandbox stays enabled; the workflow does not disable AppArmor globally or pass `--no-sandbox`. A browser launch check runs before the full integration suite to identify runner setup failures early.
+
 The command type-checks the E2E harness, builds the real Angular application using the explicit `e2e` configuration, then starts a static UI server and the real API on automatically assigned loopback ports. It does not start, stop, or reconfigure your normal application or MongoDB server. The harness does not read `.env` or use `DB_NAME`, `DB_COLLECTION`, or production upload directories.
 
 ## Authentication boundary
