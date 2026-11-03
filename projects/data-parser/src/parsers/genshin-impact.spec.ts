@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { EventType } from "@common/enums";
-import { DataFile, DataSource } from "@common/types";
+import { EventType } from '@shared-lib/enums';
+import type { DataFile, DataSource } from '@shared-lib/types';
 import { DataService } from "../services";
 import { GenshinImpactParser } from "./genshin-impact";
 

@@ -43,7 +43,7 @@ existing document name, `Honkai Star Rail`.
 - MongoDB stores game definitions: inventory items, characters, teams, plans, story steps,
   events, achievement categories, achievements, their descriptions/rewards, and ordering.
 - Guests keep player state in localStorage. Signed-in players sync completion, owned quantities
-  and targets to a separate MongoDB collection. Auth0 SDK sign-in uses public settings in `projects/common/auth0-config.ts`, with editor access configured
+  and targets to a separate MongoDB collection. Auth0 SDK sign-in uses public settings in `projects/lib/constants/auth0-config.constants.ts`, with editor access configured
   through the root .env; see [authentication setup](projects/middleware/README.md#authentication-and-account-progress).
   Without provider configuration, catalog/image edits are locked and guest completion still works.
 - Existing `gg-workspace-v1` data migrates on the first successful connection. Missing
@@ -86,21 +86,25 @@ Completing a plan removes its farming requirements without consuming inventory.
 | `npm run ui:test -- --watch=false` | Frontend/store tests |
 | `npm run middleware:check` | Middleware TypeScript check |
 | `npm run middleware:test` | API validation and security tests |
-| `npm run ui:e2e` | Full-stack integration test with temporary ports/collection and isolated browser profiles |
+| `npm run ui:e2e` | Type-check, build, and run browser integration tests with a disposable database, uploads, and browser profiles |
 
-Security tests are mandatory in `npm test`, discovered by the middleware's `*.test.ts` pattern.
+Security tests are mandatory in `npm test`, discovered by the middleware's recursive `*.test.ts` discovery.
 They cover Auth0 token signatures, issuer/audience/expiry and authorized client checks, legacy session regressions, editor permissions,
 account isolation, and conflicting progress writes. Frontend tests also check account sync and guest
 import isolation. The standard suite runs once, exits nonzero on failure, and needs no live provider
 credentials or running MongoDB. VS Code's default test task runs the same command.
 
-Run `npm run ui:e2e` separately for browser/MongoDB integration coverage, including account restoration
-in a second browser, explicit guest import, and logout revocation.
+Run `npm run ui:e2e` separately with MongoDB available on `127.0.0.1:27017`, or set
+`E2E_MONGODB_URI` to a test instance. It verifies signed-token validation, guest progress,
+account restoration and isolation, editor permissions, shared edits, uploads, concurrent writes,
+and SDK logout. Logging out clears browser credentials; previously issued JWTs remain valid until expiry.
 
-The end-to-end test checks startup/shutdown, actual database persistence, legacy migration,
-parser-field preservation, separate browser progress, shared edits, and stale-write rejection.
-It removes only its randomly named test collection. Historical scripts under `scripts/`
-require an explicitly supplied disposable test server; use `npm run ui:e2e` for safe setup.
+The harness creates and removes a random test database, including its schema backups and private
+progress, plus temporary uploads and isolated browser profiles. It does not read the normal `.env`.
+The unused historical smoke scripts have been removed; the maintained suite lives in
+`projects/middleware/e2e/`. See [browser integration](docs/browser-integration.md) for setup,
+coverage, and provider-login limitations. Legacy migration and parser preservation are covered
+by the normal middleware/parser tests.
 
 See [middleware documentation](projects/middleware/README.md) for the document schema and API.
 

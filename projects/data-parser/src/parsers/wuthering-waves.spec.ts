@@ -1,9 +1,9 @@
 import { endOfISOWeek, endOfMonth, format, startOfISOWeek, startOfMonth, sub } from "date-fns";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import { DATE_FORMAT } from "@common/constants";
-import { EventType } from "@common/enums";
-import { DataFile, DataSource } from "@common/types";
+import { DATE_FORMAT } from '@shared-lib/constants';
+import { EventType } from '@shared-lib/enums';
+import type { DataFile, DataSource } from '@shared-lib/types';
 import { DataService } from "../services";
 import { WutheringWavesParser } from "./wuthering-waves";
 

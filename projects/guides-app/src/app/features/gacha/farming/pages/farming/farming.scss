@@ -1,0 +1,320 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+.farm-toolbar,
+.farm-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+}
+.farm-toolbar > h2,
+.farm-toolbar > div:first-child {
+    margin-right: auto;
+}
+h2 {
+    font-size: 21px;
+    margin: 0;
+}
+h3 {
+    font-size: 16px;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.farm-toolbar select {
+    width: auto;
+    max-width: 100%;
+}
+.farm-toolbar label {
+    font-size: 12px;
+}
+.farm-toolbar label select {
+    display: block;
+    margin-top: 5px;
+}
+.farm-help,
+small {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.farm-character-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 18px;
+}
+.farm-character-panel > .farm-toolbar {
+    margin: 0 0 8px;
+}
+.farm-character-panel > .farm-toolbar:last-child {
+    margin: 8px 0 0;
+}
+.farm-character-strip {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 2px 0 4px;
+}
+.farm-character-strip button {
+    flex: 0 0 80px;
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    padding: 6px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: inherit;
+    background: transparent;
+}
+.farm-character-strip button.selected {
+    border-color: var(--color-primary);
+    background: var(--color-accent-subtle);
+}
+.farm-character-strip img,
+.farm-initial {
+    width: 52px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: contain;
+    background: var(--color-bg-primary);
+}
+.farm-initial {
+    display: grid;
+    place-items: center;
+    color: var(--color-primary);
+    font-size: 24px;
+}
+.farm-character-strip strong {
+    font-size: 11px;
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.farm-check {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 13px;
+}
+input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+}
+.farm-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 16px 0;
+}
+.farm-summary article {
+    display: grid;
+    gap: 5px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+}
+.farm-summary strong {
+    font-size: 23px;
+}
+.farm-summary span {
+    font-size: 11px;
+    color: var(--muted);
+}
+.farm-tabs {
+    gap: 5px;
+    margin: 0;
+}
+.farm-tabs button {
+    border-radius: 18px;
+    padding: 6px 11px;
+    text-transform: capitalize;
+}
+.farm-tabs button[aria-pressed='true'] {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--color-accent-subtle);
+}
+.farm-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 12px;
+}
+.farm-filters select {
+    width: auto;
+}
+.farm-group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 14px;
+    align-items: start;
+}
+.farm-group {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+}
+.farm-group .farm-toolbar {
+    margin: 0 0 8px;
+}
+.farm-group p {
+    font-size: 12px;
+    line-height: 1.6;
+}
+.farm-badge {
+    font-size: 10px;
+    padding: 4px 7px;
+    border-radius: 12px;
+    color: var(--color-primary);
+    background: var(--color-accent-subtle);
+}
+.farm-availability {
+    display: block;
+    margin: 6px 0;
+}
+.farm-material-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+}
+.farm-character-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+.farm-character-links a {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    font-size: 11px;
+}
+.farm-character-links img,
+.farm-character-links a > span {
+    width: 26px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: contain;
+    background: var(--color-accent-subtle);
+}
+.farm-character-links a > span {
+    display: grid;
+    place-items: center;
+    color: var(--color-primary);
+}
+summary {
+    cursor: pointer;
+    font-size: 12px;
+}
+.farm-warning {
+    padding: 14px;
+    border: 1px solid var(--color-primary);
+    border-radius: 10px;
+    margin: 14px 0;
+    font-size: 12px;
+    line-height: 1.7;
+}
+.farm-warning p {
+    margin: 6px 0;
+}
+.farm-empty {
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    text-align: center;
+    color: var(--muted);
+    margin: 18px 0;
+}
+.farm-message {
+    color: var(--color-success);
+    font-size: 13px;
+}
+.farm-list {
+    display: grid;
+    gap: 8px;
+}
+.farm-list article {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+.farm-list gg-farming-material {
+    width: 78px;
+    flex-shrink: 0;
+}
+.farm-list article > div {
+    flex: 1;
+    min-width: 0;
+}
+.farm-schedule {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+    gap: 14px;
+}
+.farm-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    margin: 12px 0;
+}
+.farm-week > div {
+    display: grid;
+    gap: 5px;
+    text-align: center;
+    font-size: 11px;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 2px;
+}
+.farm-week .is-today {
+    border-color: var(--color-primary);
+}
+:host .farm-material-editor {
+    max-width: 650px;
+    width: calc(100vw - 40px);
+}
+.farm-material-editor label {
+    display: block;
+}
+.farm-detail-material {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 20px 0;
+}
+.farm-detail-material gg-farming-material {
+    width: 90px;
+    flex-shrink: 0;
+}
+@media (max-width: 600px) {
+    .farm-character-panel,
+    .farm-group {
+        padding: 12px;
+    }
+    .farm-summary article {
+        padding: 10px;
+    }
+    .farm-week > div {
+        font-size: 10px;
+    }
+    .farm-list article {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+}

@@ -1,0 +1,545 @@
+<section class="farming-page" aria-label="Farming planner">
+    <div class="farm-toolbar">
+        <div>
+            <h2>Farming planner</h2>
+            <p class="farm-help">
+                Character goals, shared inventory, and verified acquisition sources.
+            </p>
+        </div>
+        @if (store.canEdit()) {
+            <button type="button" (click)="dataOpen.set(true)" [disabled]="busy()">
+                Configure farming data
+            </button>
+        }
+    </div>
+    <section class="farm-character-panel" aria-label="Character plan selection">
+        <div class="farm-toolbar">
+            <h3>Character plans</h3>
+            <span>{{ selectedCharacters().length }} selected</span
+            ><button type="button" (click)="selectAll()">Select all</button
+            ><button type="button" (click)="clear()">Clear selection</button>
+        </div>
+        <div class="farm-character-strip">
+            @for (character of choices(); track character.id) {
+                <button
+                    type="button"
+                    [class.selected]="selected(character.id)"
+                    [attr.aria-pressed]="selected(character.id)"
+                    (click)="toggleCharacter(character.id)"
+                    [title]="character.name + ' · ' + goal(character)"
+                    [attr.data-rarity]="character.rarity"
+                >
+                    @if (character.icon && validImage(character.icon)) {
+                        <img [src]="character.icon" alt="" loading="lazy" />
+                    } @else {
+                        <span class="farm-initial" aria-hidden="true">{{
+                            character.name.slice(0, 1)
+                        }}</span>
+                    }
+                    <strong>{{ character.name }}</strong>
+                </button>
+            } @empty {
+                <p class="farm-help">
+                    {{
+                        characters().length
+                            ? 'No active development goals. Set targets in Characters or include other owned characters below.'
+                            : 'Add characters to your collection to start planning.'
+                    }}
+                    <a [routerLink]="['/games', game(), 'characters']">Open characters →</a>
+                </p>
+            }
+        </div>
+        <div class="farm-toolbar">
+            <label class="farm-check"
+                ><input
+                    type="checkbox"
+                    [ngModel]="prefs().includeOther"
+                    (ngModelChange)="setPrefs({ includeOther: $event })"
+                />
+                Include characters without active goals</label
+            >
+            @if (prefs().mode === 'plans') {
+                <label class="farm-check"
+                    ><input
+                        type="checkbox"
+                        [ngModel]="prefs().includeUnassigned"
+                        (ngModelChange)="setPrefs({ includeUnassigned: $event })"
+                    />
+                    Include plans without assigned characters</label
+                >
+            }
+        </div>
+    </section>
+    <div class="farm-summary">
+        <article>
+            <strong>{{
+                result().issues.length && !result().materials.length ? '—' : missingCount()
+            }}</strong
+            ><span>Known material shortages</span>
+        </article>
+        <article>
+            <strong>{{
+                result().issues.length && !result().materials.length ? '—' : attentionCount()
+            }}</strong
+            ><span>Sources needing attention</span>
+        </article>
+        <article>
+            <strong>{{
+                result().issues.length && !result().materials.length ? '—' : coveredCount()
+            }}</strong
+            ><span>Known costs covered</span>
+        </article>
+    </div>
+    @if (result().issues.length) {
+        <details class="farm-warning" open>
+            <summary>
+                {{ result().issues.length }} data issue{{ result().issues.length === 1 ? '' : 's' }}
+                · Requirements are incomplete
+            </summary>
+            <p>Only verified costs are shown. Missing recipes do not mean free upgrades.</p>
+            <ul>
+                @for (issue of result().issues; track $index) {
+                    <li>
+                        @if (issue.characterId) {
+                            <strong>{{ character(issue.characterId)?.name }}:</strong>
+                        }
+                        {{ issue.message }}
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+    <div class="farm-toolbar">
+        <div class="farm-tabs" aria-label="Material source category">
+            <button
+                type="button"
+                [attr.aria-pressed]="!prefs().category"
+                (click)="setPrefs({ category: '' })"
+            >
+                All sources
+            </button>
+            @for (category of categories(); track category) {
+                <button
+                    type="button"
+                    [attr.aria-pressed]="prefs().category === category"
+                    (click)="setPrefs({ category })"
+                >
+                    {{ category }}
+                </button>
+            }
+            @if (hasUnknownSources()) {
+                <button
+                    type="button"
+                    [attr.aria-pressed]="prefs().category === '@unknown'"
+                    (click)="setPrefs({ category: '@unknown' })"
+                >
+                    Source not configured
+                </button>
+            }
+        </div>
+        <div class="farm-tabs" aria-label="Farming view">
+            @for (view of views; track view) {
+                <button
+                    type="button"
+                    [attr.aria-pressed]="prefs().view === view"
+                    (click)="setPrefs({ view: view })"
+                >
+                    {{ view }}
+                </button>
+            }
+        </div>
+    </div>
+    <div class="farm-toolbar">
+        <label class="farm-check"
+            ><input
+                type="checkbox"
+                [ngModel]="prefs().missingOnly"
+                (ngModelChange)="setPrefs({ missingOnly: $event })"
+            />
+            Only show materials still needed</label
+        ><button
+            type="button"
+            [attr.aria-expanded]="filtersOpen()"
+            (click)="filtersOpen.set(!filtersOpen())"
+        >
+            More filters
+        </button>
+        <label
+            >Requirements<select
+                [ngModel]="prefs().mode"
+                (ngModelChange)="setPrefs({ mode: $event })"
+            >
+                <option value="characters">Character upgrade recipes</option>
+                <option value="plans">Saved material plans</option>
+            </select></label
+        >
+        <select
+            aria-label="Sort farming groups"
+            [ngModel]="prefs().sort"
+            (ngModelChange)="setPrefs({ sort: $event })"
+        >
+            <option value="source">Configured source order</option>
+            <option value="name">Alphabetical</option>
+            <option value="missing">Most shortages</option>
+            <option value="characters">Most characters</option>
+            <option value="today">Available today first</option>
+            <option value="region">Region</option>
+        </select>
+        @if (config().servers.length) {
+            <label
+                >Game server<select
+                    [ngModel]="server()?.id ?? ''"
+                    (ngModelChange)="setPrefs({ server: $event })"
+                >
+                    <option value="">Select a server</option>
+                    @for (server of config().servers; track server.id) {
+                        <option [value]="server.id">{{ server.name }}</option>
+                    }
+                </select></label
+            >
+        }
+    </div>
+    @if (filtersOpen()) {
+        <div class="farm-filters">
+            <label
+                >Region<select
+                    [ngModel]="prefs().region"
+                    (ngModelChange)="setPrefs({ region: $event })"
+                >
+                    <option value="">All regions</option>
+                    @for (region of regions(); track region) {
+                        <option [value]="region">{{ region }}</option>
+                    }
+                </select></label
+            ><label
+                >Rarity<select
+                    [ngModel]="prefs().rarity"
+                    (ngModelChange)="setPrefs({ rarity: $event })"
+                >
+                    <option value="">All rarities</option>
+                    @for (rarity of rarities(); track rarity) {
+                        <option [value]="rarity">{{ rarity }} stars</option>
+                    }
+                </select></label
+            ><label class="farm-check"
+                ><input
+                    type="checkbox"
+                    [ngModel]="prefs().ownedOnly"
+                    (ngModelChange)="setPrefs({ ownedOnly: $event })"
+                />
+                Owned materials only</label
+            ><label class="farm-check"
+                ><input
+                    type="checkbox"
+                    [ngModel]="prefs().availableOnly"
+                    (ngModelChange)="setPrefs({ availableOnly: $event })"
+                />
+                Available today (verified)</label
+            ><button
+                type="button"
+                (click)="
+                    setPrefs({
+                        category: '',
+                        region: '',
+                        rarity: '',
+                        ownedOnly: false,
+                        availableOnly: false,
+                        missingOnly: true
+                    })
+                "
+            >
+                Reset filters
+            </button>
+        </div>
+    }
+    @if (prefs().availableOnly && unknownAvailability()) {
+        <p class="farm-warning">
+            {{ unknownAvailability() }} source groups have unknown availability and are hidden by
+            the Available today filter. Configure verified source days and a server reset schedule.
+        </p>
+    }
+    @if (!store.initialized() && !store.loading()) {
+        <div class="farm-warning" role="alert">
+            Farming data could not be loaded. {{ store.error() }}
+            <button type="button" (click)="store.initialize()">Retry loading</button>
+        </div>
+    }
+    @if (message()) {
+        <p class="farm-message" role="status">{{ message() }}</p>
+    }
+    <p class="farm-help">
+        Materials may appear under multiple sources. Inventory is counted once across the selected
+        goals, and is not reserved between plans.
+    </p>
+    @if (store.loading()) {
+        <p role="status">Loading farming plans…</p>
+    }
+    @if (prefs().view === 'groups') {
+        <div class="farm-group-grid">
+            @for (group of groups(); track group.id) {
+                <article class="farm-group">
+                    <div class="farm-toolbar">
+                        <div>
+                            <h3>{{ group.source?.name ?? 'Source not configured' }}</h3>
+                            <small>{{ group.source?.region || 'Location unavailable' }}</small>
+                        </div>
+                        <span class="farm-badge">{{
+                            group.source?.category ?? 'Unknown source'
+                        }}</span>
+                    </div>
+                    @if (group.source) {
+                        <small class="farm-availability">{{
+                            availability(group.source) === 'available'
+                                ? 'Available today'
+                                : availability(group.source) === 'closed'
+                                  ? 'Not available today'
+                                  : 'Availability unknown'
+                        }}</small>
+                    }
+                    <div class="farm-material-grid">
+                        @for (row of group.materials; track row.item.id) {
+                            <gg-farming-material
+                                [material]="row"
+                                (selected)="openMaterial($event)"
+                            />
+                        }
+                    </div>
+                    <div class="farm-character-links">
+                        @for (id of group.characters; track id) {
+                            @if (character(id); as character) {
+                                <a
+                                    [routerLink]="['/games', game(), 'characters']"
+                                    [queryParams]="{ character: id }"
+                                    [title]="'Open ' + character.name + ' development plan'"
+                                >
+                                    @if (character.icon && validImage(character.icon)) {
+                                        <img [src]="character.icon" alt="" loading="lazy" />
+                                    } @else {
+                                        <span aria-hidden="true">{{
+                                            character.name.slice(0, 1)
+                                        }}</span>
+                                    }
+                                    <small>{{ character.name }}</small></a
+                                >
+                            }
+                        }
+                    </div>
+                    <details>
+                        <summary>Details</summary>
+                        @if (group.source; as source) {
+                            <p>{{ source.location || 'Detailed location not provided.' }}</p>
+                            @if (source.restrictions) {
+                                <p>{{ source.restrictions }}</p>
+                            }
+                            @if (source.url) {
+                                <a [href]="source.url" target="_blank" rel="noopener noreferrer"
+                                    >Open location or farming guide ↗</a
+                                >
+                            }
+                        } @else {
+                            <p>
+                                No acquisition source is configured for these materials. No location
+                                or drop rate is assumed.
+                            </p>
+                        }
+                        @for (row of group.materials; track row.item.id) {
+                            <p>
+                                {{ row.item.name }}: {{ row.missing }} missing
+                                @if (row.plans.length) {
+                                    · {{ row.plans.join(', ') }}
+                                }
+                            </p>
+                        }
+                    </details>
+                </article>
+            }
+        </div>
+    } @else if (prefs().view === 'list') {
+        <div class="farm-list" role="list">
+            @for (row of materials(); track row.item.id) {
+                <article role="listitem">
+                    <gg-farming-material [material]="row" (selected)="openMaterial($event)" />
+                    <div>
+                        <h3>{{ row.item.name }}</h3>
+                        <p>{{ row.missing }} missing</p>
+                        <small
+                            >{{ row.characters.length }} selected characters ·
+                            {{ sources(row).length }} configured sources</small
+                        >
+                    </div>
+                    <button type="button" (click)="openMaterial(row)">Details</button>
+                </article>
+            }
+        </div>
+    } @else {
+        <section aria-label="Farming schedule">
+            <h3>Weekly source availability</h3>
+            @if (gameDay(); as day) {
+                <p class="farm-help">
+                    Game day: {{ day.date }} · {{ server()!.name }} · reset
+                    {{ server()!.resetHour }}:{{
+                        server()!.resetMinute.toString().padStart(2, '0')
+                    }}
+                    ({{ server()!.timeZone }})
+                </p>
+            } @else {
+                <p class="farm-warning">
+                    Select or configure a game server to determine today's reset-adjusted game day.
+                    Weekday availability is shown only where configured.
+                </p>
+            }
+            <div class="farm-schedule">
+                @for (group of groups(); track group.id) {
+                    <article class="farm-group">
+                        <h3>{{ group.source?.name ?? 'Source not configured' }}</h3>
+                        <div class="farm-week">
+                            @for (day of weekdays; track day.id) {
+                                <div [class.is-today]="gameDay()?.day === day.id">
+                                    <strong>{{ day.label }}</strong
+                                    ><span>{{
+                                        group.source?.days
+                                            ? group.source!.days!.includes(day.id)
+                                                ? 'Open'
+                                                : 'Closed'
+                                            : 'Unknown'
+                                    }}</span>
+                                </div>
+                            }
+                        </div>
+                        <div class="farm-material-grid">
+                            @for (row of group.materials; track row.item.id) {
+                                <gg-farming-material
+                                    [material]="row"
+                                    (selected)="openMaterial($event)"
+                                />
+                            }
+                        </div>
+                        <div class="farm-character-links">
+                            @for (id of group.characters; track id) {
+                                @if (character(id); as character) {
+                                    <a
+                                        [routerLink]="['/games', game(), 'characters']"
+                                        [queryParams]="{ character: id }"
+                                        [title]="'Open ' + character.name + ' development plan'"
+                                    >
+                                        @if (character.icon && validImage(character.icon)) {
+                                            <img [src]="character.icon" alt="" loading="lazy" />
+                                        } @else {
+                                            <span aria-hidden="true">{{
+                                                character.name.slice(0, 1)
+                                            }}</span>
+                                        }
+                                        <small>{{ character.name }}</small>
+                                    </a>
+                                }
+                            }
+                        </div>
+                        @if (group.source?.restrictions) {
+                            <p>{{ group.source!.restrictions }}</p>
+                        }
+                        @if (group.source?.url) {
+                            <a [href]="group.source!.url" target="_blank" rel="noopener noreferrer"
+                                >Source guide ↗</a
+                            >
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+    }
+    @if (!groups().length && !busy()) {
+        <div class="farm-empty">
+            <h3>{{ emptyHeading() }}</h3>
+            <p>{{ emptyDescription() }}</p>
+        </div>
+    }
+</section>
+@if (selectedMaterial(); as row) {
+    <div class="modal-backdrop">
+        <section
+            class="modal farm-material-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="farm-material-title"
+            ggDialogFocus
+            (keydown.escape)="closeMaterial()"
+        >
+            <div class="farm-toolbar">
+                <h2 id="farm-material-title">{{ row.item.name }}</h2>
+                <button
+                    type="button"
+                    (click)="closeMaterial()"
+                    [disabled]="busy()"
+                    aria-label="Close farming material"
+                >
+                    ×
+                </button>
+            </div>
+            <div class="farm-detail-material">
+                <gg-farming-material [material]="row" [interactive]="false" />
+                <p>
+                    {{ row.item.rarity }}★ · {{ row.owned }} owned · {{ row.required }} required ·
+                    {{ row.missing }} missing
+                </p>
+            </div>
+            @if (error()) {
+                <p class="alert" role="alert">{{ error() }}</p>
+            }
+            <label
+                >Owned quantity<input
+                    type="number"
+                    min="0"
+                    [max]="row.item.maxStack ?? 1000000000"
+                    step="1"
+                    [ngModel]="quantity()"
+                    (ngModelChange)="quantity.set($event)"
+                    [disabled]="busy()"
+            /></label>
+            <div class="farm-toolbar">
+                <button
+                    type="button"
+                    (click)="adjust(-1)"
+                    [disabled]="busy() || (quantity() ?? 0) <= 0"
+                >
+                    − Remove</button
+                ><button type="button" (click)="adjust(1)" [disabled]="busy()">+ Add</button
+                ><button type="button" class="primary" (click)="saveQuantity()" [disabled]="busy()">
+                    Save inventory
+                </button>
+            </div>
+            @if (message()) {
+                <p class="farm-message" role="status">{{ message() }}</p>
+            }
+            <h3>Selected characters</h3>
+            @for (id of row.characters; track id) {
+                <p>
+                    <a
+                        [routerLink]="['/games', game(), 'characters']"
+                        [queryParams]="{ character: id }"
+                        >{{ character(id)?.name }} → Development plan</a
+                    >
+                </p>
+            }
+            @if (row.plans.length) {
+                <p>Saved plans: {{ row.plans.join(', ') }}</p>
+            }
+            <h3>Farming sources</h3>
+            @for (source of sources(row); track source.id) {
+                <p>
+                    {{ source.name }} · {{ source.region }} · {{ availability(source) }}
+                    @if (source.url) {
+                        <a [href]="source.url" target="_blank" rel="noopener noreferrer"
+                            >Open guide ↗</a
+                        >
+                    }
+                </p>
+            } @empty {
+                <p>Source data unavailable.</p>
+            }
+            <p class="farm-help">No automatic crafting or conversions are assumed.</p>
+        </section>
+    </div>
+}
+@if (dataOpen()) {
+    <gg-farming-data-editor [game]="game()" (closed)="dataOpen.set(false)" />
+}

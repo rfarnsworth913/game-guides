@@ -1,8 +1,0 @@
-@use "./variables" as *;
-@use "./theme-mixin" as *;
-
-// Light theme class
-:root.theme-light,
-[data-theme="light"] {
-  @include apply-theme($light-theme);
-}

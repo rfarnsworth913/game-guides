@@ -17,7 +17,7 @@ const config = defineConfig([
   {
     ...jsdoc.configs["flat/recommended"],
 
-    files: ["projects/common/**/*.ts", "projects/middleware/src/**/*.ts", "projects/data-parser/src/**/*.ts", "projects/guides-app/src/**/*.ts"],
+    files: ["projects/lib/**/*.ts", "projects/common/**/*.ts", "projects/middleware/src/**/*.ts", "projects/middleware/scripts/**/*.ts", "projects/data-parser/src/**/*.ts", "projects/guides-app/src/**/*.ts"],
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
@@ -28,7 +28,7 @@ const config = defineConfig([
       parserOptions: {
         projectService: false,
         tsconfigRootDir: import.meta.dirname,
-        project: ["./projects/common/tsconfig.lint.json", "./projects/middleware/tsconfig.lint.json", "./projects/data-parser/tsconfig.lint.json", "./projects/guides-app/tsconfig.lint.json"],
+        project: ["./projects/lib/tsconfig.lint.json", "./projects/common/tsconfig.lint.json", "./projects/middleware/tsconfig.lint.json", "./projects/data-parser/tsconfig.lint.json", "./projects/guides-app/tsconfig.lint.json"],
       },
     },
 

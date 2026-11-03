@@ -1,0 +1,29 @@
+<div class="game-grid">
+                    @for (game of games; track game.id) {
+                        <a
+                            class="game-card panel"
+                            [routerLink]="'/games/' + game.id + '/dashboard'"
+                            [style.--game-color]="game.color"
+                            ><div class="game-art">
+                                <span>{{ game.short }}</span
+                                ><span class="art-orbit"></span>
+                            </div>
+                            <div class="game-card-body">
+                                <small>{{ game.subtitle }}</small>
+                                <h2>{{ game.name }}</h2>
+                                <p>
+                                    {{ gameCount(game.id, 'characters') }} characters ·
+                                    {{ gameCount(game.id, 'plans') }} plans
+                                </p>
+                                <progress max="100" [value]="storyDashboards()[game.id].percent" [attr.aria-label]="game.name + ' story completion'"></progress>
+                                <div class="section-title">
+                                    <small>{{ storyDashboards()[game.id].percent }}% story complete &middot; {{ storyDashboards()[game.id].completed }} / {{ storyDashboards()[game.id].total }}</small
+                                    ><span>Open workspace &#8599;</span>
+                                </div>
+                                @if (storyDashboards()[game.id].lastLocation) {
+                                    <p class="game-last-location">Last visited: {{ storyDashboards()[game.id].lastLocation }}</p>
+                                }
+                            </div></a
+                        >
+                    }
+                </div>

@@ -1,0 +1,308 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+.events-toolbar,
+.event-view-switch,
+.event-type-tabs,
+.event-month-actions,
+.event-calendar-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.events-toolbar {
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.events-toolbar > input {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+.events-completed-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+    flex-shrink: 0;
+}
+input:disabled {
+    cursor: wait;
+}
+.event-view-switch {
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+.event-view-switch button {
+    border: 0;
+    min-height: 34px;
+}
+.event-view-switch button.active {
+    background: var(--color-accent-subtle);
+    color: var(--color-primary);
+}
+.event-type-tabs {
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+}
+.event-type-tabs button {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 10px 12px;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+}
+.event-type-tabs button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+.event-type-tabs span {
+    margin-left: 4px;
+    font-size: 11px;
+}
+.events-help {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+.event-message {
+    color: var(--color-success);
+    font-size: 13px;
+}
+.event-list {
+    display: grid;
+    gap: 6px;
+}
+.event-row {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    min-height: 58px;
+    overflow: hidden;
+}
+.event-row:hover {
+    border-color: var(--color-primary);
+}
+.event-completion {
+    display: grid;
+    place-items: center;
+    padding: 18px 12px;
+    cursor: pointer;
+}
+.event-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px 10px 0;
+    min-width: 0;
+    color: var(--color-text-primary);
+    text-decoration: none;
+}
+.event-body[aria-disabled='true'] {
+    cursor: default;
+}
+.event-icon {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--color-accent-subtle);
+    color: var(--color-primary);
+    font-weight: 600;
+}
+.event-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+}
+.event-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+    gap: 6px 9px;
+}
+.event-title strong {
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+.event-title small {
+    color: var(--muted);
+    font-size: 11px;
+}
+.event-admin-actions {
+    display: flex;
+    gap: 4px;
+    padding-right: 10px;
+}
+.event-type-badge {
+    font-size: 10px;
+    padding: 3px 7px;
+    background: var(--color-accent-subtle);
+    border-radius: 6px;
+    color: var(--color-primary);
+}
+.event-deadline {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    background: var(--line);
+    white-space: nowrap;
+}
+.is-urgent {
+    border-color: var(--color-danger, #e56983);
+}
+.is-urgent .event-deadline {
+    background: var(--color-danger, #b93960);
+    color: var(--color-bg-primary);
+}
+.is-completed .event-title strong,
+.calendar-event.is-completed a {
+    text-decoration: line-through;
+    color: var(--muted);
+}
+.event-calendar-toolbar {
+    justify-content: space-between;
+    margin: 20px 0 12px;
+}
+.event-calendar-toolbar h2 {
+    margin: 0;
+    font-size: 20px;
+}
+.event-calendar {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+.event-calendar th {
+    text-align: center;
+    padding: 10px 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+.event-calendar td {
+    border: 1px solid var(--line);
+    padding: 7px;
+    height: 130px;
+    vertical-align: top;
+    background: var(--surface);
+}
+.event-calendar td.outside-month {
+    background: var(--color-bg-primary);
+}
+.event-calendar time {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+.event-calendar .today time {
+    background: var(--color-primary);
+    color: var(--color-bg-primary);
+    border-radius: 50%;
+    font-weight: 600;
+}
+.calendar-event {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px;
+    margin-bottom: 4px;
+    background: var(--color-accent-subtle);
+    border-radius: 5px;
+    min-width: 0;
+}
+.calendar-event input {
+    width: 14px;
+    height: 14px;
+}
+.calendar-event a {
+    font-size: 11px;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-decoration: none;
+}
+.calendar-event a:hover {
+    text-decoration: underline;
+}
+.undated-title {
+    margin-top: 24px;
+    font-size: 16px;
+}
+.events-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--muted);
+}
+.events-empty h2 {
+    font-size: 18px;
+    color: var(--color-text-primary);
+}
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+@media (max-width: 650px) {
+    .event-row {
+        flex-wrap: wrap;
+    }
+    .event-admin-actions {
+        padding: 0 12px 8px 42px;
+    }
+    .event-body {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .event-deadline {
+        margin-left: 42px;
+    }
+    .event-title {
+        flex-basis: calc(100% - 50px);
+    }
+    .event-calendar td {
+        padding: 3px;
+        height: 100px;
+    }
+    .calendar-event {
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 3px;
+    }
+    .calendar-event a {
+        width: 100%;
+        font-size: 10px;
+    }
+    .event-calendar time {
+        width: 22px;
+        height: 22px;
+    }
+}

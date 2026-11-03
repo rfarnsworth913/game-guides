@@ -132,7 +132,7 @@ Lint configuration is implemented as of October 27, 2026:
 5. `typescript-eslint`, previously a transitive dependency, is now a direct development dependency. The lockfile is updated. The CI script is:
 
 ```json
-"lint:ci": "eslint projects/common projects/middleware/src projects/data-parser/src projects/guides-app/src"
+"lint:ci": "eslint projects/lib projects/common projects/middleware/src projects/middleware/scripts projects/data-parser/src projects/guides-app/src"
 ```
 
 The configuration now completes linting without fatal project-association errors. The repository still has existing code errors and formatting warnings; see [the lint baseline](lint-baseline-2026-10-27.md). `lint:ci` fails on errors and reports warnings, without `continue-on-error` or `|| true`. Once the warning baseline is cleaned up, optionally add `--max-warnings=0`.
@@ -224,6 +224,10 @@ reviews:
       instructions: >-
         Check verified identity, editor authorization, account isolation,
         origin validation, upload validation, and concurrency protections.
+    - path: "projects/lib/**"
+      instructions: >-
+        Keep shared declarations independent of runtime services and UI code.
+        Preserve stored model shapes, constant values, and enum IDs.
     - path: "projects/common/**"
       instructions: >-
         Preserve stable IDs, stored-data compatibility and runtime validation.
@@ -346,7 +350,7 @@ Create a `dev/production-packaging` PR and complete these changes before automat
 3. **Static frontend:** serve `dist/guides-app/browser` (verify the build output) through the proxy, with SPA route fallback. Proxy `/api` to middleware before applying that fallback. No Angular development server in deployment.
 4. **Images:** add a configurable asset-storage root. Current uploads are written under `projects/guides-app/src/assets`. Mount a persistent directory and preserve/seed existing game images without overwriting uploaded metadata. Replacing an application release must not replace the image library.
 5. **MongoDB:** use a persistent volume and credentials supplied at runtime. Separate staging and production databases, progress collections, schema backups, and image directories. Test restore as well as backup.
-6. **Authentication:** use HTTPS, set `NODE_ENV=production` and the exact `APP_ORIGIN`, and register callback/logout/web-origin URLs with Auth0. Current public Auth0 settings are compiled from `projects/common/auth0-config.ts`; use deliberately reviewed environment-specific builds/configuration if staging differs. Private secrets stay on the server or in protected environment settings.
+6. **Authentication:** use HTTPS, set `NODE_ENV=production` and the exact `APP_ORIGIN`, and register callback/logout/web-origin URLs with Auth0. Current public Auth0 settings are compiled from `projects/lib/constants/auth0-config.constants.ts`; use deliberately reviewed environment-specific builds/configuration if staging differs. Private secrets stay on the server or in protected environment settings.
 7. **Packaging:** add reviewed Dockerfile/Compose/proxy configuration. Build the frontend and backend in CI, publish an image identified by the full commit SHA/digest, and retain the previous release. Cache/dependency setup must not include `.env`, database files, or credentials.
 8. **Health:** add container readiness checks and verify `/api/health` through the deployed HTTPS origin. Confirm a guide loads, an authorized account can save, and guest/account progress behave correctly.
 

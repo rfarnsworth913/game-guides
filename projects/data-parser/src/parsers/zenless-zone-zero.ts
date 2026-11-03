@@ -1,9 +1,9 @@
 import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { DATE_FORMAT } from "@common/constants";
-import { EventType } from "@common/enums";
-import { DataFile, DataSource, Event, Version } from "@common/types";
+import { DATE_FORMAT } from '@shared-lib/constants';
+import { EventType } from '@shared-lib/enums';
+import type { DataFile, DataSource, Event, Version } from '@shared-lib/types';
 
 import { DataService, getDateFromString, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";

@@ -2,9 +2,16 @@
     "extends": "../../tsconfig.json",
     "compilerOptions": {
         "noEmit": true,
-        "types": ["node"],
+        "types": [
+            "node"
+        ],
         "module": "esnext",
         "moduleResolution": "bundler"
     },
-    "include": ["src/**/*.ts", "../common/workspace.ts"]
+    "include": [
+        "src/**/*.ts",
+        "../common/**/*.ts",
+        "../lib/**/*.ts",
+        "scripts/**/*.ts"
+    ]
 }

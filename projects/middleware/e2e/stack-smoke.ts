@@ -1,17 +1,19 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, randomUUID, sign } from 'node:crypto';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer, request as proxyRequest, type Server } from 'node:http';
 import { mkdtemp, readFile, readdir, rm, mkdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, extname, relative, isAbsolute } from 'node:path';
 import { MongoClient } from 'mongodb';
 import puppeteer, { type Browser, type BrowserContext, type Page } from 'puppeteer';
-import { Auth0Security } from '../src/auth0';
-import { GameRepository } from '../src/repository';
-import { ProgressRepository, type ProgressDocument } from '../src/progress';
-import { createApi } from '../src/server';
-import { GAMES, type CatalogEntry } from '../../common/workspace';
-import { emptyPatchOverview } from '../../common/story-template';
+import { Auth0Security } from '../src/core/auth/providers/auth0.provider';
+import { GameRepository } from "../src/modules/games/games.repository";
+import { ProgressRepository, type ProgressDocument } from "../src/modules/progress/progress.repository";
+import { createApi } from "../src/app/server";
+import { GAMES } from '../../lib/constants/workspace.constants';
+import type { CatalogEntry } from '../../lib/types/workspace.type';
+import { emptyPatchOverview } from '../../common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.
@@ -28,6 +30,7 @@ let apiServer: Server | undefined;
 let apiOrigin = '';
 let origin = '';
 let databaseConnected = false;
+let bootstrap: ChildProcess | undefined;
 const pages: Page[] = [];
 const runtimeErrors: string[] = [];
 const externalRequests: string[] = [];
@@ -43,6 +46,18 @@ async function close(server?: Server): Promise<void> {
     if (!server?.listening) return;
     server.closeIdleConnections();
     await new Promise<void>((done, reject) => server.close(error => error ? reject(error) : done()));
+}
+
+async function stopBootstrap(): Promise<void> {
+    if (!bootstrap) return;
+    if (bootstrap.exitCode !== null) { assert.equal(bootstrap.exitCode, 0); return; }
+    const child = bootstrap;
+    const stopped = new Promise<void>((done, reject) => {
+        const timeout = setTimeout(() => { child.kill(); reject(new Error('Application bootstrap did not stop cleanly.')); }, 5000);
+        child.once('exit', code => { clearTimeout(timeout); code === 0 ? done() : reject(new Error('Application bootstrap failed.')); });
+    });
+    child.send('shutdown');
+    await stopped;
 }
 
 function jwt(subject: string, overrides: Record<string, unknown> = {}): string {
@@ -166,6 +181,32 @@ try {
     apiServer = createApi(repository, [origin], () => db.command({ ping: 1 }), assets, security, progress);
     apiOrigin = await listen(apiServer);
 
+    // Exercise the real startup entry separately, with the same disposable database.
+    // Public health requires no provider call, tenant credentials or auth bypass.
+    const portProbe = createServer();
+    const bootstrapOrigin = await listen(portProbe);
+    await close(portProbe);
+    bootstrap = spawn(process.execPath, ['--import', 'tsx', 'projects/middleware/src/app/app.ts'], {
+        env: { ...process.env, NODE_ENV: 'test', DB_CONN_STRING: process.env['E2E_MONGODB_URI'] ?? 'mongodb://127.0.0.1:27017',
+            DB_NAME: databaseName, DB_COLLECTION: 'games', MIDDLEWARE_PORT: new URL(bootstrapOrigin).port, APP_ORIGIN: origin },
+        windowsHide: true, stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
+    let startupLog = '';
+    bootstrap.stdout?.on('data', chunk => { startupLog = (startupLog + String(chunk)).slice(-2000); });
+    bootstrap.stderr?.on('data', chunk => { startupLog = (startupLog + String(chunk)).slice(-2000); });
+    let startupReady = false;
+    for (let attempt = 0; attempt < 40; attempt++) {
+        if (bootstrap.exitCode !== null) break;
+        try { startupReady = (await fetch(bootstrapOrigin + '/api/health', { signal: AbortSignal.timeout(500) })).ok; }
+        catch { /* wait for the real application entry to connect */ }
+        if (startupReady) break;
+        await new Promise(done => setTimeout(done, 150));
+    }
+    assert.ok(startupReady, 'Application bootstrap did not start: ' + startupLog);
+    await stopBootstrap();
+    bootstrap = undefined;
+    console.log('PASS real application startup, MongoDB connectivity and graceful shutdown.');
+
     const baseEntry = { game: 'genshin', notes: '', order: 0, category: '', rarity: 0, members: [], requirements: [], day: '' };
     const entries: CatalogEntry[] = [
         { ...baseEntry, id: 'e2e-section', kind: 'story-category', name: 'E2E Chapter' },
@@ -272,6 +313,24 @@ try {
     assert.deepEqual(progressConflicts.map(response => response.status).sort(), [200, 409]);
     console.log('PASS concurrent catalog and account progress writes reject stale revisions.');
 
+    // Verify every extracted page can load its own deferred bundle through existing URLs.
+    for (const [route, selector] of [
+        ['/dashboard', 'gg-dashboard .stats'],
+        ['/games', 'gg-game-collection .game-card'],
+        ['/games/genshin/dashboard', 'gg-dashboard .stats'],
+        ['/settings?tab=data', 'gg-settings .settings'],
+        ['/games/genshin/plans', 'gg-progression .collection-empty'],
+        ['/games/genshin/characters', 'gg-characters'],
+        ['/games/genshin/inventory', 'gg-inventory'],
+        ['/games/genshin/teams', 'gg-teams'],
+        ['/games/genshin/events', 'gg-events'],
+        ['/games/genshin/achievements', 'gg-achievements'],
+    ]) {
+        await editor.goto(origin + route, { waitUntil: 'networkidle0' });
+        await editor.waitForSelector(selector!);
+    }
+    console.log('PASS global and game feature pages load through their existing routes.');
+
     await editor.click('[popovertarget=profile-menu]');
     await Promise.all([
         editor.waitForNavigation({ waitUntil: 'networkidle0' }),
@@ -297,7 +356,7 @@ try {
     throw error;
 } finally {
     // Stop all writers before cleanup; cleanup failures must fail the run as well.
-    const results = await Promise.allSettled([browser?.close(), close(apiServer), close(uiServer)]);
+    const results = await Promise.allSettled([browser?.close(), close(apiServer), close(uiServer), stopBootstrap()]);
     try {
         assert.match(databaseName, /^game_guides_e2e_[a-f0-9]{32}$/);
         if (databaseConnected) {

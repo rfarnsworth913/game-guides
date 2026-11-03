@@ -1,0 +1,222 @@
+import { Injector, runInInjectionContext, signal } from '@angular/core';
+
+import { WorkspaceStore, GAMES, Entry } from "../../../../core/state/workspace.store";
+import { AuthStore } from "../../../../core/auth/auth.store";
+import type { CharacterRules } from "../../../../../../../lib/types/character.type";
+import { emptyCharacterCollection, emptyCharacterDefinition } from "../../../../../../../common/characters/characters";
+import type { GameSnapshot, PlayerState } from "../../../../../../../lib/types/workspace.type";
+import { toCatalog, parseBackup } from "../../../../../../../common/workspace/workspace";
+
+const rules: CharacterRules = {
+    levelCap: 90,
+    rarities: [4, 5],
+    weaponTypes: [],
+    damageTypes: [],
+    roles: [],
+    equipmentSlots: [{ id: 'weapon', label: 'Weapon', limit: 1 }],
+    progressionTracks: [],
+};
+const character: Entry = {
+    id: 'vesna',
+    game: 'genshin',
+    kind: 'characters',
+    name: 'Vesna',
+    rarity: 5,
+    category: '',
+    notes: '',
+    order: 0,
+    day: '',
+    members: [],
+    requirements: [],
+    completed: false,
+    quantity: 0,
+    target: 0,
+    characterDefinition: emptyCharacterDefinition(),
+};
+
+describe('Character collection persistence', () => {
+    let local: Map<string, string>;
+    let accounts: Map<string, { revision: number; state: Record<string, PlayerState> }>;
+    let snapshots: GameSnapshot[];
+    let requests: { account: string; path: string; method: string }[];
+    async function request(account: string, path: string, init?: RequestInit): Promise<Response> {
+        const method = init?.method ?? 'GET';
+        requests.push({ account, path, method });
+        if (path === '/api/games')
+            {return {
+                ok: true,
+                json: async () => structuredClone({ games: snapshots }),
+            } as Response;}
+        if (path === '/api/me/progress') {
+            let value = accounts.get(account) ?? { revision: 0, state: {} };
+            if (method === 'PATCH') {
+                const body = JSON.parse(init!.body as string) as { changes: Record<string, PlayerState>; entries: GameSnapshot['entries']; characterRules?: CharacterRules };
+                value = {
+                    revision: value.revision + 1,
+                    state: { ...value.state, ...body.changes },
+                };
+                accounts.set(account, value);
+            }
+            return { ok: true, json: async () => structuredClone(value) } as Response;
+        }
+        if (method === 'PUT') {
+            const body = JSON.parse(init!.body as string) as { changes: Record<string, PlayerState>; entries: GameSnapshot['entries']; characterRules?: CharacterRules };
+            const game = snapshots.find((game) => path.includes('/' + game.id + '/'))!;
+            game.entries = body.entries;
+            game.characterRules = body.characterRules ?? game.characterRules;
+            game.revision++;
+            return { ok: true, json: async () => structuredClone(game) } as Response;
+        }
+        throw new Error('Unexpected request ' + path);
+    }
+    function auth(account: string, editor = false): AuthStore {
+        return {
+            user: signal({ id: account, name: account, editor }),
+            initialize: async () => {},
+            request: (path: string, init?: RequestInit) => request(account, path, init),
+        } as unknown as AuthStore;
+    }
+    beforeEach(() => {
+        local = new Map();
+        accounts = new Map();
+        requests = [];
+        snapshots = GAMES.map((game) => ({
+            id: game.id,
+            name: game.name,
+            revision: 0,
+            entries: game.id === 'genshin' ? [toCatalog(character)] : [],
+            ...(game.id === 'genshin' ? { characterRules: rules } : {}),
+        }));
+        vi.stubGlobal('localStorage', {
+            getItem: vi.fn((key: string) => local.get(key) ?? null),
+            setItem: vi.fn((key: string, value: string) => local.set(key, value)),
+            removeItem: vi.fn(),
+        });
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((path: string, init?: RequestInit) => request('guest', path, init)),
+        );
+    });
+    afterEach(() => vi.unstubAllGlobals());
+    it('saves personal teams for non-editors, reloads them privately, and preserves characters on deletion', async () => {
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await alice.initialize();
+        const team = { id: 'my-team', name: 'My team', members: ['vesna'], notes: 'Rotation' };
+        expect(await alice.saveTeam('genshin', team)).toBe(false);
+        await alice.saveCharacterCollection('vesna', emptyCharacterCollection());
+        expect(await alice.saveTeam('genshin', team)).toBe(true);
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await restored.initialize();
+        expect(restored.teams()['genshin']).toEqual([team]);
+        const bob = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('bob') }] }), () => new WorkspaceStore()); await bob.initialize();
+        expect(bob.teams()['genshin']).toEqual([]);
+        expect(await restored.deleteTeam('genshin', 'my-team')).toBe(true);
+        expect(restored.entries()[0].characterCollection!.owned).toBe(true);
+        expect(requests.filter(request => request.method === 'PUT')).toHaveLength(0);
+    });
+    it('persists guest teams and imports them with owned characters through the explicit account action', async () => {
+        const guest = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await guest.initialize();
+        await guest.saveCharacterCollection('vesna', emptyCharacterCollection());
+        const team = { id: 'guest-team', name: 'Guest team', members: ['vesna'], notes: '' };
+        expect(await guest.saveTeam('genshin', team)).toBe(true);
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await restored.initialize();
+        expect(restored.teams()['genshin']).toEqual([team]);
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await alice.initialize();
+        expect(alice.teams()['genshin']).toEqual([]);
+        expect(await alice.importGuestProgress()).toBe(true);
+        expect(alice.teams()['genshin']).toEqual([team]);
+    });
+    it('lets a player add, edit, reload and remove a personal build without modifying the shared character', async () => {
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
+        await alice.initialize();
+        expect(alice.canEdit()).toBe(false);
+        expect(
+            await alice.saveCharacterCollection('vesna', {
+                ...emptyCharacterCollection(),
+                level: 50,
+                gear: { weapon: ['Excalibur'] },
+            }),
+        ).toBe(true);
+        const bob = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('bob') }] }), () => new WorkspaceStore());
+        await bob.initialize();
+        expect(bob.entries()[0].characterCollection).toBeUndefined();
+        const reloaded = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
+        await reloaded.initialize();
+        expect(reloaded.entries()[0].characterCollection).toMatchObject({
+            level: 50,
+            owned: true,
+            gear: { weapon: ['Excalibur'] },
+        });
+        expect(
+            await reloaded.saveCharacterCollection('vesna', {
+                ...emptyCharacterCollection(),
+                level: 60,
+            }),
+        ).toBe(true);
+        expect(
+            await reloaded.saveCharacterCollection('vesna', {
+                ...emptyCharacterCollection(),
+                owned: false,
+            }),
+        ).toBe(true);
+        expect(reloaded.entries()[0].characterCollection?.owned).toBe(false);
+        expect(snapshots.find(game => game.id === character.game)?.entries[0]).toEqual(toCatalog(character));
+        expect(requests.filter((request) => request.method === 'PUT')).toHaveLength(0);
+        expect(local.has('gg-player-v1')).toBe(false);
+    });
+    it('persists guest collections locally and imports them only with the explicit account action', async () => {
+        const guest = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
+        await guest.initialize();
+        await guest.saveCharacterCollection('vesna', { ...emptyCharacterCollection(), level: 25 });
+        const restored = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
+        await restored.initialize();
+        expect(restored.entries()[0].characterCollection?.level).toBe(25);
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
+        await alice.initialize();
+        expect(alice.entries()[0].characterCollection).toBeUndefined();
+        expect(await alice.importGuestProgress()).toBe(true);
+        expect(alice.entries()[0].characterCollection?.level).toBe(25);
+        expect(local.has('gg-player-v1')).toBe(true);
+    });
+    it('blocks invalid levels and cross-game slots, and reserves game rules for editors', async () => {
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
+        await alice.initialize();
+        expect(
+            await alice.saveCharacterCollection('vesna', {
+                ...emptyCharacterCollection(),
+                level: 91,
+            }),
+        ).toBe(false);
+        expect(
+            await alice.saveCharacterCollection('vesna', {
+                ...emptyCharacterCollection(),
+                gear: { armor: ['Item'] },
+            }),
+        ).toBe(false);
+        expect(await alice.saveCharacterRules('genshin', rules)).toBe(false);
+        expect(requests.filter((request) => request.method !== 'GET')).toHaveLength(0);
+        const editor = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('editor', true) }] }), () => new WorkspaceStore());
+        await editor.initialize();
+        expect(await editor.saveCharacterRules('genshin', { ...rules, levelCap: 100 })).toBe(true);
+        expect(editor.characterRules()['genshin'].levelCap).toBe(100);
+        expect(editor.entries()[0].characterCollection).toBeUndefined();
+    });
+    it('restores shared game rules together with catalog data and rejects malformed rule backups', async () => {
+        const editor = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('editor', true) }] }), () => new WorkspaceStore());
+        await editor.initialize();
+        const backup = {
+            version: 1,
+            entries: editor.entries(),
+            characterRules: { genshin: { ...rules, levelCap: 100 } },
+        };
+        const entries = parseBackup(JSON.stringify(backup));
+        expect(await editor.replace(entries, backup.characterRules)).toBe(true);
+        expect(editor.characterRules()['genshin'].levelCap).toBe(100);
+        expect(() =>
+            parseBackup(
+                JSON.stringify({
+                    ...backup,
+                    characterRules: { genshin: { ...rules, levelCap: -1 } },
+                }),
+            ),
+        ).toThrow();
+    });
+});

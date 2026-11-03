@@ -1,0 +1,65 @@
+@use "sass:map";
+
+
+// Topic colors stay consistent across games, regions and patch versions.
+$story-topics: (
+  patch-overview: (accent: rgba(56, 168, 217, 1), light: rgba(224, 242, 254, 1), dark: rgba(19, 39, 51, 1)),
+  main-story: (accent: rgba(167, 139, 250, 1), light: rgba(237, 233, 254, 1), dark: rgba(40, 36, 58, 1)),
+  side-stories: (accent: rgba(25, 184, 173, 1), light: rgba(204, 251, 241, 1), dark: rgba(19, 46, 45, 1)),
+  world-quests: (accent: rgba(70, 183, 139, 1), light: rgba(220, 252, 231, 1), dark: rgba(25, 46, 41, 1)),
+  events: (accent: rgba(231, 163, 75, 1), light: rgba(254, 243, 199, 1), dark: rgba(48, 41, 30, 1)),
+  endgame-activity: (accent: rgba(225, 108, 112, 1), light: rgba(255, 228, 230, 1), dark: rgba(50, 31, 39, 1)),
+  lore: (accent: rgba(133, 149, 232, 1), light: rgba(224, 231, 255, 1), dark: rgba(34, 41, 58, 1)),
+  character-information: (accent: rgba(224, 138, 174, 1), light: rgba(252, 231, 243, 1), dark: rgba(48, 36, 49, 1)),
+);
+
+:root {
+  @each $topic, $colors in $story-topics {
+    --story-#{$topic}-accent: #{map.get($colors, accent)};
+    --story-#{$topic}-background-light: #{map.get($colors, light)};
+    --story-#{$topic}-background-dark: #{map.get($colors, dark)};
+  }
+}
+
+:root,
+:root.theme-dark,
+[data-theme="dark"] {
+  @each $topic, $colors in $story-topics {
+    --story-#{$topic}-background: var(--story-#{$topic}-background-dark);
+  }
+}
+
+:root.theme-light,
+[data-theme="light"] {
+  @each $topic, $colors in $story-topics {
+    --story-#{$topic}-background: var(--story-#{$topic}-background-light);
+  }
+}
+
+// Example: <section class="story-section" data-story-topic="world-quests">.
+// Descendants, including quest groupings/regions, inherit the topic variables.
+@each $topic, $colors in $story-topics {
+  [data-story-topic="#{$topic}"] {
+    --story-topic-accent: var(--story-#{$topic}-accent);
+    --story-topic-background: var(--story-#{$topic}-background);
+  }
+}
+
+.story-section {
+  border-inline-start: 3px solid var(--story-topic-accent, var(--color-border));
+}
+
+.story-section-header {
+  background-color: var(--story-topic-background, var(--color-bg-secondary));
+  color: var(--color-text-primary);
+}
+
+.story-topic-icon {
+  color: var(--story-topic-accent, var(--color-text-primary));
+}
+
+.story-subsection {
+  margin-inline-start: 1rem;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid var(--story-topic-accent, var(--color-border));
+}

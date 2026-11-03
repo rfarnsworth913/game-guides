@@ -1,8 +1,10 @@
 import { Component, inject, signal } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
 
-import { ThemeService } from "./services/theme-switcher/theme.service";
-import { AuthService } from '@auth0/auth0-angular';
+import { AuthService } from "@auth0/auth0-angular";
+
+import { ThemeService } from "./core/theme/theme.service";
+
 
 @Component({
     selector: "gg-root",
@@ -11,10 +13,12 @@ import { AuthService } from '@auth0/auth0-angular';
     styleUrl: "./app.scss",
 })
 export class App {
-    protected readonly title = signal("guides-app");
+
+    // Application title and theme service initialization
     private readonly themeService = inject(ThemeService);
-    // Start callback handling before lazy workspace routes load.
-    private readonly auth = inject(AuthService, { optional: true });
+    private readonly auth = inject(AuthService, { optional: true });      // Start callback handling before lazy workspace routes load.
+
+    protected readonly title = signal("guides-app");
 
     constructor () {
         // Initialize theme when app loads

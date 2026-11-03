@@ -2,8 +2,8 @@ import { isFuture } from "date-fns";
 
 import * as puppeteer from "puppeteer";
 
-import { EventType } from "@common/enums";
-import { DataFile, Event, Version } from "@common/types";
+import { EventType } from '@shared-lib/enums';
+import type { DataFile, Event, Version } from '@shared-lib/types';
 import { DataService, Logger, timeout } from "../services";
 
 

@@ -1,0 +1,254 @@
+<section aria-label="Your teams">
+    <div class="teams-toolbar">
+        <div>
+            <h2>
+                Your teams <span>{{ teams().length }}</span>
+            </h2>
+            <p>Build teams of up to {{ limit() }} characters from your collection.</p>
+        </div>
+        <button
+            type="button"
+            class="primary"
+            (click)="edit()"
+            [disabled]="busy() || !collection().length || teams().length >= 100"
+        >
+            + Create team
+        </button>
+    </div>
+    <p class="teams-help">
+        {{
+            store.auth?.user()
+                ? 'Your teams sync to your account.'
+                : 'Your teams are saved in this browser. Sign in to sync across devices.'
+        }}
+        @if (store.canEdit()) {
+            <a [routerLink]="['/games', game(), 'characters']"
+                >Configure team size in Characters → Game rules</a
+            >
+        }
+    </p>
+    @if (message()) {
+        <p role="status" class="teams-message">{{ message() }}</p>
+    }
+    <input
+        type="search"
+        class="teams-search"
+        aria-label="Search teams"
+        placeholder="Search teams or members…"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+    />
+    @if (!collection().length && !busy()) {
+        <div class="teams-empty">
+            <h3>Add characters to your collection</h3>
+            <p>Your teams use characters you own in this game.</p>
+            <a [routerLink]="['/games', game(), 'characters']">Browse characters →</a>
+        </div>
+    }
+    @if (store.loading()) {
+        <p role="status">Loading teams…</p>
+    }
+    <div class="teams-grid">
+        @for (team of visible(); track team.id) {
+            <article class="team-card">
+                <div class="team-heading">
+                    <h3>{{ team.name }}</h3>
+                    <span>{{ team.members.length }} / {{ limit() }}</span>
+                </div>
+                <div class="team-slots">
+                    @for (id of slots(team); track $index) {
+                        <div class="team-slot" [class.empty-slot]="!id">
+                            @if (id) {
+                                @if (character(id); as character) {
+                                    @if (character.icon && validImage(character.icon)) {
+                                        <img [src]="character.icon" alt="" loading="lazy" />
+                                    } @else {
+                                        <span class="team-initial" aria-hidden="true">{{
+                                            character.name.slice(0, 1)
+                                        }}</span>
+                                    }
+                                    <strong>{{ character.name }}</strong>
+                                    <small>{{
+                                        character.characterCollection?.owned
+                                            ? 'Level ' + character.characterCollection!.level
+                                            : 'Not in collection'
+                                    }}</small>
+                                } @else {
+                                    <strong>Unavailable character</strong
+                                    ><small>Edit to replace</small>
+                                }
+                            } @else {
+                                <span class="team-initial" aria-hidden="true">+</span
+                                ><small>Open slot</small>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (team.notes) {
+                    <p class="team-notes">{{ team.notes }}</p>
+                }
+                <div class="team-actions">
+                    <button type="button" (click)="edit(team)" [disabled]="busy()">Edit team</button
+                    ><button
+                        type="button"
+                        (click)="removing = team; error = ''"
+                        [disabled]="busy()"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </article>
+        } @empty {
+            @if (collection().length && !busy()) {
+                <div class="teams-empty">
+                    <h3>{{ search() ? 'No matching teams' : 'Create your first team' }}</h3>
+                    <p>
+                        {{
+                            search()
+                                ? 'Try another team or character name.'
+                                : 'Choose characters from your collection to start a team. Partial teams are welcome.'
+                        }}
+                    </p>
+                </div>
+            }
+        }
+    </div>
+</section>
+@if (draft; as team) {
+    <div class="modal-backdrop">
+        <section
+            class="modal team-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-editor-title"
+            ggDialogFocus
+            (keydown.escape)="close()"
+        >
+            <div class="team-heading">
+                <h2 id="team-editor-title">Team builder</h2>
+                <button
+                    type="button"
+                    (click)="close()"
+                    [disabled]="busy()"
+                    aria-label="Close team builder"
+                >
+                    ×
+                </button>
+            </div>
+            @if (error) {
+                <p class="alert" role="alert">{{ error }}</p>
+            }
+            <label
+                >Team name<input
+                    [(ngModel)]="team.name"
+                    maxlength="160"
+                    [disabled]="busy()"
+                    placeholder="Name your team"
+            /></label>
+            <div class="team-heading">
+                <h3>Choose members</h3>
+                <span role="status">{{ team.members.length }} / {{ limit() }}</span>
+            </div>
+            <p class="teams-help">
+                Only characters in your collection for this game are available. Choose at least one
+                member.
+            </p>
+            @for (id of unavailable(); track id) {
+                <p class="alert">
+                    {{ character(id)?.name ?? 'Unavailable character' }} is no longer in your
+                    collection.
+                    <button type="button" (click)="toggle(id)" [disabled]="busy()">
+                        Remove from team
+                    </button>
+                </p>
+            }
+            <input
+                type="search"
+                aria-label="Search collected characters"
+                placeholder="Search your collection…"
+                [ngModel]="characterSearch()"
+                (ngModelChange)="characterSearch.set($event)"
+            />
+            <div class="team-character-picker">
+                @for (character of choices(); track character.id) {
+                    <label
+                        class="team-character"
+                        [class.selected]="team.members.includes(character.id)"
+                    >
+                        <input
+                            type="checkbox"
+                            [checked]="team.members.includes(character.id)"
+                            (change)="toggle(character.id)"
+                            [disabled]="
+                                busy() ||
+                                (!team.members.includes(character.id) &&
+                                    team.members.length >= limit())
+                            "
+                        />
+                        @if (character.icon && validImage(character.icon)) {
+                            <img [src]="character.icon" alt="" loading="lazy" />
+                        }
+                        <span
+                            ><strong>{{ character.name }}</strong
+                            ><small
+                                >Level {{ character.characterCollection!.level }}
+                                @if (character.characterDefinition?.damageType) {
+                                    · {{ character.characterDefinition!.damageType }}
+                                }
+                            </small></span
+                        >
+                    </label>
+                } @empty {
+                    <p class="teams-help">No matching characters in your collection.</p>
+                }
+            </div>
+            <label
+                >Team notes (optional)<textarea
+                    rows="3"
+                    [(ngModel)]="team.notes"
+                    maxlength="5000"
+                    [disabled]="busy()"
+                    placeholder="Rotations, roles, or a reminder…"
+                ></textarea>
+            </label>
+            <div class="team-actions">
+                <button
+                    type="button"
+                    class="primary"
+                    (click)="save()"
+                    [disabled]="
+                        busy() ||
+                        !team.name.trim() ||
+                        !team.members.length ||
+                        team.members.length > limit() ||
+                        unavailable().length > 0
+                    "
+                >
+                    Save team</button
+                ><button type="button" (click)="close()" [disabled]="busy()">Cancel</button>
+            </div>
+        </section>
+    </div>
+}
+@if (removing; as team) {
+    <div class="modal-backdrop">
+        <section
+            class="modal small"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-team-title"
+            ggDialogFocus
+            (keydown.escape)="close()"
+        >
+            <h2 id="delete-team-title">Delete {{ team.name }}?</h2>
+            <p>Your characters will remain in your collection.</p>
+            @if (error) {
+                <p class="alert" role="alert">{{ error }}</p>
+            }
+            <div class="team-actions">
+                <button type="button" (click)="remove()" [disabled]="busy()">Delete team</button
+                ><button type="button" (click)="close()" [disabled]="busy()">Cancel</button>
+            </div>
+        </section>
+    </div>
+}
