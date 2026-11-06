@@ -2,8 +2,8 @@ import { isFuture } from "date-fns";
 
 import * as puppeteer from "puppeteer";
 
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, Event, Version } from '@shared-lib/types';
+import { EventType } from "@shared-lib/enums";
+import type { DataFile, Event, Version } from "@shared-lib/types";
 import { DataService, Logger, timeout } from "../services";
 
 
@@ -26,7 +26,7 @@ export class AbstractDataParser {
 
 
     // Constructor ------------------------------------------------------------
-    constructor (data: DataFile, private readonly dataService: DataService) { }
+    constructor (readonlydata: DataFile, private readonly dataService: DataService) { }
 
 
     // Processing Controllers -------------------------------------------------
@@ -82,6 +82,7 @@ export class AbstractDataParser {
     protected async parseSourceData (): Promise<void> {
         throw new Error("Method not implemented.");
     }
+
 
     /**
      * Common controller to setup Puppeteer and execute parsing logic.
@@ -189,6 +190,7 @@ export class AbstractDataParser {
 
         return null;
     }
+
 
     // Mapping Utilities ------------------------------------------------------
 
