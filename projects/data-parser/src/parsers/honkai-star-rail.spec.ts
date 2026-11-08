@@ -50,7 +50,10 @@ const spyOnParserMethod = (parser: HonkaiStarRailParser, methodName: string) => 
 
 const mockBrowserController = (parser: HonkaiStarRailParser, pageMock: unknown): void => {
     spyOnParserMethod(parser, "browserController")
-        .mockImplementation(async (_url: string, callback: (page: unknown) => Promise<unknown>) => callback(pageMock));
+        .mockImplementation(async (...args: Array<unknown>) => {
+            const callback = args[1] as (page: unknown) => Promise<unknown>;
+            return callback(pageMock);
+        });
 };
 
 

@@ -1,35 +1,12 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
+import { add, endOfISOWeek, endOfMonth, format, isValid, parseISO, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { DATE_FORMAT, MONTH_NAME_FORMAT } from '@shared-lib/constants';
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource, Event, Version } from '@shared-lib/types';
+import { DATE_FORMAT, MONTH_NAME_FORMAT } from "@shared-lib/constants";
+import { EventType } from "@shared-lib/enums";
+import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
 
 import { DataService, getDateFromString, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
-
 
 export class GenshinImpactParser extends AbstractDataParser {
 
@@ -40,7 +17,6 @@ export class GenshinImpactParser extends AbstractDataParser {
         this.data = data;
     }
 
-
     // Processing Controllers -------------------------------------------------
 
     /**
@@ -48,7 +24,7 @@ export class GenshinImpactParser extends AbstractDataParser {
      * and hands those tasks off to the appropriate parsing methods.
      */
     protected override async parseSourceData (): Promise<void> {
-        // await this.createStaticEvents();
+        await this.createStaticEvents();
 
         for (const source of this.data.sourceList) {
             switch (source.id) {
@@ -91,6 +67,7 @@ export class GenshinImpactParser extends AbstractDataParser {
      * - Artifact Extraction
      * - Artifact Definition
      */
+    // eslint-disable-next-line max-lines-per-function
     private async createStaticEvents (): Promise<void> {
         const staticEvents: Array<Event> = [
             {
@@ -121,14 +98,22 @@ export class GenshinImpactParser extends AbstractDataParser {
                 endDate: format(endOfMonth(new Date()), DATE_FORMAT),
                 eventType: EventType.Monthly,
                 completed: false
-            },
+            }
+        ];
 
-            {
+        // Calendar events are available before a version source has been loaded.
+        // Parse date-only strings locally so the crafting period cannot shift a day west of UTC.
+        const releaseDate = typeof this.versionInfo.releaseDate === "string" ? parseISO(this.versionInfo.releaseDate) : this.versionInfo.releaseDate;
+        if (releaseDate && isValid(releaseDate)) {
+            const startDate = format(releaseDate, DATE_FORMAT);
+            const endDate = format(add(releaseDate, { weeks: 6 }), DATE_FORMAT);
+
+            staticEvents.push({
                 title: "Artifact Extraction",
                 url: "https://genshin-impact.fandom.com/wiki/Artifact",
                 icon: "icons/genshin-impact/artifacts.svg",
-                startDate: format(this.versionInfo.releaseDate as string, DATE_FORMAT),
-                endDate: format(add(this.versionInfo.releaseDate as string, { weeks: 6 }), DATE_FORMAT),
+                startDate,
+                endDate,
                 eventType: EventType.Crafting,
                 completed: false
             },
@@ -137,12 +122,12 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: "Artifact Definition",
                 url: "https://genshin-impact.fandom.com/wiki/Artifact",
                 icon: "icons/genshin-impact/artifacts.svg",
-                startDate: format(this.versionInfo.releaseDate as string, DATE_FORMAT),
-                endDate: format(add(this.versionInfo.releaseDate as string, { weeks: 6 }), DATE_FORMAT),
+                startDate,
+                endDate,
                 eventType: EventType.Crafting,
                 completed: false
-            }
-        ];
+            });
+        }
 
         await this.service.addRecords(this.documentID, "events", staticEvents);
     }
@@ -152,6 +137,7 @@ export class GenshinImpactParser extends AbstractDataParser {
      *
      * @param sourceData - The data source containing version information.
      */
+    // eslint-disable-next-line max-lines-per-function
     private async getVersionInfo (sourceData: DataSource): Promise<void> {
         const versionInfo = await this.browserController(sourceData.url, async (page) => {
 
@@ -212,11 +198,15 @@ export class GenshinImpactParser extends AbstractDataParser {
                 title: versionData.title,
                 releaseDate,
                 url: versionData.url
-            } as Version];
+            }];
         });
 
-        this.versionInfo = versionInfo[0] as Version;
-        this.isNewVersion = await this.service.updateVersion(this.documentID, versionInfo[0] as Version);
+        const version = versionInfo[0] as Version | undefined;
+        if (!version?.releaseDate) {
+            return;
+        }
+        this.versionInfo = version;
+        this.isNewVersion = await this.service.updateVersion(this.documentID, version);
     }
 
     /**
@@ -343,7 +333,7 @@ export class GenshinImpactParser extends AbstractDataParser {
                 endDate: format(new Date(banner.endDate), DATE_FORMAT),
                 eventType: EventType.Banner,
                 completed: false
-            } as Event;
+            };
         });
     }
 
