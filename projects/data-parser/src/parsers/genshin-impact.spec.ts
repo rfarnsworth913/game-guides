@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { createRequire } from "node:module";
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource, Version } from '@shared-lib/types';
+import { EventType } from "@shared-lib/enums";
+import type { DataFile, DataSource, Version } from "@shared-lib/types";
+
 import { DataService } from "../services";
 import { GenshinImpactParser } from "./genshin-impact";
 
@@ -62,9 +64,10 @@ const mockBrowserController = (parser: GenshinImpactParser, pageMock: unknown): 
 // jsdom has no bundled declarations; describe the DOM surface used by these fixtures.
 const loadModule = createRequire(`${process.cwd()}/package.json`);
 const { JSDOM } = loadModule("jsdom") as {
-    JSDOM: new (html: string, options: { url: string }) => { window: Window & { close(): void } };
+    JSDOM: new (html: string, options: { url: string }) => { window: Window & { close: () => void } };
 };
-const windows: Array<Window & { close(): void }> = [];
+
+const windows: Array<Window & { close: () => void }> = [];
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
 const version: Version = { title: "6.3: A Winter Journey", releaseDate: "2026-01-14", url: "https://example.com/wiki/6.3" };
 const versionState = (parser: GenshinImpactParser) => parser as unknown as { versionInfo: Version; isNewVersion: boolean };
@@ -77,6 +80,7 @@ function mockHtmlPage (parser: GenshinImpactParser, html: string): void {
     mockBrowserController(parser, {
         evaluate: async (callback: (element: Element) => unknown, element: Element) => callback(element),
         $$eval: async (selector: string, callback: (elements: Array<Element>) => unknown) =>
+            // eslint-disable-next-line @stylistic/implicit-arrow-linebreak
             callback(Array.from(dom.window.document.querySelectorAll(selector))),
     });
     spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(async () => dom.window.document.querySelector("table"));
@@ -93,14 +97,17 @@ describe("Genshin Impact Parser Unit Tests", () => {
 
     afterEach(() => {
         windows.splice(0).forEach(window => window.close());
+
         if (originalWindow) {
             Object.defineProperty(globalThis, "window", originalWindow);
         } else {
             Reflect.deleteProperty(globalThis, "window");
         }
+
         vi.restoreAllMocks();
         vi.useRealTimers();
     });
+
 
     describe("Source Data Controller", () => {
         it("should correctly parse source data and handle unknown sources", async () => {
@@ -146,6 +153,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             const { parser, service } = createParser();
             versionState(parser).versionInfo = version;
             await invokeParserMethod(parser, "createStaticEvents");
+            // eslint-disable-next-line @typescript-eslint/prefer-destructuring
             const events = service.addRecords.mock.calls[0][2];
             expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", events);
             expect(events).toHaveLength(5);
@@ -159,7 +167,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             expect(events.every(event => "completed" in event && event.completed === false)).toBe(true);
         });
 
-        it.each(["", "invalid-date", null])("keeps calendar events usable with release date %j", async releaseDate => {
+        it.each(["", "invalid-date", null])("keeps calendar events usable with release date %j", async (releaseDate) => {
             expect.hasAssertions();
             const { parser, service } = createParser();
             versionState(parser).versionInfo = { ...version, releaseDate };
@@ -181,7 +189,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             ]));
         });
 
-        it.each([true, false])("skips unreleased rows and retains the version-change result %s", async changed => {
+        it.each([true, false])("skips unreleased rows and retains the version-change result %s", async (changed) => {
             expect.hasAssertions();
             const { parser, service } = createParser();
             service.updateVersion.mockResolvedValue(changed);
@@ -199,7 +207,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             expect(versionState(parser).isNewVersion).toBe(changed);
         });
 
-        it.each(["", "<table><tr><td>7.0</td><td>Future</td><td>January 1, 2027</td></tr></table>"])("preserves the known version when no released row exists in %j", async html => {
+        it.each(["", "<table><tr><td>7.0</td><td>Future</td><td>January 1, 2027</td></tr></table>"])("preserves the known version when no released row exists in %j", async (html) => {
             expect.hasAssertions();
             const { parser, service } = createParser();
             versionState(parser).versionInfo = version;
@@ -213,7 +221,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
         it("starts with calendar events and adds crafting events after loading a version", async () => {
             expect.hasAssertions();
             const { parser, service } = createParser([{ id: "Version", url: version.url }]);
-            mockHtmlPage(parser, `<table><tbody><tr><td>6.3</td><td><a href="/wiki/6.3">A Winter Journey</a></td><td>January 14, 2026</td></tr></tbody></table>`);
+            mockHtmlPage(parser, "<table><tbody><tr><td>6.3</td><td><a href=\"/wiki/6.3\">A Winter Journey</a></td><td>January 14, 2026</td></tr></tbody></table>");
             await invokeParserMethod(parser, "parseSourceData");
             expect(service.addRecords).toHaveBeenCalledTimes(2);
             expect(service.addRecords.mock.calls[0][2]).toHaveLength(3);
@@ -247,6 +255,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             await invokeParserMethod(parser, "parseEvents", { id: "Events", url: version.url });
             expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", []);
         });
+
         it("should parse event data successfully", async () => {
             expect.hasAssertions();
 
