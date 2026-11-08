@@ -1,5 +1,5 @@
 import { endOfISOWeek, endOfMonth, format, startOfISOWeek, startOfMonth, sub } from "date-fns";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { DATE_FORMAT } from '@shared-lib/constants';
 import { EventType } from '@shared-lib/enums';
@@ -12,7 +12,7 @@ import { WutheringWavesParser } from "./wuthering-waves";
 type ParserFixture = {
     parser: WutheringWavesParser;
     service: {
-        addRecords: jest.Mock;
+        addRecords: Mock;
     };
 };
 
@@ -23,7 +23,7 @@ const createParser = (sourceList: Array<DataSource> = []): ParserFixture => {
     };
 
     const service = {
-        addRecords: jest.fn(() => null)
+        addRecords: vi.fn(() => null)
     };
 
     const parser = new WutheringWavesParser(dataFile, service as unknown as DataService);
@@ -59,7 +59,7 @@ const spyOnParserMethod = (
     methodName: string
 ) => {
     const parserRecord = parser as unknown as Record<string, (...methodArgs: Array<unknown>) => unknown>;
-    return jest.spyOn(parserRecord, methodName);
+    return vi.spyOn(parserRecord, methodName);
 };
 
 const mockBrowserController = (
@@ -79,7 +79,7 @@ describe("Wuthering Waves Parser Unit Tests", () => {
 
     // Tests Setup ------------------------------------------------------------
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe("Static Events Handling", () => {
@@ -145,7 +145,7 @@ describe("Wuthering Waves Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const pageMock = {
-                $$eval: jest.fn(() => [
+                $$eval: vi.fn(() => [
                     {
                         title: "Web Event: Echoes",
                         url: "https://example.com/echoes",
@@ -179,7 +179,7 @@ describe("Wuthering Waves Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const pageMock = {
-                $$eval: jest.fn(() => [
+                $$eval: vi.fn(() => [
                     {
                         title: "Unknown Challenge",
                         url: "https://example.com/challenge",
@@ -366,7 +366,7 @@ describe("Wuthering Waves Parser Unit Tests", () => {
             ];
 
             const { parser } = createParser(sources);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             const getVersionInfo = spyOnParserMethod(parser, "getVersionInfo").mockImplementation(async () => null);
             const createStaticEvents = spyOnParserMethod(parser, "createStaticEvents").mockImplementation(async () => null);

@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 
 import { defineConfig } from "eslint/config";
 import jsdoc from "eslint-plugin-jsdoc";
-import jest from "eslint-plugin-jest";
+import vitest from "@vitest/eslint-plugin";
 
 const config = defineConfig([
   {
@@ -502,64 +502,16 @@ const config = defineConfig([
       "@angular-eslint/use-pipe-transform-interface": ["error"],
     }
   },
-  // Unit Tests Configuration -----------------------------------------------
+  // Vitest tests; middleware Node tests keep their own runner.
   {
-    files: ["projects/data-parser/src/**/*.spec.ts", "projects/data-parser/src/**/*.e2e-spec.ts"],
-    plugins: {
-      jest
-    },
-
+    files: ["projects/data-parser/src/**/*.spec.ts", "projects/guides-app/src/**/*.spec.ts"],
+    plugins: { vitest },
     rules: {
-      ...jest.configs["flat/recommended"].rules,
-      ...jest.configs["flat/style"].rules,
-
-      // ESLint: Suggestions (https://eslint.org/docs/latest/rules/#suggestions) ------------------------------------------
-      "dot-notation": ["off"],
-      "@typescript-eslint/dot-notation": ["off"],
-      "max-lines-per-function": ["warn", {
-        "max": 400
-      }],
-
-      // TypeScript: ESLint Extension Rules (https://typescript-eslint.io/rules/) -----------------------------------------
-      "no-empty-function": ["off"],
-      "@typescript-eslint/no-empty-function": ["off"],
-
-      // Jest Plugin (https://github.com/jest-community/eslint-plugin-jest) ------------------------------------------------
-      "jest/max-nested-describe": ["warn", {
-        "max": 5
-      }],
-      "jest/no-conditional-in-test": ["warn"],
-      "jest/no-confusing-set-timeout": ["warn"],
-      "jest/no-duplicate-hooks": ["error"],
-      "jest/no-identical-title": ["error"],
-      "jest/no-jasmine-globals": ["error"],
-      "jest/no-mocks-import": ["error"],
-      "jest/no-test-prefixes": ["warn"],
-      "jest/no-test-return-statement": ["error"],
-      "jest/prefer-comparison-matcher": ["warn"],
-      "jest/prefer-each": ["warn"],
-      "jest/prefer-equality-matcher": ["warn"],
-      "jest/prefer-expect-assertions": ["warn", {
-        "onlyFunctionsWithAsyncKeyword": true
-      }],
-      "jest/prefer-expect-resolves": ["warn"],
-      "jest/prefer-hooks-in-order": ["warn"],
-      "jest/prefer-hooks-on-top": ["warn"],
-      "jest/prefer-jest-mocked": ["warn"],
-      "jest/prefer-mock-promise-shorthand": ["warn"],
-      "jest/prefer-spy-on": ["warn"],
-      "jest/prefer-strict-equal": ["warn"],
-      "jest/prefer-to-be": ["warn"],
-      "jest/prefer-to-contain": ["warn"],
-      "jest/prefer-to-have-length": ["warn"],
-      "jest/prefer-todo": ["warn"],
-      "jest/require-to-throw-message": ["warn"],
-      "jest/require-top-level-describe": ["error"],
-      "jest/valid-describe-callback": ["error"],
-      "jest/valid-expect": ["error"],
-      "jest/valid-expect-in-promise": ["error"],
-      "jest/valid-title": ["error"],
-    }
+      ...vitest.configs.recommended.rules,
+      "max-lines-per-function": ["warn", { max: 400 }],
+      "no-empty-function": "off",
+      "@typescript-eslint/no-empty-function": "off",
+    },
   },
 
   // Data parser typing override ---------------------------------------------

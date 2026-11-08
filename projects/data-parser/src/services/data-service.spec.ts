@@ -1,5 +1,5 @@
 /* eslint-disable no-undefined */
-import { expect, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as dotenv from "dotenv";
 import { type Document, MongoClient, ObjectId, type UpdateFilter } from "mongodb";
 
@@ -8,26 +8,31 @@ import type { Event, RootDocument, Version } from '@shared-lib/types';
 import { DataService } from "./data-service";
 import { Logger } from "./logger";
 
-const mockConnect = jest.fn<() => Promise<void>>();
-const mockClose = jest.fn<() => Promise<void>>();
-const mockFindOne = jest.fn<(filter: { name: string }) => Promise<RootDocument | null>>();
-const mockInsertOne = jest.fn<(document: RootDocument) => Promise<void>>();
-const mockUpdateOne = jest.fn<(filter: { name: string }, update: UpdateFilter<Document> | Array<Document>) => Promise<void>>();
-const mockCollection = { findOne: mockFindOne, insertOne: mockInsertOne, updateOne: mockUpdateOne };
-const mockDb = { collection: jest.fn<(name: string) => typeof mockCollection>() };
-const mockMongoClient = {
-    connect: mockConnect,
-    close: mockClose,
-    db: jest.fn<(name?: string) => typeof mockDb>(),
-};
+const { mockConnect, mockClose, mockFindOne, mockInsertOne, mockUpdateOne, mockCollection, mockDb, mockMongoClient } = vi.hoisted(() => {
+    const mockConnect = vi.fn<() => Promise<void>>();
+    const mockClose = vi.fn<() => Promise<void>>();
+    const mockFindOne = vi.fn<(filter: { name: string }) => Promise<RootDocument | null>>();
+    const mockInsertOne = vi.fn<(document: RootDocument) => Promise<void>>();
+    const mockUpdateOne = vi.fn<(filter: { name: string }, update: UpdateFilter<Document> | Array<Document>) => Promise<void>>();
+    const mockCollection = { findOne: mockFindOne, insertOne: mockInsertOne, updateOne: mockUpdateOne };
+    const mockDb = { collection: vi.fn<(name: string) => typeof mockCollection>() };
+    const mockMongoClient = { connect: mockConnect, close: mockClose, db: vi.fn<(name?: string) => typeof mockDb>() };
+    return { mockConnect, mockClose, mockFindOne, mockInsertOne, mockUpdateOne, mockCollection, mockDb, mockMongoClient };
+});
 
-jest.mock("dotenv", () => ({ config: jest.fn() }));
-jest.mock("mongodb", () => ({
-    MongoClient: jest.fn().mockImplementation(() => mockMongoClient),
-    ObjectId: jest.fn().mockImplementation(() => ({ toHexString: () => "test-id" })),
+vi.mock("dotenv", () => ({ config: vi.fn() }));
+vi.mock("mongodb", () => ({
+    MongoClient: vi.fn(class {
+        connect = mockConnect;
+        close = mockClose;
+        db = mockMongoClient.db;
+    }),
+    ObjectId: vi.fn(class {
+        toHexString (): string { return "test-id"; }
+    }),
 }));
-jest.mock("./logger", () => ({
-    Logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+vi.mock("./logger", () => ({
+    Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 const documentName = "Genshin Impact";
@@ -81,7 +86,7 @@ describe("DataService manages database connections and stored game data", () => 
         process.env["DB_CONN_STRING"] = "mongodb://localhost:27017";
         process.env["DB_NAME"] = "test-db";
         process.env["DB_COLLECTION"] = "game-guides";
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         mockConnect.mockReset().mockResolvedValue(undefined);
         mockClose.mockReset().mockResolvedValue(undefined);
         mockFindOne.mockReset().mockResolvedValue(null);
@@ -96,7 +101,7 @@ describe("DataService manages database connections and stored game data", () => 
 
     afterEach(() => {
         process.env = originalEnv;
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     describe("Database connections use configured settings and handle lifecycle failures", () => {
@@ -147,7 +152,7 @@ describe("DataService manages database connections and stored game data", () => 
             const events = [active, expired, later];
             mockFindOne.mockResolvedValueOnce(createRoot({ events }));
             const cutoff = new Date("2026-01-20T00:00:00Z");
-            const predicate = jest.fn((event: Event) => new Date(event.endDate as string) >= cutoff);
+            const predicate = vi.fn((event: Event) => new Date(event.endDate as string) >= cutoff);
             await service.cleanupExpiredItems(documentName, "events", predicate);
             expect(mockDb.collection).toHaveBeenCalledWith("game-guides");
             expect(mockFindOne).toHaveBeenCalledWith({ name: documentName });
@@ -216,7 +221,7 @@ describe("DataService manages database connections and stored game data", () => 
             expect(mockFindOne).toHaveBeenCalledTimes(1);
             expect(mockInsertOne).toHaveBeenCalledTimes(1);
             expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
-                _id: expect.any(Object), name: documentName, records: [], events: [], story: [], _schemaVersion: 2, _revision: 0,
+                _id: expect.any(Object) as unknown, name: documentName, records: [], events: [], story: [], _schemaVersion: 2, _revision: 0,
             }));
             expectAppend("records", records);
         });
@@ -267,7 +272,7 @@ describe("DataService manages database connections and stored game data", () => 
             expect(mockFindOne).toHaveBeenCalledTimes(1);
             expect(mockInsertOne).toHaveBeenCalledTimes(1);
             expect(insertedDocument).toStrictEqual(expect.objectContaining({
-                _id: expect.any(Object),
+                _id: expect.any(Object) as unknown,
                 name: documentName,
                 version: { title: "", releaseDate: "", url: "" },
                 events: [],
@@ -337,7 +342,7 @@ describe("DataService manages database connections and stored game data", () => 
         mockFindOne.mockResolvedValueOnce(createRoot({
             events: [createEvent("Expired"), { kind: "events", name: "Manual", title: "Expired" }],
         }));
-        const filter = jest.fn(() => false);
+        const filter = vi.fn(() => false);
         await service.cleanupExpiredItems(documentName, "events", filter);
         expect(filter).toHaveBeenCalledTimes(1);
         expect(mockUpdateOne).toHaveBeenCalledWith(

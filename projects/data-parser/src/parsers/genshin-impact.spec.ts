@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { EventType } from '@shared-lib/enums';
 import type { DataFile, DataSource, Version } from '@shared-lib/types';
@@ -11,8 +11,8 @@ import { GenshinImpactParser } from "./genshin-impact";
 type ParserFixture = {
     parser: GenshinImpactParser;
     service: {
-        addRecords: jest.Mock<DataService["addRecords"]>;
-        updateVersion: jest.Mock<DataService["updateVersion"]>;
+        addRecords: Mock<DataService["addRecords"]>;
+        updateVersion: Mock<DataService["updateVersion"]>;
     };
 };
 
@@ -25,8 +25,8 @@ const createParser = (sourceList: Array<DataSource> = []): ParserFixture => {
     };
 
     const service = {
-        addRecords: jest.fn<DataService["addRecords"]>().mockResolvedValue(),
-        updateVersion: jest.fn<DataService["updateVersion"]>().mockResolvedValue(true),
+        addRecords: vi.fn<DataService["addRecords"]>().mockResolvedValue(globalThis.undefined),
+        updateVersion: vi.fn<DataService["updateVersion"]>().mockResolvedValue(true),
     };
 
     const parser = new GenshinImpactParser(dataFile, service as unknown as DataService);
@@ -48,7 +48,7 @@ const invokeParserMethod = async (parser: GenshinImpactParser, method: ParserMet
 
 const spyOnParserMethod = (parser: GenshinImpactParser, methodName: string) => {
     const parserRecord = parser as unknown as Record<string, (...methodArgs: Array<unknown>) => unknown>;
-    return jest.spyOn(parserRecord, methodName);
+    return vi.spyOn(parserRecord, methodName);
 };
 
 const mockBrowserController = (parser: GenshinImpactParser, pageMock: unknown): void => {
@@ -88,7 +88,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
 
     // Tests Setup ------------------------------------------------------------
     beforeEach(() => {
-        jest.useFakeTimers().setSystemTime(new Date(2026, 0, 21, 12));
+        vi.useFakeTimers().setSystemTime(new Date(2026, 0, 21, 12));
     });
 
     afterEach(() => {
@@ -98,8 +98,8 @@ describe("Genshin Impact Parser Unit Tests", () => {
         } else {
             Reflect.deleteProperty(globalThis, "window");
         }
-        jest.restoreAllMocks();
-        jest.useRealTimers();
+        vi.restoreAllMocks();
+        vi.useRealTimers();
     });
 
     describe("Source Data Controller", () => {
@@ -116,7 +116,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             ];
 
             const { parser } = createParser(sources);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             const getVersionInfo = spyOnParserMethod(parser, "getVersionInfo").mockImplementation(() => null);
             const createStaticEvents = spyOnParserMethod(parser, "createStaticEvents").mockImplementation(() => null);
@@ -171,7 +171,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
 
         it("handles calendar resets across a year boundary", async () => {
             expect.hasAssertions();
-            jest.setSystemTime(new Date(2026, 11, 31, 12));
+            vi.setSystemTime(new Date(2026, 11, 31, 12));
             const { parser, service } = createParser();
             versionState(parser).versionInfo = version;
             await invokeParserMethod(parser, "createStaticEvents");
@@ -204,7 +204,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             const { parser, service } = createParser();
             versionState(parser).versionInfo = version;
             mockHtmlPage(parser, html);
-            jest.spyOn(console, "warn").mockImplementation(() => null);
+            vi.spyOn(console, "warn").mockImplementation(() => null);
             await invokeParserMethod(parser, "getVersionInfo", { id: "Version", url: version.url });
             expect(service.updateVersion).not.toHaveBeenCalled();
             expect(versionState(parser).versionInfo).toStrictEqual(version);
@@ -254,7 +254,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const pageMock = {
-                $$eval: jest.fn(() => [
+                $$eval: vi.fn(() => [
                     {
                         title: "Lantern Rite",
                         url: "https://example.com/lantern-rite",
@@ -289,7 +289,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const pageMock = {
-                $$eval: jest.fn(() => [
+                $$eval: vi.fn(() => [
                     {
                         title: "Unknown Event",
                         url: "https://example.com/unknown",
@@ -349,7 +349,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
 
             const source: DataSource = { id: "Imaginarium Theater", url: "https://example.com/theater" };
             const { parser, service } = createParser([source]);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             mockBrowserController(parser, {});
             spyOnParserMethod(parser, "getElementByText").mockImplementation(() => null);
@@ -392,7 +392,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
 
             const source: DataSource = { id: "Spiral Abyss", url: "https://example.com/abyss" };
             const { parser, service } = createParser([source]);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             mockBrowserController(parser, {});
             spyOnParserMethod(parser, "getElementByText").mockImplementation(() => null);
@@ -462,7 +462,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
 
             const source: DataSource = { id: "Banners", url: "https://example.com/banners" };
             const { parser, service } = createParser([source]);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             mockBrowserController(parser, {});
             spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(() => null);

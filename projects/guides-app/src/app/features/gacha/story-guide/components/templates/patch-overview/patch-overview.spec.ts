@@ -152,10 +152,9 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('entry', entry);
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
-        if (category === 'events') {
-            expect((fixture.nativeElement as HTMLElement).textContent).toContain('Events Banner');
-            expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Patch Details');
-        }
+        const editorText = (fixture.nativeElement as HTMLElement).textContent;
+        expect(editorText?.includes('Events Banner')).toBe(category === 'events');
+        expect(editorText?.includes('Patch Details')).toBe(category === 'patch-overview');
         const groups = (fixture.nativeElement as HTMLElement).querySelectorAll('.patch-edit-group') as NodeListOf<HTMLElement>;
         expect(groups.length).toBe(2);
         (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();

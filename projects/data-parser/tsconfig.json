@@ -3,7 +3,7 @@
   "compilerOptions": {
     "noEmit": true,
     "types": [
-      "vitest/globals"
+      "node"
     ]
   },
   "include": [

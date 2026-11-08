@@ -352,9 +352,10 @@ describe('Account progress syncing', () => {
     let remote: { revision: number; state: Record<string, { completed: boolean; quantity: number; target: number; storyRowCompletion?: Record<string, boolean> }> };
     let conflict: boolean;
     let signedIn: boolean;
+    let csrfHeaders: Array<string | null>;
     const accountItem = item('material');
     beforeEach(() => {
-        guest = new Map(); conflict = false; signedIn = true;
+        guest = new Map(); conflict = false; signedIn = true; csrfHeaders = [];
         remote = { revision: 2, state: { 'genshin/material': { completed: false, quantity: 3, target: 10 } } };
         vi.stubGlobal('localStorage', { getItem: vi.fn((key: string) => guest.get(key) ?? null),
             setItem: vi.fn((key: string, value: string) => guest.set(key, value)), removeItem: vi.fn((key: string) => guest.delete(key)) });
@@ -366,7 +367,7 @@ describe('Account progress syncing', () => {
             if (url === '/api/me/progress') {
                 if (options?.method === 'PATCH') {
                     const body = JSON.parse(options.body as string) as { revision: number; changes: typeof remote.state } ;
-                    expect(new Headers(options.headers).get('X-CSRF-Token')).toBe('csrf-token');
+                    csrfHeaders.push(new Headers(options.headers).get('X-CSRF-Token'));
                     if (conflict || body.revision !== remote.revision) {return { ok: false, status: 409, json: async () => ({ error: 'Progress changed in another browser. Reload before retrying.' }) };}
                     remote = { revision: remote.revision + 1, state: { ...remote.state, ...body.changes } };
                 }
@@ -385,6 +386,7 @@ describe('Account progress syncing', () => {
         expect(store.canEdit()).toBe(false);
         expect(await store.save({ ...store.entries()[0], completed: true })).toBe(true);
         expect(remote.revision).toBe(3);
+        expect(csrfHeaders).toEqual(['csrf-token']);
         expect(remote.state['genshin/material'].completed).toBe(true);
         expect(guest.get('gg-player-v1')).toBe(original);
         expect((await ready()).entries()[0].completed).toBe(true);

@@ -39,7 +39,7 @@ import { StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
 import { worldQuestObjectives } from '../../common/quests/world-quest';
 ```
 
-Relative paths depend on the importing file. The root TypeScript configuration provides `@lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. The existing `@shared-lib/*` alias remains available for compatibility. Parser Jest mappings support these aliases. Angular application and test configurations inherit these paths instead of overriding them. The Angular application's `@models/*` alias points to its UI-only `src/app/models/*`; cross-application contracts remain in `projects/lib`.
+Relative paths depend on the importing file. The root TypeScript configuration provides `@lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. The existing `@shared-lib/*` alias remains available for compatibility. The parser Vitest configuration supports these aliases. Angular application and test configurations inherit these paths instead of overriding them. The Angular application's `@models/*` alias points to its UI-only `src/app/models/*`; cross-application contracts remain in `projects/lib`.
 
 ## Project checks
 

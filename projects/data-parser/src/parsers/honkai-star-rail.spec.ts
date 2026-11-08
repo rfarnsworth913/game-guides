@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { EventType } from '@shared-lib/enums';
 import type { DataFile, DataSource } from '@shared-lib/types';
@@ -10,7 +10,7 @@ import { HonkaiStarRailParser } from "./honkai-star-rail";
 type ParserFixture = {
     parser: HonkaiStarRailParser;
     service: {
-        addRecords: jest.Mock;
+        addRecords: Mock;
     };
 };
 
@@ -23,7 +23,7 @@ const createParser = (sourceList: Array<DataSource> = []): ParserFixture => {
     };
 
     const service = {
-        addRecords: jest.fn(() => null)
+        addRecords: vi.fn(() => null)
     };
 
     const parser = new HonkaiStarRailParser(dataFile, service as unknown as DataService);
@@ -45,7 +45,7 @@ const invokeParserMethod = async (parser: HonkaiStarRailParser, method: ParserMe
 
 const spyOnParserMethod = (parser: HonkaiStarRailParser, methodName: string) => {
     const parserRecord = parser as unknown as Record<string, (...methodArgs: Array<unknown>) => unknown>;
-    return jest.spyOn(parserRecord, methodName);
+    return vi.spyOn(parserRecord, methodName);
 };
 
 const mockBrowserController = (parser: HonkaiStarRailParser, pageMock: unknown): void => {
@@ -62,7 +62,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
 
     // Tests Setup ------------------------------------------------------------
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe("Events Handling", () => {
@@ -73,7 +73,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const pageMock = {
-                $$eval: jest.fn(() => [
+                $$eval: vi.fn(() => [
                     {
                         title: "Planar Fissure",
                         url: "https://example.com/planar-fissure",
@@ -108,7 +108,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const pageMock = {
-                $$eval: jest.fn(() => [
+                $$eval: vi.fn(() => [
                     {
                         title: "Unknown Event",
                         url: "https://example.com/unknown-event",
@@ -152,7 +152,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             const { parser, service } = createParser([source]);
 
             const tableElementMock = {
-                evaluate: jest.fn(async () => ({
+                evaluate: vi.fn(async () => ({
                     startDate: "January 15, 2026 04:00 (GMT+8)",
                     endDate: "February 26, 2026 03:59 (GMT+8)"
                 }))
@@ -181,7 +181,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
 
             const source: DataSource = { id: "Apocalyptic Shadow", url: "https://example.com/apoc" };
             const { parser, service } = createParser([source]);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             mockBrowserController(parser, {});
             spyOnParserMethod(parser, "getTableByHeaderText").mockImplementation(() => null);
@@ -197,10 +197,10 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
 
             const source: DataSource = { id: "Anomaly Arbitration", url: "https://example.com/anomaly" };
             const { parser, service } = createParser([source]);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             const tableElementMock = {
-                evaluate: jest.fn(() => ({
+                evaluate: vi.fn(() => ({
                     startDate: "not-a-date",
                     endDate: "also-not-a-date"
                 }))
@@ -231,7 +231,7 @@ describe("Honkai Star Rail Parser Unit Tests", () => {
             ];
 
             const { parser } = createParser(sources);
-            const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
 
             const getVersionInfo = spyOnParserMethod(parser, "getVersionInfo").mockImplementation(async () => null);
             const createStaticEvents = spyOnParserMethod(parser, "createStaticEvents").mockImplementation(async () => null);

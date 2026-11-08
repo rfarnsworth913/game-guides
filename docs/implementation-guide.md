@@ -127,7 +127,7 @@ Lint configuration is implemented as of October 27, 2026:
 
 1. `lint` delegates to `lint:ci`, which explicitly checks common, middleware, parser, and Angular sources. `ui:lint` includes external HTML templates and inline component templates.
 2. Each project has a `tsconfig.lint.json` covering its source and tests. ESLint uses these explicit projects with type-aware rules enabled; it does not rely on the project service discovering shared files.
-3. Jest rules apply only to parser Jest tests. Angular Vitest tests and middleware Node tests retain shared TypeScript checks without Jest rules. Angular component rules and inline template processing apply only to UI sources.
+3. Vitest rules apply to parser and Angular unit tests. Middleware Node tests retain shared TypeScript checks without Vitest rules. Angular component rules and inline template processing apply only to UI sources.
 4. Generated output, dependencies, database files, backups, temporary files, coverage, and `.angular` are ignored globally. Existing formatting preferences remain unchanged; avoid applying repository-wide autofixes during feature changes.
 5. `typescript-eslint`, previously a transitive dependency, is now a direct development dependency. The lockfile is updated. The CI script is:
 
