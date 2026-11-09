@@ -1,14 +1,15 @@
-import { addDays, endOfISOWeek, endOfMonth, endOfWeek, format, isValid, startOfISOWeek, startOfMonth, startOfWeek } from "date-fns";
+import { endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
 
-import { DATE_FORMAT } from '@shared-lib/constants';
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource, Event, Version } from '@shared-lib/types';
+import { DATE_FORMAT } from "@shared-lib/constants";
+import { EventType } from "@shared-lib/enums";
+import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
 
 import { DataService, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
 
 export class HonkaiStarRailParser extends AbstractDataParser {
+
 
     // Constructor ------------------------------------------------------------
     constructor (data: DataFile, private readonly service: DataService = new DataService()) {
@@ -81,8 +82,8 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: "Echo of War",
                 url: "https://honkai-star-rail.fandom.com/wiki/Echo_of_War",
                 icon: "icons/honkai-star-rail/echo-of-war.svg",
-                startDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), DATE_FORMAT),
-                endDate: format(endOfWeek(addDays(new Date(), 7), { weekStartsOn: 1 }), DATE_FORMAT),
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
                 completed: false
             },
@@ -137,7 +138,14 @@ export class HonkaiStarRailParser extends AbstractDataParser {
 
             const versionData = await page.evaluate((table) => {
                 const rows = Array.from(table.querySelectorAll("tbody > tr"));
-                const firstDataRow = rows.find(row => row.querySelectorAll("td").length >= 3);
+                const firstDataRow = rows.find((row) => {
+                    const columns = row.querySelectorAll("td");
+                    if (columns.length < 3) {
+                        return false;
+                    }
+                    const releaseDate = new Date(columns[2]?.textContent?.trim() || "");
+                    return !Number.isNaN(releaseDate.getTime()) && releaseDate <= new Date();
+                });
 
                 if (!firstDataRow) {
                     return null;
@@ -171,11 +179,15 @@ export class HonkaiStarRailParser extends AbstractDataParser {
                 title: versionData.title,
                 releaseDate,
                 url: versionData.url
-            } as Version];
+            }];
         });
 
-        this.versionInfo = versionInfo[0] as Version;
-        this.isNewVersion = await this.service.updateVersion(this.documentID, versionInfo[0] as Version);
+        const version = versionInfo[0] as Version | undefined;
+        if (!version?.releaseDate) {
+            return;
+        }
+        this.versionInfo = version;
+        this.isNewVersion = await this.service.updateVersion(this.documentID, version);
     }
 
     /**
