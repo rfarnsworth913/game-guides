@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 import { EventType } from "@shared-lib/enums";
 import type { DataFile, DataSource, Version } from "@shared-lib/types";
 
-import { DataService } from "../services";
+import { DataService, Logger } from "../services";
 import { GenshinImpactParser } from "./genshin-impact";
 
 
@@ -18,7 +18,7 @@ type ParserFixture = {
     };
 };
 
-type ParserMethod = | "getVersionInfo" | "parseEvents" | "createStaticEvents" | "parseSummonBanners" | "parseImaginariumTheater" | "parseSpiralAbyss" | "parseSourceData";
+type ParserMethod = | "getVersionInfo" | "parseEvents" | "createStaticEvents" | "parseSummonBanners" | "parseSourceData";
 
 const createParser = (sourceList: Array<DataSource> = []): ParserFixture => {
     const dataFile: DataFile = {
@@ -117,20 +117,16 @@ describe("Genshin Impact Parser Unit Tests", () => {
                 { id: "Version", url: "https://example.com/version" },
                 { id: "Banners", url: "https://example.com/banners" },
                 { id: "Events", url: "https://example.com/events" },
-                { id: "Imaginarium Theater", url: "https://example.com/theater" },
-                { id: "Spiral Abyss", url: "https://example.com/abyss" },
                 { id: "Unknown", url: "https://example.com/unknown" }
             ];
 
             const { parser } = createParser(sources);
-            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
+            const warnSpy = vi.spyOn(Logger, "warn").mockImplementation(() => null);
 
             const getVersionInfo = spyOnParserMethod(parser, "getVersionInfo").mockImplementation(() => null);
             const createStaticEvents = spyOnParserMethod(parser, "createStaticEvents").mockImplementation(() => null);
             const parseSummonBanners = spyOnParserMethod(parser, "parseSummonBanners").mockImplementation(() => null);
             const parseEvents = spyOnParserMethod(parser, "parseEvents").mockImplementation(() => null);
-            const parseImaginariumTheater = spyOnParserMethod(parser, "parseImaginariumTheater").mockImplementation(() => null);
-            const parseSpiralAbyss = spyOnParserMethod(parser, "parseSpiralAbyss").mockImplementation(() => null);
 
             await invokeParserMethod(parser, "parseSourceData");
 
@@ -140,9 +136,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             expect(createStaticEvents.mock.invocationCallOrder[0]).toBeLessThan(parseSummonBanners.mock.invocationCallOrder[0]);
             expect(parseSummonBanners).toHaveBeenCalledWith(sources[1]);
             expect(parseEvents).toHaveBeenCalledWith(sources[2]);
-            expect(parseImaginariumTheater).toHaveBeenCalledWith(sources[3]);
-            expect(parseSpiralAbyss).toHaveBeenCalledWith(sources[4]);
-            expect(warnSpy).toHaveBeenCalled();
+            expect(warnSpy).toHaveBeenCalledExactlyOnceWith("Unknown source ID: ", "Unknown");
         });
     });
 
@@ -220,13 +214,19 @@ describe("Genshin Impact Parser Unit Tests", () => {
             expect(versionState(parser).versionInfo).toStrictEqual(version);
         });
 
-        it("writes calendar and crafting events after loading a version", async () => {
+        it("creates monthly endgame and crafting events using only the version source", async () => {
             expect.hasAssertions();
             const { parser, service } = createParser([{ id: "Version", url: version.url }]);
             mockHtmlPage(parser, "<table><tbody><tr><td>6.3</td><td><a href=\"/wiki/6.3\">A Winter Journey</a></td><td>January 14, 2026</td></tr></tbody></table>");
             await invokeParserMethod(parser, "parseSourceData");
             expect(service.addRecords).toHaveBeenCalledTimes(1);
             expect(service.addRecords.mock.calls[0][2]).toHaveLength(7);
+            expect(service.addRecords.mock.calls[0][2]).toEqual(expect.arrayContaining([
+                expect.objectContaining({ title: "Spiral Abyss", startDate: "2026-01-16", endDate: "2026-02-15" }),
+                expect.objectContaining({ title: "Imaginarium Theater", startDate: "2026-01-01", endDate: "2026-01-31" }),
+            ]));
+            const browserController = parser as unknown as { browserController: Mock };
+            expect(browserController.browserController).toHaveBeenCalledExactlyOnceWith(version.url, expect.any(Function));
             expect(service.updateVersion).toHaveBeenCalledWith("Genshin Impact", version);
         });
     });
@@ -353,92 +353,6 @@ describe("Genshin Impact Parser Unit Tests", () => {
                     completed: false
                 }
             ]);
-        });
-    });
-
-    describe("Imaginarium Theater Handling", () => {
-        it("should successfully parse Imaginarium Theater season duration", async () => {
-            expect.hasAssertions();
-
-            const source: DataSource = { id: "Imaginarium Theater", url: "https://example.com/theater" };
-            const { parser, service } = createParser([source]);
-
-            mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getElementByText").mockImplementation(() => ({}));
-            spyOnParserMethod(parser, "getTextContent").mockImplementation(() => "Season 7 January 1, 2026 – February 1, 2026");
-
-            await invokeParserMethod(parser, "parseImaginariumTheater", source);
-
-            expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", [
-                {
-                    title: "Imaginarium Theater",
-                    url: source.url,
-                    icon: "icons/genshin-impact/imaginarium-theater.svg",
-                    startDate: "2026-01-01",
-                    endDate: "2026-02-01",
-                    eventType: EventType.EndGame,
-                    completed: false
-                }
-            ]);
-        });
-
-        it("should handle missing season text in Imaginarium Theater", async () => {
-            expect.hasAssertions();
-
-            const source: DataSource = { id: "Imaginarium Theater", url: "https://example.com/theater" };
-            const { parser, service } = createParser([source]);
-            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
-
-            mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getElementByText").mockImplementation(() => null);
-
-            await invokeParserMethod(parser, "parseImaginariumTheater", source);
-
-            expect(warnSpy).toHaveBeenCalled();
-            expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", []);
-        });
-    });
-
-    describe("Spiral Abyss Handling", () => {
-        it("should successfully parse Spiral Abyss duration", async () => {
-            expect.hasAssertions();
-
-            const source: DataSource = { id: "Spiral Abyss", url: "https://example.com/abyss" };
-            const { parser, service } = createParser([source]);
-
-            mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getElementByText").mockImplementation(() => ({}));
-            spyOnParserMethod(parser, "getTextContent").mockImplementation(() => "Duration: January 16, 2026 – February 16, 2026");
-
-            await invokeParserMethod(parser, "parseSpiralAbyss", source);
-
-            expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", [
-                {
-                    title: "Spiral Abyss",
-                    url: source.url,
-                    icon: "icons/genshin-impact/spiral-abyss.svg",
-                    startDate: "2026-01-16",
-                    endDate: "2026-02-16",
-                    eventType: EventType.EndGame,
-                    completed: false
-                }
-            ]);
-        });
-
-        it("should handle missing Spiral Abyss duration text", async () => {
-            expect.hasAssertions();
-
-            const source: DataSource = { id: "Spiral Abyss", url: "https://example.com/abyss" };
-            const { parser, service } = createParser([source]);
-            const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => null);
-
-            mockBrowserController(parser, {});
-            spyOnParserMethod(parser, "getElementByText").mockImplementation(() => null);
-
-            await invokeParserMethod(parser, "parseSpiralAbyss", source);
-
-            expect(warnSpy).toHaveBeenCalled();
-            expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", []);
         });
     });
 
