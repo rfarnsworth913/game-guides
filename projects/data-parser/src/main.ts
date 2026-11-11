@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 
-import type { DataFile } from '@shared-lib/types';
+import type { DataFile } from "@shared-lib/types";
+
 import { Logger } from "./services";
 import * as Parsers from "./parsers";
 
@@ -62,11 +63,11 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
                 //     break;
                 // }
 
-                // case "Zenless Zone Zero": {
-                //     const parser = new Parsers.ZenlessZoneZeroParser(dataFile);
-                //     await parser.parseData();
-                //     break;
-                // }
+                case "Zenless Zone Zero": {
+                    const parser = new Parsers.ZenlessZoneZeroParser(dataFile);
+                    await parser.parseData();
+                    break;
+                }
 
                 default:
                     Logger.warn("No parser available for data file: ", id);

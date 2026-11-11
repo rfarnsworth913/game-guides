@@ -1,12 +1,22 @@
-import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
+/**
+ * Items to Setup:
+ * - Standard Events
+ * - Summoning Banners
+ * - Honkai: Star Rail - Summoning Banners
+ * - Weekly (Other Scheduled Hunts)
+ * - Shinyu Defense / Deadly Assault
+ * - Other Tasks (Check Fandom for updates)
+ */
+import { endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { DATE_FORMAT } from '@shared-lib/constants';
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource, Event, Version } from '@shared-lib/types';
+import { DATE_FORMAT } from "@shared-lib/constants";
+import { EventType } from "@shared-lib/enums";
+import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
 
-import { DataService, getDateFromString, Logger } from "../services";
+import { DataService, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
+
 
 export class ZenlessZoneZeroParser extends AbstractDataParser {
 
@@ -16,6 +26,7 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
         this.documentID = data.id;
         this.data = data;
     }
+
 
     // Processing Controllers -------------------------------------------------
 
@@ -67,6 +78,16 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
                 title: "Notorious Hunt",
                 url: "https://zenless-zone-zero.fandom.com/wiki/Notorious_Hunt",
                 icon: "icons/zenless-zone-zero/notorious-hunt.svg",
+                startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
+                endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
+                eventType: EventType.Weekly,
+                completed: false
+            },
+
+            {
+                title: "Hollow Zero",
+                url: "https://zenless-zone-zero.fandom.com/wiki/Hollow_Zero",
+                icon: "icons/zenless-zone-zero/hollow-zero.svg",
                 startDate: format(startOfISOWeek(new Date()), DATE_FORMAT),
                 endDate: format(endOfISOWeek(new Date()), DATE_FORMAT),
                 eventType: EventType.Weekly,
@@ -152,7 +173,7 @@ export class ZenlessZoneZeroParser extends AbstractDataParser {
                 title: versionData.title,
                 releaseDate,
                 url: versionData.url
-            } as Version];
+            }];
         });
 
         this.versionInfo = versionInfo[0] as Version;
