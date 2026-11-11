@@ -135,10 +135,9 @@ describe("Genshin Impact Parser Unit Tests", () => {
             await invokeParserMethod(parser, "parseSourceData");
 
             expect(getVersionInfo).toHaveBeenCalledWith(sources[0]);
-            expect(createStaticEvents).toHaveBeenCalledTimes(2);
-            expect(createStaticEvents.mock.invocationCallOrder[0]).toBeLessThan(getVersionInfo.mock.invocationCallOrder[0]);
-            expect(createStaticEvents.mock.invocationCallOrder[1]).toBeGreaterThan(getVersionInfo.mock.invocationCallOrder[0]);
-            expect(createStaticEvents.mock.invocationCallOrder[1]).toBeLessThan(parseSummonBanners.mock.invocationCallOrder[0]);
+            expect(createStaticEvents).toHaveBeenCalledTimes(1);
+            expect(createStaticEvents.mock.invocationCallOrder[0]).toBeGreaterThan(getVersionInfo.mock.invocationCallOrder[0]);
+            expect(createStaticEvents.mock.invocationCallOrder[0]).toBeLessThan(parseSummonBanners.mock.invocationCallOrder[0]);
             expect(parseSummonBanners).toHaveBeenCalledWith(sources[1]);
             expect(parseEvents).toHaveBeenCalledWith(sources[2]);
             expect(parseImaginariumTheater).toHaveBeenCalledWith(sources[3]);
@@ -156,11 +155,14 @@ describe("Genshin Impact Parser Unit Tests", () => {
             // eslint-disable-next-line @typescript-eslint/prefer-destructuring
             const events = service.addRecords.mock.calls[0][2];
             expect(service.addRecords).toHaveBeenCalledWith("Genshin Impact", "events", events);
-            expect(events).toHaveLength(5);
+            expect(events).toHaveLength(7);
+            expect(new Set(events.map(event => event.title)).size).toBe(7);
             expect(events).toEqual(expect.arrayContaining([
                 expect.objectContaining({ title: "Daily Commissions", startDate: "2026-01-21", endDate: "2026-01-21", eventType: EventType.Daily }),
                 expect.objectContaining({ title: "Trounce Domain", startDate: "2026-01-19", endDate: "2026-01-25", eventType: EventType.Weekly }),
                 expect.objectContaining({ title: "Paimon's Bargains", startDate: "2026-01-01", endDate: "2026-01-31", eventType: EventType.Monthly }),
+                expect.objectContaining({ title: "Spiral Abyss", startDate: "2026-01-16", endDate: "2026-02-15", eventType: EventType.EndGame, icon: "icons/genshin-impact/spiral-abyss.svg" }),
+                expect.objectContaining({ title: "Imaginarium Theater", startDate: "2026-01-01", endDate: "2026-01-31", eventType: EventType.EndGame, icon: "icons/genshin-impact/imaginarium-theater.svg" }),
                 expect.objectContaining({ title: "Artifact Extraction", startDate: "2026-01-14", endDate: "2026-02-25", eventType: EventType.Crafting }),
                 expect.objectContaining({ title: "Artifact Definition", startDate: "2026-01-14", endDate: "2026-02-25", eventType: EventType.Crafting }),
             ]));
@@ -173,7 +175,7 @@ describe("Genshin Impact Parser Unit Tests", () => {
             versionState(parser).versionInfo = { ...version, releaseDate };
             await invokeParserMethod(parser, "createStaticEvents");
             expect(service.addRecords.mock.calls[0][2].map(event => event.title)).toStrictEqual([
-                "Daily Commissions", "Trounce Domain", "Paimon's Bargains",
+                "Daily Commissions", "Trounce Domain", "Paimon's Bargains", "Spiral Abyss", "Imaginarium Theater",
             ]);
         });
 
@@ -218,15 +220,42 @@ describe("Genshin Impact Parser Unit Tests", () => {
             expect(versionState(parser).versionInfo).toStrictEqual(version);
         });
 
-        it("starts with calendar events and adds crafting events after loading a version", async () => {
+        it("writes calendar and crafting events after loading a version", async () => {
             expect.hasAssertions();
             const { parser, service } = createParser([{ id: "Version", url: version.url }]);
             mockHtmlPage(parser, "<table><tbody><tr><td>6.3</td><td><a href=\"/wiki/6.3\">A Winter Journey</a></td><td>January 14, 2026</td></tr></tbody></table>");
             await invokeParserMethod(parser, "parseSourceData");
-            expect(service.addRecords).toHaveBeenCalledTimes(2);
-            expect(service.addRecords.mock.calls[0][2]).toHaveLength(3);
-            expect(service.addRecords.mock.calls[1][2]).toHaveLength(5);
+            expect(service.addRecords).toHaveBeenCalledTimes(1);
+            expect(service.addRecords.mock.calls[0][2]).toHaveLength(7);
             expect(service.updateVersion).toHaveBeenCalledWith("Genshin Impact", version);
+        });
+    });
+
+    describe("Monthly endgame resets", () => {
+        it.each([
+            [new Date(2026, 0, 1, 0), "2025-12-16", "2026-01-15", "2026-01-01", "2026-01-31"],
+            [new Date(2026, 0, 15, 23, 59, 59), "2025-12-16", "2026-01-15", "2026-01-01", "2026-01-31"],
+            [new Date(2026, 0, 16, 0), "2026-01-16", "2026-02-15", "2026-01-01", "2026-01-31"],
+            [new Date(2026, 0, 31, 23, 59, 59), "2026-01-16", "2026-02-15", "2026-01-01", "2026-01-31"],
+            [new Date(2026, 1, 1, 0), "2026-01-16", "2026-02-15", "2026-02-01", "2026-02-28"],
+            [new Date(2026, 1, 16, 0), "2026-02-16", "2026-03-15", "2026-02-01", "2026-02-28"],
+            [new Date(2028, 1, 29, 12), "2028-02-16", "2028-03-15", "2028-02-01", "2028-02-29"],
+            [new Date(2026, 11, 16, 0), "2026-12-16", "2027-01-15", "2026-12-01", "2026-12-31"],
+        ] as const)("persists the active reset periods at %s", async (now, abyssStart, abyssEnd, theaterStart, theaterEnd) => {
+            vi.setSystemTime(now);
+            const { parser, service } = createParser();
+            await invokeParserMethod(parser, "createStaticEvents");
+            const events = service.addRecords.mock.calls[0][2];
+            expect(events.find(event => event.title === "Spiral Abyss")).toEqual({
+                title: "Spiral Abyss", url: "https://genshin-impact.fandom.com/wiki/Spiral_Abyss",
+                icon: "icons/genshin-impact/spiral-abyss.svg", startDate: abyssStart, endDate: abyssEnd,
+                eventType: EventType.EndGame, completed: false,
+            });
+            expect(events.find(event => event.title === "Imaginarium Theater")).toEqual({
+                title: "Imaginarium Theater", url: "https://genshin-impact.fandom.com/wiki/Imaginarium_Theater",
+                icon: "icons/genshin-impact/imaginarium-theater.svg", startDate: theaterStart, endDate: theaterEnd,
+                eventType: EventType.EndGame, completed: false,
+            });
         });
     });
 

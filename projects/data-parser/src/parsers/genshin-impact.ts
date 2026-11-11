@@ -1,11 +1,11 @@
 import { add, endOfISOWeek, endOfMonth, format, isValid, parseISO, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { DATE_FORMAT, MONTH_NAME_FORMAT } from "@shared-lib/constants";
+import { DATE_FORMAT } from "@shared-lib/constants";
 import { EventType } from "@shared-lib/enums";
 import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
 
-import { DataService, getDateFromString, Logger } from "../services";
+import { DataService, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
 export class GenshinImpactParser extends AbstractDataParser {
@@ -24,8 +24,6 @@ export class GenshinImpactParser extends AbstractDataParser {
      * and hands those tasks off to the appropriate parsing methods.
      */
     protected override async parseSourceData (): Promise<void> {
-        await this.createStaticEvents();
-
         for (const source of this.data.sourceList) {
             switch (source.id) {
 
@@ -40,14 +38,6 @@ export class GenshinImpactParser extends AbstractDataParser {
 
                 case "Events":
                     await this.parseEvents(source);
-                    break;
-
-                case "Imaginarium Theater":
-                    await this.parseImaginariumTheater(source);
-                    break;
-
-                case "Spiral Abyss":
-                    await this.parseSpiralAbyss(source);
                     break;
 
                 default:
@@ -66,8 +56,9 @@ export class GenshinImpactParser extends AbstractDataParser {
      * - Paimon's Bargains
      * - Artifact Extraction
      * - Artifact Definition
+     * - Spiral Abyss
+     * - Imaginarium Theater
      */
-    // eslint-disable-next-line max-lines-per-function
     private async createStaticEvents (): Promise<void> {
         const staticEvents: Array<Event> = [
             {
@@ -101,14 +92,66 @@ export class GenshinImpactParser extends AbstractDataParser {
             }
         ];
 
-        // Calendar events are available before a version source has been loaded.
+        staticEvents.push(...this.getMonthlyEvents(), ...this.getPatchEvents());
+
+        await this.service.addRecords(this.documentID, "events", staticEvents);
+    }
+
+    /**
+     * Events that are specific to a particular month, such as the Spiral Abyss and Imaginarium Theater.
+     * These events are typically tied to the monthly schedule and may include crafting periods or special in-game activities.
+     *
+     * @returns An array of event objects representing the monthly events.
+     */
+    private getMonthlyEvents (): Array<Event> {
+
+        // Handle events that have specific monthly schedules, such as the Spiral Abyss and Imaginarium Theater.
+        const now = new Date();
+        const monthStart = startOfMonth(now);
+        const abyssStart = add(monthStart, { months: now.getDate() < 16 ? -1 : 0, days: 15 });
+        const monthlyEvents: Array<Event> = [
+            {
+                title: "Spiral Abyss",
+                url: "https://genshin-impact.fandom.com/wiki/Spiral_Abyss",
+                icon: "icons/genshin-impact/spiral-abyss.svg",
+                startDate: format(abyssStart, DATE_FORMAT),
+                endDate: format(add(abyssStart, { months: 1, days: -1 }), DATE_FORMAT),
+                eventType: EventType.EndGame,
+                completed: false
+            },
+
+            {
+                title: "Imaginarium Theater",
+                url: "https://genshin-impact.fandom.com/wiki/Imaginarium_Theater",
+                icon: "icons/genshin-impact/imaginarium-theater.svg",
+                startDate: format(monthStart, DATE_FORMAT),
+                endDate: format(endOfMonth(now), DATE_FORMAT),
+                eventType: EventType.EndGame,
+                completed: false
+            }
+        ];
+
+        // Monthly resets are independent of the version; crafting still needs a release date.
         // Parse date-only strings locally so the crafting period cannot shift a day west of UTC.
+
+
+        return monthlyEvents;
+    }
+
+    /**
+     * Events that are tied to specific game patches, such as crafting periods for artifacts.
+     *
+     * @returns An array of event objects representing the patch-specific events.
+     */
+    private getPatchEvents (): Array<Event> {
+        const patchEvents: Array<Event> = [];
+
         const releaseDate = typeof this.versionInfo.releaseDate === "string" ? parseISO(this.versionInfo.releaseDate) : this.versionInfo.releaseDate;
         if (releaseDate && isValid(releaseDate)) {
             const startDate = format(releaseDate, DATE_FORMAT);
             const endDate = format(add(releaseDate, { weeks: 6 }), DATE_FORMAT);
 
-            staticEvents.push({
+            patchEvents.push({
                 title: "Artifact Extraction",
                 url: "https://genshin-impact.fandom.com/wiki/Artifact",
                 icon: "icons/genshin-impact/artifacts.svg",
@@ -129,7 +172,7 @@ export class GenshinImpactParser extends AbstractDataParser {
             });
         }
 
-        await this.service.addRecords(this.documentID, "events", staticEvents);
+        return patchEvents;
     }
 
     /**
@@ -335,81 +378,5 @@ export class GenshinImpactParser extends AbstractDataParser {
                 completed: false
             };
         });
-    }
-
-    /**
-     * Parses the current Imaginarium Theater season dates.
-     *
-     * @param sourceData - The data source containing Imaginarium Theater information.
-     */
-    private async parseImaginariumTheater (sourceData: DataSource): Promise<void> {
-        const events = await this.browserController(sourceData.url, async (page) => {
-
-            // Extract date string from the page: Season ## January 16, 2026 (Patch Name) – February 16, 2026 (Patch Name)
-            const monthName = format(new Date(), MONTH_NAME_FORMAT);
-            const dateString = await this.getElementByText(page, "td", monthName, "includes");
-            if (!dateString) {
-                Logger.warn("Could not find Imaginarium Theater duration information.");
-                return [];
-            }
-
-            // Extract inner text from the matched element to avoid hidden/extra content
-            const durationText = await this.getTextContent(dateString);
-
-            const [rawStartDate = "", rawEndDate = ""] = durationText.split("–");
-            const cleanedStartDate = getDateFromString(rawStartDate.replace(/^Season [0-9]+/, "").trim());
-            const cleanedEndDate = getDateFromString(rawEndDate.trim());
-
-            const startDate = format(cleanedStartDate, DATE_FORMAT);
-            const endDate = format(cleanedEndDate, DATE_FORMAT);
-
-            return [{
-                title: "Imaginarium Theater",
-                url: sourceData.url,
-                icon: "icons/genshin-impact/imaginarium-theater.svg",
-                startDate,
-                endDate,
-                eventType: EventType.EndGame,
-                completed: false
-            }];
-        });
-
-        // Add events to the database
-        await this.service.addRecords(this.documentID, "events", events);
-    }
-
-    /**
-     * Gets the current Spiral Abyss reset timer.
-     *
-     * @param sourceData - The data source containing Spiral Abyss information.
-     */
-    private async parseSpiralAbyss (sourceData: DataSource): Promise<void> {
-        const events = await this.browserController(sourceData.url, async (page) => {
-
-            // Extract date string from the page: Duration: January 16, 2026 04:00:00 AM – February 16, 2026 03:59:59 AM
-            const dateString = await this.getElementByText(page, "p", "^Duration", "includes");
-            if (!dateString) {
-                Logger.warn("Could not find Spiral Abyss duration information.");
-                return [];
-            }
-
-            // Extract inner text from the matched element to avoid hidden/extra content
-            const durationText = await this.getTextContent(dateString);
-            const startDate = format(durationText.split("–")[0].replace("Duration:", "").trim(), DATE_FORMAT);
-            const endDate = format(durationText.split("–")[1].trim(), DATE_FORMAT);
-
-            return [{
-                title: "Spiral Abyss",
-                url: sourceData.url,
-                icon: "icons/genshin-impact/spiral-abyss.svg",
-                startDate,
-                endDate,
-                eventType: EventType.EndGame,
-                completed: false
-            }];
-        });
-
-        // Add events to the database
-        await this.service.addRecords(this.documentID, "events", events);
     }
 }
