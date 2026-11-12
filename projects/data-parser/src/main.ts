@@ -39,11 +39,11 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
 
         try {
             switch (id) {
-                // case "Arknights: Endfield": {
-                //     const parser = new Parsers.ArknightsEndfield(dataFile);
-                //     await parser.parseData();
-                //     break;
-                // }
+                case "Arknights: Endfield": {
+                    const parser = new Parsers.ArknightsEndfield(dataFile);
+                    await parser.parseData();
+                    break;
+                }
 
                 case "Genshin Impact": {
                     const parser = new Parsers.GenshinImpactParser(dataFile);

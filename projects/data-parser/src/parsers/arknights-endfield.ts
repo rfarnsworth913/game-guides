@@ -1,9 +1,9 @@
-import { add, endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth } from "date-fns";
+import { endOfISOWeek, format, startOfISOWeek } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { DATE_FORMAT } from '@shared-lib/constants';
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource, Event, Version } from '@shared-lib/types';
+import { DATE_FORMAT } from "@shared-lib/constants";
+import { EventType } from "@shared-lib/enums";
+import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
 
 import { DataService, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
@@ -26,13 +26,13 @@ export class ArknightsEndfield extends AbstractDataParser {
      * and hands those tasks off to the appropriate parsing methods.
      */
     protected override async parseSourceData (): Promise<void> {
-        await this.createStaticEvents();
 
         for (const source of this.data.sourceList) {
             switch (source.id) {
 
                 case "Version":
                     await this.getVersionInfo(source);
+                    await this.createStaticEvents();
                     break;
 
                 default:
@@ -160,7 +160,7 @@ export class ArknightsEndfield extends AbstractDataParser {
                 title: versionData.title,
                 releaseDate: "",
                 url: versionData.url
-            } as Version];
+            }];
 
         });
 
