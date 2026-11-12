@@ -1153,7 +1153,6 @@ gg-workspace {
     .device-status > svg { color: var(--color-success); }
     .device-status small { display: block; color: var(--color-success); font-size: 10px; }
     .device-status.offline > svg, .device-status.offline small { color: var(--muted); }
-    .sync-status { color: var(--muted); font-size: 11px; }
     .profile-menu {
         position: fixed;
         inset: 65px 24px auto auto;
@@ -1175,7 +1174,6 @@ gg-workspace {
         .device-status { padding: 6px; }
         .profile-menu { right: 12px; }
         .breadcrumb { display: none; }
-        .sync-status { display: none; }
     }
 }
 

@@ -2,7 +2,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CharacterInformationTemplate } from "../../components/templates/character-information/character-information";
 import { storyContentTypes } from "../../../../../../../../common/quests/story-content-types";
-import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, Injector, input, signal, viewChild } from '@angular/core';
+import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, Injector, input, signal, untracked, viewChild } from '@angular/core';
 import { of } from 'rxjs';
 import { StoryPositionStore } from "../../state/story-position.store";
 import { FormsModule } from '@angular/forms';
@@ -34,7 +34,7 @@ export class Story {
     private readonly fragment = toSignal(this.route.fragment ?? of(null), { initialValue: this.route.snapshot.fragment ?? null });
     readonly positions = inject(StoryPositionStore);
     private resumedTarget = '';
-    private visitedGame = '';
+    private visitedContext = '';
     private scrollFrame: number | null = null;
     private rememberTarget(target: Element): void {
         if (this.editMode()) {return;}
@@ -349,12 +349,16 @@ export class Story {
         effect(() => {
             const entries = this.subsections();
             if (this.editMode() || this.fragment() || !entries.length) {return;}
-            const remembered = this.positions.positions()[this.game()];
-            const valid = entries.some(entry => entry.id === remembered?.entryId);
-            if (this.visitedGame !== this.game()) {
-                this.visitedGame = this.game();
-                this.positions.remember(this.game(), valid ? remembered.entryId : entries[0].id, valid ? remembered.rowId : globalThis.undefined, true);
-            } else if (!valid) {this.positions.remember(this.game(), entries[0].id);}
+            const game = this.game();
+            const context = `${game}/${this.active()?.id ?? ''}`;
+            if (this.visitedContext === context) {return;}
+            this.visitedContext = context;
+            // A different tab's reading position must not trigger a write back from this tab.
+            untracked(() => {
+                const remembered = this.positions.positions()[game];
+                const valid = entries.some(entry => entry.id === remembered?.entryId);
+                this.positions.remember(game, valid ? remembered.entryId : entries[0].id, valid ? remembered.rowId : globalThis.undefined, true);
+            });
         });
         effect(() => {
             const fragment = this.fragment();

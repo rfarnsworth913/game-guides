@@ -100,7 +100,6 @@
                     <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="7" ry="3"/><path d="M5 5v14c0 4 14 4 14 0V5M5 12c0 4 14 4 14 0"/></svg>
                     <span>Database<small>{{ store.loading() ? 'Connecting' : store.initialized() ? 'Connected' : 'Offline' }}</small></span>
                 </span>
-                @if (store.saving()) { <span class="sync-status" role="status">Saving...</span> }
                 <button class="appearance-trigger" (click)="theme.toggleTheme()"
                     [attr.aria-label]="'Switch to ' + (theme.theme() === 'dark' ? 'light' : 'dark') + ' theme'">
                     <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7">

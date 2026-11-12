@@ -311,6 +311,24 @@ describe('Story tab persistence', () => {
         quantity: 0, target: 0, rarity: 0, members: [], requirements: [], completed: false, day: '',
     });
 
+    it('does not overwrite another tab reading a different section when positions or catalog data change', () => {
+        const first = section('first');
+        const second = section('second', 'zzz', 1);
+        const chapter = (id: string, parent: string): Entry => ({ ...section(id), kind: 'story', storySection: parent });
+        const data = [first, second, chapter('first-quest', first.id), chapter('second-quest', second.id)];
+        const { fixture, entries } = setup(data);
+        const positions = fixture.componentInstance.positions;
+        expect(positions.positions()['zzz'].entryId).toBe('first-quest');
+        positions.remember('zzz', 'second-quest', 'other-tab-row');
+        const remember = vi.spyOn(positions, 'remember');
+        fixture.detectChanges();
+        expect(positions.positions()['zzz']).toMatchObject({ entryId: 'second-quest', rowId: 'other-tab-row' });
+        entries.set([...data]);
+        fixture.detectChanges();
+        expect(positions.positions()['zzz']).toMatchObject({ entryId: 'second-quest', rowId: 'other-tab-row' });
+        expect(remember).not.toHaveBeenCalled();
+    });
+
     it('opens and remembers the row targeted by a dashboard resume link', async () => {
         const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region',
             mainStory: { ...emptyPatchOverview(), rows: [{ id: 'quest', content: 'Next quest', contentType: '', patch: '1.0', notes: '' }] } };
