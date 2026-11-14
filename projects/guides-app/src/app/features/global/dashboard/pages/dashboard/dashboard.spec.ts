@@ -21,6 +21,12 @@ describe('Dashboard feature ownership', () => {
     afterEach(() => {
         if (originalStorage) { Object.defineProperty(document.defaultView!, 'localStorage', originalStorage); }
     });
+    function createEventDashboard() {
+        const fixture = TestBed.createComponent(DashboardPage);
+        fixture.componentInstance.now.set(new Date(2026, 10, 12, 12).getTime());
+        fixture.detectChanges();
+        return fixture;
+    }
     function setupEvents() {
         const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
         const event = (id: string, startDate: string, endDate: string, game = 'genshin'): Entry => ({
@@ -39,9 +45,7 @@ describe('Dashboard feature ownership', () => {
             { provide: WorkspaceStore, useValue: store },
             { provide: StoryPositionStore, useValue: { positions: signal({}) } },
         ] });
-        const fixture = TestBed.createComponent(DashboardPage);
-        fixture.componentInstance.now.set(new Date(2026, 10, 12, 12).getTime());
-        fixture.detectChanges();
+        const fixture = createEventDashboard();
         return { fixture, page: fixture.componentInstance, root: fixture.nativeElement as HTMLElement };
     }
     it('prioritizes active events by their inclusive ending dates and scopes game dashboards', () => {
@@ -83,16 +87,14 @@ describe('Dashboard feature ownership', () => {
         page.toggleEventType('daily');
         fixture.detectChanges();
         fixture.destroy();
-        const refreshed = TestBed.createComponent(DashboardPage);
-        refreshed.detectChanges();
+        const refreshed = createEventDashboard();
         expect(refreshed.componentInstance.eventFilter()).toBe('Upcoming');
         expect(refreshed.componentInstance.selectedEventTypes()).toEqual(['temporary', 'daily']);
         expect(refreshed.componentInstance.filteredEvents().map(entry => entry.id)).toEqual(['upcoming']);
         refreshed.componentInstance.resetEventFilters();
         refreshed.detectChanges();
         refreshed.destroy();
-        const reset = TestBed.createComponent(DashboardPage);
-        reset.detectChanges();
+        const reset = createEventDashboard();
         expect(reset.componentInstance.eventFilter()).toBe('All Events');
         expect(reset.componentInstance.selectedEventTypes()).toEqual([]);
     });
