@@ -2,6 +2,8 @@
 
 Prepared October 19, 2026 for `rfarnsworth913/game-guides`.
 
+For the current branch state, test baseline, automated releases, and Synology hosting process, use the [November 14 NAS and CI deployment guide](nas-ci-deployment-guide-2026-11-14.md). Branch and tooling snapshots below are historical; verify them before using these older commands.
+
 This is an implementation runbook. Creating it does not change branches, configure GitHub, install CodeRabbit, or deploy the application. Commands below are for a maintainer to run deliberately, in order. Shell commands use PowerShell unless marked YAML. Recheck branch state before executing them.
 
 ## 1. Understand the actual starting point

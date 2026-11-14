@@ -109,3 +109,5 @@ by the normal middleware/parser tests.
 See [middleware documentation](projects/middleware/README.md) for the document schema and API.
 
 See the [implementation guide](docs/implementation-guide.md) for branch reconciliation, CodeRabbit, CI, release rules, and local deployment setup.
+
+Use the [NAS and CI deployment guide](docs/nas-ci-deployment-guide-2026-11-14.md) for the current step-by-step process to reconcile `dev` and `main`, validate tests, automate releases, and securely host the application on Synology.
