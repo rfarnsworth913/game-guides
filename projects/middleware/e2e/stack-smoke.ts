@@ -315,9 +315,9 @@ try {
 
     // Verify every extracted page can load its own deferred bundle through existing URLs.
     for (const [route, selector] of [
-        ['/dashboard', 'gg-dashboard .stats'],
+        ['/dashboard', 'gg-dashboard [aria-label="Workspace summary"] .summary-card'],
         ['/games', 'gg-game-collection .game-card'],
-        ['/games/genshin/dashboard', 'gg-dashboard .stats'],
+        ['/games/genshin/dashboard', 'gg-dashboard [aria-label="Workspace summary"] .summary-card'],
         ['/settings?tab=data', 'gg-settings .settings'],
         ['/games/genshin/plans', 'gg-progression .collection-empty'],
         ['/games/genshin/characters', 'gg-characters'],
