@@ -168,60 +168,56 @@
         </div>
         </div>
         <div class="story-content-layout">
-            @if (subsections().length) {
+            @if (readableSubsections().length) {
                 <nav class="story-outline" aria-label="Guide contents">
-                    <h3><svg class="outline-book" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1Zm0 0v15" /></svg>Story Navigation</h3>
-                    <div class="outline-controls">
-                        <button type="button" (click)="expandOutline()">Expand all</button>
-                        <button type="button" (click)="collapseOutline()">Collapse all</button>
+                    <div class="outline-heading">
+                        <h3><svg class="outline-book" width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1Zm0 0v15" /></svg>Story Navigation</h3>
+                        @if (expandedOutline()) {
+                            <button type="button" class="outline-collapse" aria-label="Collapse section" title="Collapse section" (click)="collapseOutline()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14" /></svg></button>
+                        }
                     </div>
                     @for (chapter of outlineChapters(); track chapter.id) {
-                        <section class="outline-chapter" [attr.data-story-topic]="chapter.entry?.category">
-                            <div class="outline-chapter-heading">
-                                <span class="story-category-icon" aria-hidden="true">{{ topicIcon(chapter.entry?.category ?? '') }}</span>
+                        <section class="outline-chapter" [class.outline-unparented]="!chapter.entry" [attr.data-story-topic]="chapter.entry?.category">
                                 @if (chapter.entry; as entry) {
+                            <div class="outline-chapter-heading" [class.active]="outlineChapterActive(chapter.id, chapter.children)">
                                     @if (showEntry(entry)) {
                                     <a [href]="encodeAnchor('story-content-' + entry.id)"
                                         [class.active]="outlineChapterActive(chapter.id, chapter.children)"
+                                        [attr.aria-current]="activeOutline() === 'story-content-' + entry.id ? 'location' : null"
                                         (click)="openOutlineChapter($event, chapter.id, chapter.children.length > 0)">
+                                        <ng-container *ngTemplateOutlet="outlineIcon; context: { $implicit: entry.category }" />
                                         <strong>{{ entry.name }}</strong>
                                     </a>
-                                    } @else { <strong>{{ entry.name }}</strong> }
-                                } @else { <strong>Related content</strong> }
+                                    } @else { <span class="outline-filtered-parent"><ng-container *ngTemplateOutlet="outlineIcon; context: { $implicit: entry.category }" /><strong>{{ entry.name }}</strong></span> }
                                 @if (chapter.children.length) {
                                 <button type="button" class="outline-toggle"
-                                    [attr.aria-label]="'Toggle ' + (chapter.entry?.name ?? 'related content')"
+                                    [attr.aria-label]="(outlineCollapsed(chapter.id) ? 'Expand ' : 'Collapse ') + entry.name"
+                                    [attr.aria-controls]="'outline-children-' + chapter.id"
                                     [attr.aria-expanded]="!outlineCollapsed(chapter.id)"
-                                    (click)="toggleOutline(chapter.id)"><svg class="outline-chevron" [class.expanded]="!outlineCollapsed(chapter.id)" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg></button>
+                                    (click)="toggleOutline(chapter.id)"><svg class="outline-chevron" width="18" height="18" [class.expanded]="!outlineCollapsed(chapter.id)" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg></button>
                                 }
                             </div>
-                            @if (!outlineCollapsed(chapter.id)) {
+                                }
+                            <div class="outline-children" [id]="'outline-children-' + chapter.id"
+                                [class.expanded]="!chapter.entry || !outlineCollapsed(chapter.id)"
+                                [inert]="!!chapter.entry && outlineCollapsed(chapter.id)"
+                                [attr.aria-hidden]="!!chapter.entry && outlineCollapsed(chapter.id) ? 'true' : null">
+                                <div class="outline-children-inner"><div class="outline-children-list">
                                 @for (entry of chapter.children; track entry.id) {
                                     <div class="outline-group" [attr.data-story-topic]="entry.category">
                                             <a class="outline-secondary" [href]="encodeAnchor('story-content-' + entry.id)"
                                                 [class.active]="activeOutline() === 'story-content-' + entry.id"
+                                                [attr.aria-current]="activeOutline() === 'story-content-' + entry.id ? 'location' : null"
+                                                [attr.title]="topic(entry).title"
                                                 (click)="jumpTo($event, 'story-content-' + entry.id)">
-                                                <span class="story-category-icon" aria-hidden="true">{{ topicIcon(entry.category) }}</span>
+                                                <ng-container *ngTemplateOutlet="outlineIcon; context: { $implicit: entry.category }" />
                                                 <span>{{ entry.characterInformation?.characterName || entry.name }}</span>
                                             </a>
                                     </div>
                                 }
-                            }
+                                </div></div>
+                            </div>
                         </section>
-                    }
-                    @if (contentDirectories().length) {
-                        <div class="guide-directories">
-                            <h3>Browse Content</h3>
-                            <p class="guide-help">Complete directories for this game</p>
-                            @for (directory of contentDirectories(); track directory.id) {
-                                <details [attr.data-story-topic]="directory.id">
-                                    <summary><span class="story-category-icon" aria-hidden="true">{{ topicIcon(directory.id) }}</span>{{ directory.title }} <small>{{ directory.entries.length }}</small></summary>
-                                    @for (entry of directory.entries; track entry.id) {
-                                        <button type="button" (click)="openDirectoryEntry(entry)">{{ entry.name }}</button>
-                                    }
-                                </details>
-                            }
-                        </div>
                     }
                 </nav>
             }
@@ -514,6 +510,23 @@
             }
         </span>
     }
+</ng-template>
+
+<ng-template #outlineIcon let-category>
+    <svg class="outline-type-icon" [attr.data-story-topic]="category" width="24" height="24" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        @switch (category) {
+            @case ('patch-overview') { <path d="m12 2 10 5-10 5L2 7Zm-10 10 10 5 10-5M2 17l10 5 10-5" /> }
+            @case ('main-story') { <path d="M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1Zm0 0v15" /> }
+            @case ('side-stories') { <path d="M5 3h14v18H5Zm4 0v8l3-2 3 2V3M9 15h6" /> }
+            @case ('world-quests') { <path d="m12 2 10 10-10 10L2 12Zm0 6 4 4-4 4-4-4Z" /> }
+            @case ('character-information') { <circle cx="12" cy="7" r="4" /><path d="M4 22v-3a8 8 0 0 1 16 0v3Z" /> }
+            @case ('lore') { <path d="M6 3h14a3 3 0 0 0 0 6h-2v9a3 3 0 0 1-3 3H4a3 3 0 0 0 2-3V3Zm0 0a3 3 0 0 0-3 3v2h3m-2 13a3 3 0 0 1 0-6h11m-5-8h4m-4 4h4" /> }
+            @case ('events') { <path d="m12 2 2.7 6.9L22 12l-7.3 3.1L12 22l-2.7-6.9L2 12l7.3-3.1Z" /> }
+            @case ('endgame-activity') { <path d="m4 3 17 17m-1-17L3 20M3 3l1 6 5-5Zm18 0-1 6-5-5ZM2 18l4 4m12-20 4 4M2 6l4-4m12 20 4-4" /> }
+            @case ('divider') { <path d="M2 12h6m8 0h6m-10-4 4 4-4 4-4-4Z" /> }
+            @default { <path d="M6 3h12v18H6Zm4 5h4m-4 4h4m-4 4h4" /> }
+        }
+    </svg>
 </ng-template>
 
 @if (confirmReset) {

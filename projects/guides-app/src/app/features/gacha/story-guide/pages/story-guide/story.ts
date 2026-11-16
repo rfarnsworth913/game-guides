@@ -14,7 +14,7 @@ import { StoryDividerTemplate } from "../../components/templates/divider/divider
 import { WorldQuestsTemplate } from "../../components/templates/world-quests/world-quests";
 import { LoreTemplate } from "../../components/templates/lore/lore";
 import { storyProgress } from "../../utils/story-progress";
-import { isStoryDivider, storyTemplateFor } from "../../../../../../../../common/quests/story-guide";
+import { isStoryDivider } from "../../../../../../../../common/quests/story-guide";
 import { reworkMainQuestTemplate } from "../../../../../../../../common/quests/main-quest";
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import { searchStoryGuides, StorySearchResult } from "../../utils/story-search";
@@ -24,7 +24,7 @@ import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, prepareP
     selector: 'gg-story',
     imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
     templateUrl: "./story.html",
-    styleUrl: "./story.scss",
+    styleUrls: ["./story.scss", "./story-navigation.scss"],
 })
 export class Story {
     private readonly injector = inject(Injector);
@@ -192,15 +192,8 @@ export class Story {
         } finally { this.resetting.set(false); }
     }
     readonly activeOutline = signal('');
-    readonly contentDirectories = computed(() => this.topics().filter(topic => !['main-story', 'patch-overview', 'divider'].includes(topic.id))
-        .map(topic => ({ ...topic, entries: this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && entry.category === topic.id)
-            .sort((a, b) => (storyTemplateFor(a)?.context?.region ?? '').localeCompare(storyTemplateFor(b)?.context?.region ?? '') || a.order - b.order || a.name.localeCompare(b.name)) }))
-        .filter(directory => directory.entries.length));
-    openDirectoryEntry(entry: Entry): void {
-        this.openSearchResult({ id: entry.id, title: entry.name, excerpt: '', context: '', sectionId: entry.storySection ?? '', target: 'story-content-' + entry.id });
-    }
-    readonly expandedOutline = signal<string[]>([]);
-    outlineCollapsed(id: string): boolean { return !this.expandedOutline().includes(id); }
+    readonly expandedOutline = signal('');
+    outlineCollapsed(id: string): boolean { return this.expandedOutline() !== id; }
     updateOutlineFromScroll(): void {
         const top = Math.max(0, this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0);
         const center = top + (window.innerHeight - top) / 2;
@@ -242,17 +235,18 @@ export class Story {
         })).filter(chapter => (chapter.entry && this.showEntry(chapter.entry)) || chapter.children.length);
     });
     toggleOutline(id: string): void {
-        this.expandedOutline.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+        this.expandedOutline.update(current => current === id ? '' : id);
     }
     openOutlineChapter(event: Event, id: string, hasChildren: boolean): void {
-        if (hasChildren && this.outlineCollapsed(id)) {this.toggleOutline(id);}
+        this.expandedOutline.set(hasChildren ? id : '');
         this.jumpTo(event, 'story-content-' + id);
     }
     collapseOutline(): void {
-        this.expandedOutline.set([]);
-    }
-    expandOutline(): void {
-        this.expandedOutline.set(this.outlineChapters().map(chapter => chapter.id));
+        const id = this.expandedOutline();
+        this.expandedOutline.set('');
+        const toggle = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('.outline-toggle')]
+            .find(button => button.getAttribute('aria-controls') === 'outline-children-' + id);
+        toggle?.focus({ preventScroll: true });
     }
     readonly encodeAnchor = (id: string) => '#' + encodeURIComponent(id);
     hasTemplate(entry: Entry): boolean {
@@ -354,7 +348,7 @@ export class Story {
             const context = `${this.game()}/${this.active()?.id ?? ''}`;
             if (context !== outlineContext) {
                 outlineContext = context;
-                this.expandedOutline.set([]);
+                this.expandedOutline.set('');
                 this.activeOutline.set('');
             }
         });

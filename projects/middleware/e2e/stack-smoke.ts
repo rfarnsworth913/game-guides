@@ -339,6 +339,58 @@ try {
     await (await guest.$('gg-story .story-divider-section'))!.screenshot({ path: join(artifacts, 'story-divider.png') });
     console.log('PASS unnamed story divider creation, persisted ordering and decoration without completion or navigation entries.');
 
+    const beforeNavigation = await repository.read('genshin');
+    const sampleTemplate = (title: string) => ({ ...emptyPatchOverview(), rows: [{ id: 'sample-objective', content: title, contentType: '', patch: '7.0', notes: '' }] });
+    const navigationEntries: CatalogEntry[] = [
+        ...beforeNavigation.entries,
+        { ...baseEntry, id: 'nav-world', kind: 'story', name: 'An Ark That Used to Be a Soul', category: 'world-quests', storySection: 'e2e-section', order: 2, worldQuests: sampleTemplate('In the Dwelling of Life') },
+        { ...baseEntry, id: 'nav-character', kind: 'story', name: 'Fischl', category: 'character-information', storySection: 'e2e-section', order: 3, characterInformation: sampleTemplate('Character Profile') },
+        { ...baseEntry, id: 'nav-side', kind: 'story', name: 'Wraith’s Nocturne', category: 'side-stories', storySection: 'e2e-section', order: 4, sideStories: sampleTemplate('Story Quest') },
+        { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: sampleTemplate('Event Objective') },
+        { ...baseEntry, id: 'nav-patch', kind: 'story', name: 'Patch 7.1 Overview', category: 'patch-overview', storySection: 'e2e-section', order: 6, patchOverview: sampleTemplate('Patch Notes') },
+    ];
+    assert.equal((await update(editorToken, beforeNavigation.revision, navigationEntries)).status, 200);
+    await guest.reload({ waitUntil: 'networkidle0' });
+    assert.equal(await guest.$$eval('.outline-chapter-heading a', links => links.length), 2);
+    assert.equal(await guest.$$eval('.outline-children', elements => elements.every(element => (element as HTMLElement).inert)), true);
+    const navigationIcons = await guest.$$eval('.story-outline svg', icons => icons.filter(icon => icon.getClientRects().length).map(icon => {
+        const bounds = icon.getBoundingClientRect();
+        return { width: bounds.width, height: bounds.height };
+    }));
+    assert.ok(navigationIcons.every(icon => icon.width > 0 && icon.width <= 24 && icon.height <= 24), 'Navigation SVGs must remain bounded.');
+    // Component styles must keep the outline usable when global CSS is stale or unavailable.
+    await guest.$$eval('link[rel=stylesheet]', links => links.forEach(link => { (link as HTMLLinkElement).disabled = true; }));
+    assert.equal(await guest.$eval('.outline-chapter-heading', target => getComputedStyle(target).display), 'flex');
+    assert.equal(await guest.$eval('.outline-book', target => target.getBoundingClientRect().width), 18);
+    assert.equal(await guest.$eval('.outline-type-icon', target => target.getBoundingClientRect().width), 24);
+    await guest.$$eval('link[rel=stylesheet]', links => links.forEach(link => { (link as HTMLLinkElement).disabled = false; }));
+    await guest.click('.outline-toggle');
+    await guest.waitForFunction(() => document.querySelectorAll('.outline-children.expanded').length === 1);
+    assert.deepEqual(await guest.$$eval('.outline-secondary', links => links.map(link => link.getAttribute('href'))), ['#story-content-nav-world', '#story-content-nav-character', '#story-content-nav-side', '#story-content-nav-event']);
+    assert.deepEqual(await guest.$$eval('.outline-secondary .outline-type-icon', icons => icons.map(icon => icon.getAttribute('data-story-topic'))), ['world-quests', 'character-information', 'side-stories', 'events']);
+    assert.equal(await guest.$('.guide-directories'), null);
+    await guest.$eval('#story-content-nav-world', target => target.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await guest.$eval('#story-content-nav-world', target => {
+        const top = document.querySelector('.story-sticky-header')!.getBoundingClientRect().bottom;
+        const bounds = target.getBoundingClientRect();
+        window.scrollBy({ top: bounds.top + bounds.height / 2 - (top + (innerHeight - top) / 2), behavior: 'instant' });
+    });
+    await guest.waitForSelector('.outline-secondary[href="#story-content-nav-world"][aria-current=location]');
+    assert.equal(await guest.$eval('.outline-secondary.active', target => getComputedStyle(target).boxShadow), 'none');
+    await (await guest.$('.story-outline'))!.screenshot({ path: join(artifacts, 'story-navigation-desktop.png') });
+    await guest.setViewport({ width: 390, height: 844 });
+    await guest.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    assert.equal(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    const mobileOutline = await guest.$eval('.story-outline', target => {
+        const bounds = target.getBoundingClientRect();
+        return { x: bounds.left, y: bounds.top + scrollY, width: bounds.width, height: bounds.height };
+    });
+    await guest.screenshot({ path: join(artifacts, 'story-navigation-mobile.png'), clip: mobileOutline, captureBeyondViewport: true });
+    await guest.setViewport({ width: 1440, height: 1000 });
+    const afterNavigation = await repository.read('genshin');
+    assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);
+    console.log('PASS story navigation hierarchy, guide ordering, scroll highlighting and responsive layout.');
+
     // Simultaneous writers must produce exactly one commit and one conflict.
     const current = await repository.read('genshin');
     const conflicts = await Promise.all([update(editorToken, current.revision, current.entries), update(editorToken, current.revision, current.entries)]);

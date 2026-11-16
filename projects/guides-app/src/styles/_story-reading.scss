@@ -144,12 +144,6 @@ gg-story {
     .guide-context-editor summary { cursor: pointer; font-weight: 600; }
     .guide-membership-editor select[multiple] { min-height: 120px; }
     .guide-requirement-editor { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 14px; margin-bottom: 16px; align-items: end; }
-    .guide-directories { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--guide-border); }
-    .guide-directories details { margin-bottom: 8px; }
-    .guide-directories summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; padding-block: 6px; }
-    .guide-directories small { margin-inline-start: auto; color: var(--guide-muted); }
-    .guide-directories button { display: block; text-align: start; width: 100%; font-size: 12px; border: 0; background: transparent; padding: 8px; }
-    .story-outline a.active { background: color-mix(in srgb, var(--story-topic-accent) 15%, var(--guide-card)); box-shadow: inset 3px 0 0 var(--story-topic-accent); }
     :is(button, a, input, select, summary):focus-visible { outline: 2px solid var(--story-content-link); outline-offset: 2px; }
     gg-patch-overview .patch-groups { border-color: var(--guide-border); background: var(--guide-card); }
     gg-patch-overview .patch-groups .patch-group-heading { background: color-mix(in srgb, var(--story-topic-accent) 8%, var(--guide-card)); color: var(--guide-text); border-inline-start: 3px solid var(--story-topic-accent); }
