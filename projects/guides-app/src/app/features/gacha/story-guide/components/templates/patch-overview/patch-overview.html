@@ -142,6 +142,7 @@
         </div>
         @for (row of rows; track row.id; let index = $index) {
             <details class="patch-row-editor compact-row-card" [open]="expandedRow() === row.id && !draggingRow()"
+                [attr.data-story-editor-row]="row.id"
                 [class.row-dragging]="draggingRow() === row.id"
                 [class.row-drop-before]="rowDropTarget() === row.id && draggingRow() !== row.id && !rowDropAfter()"
                 [class.row-drop-after]="rowDropTarget() === row.id && draggingRow() !== row.id && rowDropAfter()"

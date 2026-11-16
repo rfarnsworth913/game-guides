@@ -136,6 +136,15 @@ export class Story {
         const updates = new Map(siblings.map((entry, order) => [entry.id, { ...entry, order }]));
         if (await this.store.replace(this.store.entries().map((entry) => updates.get(entry.id) ?? entry))) {
             this.reorderNotice.set(`Moved ${moved.name} to position ${siblings.findIndex((entry) => entry.id === source) + 1}.`);
+            afterNextRender(() => {
+                const section = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-story-entry]')]
+                    .find(element => element.dataset['storyEntry'] === source);
+                const header = section?.querySelector<HTMLElement>('.story-section-header');
+                const handle = header?.querySelector<HTMLButtonElement>('.story-drag-handle');
+                if (!this.editMode() || !header || !handle) {return;}
+                handle.focus({ preventScroll: true });
+                header.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+            }, { injector: this.injector });
         } else {this.reorderNotice.set(this.store.error() || 'Could not save the new order.');}
     }
     async reorderWithKeyboard(event: KeyboardEvent, entry: Entry): Promise<void> {

@@ -2,6 +2,8 @@
 
 Prepared November 14, 2026 for `rfarnsworth913/game-guides` and the Synology DS1522+.
 
+Deployment scope revised: **LAN-only access and one production environment on the NAS. No staging environment, public ingress, tunnel or router port forwarding is required.** GitHub-hosted CI and its disposable test services remain separate from production. The NAS still needs outbound access to GitHub/GHCR, Auth0 and parser sources, and users' browsers need access to Auth0/Google for sign-in.
+
 This is an implementation runbook, not an executed deployment. Branch heads were checked remotely, local checks were run, and the current code was inspected. No branches were merged, GitHub settings changed, containers deployed, or NAS database records modified. Complete each exit gate before proceeding.
 
 The earlier [implementation guide](implementation-guide.md) contains historical branch/toolchain snapshots. Use the branch state and toolchain below for this rollout; do not repeat its unrelated-history reconciliation against the present branches.
@@ -24,7 +26,7 @@ Remote heads were verified with `git ls-remote`:
 | Deployment packaging | No Dockerfiles, Compose deployment, Nginx config, image-publishing or NAS deployment workflow found |
 | MongoDB | NAS migration was configured in the preceding work. Actual server version/FCV and mount ownership must be recorded before deployment; do not infer them solely from an image screenshot. |
 
-Local checks on the current working tree:
+Local checks from the original planning audit (follow-up results below):
 
 | Check | Result |
 | --- | --- |
@@ -36,6 +38,8 @@ Local checks on the current working tree:
 
 The known failure is `dashboard.spec.ts`, test **"restores saved status and multiple types after recreating the dashboard and persists resets"**. The initial fixture sets November 12, 2026, but the recreated fixture uses the real current clock. Its November 14 event is now active rather than upcoming. This is a test-clock defect; preserve the assertion and initialize every recreated fixture with the same fixed clock.
 
+Follow-up verification on November 14: the dashboard fixture clock was repaired and **all 182 Angular tests passed**. The browser harness's two obsolete dashboard selectors were also updated; the **complete browser integration suite passed locally against a disposable MongoDB**, including logout and cleanup. These results resolve the observed test failures, but do not replace a fresh full CI run on the eventual reconciled/release commit or the future production-image checks.
+
 ## 2. Recommended end state
 
 ```mermaid
@@ -46,9 +50,9 @@ flowchart LR
     M --> C[CI on exact main commit]
     C --> I[Scanned images and verified release manifest]
     I --> P[NAS pulls approved release]
-    P --> S[Isolated staging and smoke checks]
-    S --> A[Production promotion and rollback checks]
-    B[Internet browser] --> T[Cloudflare HTTPS and Tunnel]
+    P --> A[Backup and single-environment maintenance deployment]
+    A --> V[Production smoke checks or compatible rollback]
+    B[LAN browser] --> T[LAN HTTPS reverse proxy]
     T --> W[Web container]
     W --> API[Middleware]
     API --> DB[(Private MongoDB)]
@@ -59,9 +63,9 @@ Use Container Manager Compose projects for the application. The linked [Synology
 
 The linked [XDA article](https://www.xda-developers.com/how-i-hosted-a-website-on-my-nas-from-home/) could not be retrieved during this audit (502); no unverified instructions from it are treated as prerequisites. The recommendations below use repository evidence and linked primary documentation.
 
-Preferred public ingress: **Cloudflare Tunnel**, with no router forwarding to the NAS. It is outbound initiated and can map a public hostname to the web service. [Cloudflare documentation](https://developers.cloudflare.com/tunnel/concepts/)
+Use a stable LAN hostname and an HTTPS reverse proxy on the NAS. Resolve the hostname to the reserved NAS LAN address using local DNS. Keep router port forwarding disabled and restrict the web listener to the intended LAN subnet(s), including IPv6 rules. Do not configure Cloudflare Tunnel, public DDNS ingress or a public reverse-proxy route for this rollout.
 
-Alternative if you prefer direct hosting: public DNS/DDNS, router TCP 443 forwarding, DSM reverse proxy and a valid certificate. First verify public-IP/CGNAT and ISP constraints. Do not expose DSM, SSH, Docker, middleware or MongoDB as separate internet ports. Choose one ingress architecture rather than configuring both accidentally.
+There is one live application environment. Candidate image integration and destructive browser/security tests run in disposable CI services before release. Deployment replaces the live NAS containers during a short maintenance window, then performs non-destructive checks against the production origin. Those checks cannot eliminate the risk of a failed live release; backups, compatibility checks and a tested rollback are required.
 
 ## 3. Preserve work and inventory the NAS
 
@@ -85,7 +89,7 @@ Alternative if you prefer direct hosting: public DNS/DDNS, router TCP 443 forwar
    ```
 
 5. Record the exact NAS model, DSM/Container Manager versions, available memory/disk, MongoDB image digest/server version/FCV, container name, current volume mappings and data ownership. Verify the selected images actually run on the NAS CPU/kernel. DSM version has not yet been provided.
-6. Reserve the NAS LAN address. Decide the real production hostname, staging hostname, domain/DNS ownership, and whether public reads should be open to everyone or limited to invited users.
+6. Reserve the NAS LAN address. Choose one production LAN hostname, its local DNS record, trusted HTTPS certificate strategy and the LAN subnet(s)/devices permitted to reach the website. No staging hostname or publicly reachable website is needed.
 7. Back up the complete application database, including account-progress and schema-backup collections, plus image files and metadata sidecars. Keep another copy off the NAS and test a restore. A RAID array or an application JSON export is not a complete database-and-files backup.
 8. Review historical secret exposure. An old local main tree tracks `.env`, and a database password was shown during setup. Rotate exposed credentials and assess Git history before making the repository public. Do not print secrets while investigating history.
 
@@ -93,7 +97,7 @@ Alternative if you prefer direct hosting: public DNS/DDNS, router TCP 443 forwar
 
 ## 4. Repair and establish all required checks
 
-1. Fix the known dashboard test on a short-lived repair branch based on current `dev`. Set the same reference date on the initial, refreshed and reset dashboard components before `detectChanges()`, or use an injected/fake clock consistently. Do not change the expected upcoming result to fit today's date.
+1. Include the completed dashboard clock fix and updated browser selectors in the candidate branch. Verify the initial, refreshed and reset dashboard components use the same reference date before `detectChanges()`. Do not change the expected upcoming result to fit today's date.
 2. Run the normal gates from a clean install using the chosen Node/npm versions:
 
    ```powershell
@@ -112,12 +116,12 @@ Alternative if you prefer direct hosting: public DNS/DDNS, router TCP 443 forwar
    ```
 
    This example requires a dedicated disposable MongoDB already listening at that address. Do not point it at an unrelated persistent local database server and assume the test user is safe. In CI, retain the service-container pattern. Test the selected production server major in the integration matrix; the existing job uses `mongo:7`, while the NAS setup screenshot used 9.0.
-5. Keep test issuer/JWKS/token injection confined to the harness. Verify guest access, login, editor denial/allow, account isolation, persistence, conflicts, image uploads and logout. The synthetic issuer suite does not replace a real Google/Auth0 staging login test.
+5. Keep test issuer/JWKS/token injection confined to the harness. Verify guest access, login, editor denial/allow, account isolation, persistence, conflicts, image uploads and logout. The synthetic issuer suite does not replace a real Google/Auth0 login check through the final LAN hostname after deployment. Use designated test accounts and controlled records for live checks; never run the destructive harness against production.
 6. Add container integration tests once images exist: boot the exact candidate web/API images against disposable MongoDB and run the browser/security checks through the production proxy path.
 7. Add dependency, secret, static-code, workflow and container-image scanning. Triage runtime and build-time dependencies; do not treat a clean `npm audit --omit=dev` as coverage of the build pipeline. Use documented, expiring exceptions for findings that are reviewed rather than silently suppressing a scanner.
 8. Confirm the Node MongoDB driver supports the chosen server and Node versions. The manifest currently pins driver `6.4.0`; successful ping alone is insufficient compatibility evidence. Choose an upgrade using the [official compatibility table](https://www.mongodb.com/docs/drivers/compatibility/?all-languages=nodejs&interface=driver), then run persistence/integration tests. Do not downgrade the NAS database merely to match an old CI image.
 
-**Exit gate:** all normal and browser gates pass reproducibly on the candidate branch. Record exact toolchain and test results. The current checkout does not yet satisfy this gate.
+**Exit gate:** all normal and browser gates pass reproducibly on the candidate branch. Record exact toolchain and test results. The follow-up local passes are evidence for the repaired suites; the release gate still requires a full run on the actual candidate commit.
 
 ## 5. Reconcile main and dev without discarding either history
 
@@ -177,7 +181,7 @@ Create these files through reviewed PRs; none exists yet:
 | API Dockerfile plus build/start target | Production middleware runtime, preserved aliases/shared code and health check |
 | Parser Dockerfile plus scheduled start target | Separate runtime with Chromium dependencies and bounded execution |
 | `deploy/compose.yml` | Reviewed service/network/volume contract; no embedded secrets |
-| `scripts/deploy/*` | Release validation, backup, staging, promotion, smoke checks and rollback |
+| `scripts/deploy/*` | Release validation, backup, maintenance deployment, smoke checks and rollback |
 | Image/release workflow | Packages only the tested main commit, scans images and publishes immutable digests |
 
 1. Build on hosted CI and target `linux/amd64` for this NAS. Use the pinned Node baseline and lockfile; run compiled production services, not `ng serve` or `node --watch`.
@@ -192,16 +196,15 @@ Create these files through reviewed PRs; none exists yet:
 
 **Exit gate:** exact release images boot, route correctly, preserve uploads/progress and pass the container/browser/security suite. Images contain no deployment credentials, database dumps or production `.env`.
 
-## 8. Prepare the NAS deployment layout and staging
+## 8. Prepare the single-environment NAS deployment layout
 
 Use a layout similar to the following; substitute the real volume/share paths:
 
 ```text
 /volume1/docker/game-guides/
   deploy/                 reviewed Compose and local deployment scripts
-  secrets/                restricted runtime credentials and tunnel token
+  secrets/                restricted runtime credentials
   releases/               verified manifests and current/previous state
-  staging/uploads/        isolated staging image library
   production/uploads/     persistent production images and sidecars
   backups/                DB/files backups; copy off NAS too
   logs/                   rotated application/deployment/parser logs
@@ -209,11 +212,11 @@ Use a layout similar to the following; substitute the real volume/share paths:
 
 1. Use Container Manager Projects for repeatability. Confirm actual Compose command/support on the installed DSM version before scheduling commands. Do not manually modify Synology-managed system Nginx files. [Synology Projects](https://kb.synology.com/en-global/DSM/help/ContainerManager/docker_project)
 2. Preserve the existing MongoDB container and persistent mount during application deployment. Record its project/name/digest before changes. If adopting it into Compose later, stop it and recreate against the same verified data mount deliberately; never run two `mongod` processes against that directory or create an accidental empty replacement database.
-3. Use separate production and staging database names, DB users and upload volumes. Seed staging with fixtures or appropriately sanitized copies; staging must not write production progress.
-4. Use network separation: tunnel -> web; web -> API; API/parser -> database. Only API/parser need database credentials. API also needs outbound Auth0/JWKS access and parser needs source-site egress. An internal-only data network therefore needs an additional egress network on those services; MongoDB itself needs no public port.
+3. Configure one production database and persistent upload volume. Disposable CI databases/uploads remain entirely separate and must never use production credentials. Retain previous image digests and backup checkpoints; these are recovery resources, not a second running environment.
+4. Use network separation: LAN HTTPS reverse proxy -> web; web -> API; API/parser -> database. Only API/parser need database credentials. API also needs outbound Auth0/JWKS access and parser needs source-site egress. An internal-only data network therefore needs an additional egress network on those services; MongoDB itself needs no public port. Publish only the web/proxy listener needed on the LAN; keep API access on the private container network.
 5. Attach existing MongoDB and application services to a reviewed user-defined network with an explicit alias. When all clients run on the NAS, use that stable service/alias and internal port 27017, not the current host-published `192.168.1.200:32768`. Keep any temporary Compass port LAN/VPN restricted, then remove it when no longer required.
 6. Run application containers as non-root, drop unnecessary capabilities, set memory/CPU/PID limits and rotate logs. Give only the required upload path write access. Database permissions must match its image UID; do not grant Everyone write access to solve a mount error.
-7. Store application/parser DB credentials, editor subjects, registry-read credentials and tunnel tokens in restricted NAS configuration, not Git or image layers. The current app reads env variables, so a protected NAS-only `env_file` is an interim option; `_FILE` secrets require application support rather than being assumed.
+7. Store application/parser DB credentials, editor subjects and registry-read credentials in restricted NAS configuration, not Git or image layers. The current app reads env variables, so a protected NAS-only `env_file` is an interim option; `_FILE` secrets require application support rather than being assumed.
 8. Use different DB users for the application and parser where practical. Keep the database administrator for backup/maintenance. Preserve Auth0 issuer/subject identity so account keys remain compatible.
 9. Keep scheduled parser writes disabled initially. Complete the high-risk date/cleanup/identity work in the [parser report](parser-review-2026-11-12.md) before unattended writes to production. Job success must reflect actual source/write failures; prevent overlapping runs and cap duration.
 
@@ -224,10 +227,10 @@ Suggested minimum environment contract:
 | API | Production mode, API port/bind address, Mongo URI, database/collection, exact HTTPS `APP_ORIGIN`, editor subjects, upload root |
 | Web | API upstream on private container network; production Angular assets/public Auth0 configuration |
 | Parser | Parser-specific Mongo URI, DB/collection, configurable headless/timeouts, writable temp path; no Auth0 editor privileges |
-| Tunnel | Dedicated tunnel token/credential and only the web origin route |
+| LAN reverse proxy | Trusted HTTPS certificate, exact hostname route to web, LAN-only firewall access |
 | Local deploy task | Read-only release/registry access, approved repo/workflow/digest verification policy; no arbitrary remote shell payload |
 
-**Exit gate:** a manually deployed staging release uses isolated state; restart preserves its files and DB; production MongoDB was not reset or exposed.
+**Exit gate:** production paths, credentials, private networks and backup locations are verified before the first application start; the deployment will reuse the intended database and image library. Confirm restart persistence during the first maintenance deployment. MongoDB must not be reset or exposed.
 
 ## 9. Automate deployment without exposing a NAS runner to PRs
 
@@ -238,22 +241,22 @@ Recommended default: **NAS pulls verified releases**. GitHub builds/publishes; a
 3. Verify provenance/signatures, expected repository, workflow, protected main ref, commit and image digests. A digest alone provides integrity, not approval/provenance. Confirm account-plan/tool availability for attestations and deploy a tested signature alternative if needed. [Verification reference](https://cli.github.com/manual/gh_attestation_verify)
 4. Validate the manifest against a strict schema/allowed image names/digest syntax. Update only approved image references and release metadata in the locally reviewed Compose contract. Do not interpolate unvalidated manifest values into shell commands.
 5. Pull all images first. If downloads/verification fail, keep the existing release running and notify; the NAS being offline must not result in half a deployment.
-6. Deploy the candidate to isolated staging. Run proxy/API health, frontend asset/deep-link checks, synthetic account isolation, editor authorization, completion persistence and upload checks. Keep staging behind restricted access.
-7. For the first release and auth/schema/workflow changes, require explicit approval before promotion. Enable unattended routine promotions only after successful deployments and a demonstrated rollback; make automatic eligibility part of the verified release policy.
-8. Before production promotion, pause the parser, drain/stop writes for a consistent DB/files backup, record old digests and schema state, then apply compatible migrations once. This app currently calls migration-capable repository initialization on API startup; test and account for that before treating API replacement as a harmless rollback.
-9. Start the production candidate, run health/smoke checks through its actual origin, and switch traffic only after it is healthy. For initial deployment, a brief maintenance window is simpler than unsafe blue/green against changing schemas. Zero downtime can be added after schema compatibility guarantees exist.
-10. Record current/previous digests and deployment result. Re-enable the parser only after the app and schema are verified. Failures must send a local notification and retain logs without secrets.
+6. Require evidence that the exact candidate image digests passed CI container/browser/security checks against disposable services. No NAS staging deployment is available. Reject releases without the required check/provenance evidence before touching the running application.
+7. For the first release and auth/schema/workflow changes, require an explicit approval hold. Enable unattended routine releases only after successful maintenance deployments and a demonstrated rollback; make automatic eligibility part of the verified release policy. Keep schema changes manual until upgrade and recovery behavior are demonstrated.
+8. Enter maintenance mode at the LAN proxy so users cannot submit writes, pause the parser, drain in-flight requests and stop API writers. Take and verify a consistent DB/files backup, record old digests and schema state, then apply compatible migrations once. If backup or validation fails, abort before replacement and restore the previous service state. This app currently calls migration-capable repository initialization on API startup; account for that before treating API replacement as a harmless rollback.
+9. Replace the web/API containers in the same production project using the verified digests. Keep user traffic in maintenance mode while checking container/API health, static assets and deep links through the real LAN hostname. Allow controlled access for the deployment check without opening general writes. This is an in-place deployment with expected downtime, not blue/green or a second environment.
+10. Run non-destructive production checks; use designated test accounts/records only where a write check is necessary. On success, reopen LAN traffic, record current/previous digests and re-enable the parser only if its code and schema are verified. On failure, keep maintenance mode active, restore previous images only when schema-compatible, otherwise follow the deliberate DB/assets recovery procedure. Send a local notification and retain redacted logs. Never automatically restore a database after user writes have resumed.
 
 Do not use Watchtower-style unreviewed `latest` updates for this application/database, and do not auto-upgrade MongoDB as part of ordinary web releases. Avoid running public/fork PR code on the NAS or any runner with LAN/production access. [GitHub runner security](https://docs.github.com/en/actions/reference/security/secure-use)
 
 **Exit gate:** a published eligible release deploys without a development PC, failed verification does not change production, and deployment logs identify exact digests and outcomes.
 
-## 10. Configure staging and production HTTPS/Auth0
+## 10. Configure LAN-only HTTPS/Auth0
 
-1. Register/control the chosen domain and create separate names, for example `staging.guides.example.com` and `guides.example.com`. The names in this guide are placeholders.
-2. For Tunnel ingress, create a dedicated tunnel/connector on the NAS and route only the website hostname to the web container. Add a default reject route where applicable. Keep DSM/SSH and staging behind a VPN or restricted Access policy; do not publish a wildcard route to the NAS.
-3. Use Cloudflare HTTPS at the edge and the outbound tunnel to the origin. HTTP on the private connector-to-web hop is acceptable only within the controlled host/container network; use verified origin TLS if crossing an untrusted network. Do not enable TLS verification bypass to make certificates work.
-4. For direct DSM ingress instead, configure hostname-specific reverse proxy, a trusted renewable certificate, firewall rules and router TCP 443 only. Use correct origin TLS validation and remove alternate routes that could bypass the intended edge controls. Monitor certificate renewal.
+1. Choose one stable hostname, for example `guides.example.com` under a domain you control. Configure local DNS to resolve it to the NAS LAN address (currently `192.168.1.200`, subject to your reservation). The example domain is a placeholder. A registered domain does not require making the website publicly reachable; omit public A/AAAA records for the application.
+2. Provide a certificate trusted by every client. For an owned domain, DNS-based certificate validation can avoid opening inbound ports; confirm your certificate tooling supports your DNS provider and unattended renewal. Alternatively use an internal hostname and internal CA, install its trust root on every client, and verify that the exact HTTPS origin is accepted by your Auth0 configuration. Do not use an HTTP LAN IP or bypass certificate errors as a login workaround.
+3. Configure a hostname-specific DSM reverse proxy (or the reviewed web proxy) listening on HTTPS and forwarding to the web container. HTTP on a private proxy-to-web hop is acceptable within the controlled host/container network; use verified TLS across an untrusted network. Do not disable TLS verification. Restrict the listener with DSM/router firewall rules to the intended LAN subnet(s), and monitor certificate expiry/renewal.
+4. Keep router forwarding, UPnP mappings for this service, Cloudflare Tunnel and alternate public routes disabled. Review IPv6 firewall rules separately; lack of IPv4 forwarding alone does not establish LAN-only access. Guest Wi-Fi or other untrusted VLANs should not reach the site unless explicitly allowed. Internet access remains outbound only for registry pulls, authentication, updates and parser sources.
 5. Configure Auth0 for the exact HTTPS origin. With the current root redirect/logout code, production entries are:
 
    ```text
@@ -263,22 +266,22 @@ Do not use Watchtower-style unreviewed `latest` updates for this application/dat
    APP_ORIGIN:           https://guides.example.com
    ```
 
-   Add staging equivalents only to the intended client; retain local development entries only where needed. Use explicit URLs rather than broad wildcards. Preserve issuer/audience/account mapping; changing tenants changes account identity. Public SPA domain/client ID/audience belong in frontend configuration, while editor allowlists/DB credentials do not. [Auth0 Angular SDK](https://github.com/auth0/auth0-angular)
-6. Verify real Google login, browser refresh, new-tab session behavior, logout and access-denied states through the staging hostname. If using a new production Auth0 application/tenant or Google connection, validate its settings and production credentials separately; source changes do not configure the provider.
+   Use this LAN origin only; retain local development entries only where needed. Use explicit URLs rather than broad wildcards. Preserve issuer/audience/account mapping; changing tenants changes account identity. Public SPA domain/client ID/audience belong in frontend configuration, while editor allowlists/DB credentials do not. [Auth0 Angular SDK](https://github.com/auth0/auth0-angular)
+6. Verify real Google login, browser refresh, new-tab session behavior, logout and access-denied states through the production LAN hostname during the first maintenance deployment. Browsers redirect back to the LAN origin and must be on your network; Auth0/Google sign-in still requires internet access. If using a new Auth0 application/tenant or Google connection, validate its settings separately; source changes do not configure the provider.
 7. The origin validator requires the exact configured Origin for authenticated writes. Preserve it through proxies. Do not set `APP_ORIGIN` to `http://api:3001` or change it based on an untrusted forwarded header.
 8. API responses containing account/auth data must have no-store behavior at the app/proxy/edge. Bypass caching for `/api/*` initially, including errors. Cache only versioned static assets appropriately and avoid long caching of `index.html`; do not cache bearer-token traffic as public content.
-9. New public origins have separate browser localStorage. Export/import guest progress where desired before abandoning the localhost origin; account progress remains in MongoDB. Device-local reading positions and dashboard filters do not automatically migrate to another origin.
+9. The new LAN origin has separate browser localStorage. Export/import guest progress where desired before abandoning the localhost origin; account progress remains in MongoDB. Device-local reading positions and dashboard filters do not automatically migrate to another origin.
 
-**Exit gate:** private staging works through the final ingress path, exact Auth0 URLs succeed, private responses are not cached, and uploads/deep links work.
+**Exit gate:** allowed LAN clients trust HTTPS, exact Auth0 URLs succeed, private responses are not cached, and uploads/deep links work. The website remains unreachable from outside the allowed LAN.
 
-## 11. Complete the public-exposure security gate
+## 11. Complete the LAN deployment security gate
 
-"All security checks" is not a one-time guarantee. Use an explicit tested gate and ongoing patch/backup ownership. Mark the following complete with evidence before removing staging restrictions:
+LAN-only access still requires authentication, patching and recovery controls. Use an explicit tested gate and ongoing patch/backup ownership. Mark the following complete with evidence before opening general LAN access after the first deployment:
 
 | Area | Required configuration / verification |
 | --- | --- |
 | NAS administration | Current DSM/Container Manager security updates, administrator MFA, no default/shared admin use, reviewed DSM permissions; DSM/SSH reachable only through LAN/VPN/restricted access |
-| Network | Only the selected web ingress is public; MongoDB 27017/32768, middleware 3001, development 4200, Docker socket, SMB and DSM admin ports are unreachable from the internet; review IPv6 and UPnP exposure too |
+| Network | Web HTTPS is reachable only from allowed LAN subnet(s); no application ports are internet-facing. Keep MongoDB 27017/32768, middleware 3001, development 4200, Docker socket, SMB and DSM admin ports unreachable from the internet; remove unnecessary host port publications and review IPv6/UPnP too. Restrict any retained Compass access to trusted administrative devices. |
 | Auth0/API | Validate issuer, audience, signature, expiry and intended client; enforce editor role and account isolation on the server, not UI controls alone; wrong/expired tokens fail |
 | Proxy/client identity | The current limiter keys on `request.socket.remoteAddress`, which becomes a proxy/container address. Fix trusted-proxy client-IP handling or enforce a verified edge policy; strip spoofable headers and accept client IP only from the controlled proxy path. Do not blindly trust internet `X-Forwarded-For`. |
 | Rate/resource limits | Test login/auth, progress writes and image uploads; bound public expensive reads, request size/timeouts, containers and storage. Shared proxy IP must not cause all users to exhaust one quota. |
@@ -293,18 +296,18 @@ Do not use Watchtower-style unreviewed `latest` updates for this application/dat
 
 The middleware already sets nosniff/referrer headers and uses verified Auth0/editor checks. It does not currently provide all of the proxy, CSP, cache and deployment controls above. A WAF or passing unit suite does not supply those missing controls automatically.
 
-Run safe external checks from another network, such as a mobile connection: HTTPS/certificate chain, routes, authorization failures, public port exposure and response headers. Perform passive/staging DAST and permission tests without destructive production scans. Keep a deployment record of findings and fixes; do not declare the service secure solely from a scanner score.
+From an allowed LAN client, verify HTTPS/certificate trust, routes, authorization failures and response headers. From a mobile connection with Wi-Fi disabled, confirm the application is unreachable; also inspect router/DSM IPv4 and IPv6 firewall rules rather than relying on that single test. Run active/destructive DAST and permission regression tests only in disposable CI services. Use non-destructive live checks and designated test records on the NAS. Keep a deployment record of findings and fixes.
 
-## 12. First public release and routine operations
+## 12. First LAN release and routine operations
 
 1. Freeze writes, take a final database/assets backup, pause parser jobs and publish a maintenance notice if needed.
-2. Deploy one verified main release to staging, approve the first production promotion and run the same public-origin smoke checklist.
+2. Approve the first verified main release and deploy it directly into the single production project during maintenance mode. Run the LAN-origin smoke checklist before reopening traffic; no staging environment is involved.
 3. Confirm catalog IDs, game counts, multiple users' progress, editor writes, conflicts, uploads, deep links, real Auth0 login/logout and refresh persistence. Do not test account isolation with production credentials committed into a script.
-4. Open production ingress only after the security gate. Observe logs/resource use and confirm no direct-origin or database exposure remains.
+4. Open general access from allowed LAN subnet(s) only after the security gate. Observe logs/resource use and confirm the application, direct backend and database remain unreachable from the internet.
 5. Re-enable reviewed scheduled parser jobs one at a time with lock, timeout, failure status and freshness alerts. NAS timezone must not be mistaken for the game-server reset timezone.
 6. Keep automatic deployment eligible only for releases that passed the exact main-commit gates and provenance verification. Use an approval hold for migrations/security-sensitive changes until a stronger automated policy is demonstrated.
 7. Test rollback: route back to previous web/API digests only if the data schema remains compatible. If migration restoration is required, stop writers and restore the consistent DB/assets checkpoint deliberately; protect writes accepted after that checkpoint from silent loss.
-8. Maintain the normal flow: feature -> reviewed dev -> automated release PR -> protected main -> tested/scanned release -> verified NAS staging -> production promotion. Back-merge main into dev without generating releases for identical trees.
+8. Maintain the normal flow: feature -> reviewed dev -> automated release PR -> protected main -> tested/scanned release -> NAS verification and backup -> maintenance deployment -> live checks -> reopen LAN access. Back-merge main into dev without generating releases for identical trees.
 
 ## 13. Suggested implementation PRs and completion checklist
 
@@ -316,10 +319,10 @@ Run safe external checks from another network, such as a mobile connection: HTTP
 | 4 | Production web/API/parser packaging, proxy, bind/upload config | Exact images pass disposable container/browser tests; no secrets baked in |
 | 5 | Runtime security hardening and driver/server compatibility | Proxy, Origin, account isolation, headers, cache and upload tests pass |
 | 6 | Immutable image/provenance publishing and release-PR automation | Tested main SHA produces verifiable digests; no automation loops |
-| 7 | NAS Compose, secrets/volumes, pull deployment and rollback scripts | Isolated staging, backup/restore, restart persistence and failure-safe deployment demonstrated |
-| 8 | Domain/Tunnel or DSM ingress, Auth0 production URLs, security verification | HTTPS works externally; only intended services are exposed |
-| 9 | Controlled public launch, alerts and parser scheduling | Observed production health and tested rollback; documented operational owner |
+| 7 | NAS Compose, secrets/volumes, pull deployment, maintenance and rollback scripts | Backup/restore, restart persistence, disposable CI validation and failure-safe in-place deployment demonstrated |
+| 8 | Local DNS, LAN HTTPS reverse proxy, Auth0 URLs and firewall verification | HTTPS/login work on allowed LAN clients; outside-network access is blocked |
+| 9 | Controlled LAN launch, alerts and parser scheduling | Observed production health and tested rollback; documented operational owner |
 
-Keep external setup tasks tracked separately from Git changes: GitHub rulesets/App/CodeRabbit installation, GHCR permissions, DSM accounts/Tasks/volumes, domain/DNS/Tunnel and Auth0 settings are not applied by committing YAML or this document.
+Keep external setup tasks tracked separately from Git changes: GitHub rulesets/App/CodeRabbit installation, GHCR permissions, DSM accounts/Tasks/volumes, local DNS/certificate/firewall and Auth0 settings are not applied by committing YAML or this document.
 
-Completion means: dev/main reconciled; all required checks green; promotion and deployment gating verified; NAS hosts the exact released images and persistent state; internet access uses HTTPS and tested authorization/network boundaries; backup, monitoring and rollback work. This guide itself does not assert those tasks are complete.
+Completion means: dev/main reconciled; all required checks green; merge and deployment gating verified; one NAS production environment hosts the exact released images and persistent state; allowed LAN clients use trusted HTTPS and tested authorization, with internet ingress blocked; backup, monitoring and rollback work. This guide itself does not assert those tasks are complete.

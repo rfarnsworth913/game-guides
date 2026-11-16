@@ -1,5 +1,5 @@
 import { storyContentName } from "../../../../../../../../../common/quests/story-content-types";
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { GameImagePicker } from "../../../../../../shared/components/image-selector/game-image-picker";
@@ -23,6 +23,8 @@ import type { StoryTableRow } from "../../../../../../../../../lib/types/story-t
     styleUrl: "./patch-overview.scss",
 })
 export class PatchOverviewTemplate {
+    private readonly injector = inject(Injector);
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     readonly entry = input.required<Entry>();
     readonly editing = input(false);
     readonly incompleteOnly = input(false);
@@ -133,6 +135,14 @@ export class PatchOverviewTemplate {
             const next = rows.filter((row) => row !== source);
             next.splice(next.indexOf(target) + (this.rowDropAfter() ? 1 : 0), 0, source);
             this.data().rows = next;
+            afterNextRender(() => {
+                const card = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-story-editor-row]')]
+                    .find(element => element.dataset['storyEditorRow'] === source.id);
+                const handle = card?.querySelector<HTMLButtonElement>('.row-drag-handle');
+                if (!this.editing() || !card || !handle) {return;}
+                handle.focus({ preventScroll: true });
+                card.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+            }, { injector: this.injector });
         }
         this.endRowDrag();
     }

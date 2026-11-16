@@ -9,6 +9,7 @@ import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store
 import { emptyPatchOverview } from "../../../../../../../../common/quests/story-template";
 
 describe('Story incomplete filter', () => {
+    afterEach(() => vi.unstubAllGlobals());
     it('edits a navigation icon with the compact picker and renders uploaded icons after saving', async () => {
         const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt', icon: '*',
             notes: '', quantity: 0, target: 0, rarity: 1, category: '', members: [], requirements: [], completed: false, order: 0, day: '' };
@@ -181,7 +182,8 @@ describe('Story incomplete filter', () => {
         component.editor!.category = 'invalid';
         expect(component.validNewSubsection()).toBe(false);
     });
-    it('collapses content during reordering and saves only the current section order', async () => {
+    it.each([true, false])('centers a reordered section after expanding content (reduced motion: %s)', async reducedMotion => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: reducedMotion }));
         const section: Entry = { id: 'section', game: 'endfield', kind: 'story-category', name: 'Region',
             notes: '', quantity: 0, target: 0, rarity: 0, category: '', members: [], requirements: [],
             completed: false, order: 0, day: '' };
@@ -207,13 +209,35 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         expect(replace).not.toHaveBeenCalled();
         expect((fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.story-entry-body')!.hidden).toBe(false);
-        await fixture.componentInstance.reorderEntry(first.id, second.id, true);
+        const root = fixture.nativeElement as HTMLElement;
+        const movedHeader = root.querySelector<HTMLElement>('#story-content-first .story-section-header')!;
+        const movedHandle = movedHeader.querySelector<HTMLButtonElement>('.story-drag-handle')!;
+        movedHeader.scrollIntoView = vi.fn();
+        const focus = vi.spyOn(movedHandle, 'focus');
+        fixture.componentInstance.startReorder({ button: 0, pointerId: 2, preventDefault() {},
+            currentTarget: { setPointerCapture() {}, hasPointerCapture: () => false } } as unknown as PointerEvent, first);
+        fixture.componentInstance.dropId.set(second.id);
+        fixture.componentInstance.dropAfter.set(true);
+        fixture.detectChanges();
+        await fixture.componentInstance.finishReorder({ pointerId: 2 } as PointerEvent);
+        fixture.detectChanges();
+        await fixture.whenStable();
         expect(entries().find((entry) => entry.id === first.id)?.order).toBe(1);
         expect(entries().find((entry) => entry.id === second.id)?.order).toBe(0);
         expect(entries().find((entry) => entry.id === other.id)).toEqual(other);
+        expect(root.querySelectorAll('.story-subsections > article')[1]?.getAttribute('data-story-entry')).toBe(first.id);
+        expect(root.querySelector<HTMLElement>('.story-entry-body')!.hidden).toBe(false);
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(movedHeader.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+        vi.mocked(movedHeader.scrollIntoView).mockClear();
+        replace.mockResolvedValueOnce(false);
+        await fixture.componentInstance.reorderEntry(first.id, second.id, false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(movedHeader.scrollIntoView).not.toHaveBeenCalled();
         fixture.componentInstance.editMode.set(false);
         await fixture.componentInstance.reorderEntry(second.id, first.id, true);
-        expect(replace).toHaveBeenCalledTimes(1);
+        expect(replace).toHaveBeenCalledTimes(2);
     });
     it('requires confirmation before deleting a navigation section and lets the user cancel', async () => {
         const section: Entry = { id: 'section', game: 'endfield', kind: 'story-category', name: 'Valley IV',

@@ -5,6 +5,7 @@ import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from ".
 import { reworkMainQuestTemplate } from "../../../../../../../../../common/quests/main-quest";
 
 describe('Patch Overview grouped row editor', () => {
+    afterEach(() => vi.unstubAllGlobals());
     it.each(['main-story', 'side-stories'])('allows regular cutscene groups within %s without creating or promoting a parent quest', category => {
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save, saving: () => false, loading: () => false } }] });
@@ -64,7 +65,8 @@ describe('Patch Overview grouped row editor', () => {
         expect(data.rows.map(row => row.id).sort()).toEqual(['child', 'parent']);
         expect(save).not.toHaveBeenCalled();
     });
-    it('preserves collapsed drafts, inherits group patches and reorders rows without saving', () => {
+    it.each([true, false])('preserves drafts and centers reordered rows without saving (reduced motion: %s)', async reducedMotion => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: reducedMotion }));
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save } }] });
         const fixture = TestBed.createComponent(PatchOverviewTemplate);
@@ -88,13 +90,27 @@ describe('Patch Overview grouped row editor', () => {
         expect(first).toMatchObject({ notes: 'Long draft notes', notesRight: 'Split draft', patch: '1.2' });
         component.addRow('b');
         const other = component.data().rows[2];
-        component.draggingRow.set(second.id);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const movedCard = root.querySelector<HTMLElement>(`[data-story-editor-row="${second.id}"]`)!;
+        const handle = movedCard.querySelector<HTMLButtonElement>('.row-drag-handle')!;
+        movedCard.scrollIntoView = vi.fn();
+        const focus = vi.spyOn(handle, 'focus');
+        component.startRowDrag({ preventDefault() {} } as DragEvent, second);
         component.rowDropAfter.set(false);
         component.dropRow({ preventDefault() {} } as DragEvent, first);
+        fixture.detectChanges();
+        await fixture.whenStable();
         expect(component.rowsForGroup('a').map((row) => row.id)).toEqual([second.id, first.id]);
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(movedCard.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+        vi.mocked(movedCard.scrollIntoView).mockClear();
         component.draggingRow.set(first.id);
         component.dropRow({ preventDefault() {} } as DragEvent, other);
+        fixture.detectChanges();
+        await fixture.whenStable();
         expect(component.rowsForGroup('a').map((row) => row.id)).toEqual([second.id, first.id]);
+        expect(movedCard.scrollIntoView).not.toHaveBeenCalled();
         expect(save).not.toHaveBeenCalled();
     });
     it('filters completed rows and empty groups while keeping global notes and headings', () => {
