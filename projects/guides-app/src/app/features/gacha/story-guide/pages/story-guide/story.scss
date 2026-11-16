@@ -141,6 +141,11 @@
     overflow: hidden;
     border-inline-start: 3px solid var(--story-topic-accent);
 }
+.story-subsections .story-section.story-divider-section {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
 .story-section-header {
     padding: 18px 22px;
     flex-wrap: wrap;

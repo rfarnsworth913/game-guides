@@ -10,6 +10,62 @@ import { emptyPatchOverview } from "../../../../../../../../common/quests/story-
 
 describe('Story incomplete filter', () => {
     afterEach(() => vi.unstubAllGlobals());
+    it('creates, reorders and deletes an unnamed divider without tracking or navigating to it', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+        const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt',
+            notes: '', quantity: 0, target: 0, rarity: 1, category: '', members: [], requirements: [], completed: false, order: 0, day: '' };
+        const quest: Entry = { ...section, id: 'quest', kind: 'story', storySection: section.id, name: 'Prologue', category: 'main-story' };
+        const entries = signal([section, quest]);
+        const save = vi.fn(async (entry: Entry) => { entries.update(all => [...all.filter(item => item.id !== entry.id), entry]); return true; });
+        const replace = vi.fn(async (next: Entry[]) => { entries.set(next); return true; });
+        const remove = vi.fn(async (id: string) => { entries.update(all => all.filter(item => item.id !== id)); return true; });
+        TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
+            entries, initialized: signal(true), loading: signal(false), saving: signal(false), error: signal(''), save, replace, remove,
+        } }] });
+        vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+        const fixture = TestBed.createComponent(Story);
+        fixture.componentRef.setInput('game', 'genshin');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        const root = fixture.nativeElement as HTMLElement;
+        component.editMode.set(true);
+        component.open('story');
+        component.setTopic(component.editor!, 'divider');
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(root.querySelector('[name=title]')).toBeNull();
+        expect(root.querySelector('#story-editor-title')?.textContent).toContain('Create Divider');
+        expect(component.validNewSubsection()).toBe(true);
+        const id = component.editor!.id;
+        await component.save();
+        fixture.detectChanges();
+        expect(save).toHaveBeenCalledWith(expect.objectContaining({ id, name: '', category: 'divider', storySection: section.id }));
+        const divider = entries().find(entry => entry.id === id)!;
+        const header = root.querySelector<HTMLElement>('.story-divider-section .story-section-header')!;
+        header.scrollIntoView = vi.fn();
+        await component.reorderEntry(id, quest.id, false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.subsections()[0].id).toBe(id);
+        expect(header.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
+        expect(root.querySelector('.story-divider-section input[type=checkbox]')).toBeNull();
+        expect(root.querySelector('.story-divider-section .story-drag-handle')).not.toBeNull();
+        component.editMode.set(false);
+        fixture.detectChanges();
+        expect(root.querySelector('.story-divider-section [role=separator]')).not.toBeNull();
+        expect(root.querySelector('.story-divider-section .story-section-header')).toBeNull();
+        expect(component.outlineChapters().flatMap(chapter => [chapter.entry, ...chapter.children]).some(entry => entry?.id === id)).toBe(false);
+        expect(component.readableSubsections().map(entry => entry.id)).toEqual([quest.id]);
+        expect(component.contentDirectories().some(directory => directory.id === 'divider')).toBe(false);
+        component.incompleteOnly.set(true);
+        expect(component.showEntry(divider)).toBe(false);
+        component.editMode.set(true);
+        component.deleting = divider;
+        await component.remove();
+        expect(remove).toHaveBeenCalledWith(id);
+        expect(entries().map(entry => entry.id)).toEqual([section.id, quest.id]);
+    });
     it('edits a navigation icon with the compact picker and renders uploaded icons after saving', async () => {
         const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt', icon: '*',
             notes: '', quantity: 0, target: 0, rarity: 1, category: '', members: [], requirements: [], completed: false, order: 0, day: '' };

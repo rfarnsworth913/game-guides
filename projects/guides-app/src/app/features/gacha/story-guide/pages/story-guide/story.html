@@ -64,7 +64,7 @@
                 <div class="story-overview-identity">
                     @if (sectionImage(); as image) { <img [src]="image" alt="" class="story-overview-image" /> }
                     <div><h2>{{ section.name }}</h2>
-                        <p>{{ subsections().length }} subsections &middot; {{ progressCircles()[0].total }} tracked items</p>
+                        <p>{{ readableSubsections().length }} subsections &middot; {{ progressCircles()[0].total }} tracked items</p>
                     </div>
                 </div>
                 @let overall = progressCircles()[0];
@@ -231,6 +231,8 @@
                     <article
                         class="panel story-section"
                         [class.patch-overview-section]="hasTemplate(entry)"
+                        [class.story-divider-section]="isDivider(entry)"
+                        [attr.data-story-divider]="isDivider(entry) ? '' : null"
                         [id]="'story-content-' + entry.id"
                         tabindex="-1"
                         [attr.data-story-topic]="topic(entry).id"
@@ -245,7 +247,7 @@
                                 <div class="story-subsection-title">
                                     @if (editMode()) {
                                         <button type="button" class="story-drag-handle" [disabled]="busy()"
-                                            [attr.aria-label]="'Reorder ' + entry.name"
+                                            [attr.aria-label]="'Reorder ' + (entry.name || 'divider')"
                                             title="Drag to reorder, or use the Up and Down arrow keys"
                                             (pointerdown)="startReorder($event, entry)"
                                             (keydown)="reorderWithKeyboard($event, entry)">
@@ -269,7 +271,7 @@
                                         <span class="story-topic-label">{{
                                             topic(entry).title
                                         }}</span>
-                                        <h3>{{ entry.name }}</h3>
+                                        @if (!isDivider(entry)) { <h3>{{ entry.name }}</h3> }
                                     </div>
                                 </div>
                                 @if (editMode()) {
@@ -278,7 +280,7 @@
                                             type="button"
                                             [disabled]="busy()"
                                             (click)="open('story', entry)"
-                                            [attr.aria-label]="'Edit ' + entry.name"
+                                            [attr.aria-label]="'Edit ' + (entry.name || 'divider')"
                                         >
                                             Edit
                                         </button>
@@ -286,7 +288,7 @@
                                             type="button"
                                             [disabled]="busy()"
                                             (click)="deleting = entry"
-                                            [attr.aria-label]="'Delete ' + entry.name"
+                                            [attr.aria-label]="'Delete ' + (entry.name || 'divider')"
                                         >
                                             Delete
                                         </button>
@@ -296,7 +298,9 @@
                         }
                         <div class="story-entry-body" [hidden]="!!dragId()">
                         @if (showEntry(entry)) {
-                        @if (entry.category === 'character-information') {
+                        @if (isDivider(entry)) {
+                            <gg-story-divider />
+                        } @else if (entry.category === 'character-information') {
                             <gg-character-information [entry]="entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
                         } @else if (entry.category === 'lore') {
                         <gg-lore [entry]="entry" [editing]="editor === entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
@@ -305,7 +309,7 @@
                         } @else if (hasTemplate(entry)) {
                             <gg-patch-overview [entry]="entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
                         }
-                        @if (entry.notes) {
+                        @if (entry.notes && !isDivider(entry)) {
                             <p class="story-copy">{{ entry.notes }}</p>
                         }
                         }
@@ -358,7 +362,7 @@
         <section
             class="modal story-guide-dialog"
             [class.create-subsection-modal]="isNewSubsection()"
-            [class.patch-modal]="hasTemplate(entry) && !isNewSubsection()"
+            [class.patch-modal]="hasTemplate(entry) && !isDivider(entry) && !isNewSubsection()"
             role="dialog"
             aria-modal="true"
             aria-labelledby="story-editor-title"
@@ -422,6 +426,7 @@
                             }
                         </select></label
                     >
+                @if (!isDivider(entry)) {
                 <label
                     >Section Title<input
                         name="title"
@@ -430,7 +435,11 @@
                         maxlength="200"
                         placeholder="e.g. The Outlander Who Caught the Wind"
                 /></label>
-                    @if (!isNewSubsection()) {
+                } @else {
+                    <p class="story-create-description">A decorative section break. No title or completion tracking is needed.</p>
+                    <gg-story-divider />
+                }
+                    @if (!isNewSubsection() && !isDivider(entry)) {
                     @if (entry.category === 'character-information') {
                         <p>Use primary sections for characters or topics, secondary headings for groupings, and global notes for shared information. In reading mode this follows the preceding story or patch template.</p>
                         <gg-character-information [entry]="entry" [editing]="true" />
@@ -471,7 +480,7 @@
             (keydown.escape)="deleting = null"
         >
             <div class="story-dialog-header">
-                <h2 id="story-delete-title">Delete {{ entry.name }}?</h2>
+                <h2 id="story-delete-title">Delete {{ entry.name || 'divider' }}?</h2>
                 <button type="button" class="story-dialog-close" aria-label="Close delete dialog" [disabled]="busy()" (click)="deleting = null">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 6 12 12M18 6 6 18" /></svg>
                 </button>

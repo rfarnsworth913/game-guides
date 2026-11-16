@@ -312,6 +312,33 @@ try {
     assert.equal((await api('/api/games/genshin/images', playerToken, 'POST')).status, 403);
     console.log('PASS shared UI edits, browser upload, image persistence/download, and upload permission denial.');
 
+    await editor.click('gg-story .story-mode-toggle');
+    await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
+    await clickButton(editor, '+ Add subsection');
+    await editor.select('gg-story [role=dialog] select[name=topic]', 'divider');
+    await editor.waitForFunction(() => !document.querySelector('gg-story [role=dialog] input[name=title]'));
+    const createDivider = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await clickButton(editor, 'Create Subsection');
+    assert.equal((await createDivider).status(), 200);
+    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    const divider = (await repository.read('genshin')).entries.find(entry => entry.category === 'divider');
+    assert.ok(divider?.id);
+    assert.equal(divider.name, '');
+    const reorderDivider = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await editor.focus('gg-story .story-divider-section .story-drag-handle');
+    await editor.keyboard.press('ArrowUp');
+    assert.equal((await reorderDivider).status(), 200);
+    assert.equal((await repository.read('genshin')).entries.find(entry => entry.id === divider.id)?.order, 0);
+    await guest.reload({ waitUntil: 'networkidle0' });
+    await guest.waitForSelector('gg-story .story-divider-section [role=separator]');
+    assert.equal(await guest.$('gg-story .story-divider-section input[type=checkbox]'), null);
+    assert.equal(await guest.$('gg-story .story-divider-section .story-section-header'), null);
+    assert.equal(await guest.$(`gg-story .story-outline a[href="#story-content-${divider.id}"]`), null);
+    assert.equal(await guest.$eval('gg-story .story-overall-progress p', element => element.textContent?.trim()), '1 / 1 complete');
+    await guest.$eval('gg-story .story-divider-section', element => element.scrollIntoView({ block: 'center' }));
+    await (await guest.$('gg-story .story-divider-section'))!.screenshot({ path: join(artifacts, 'story-divider.png') });
+    console.log('PASS unnamed story divider creation, persisted ordering and decoration without completion or navigation entries.');
+
     // Simultaneous writers must produce exactly one commit and one conflict.
     const current = await repository.read('genshin');
     const conflicts = await Promise.all([update(editorToken, current.revision, current.entries), update(editorToken, current.revision, current.entries)]);

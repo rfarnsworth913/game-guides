@@ -3,6 +3,11 @@ import type { Entry } from '../../lib/types/workspace.type';
 import type { StoryTableRow } from '../../lib/types/story-template.type';
 import type { StoryContext } from '../../lib/types/story-context.type';
 
+/** Decorative entries retain ordering IDs but are never tracked as quests. */
+export function isStoryDivider(entry: Pick<Entry, 'kind' | 'category'>): boolean {
+    return entry.kind === 'story' && entry.category === 'divider';
+}
+
 export function validStoryContext(value: unknown): value is StoryContext | undefined {
     if (value === globalThis.undefined) {return true;}
     if (!value || typeof value !== 'object' || Array.isArray(value)) {return false;}

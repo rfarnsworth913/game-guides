@@ -1,5 +1,5 @@
 import { validPatchOverview, validRowCompletion } from '../quests/story-template';
-import { storyRowDone, storyTemplateFor } from '../quests/story-guide';
+import { isStoryDivider, storyRowDone, storyTemplateFor } from '../quests/story-guide';
 import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '../characters/characters';
 import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
 import { GAMES } from '../../lib/constants/workspace.constants';
@@ -110,7 +110,7 @@ export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
     return {
         ...entry,
         completed:
-            entry.kind === 'story' && template
+            isStoryDivider(entry) ? false : entry.kind === 'story' && template
                 ? quests!.length > 0 &&
                   quests!.every(
                       (row) => storyRowDone({ ...entry, ...player } as Entry, row),
@@ -211,7 +211,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
     if (entries.some((entry) => !Number.isSafeInteger(entry.order))) {
         return false;
     }
-    if (!validGameId(game) || !validEntries(entries, [game]) || entries.some((e) => e.game !== game || !e.id || !e.name.trim())) {
+    if (!validGameId(game) || !validEntries(entries, [game]) || entries.some((e) => e.game !== game || !e.id || (!isStoryDivider(e) && !e.name.trim()))) {
         return false;
     }
     const ids = new Map(entries.map((e) => [e.id, e]));

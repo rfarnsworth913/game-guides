@@ -4,6 +4,7 @@ import type { StoryContentType } from "@lib/types/story-content.type";
 /** Stable template IDs are stored in game documents; display names may vary by game. */
 export const STORY_CONTENT_TYPES = [
     { id: "character-information", title: "Character Information" },
+    { id: "divider", title: "Divider" },
     { id: "endgame-activity", title: "Endgame Activities" },
     { id: "events", title: "Events" },
     { id: "lore", title: "Lore" },

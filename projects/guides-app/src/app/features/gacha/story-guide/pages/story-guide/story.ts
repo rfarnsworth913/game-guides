@@ -10,10 +10,11 @@ import { NgTemplateOutlet } from '@angular/common';
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
 import { PatchOverviewTemplate } from "../../components/templates/patch-overview/patch-overview";
+import { StoryDividerTemplate } from "../../components/templates/divider/divider";
 import { WorldQuestsTemplate } from "../../components/templates/world-quests/world-quests";
 import { LoreTemplate } from "../../components/templates/lore/lore";
 import { storyProgress } from "../../utils/story-progress";
-import { storyTemplateFor } from "../../../../../../../../common/quests/story-guide";
+import { isStoryDivider, storyTemplateFor } from "../../../../../../../../common/quests/story-guide";
 import { reworkMainQuestTemplate } from "../../../../../../../../common/quests/main-quest";
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import { searchStoryGuides, StorySearchResult } from "../../utils/story-search";
@@ -21,7 +22,7 @@ import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, prepareP
 
 @Component({
     selector: 'gg-story',
-    imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, PatchOverviewTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
+    imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
     templateUrl: "./story.html",
     styleUrl: "./story.scss",
 })
@@ -39,7 +40,7 @@ export class Story {
     private rememberTarget(target: Element): void {
         if (this.editMode()) {return;}
         const entryId = target.closest<HTMLElement>('[data-story-entry]')?.dataset['storyEntry'];
-        if (entryId && this.subsections().some(entry => entry.id === entryId)) {
+        if (entryId && this.readableSubsections().some(entry => entry.id === entryId)) {
             this.positions.remember(this.game(), entryId, target.closest<HTMLElement>('[data-story-row]')?.dataset['storyRow']);
         }
     }
@@ -89,7 +90,7 @@ export class Story {
         this.dragPointer = event.pointerId;
         this.dragHandle.setPointerCapture(event.pointerId);
         this.dragId.set(entry.id);
-        this.reorderNotice.set(`Reordering ${entry.name}. Drop on a header to move it. Escape cancels.`);
+        this.reorderNotice.set(`Reordering ${entry.name || 'divider'}. Drop on a header to move it. Escape cancels.`);
     }
     @HostListener('document:pointermove', ['$event'])
     moveReorder(event: PointerEvent): void {
@@ -135,7 +136,7 @@ export class Story {
         siblings.splice(siblings.findIndex((entry) => entry.id === target) + (after ? 1 : 0), 0, moved);
         const updates = new Map(siblings.map((entry, order) => [entry.id, { ...entry, order }]));
         if (await this.store.replace(this.store.entries().map((entry) => updates.get(entry.id) ?? entry))) {
-            this.reorderNotice.set(`Moved ${moved.name} to position ${siblings.findIndex((entry) => entry.id === source) + 1}.`);
+            this.reorderNotice.set(`Moved ${moved.name || 'divider'} to position ${siblings.findIndex((entry) => entry.id === source) + 1}.`);
             afterNextRender(() => {
                 const section = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-story-entry]')]
                     .find(element => element.dataset['storyEntry'] === source);
@@ -159,12 +160,13 @@ export class Story {
     readonly editMode = signal(false);
     readonly incompleteOnly = signal(false);
     readonly showCategoryProgress = signal(false);
+    readonly isDivider = isStoryDivider;
     readonly sectionImage = computed(() => {
         const image = storyImageUrl(this.active()?.sectionImageUrl ?? '');
         if (image) {return image;}
         const icon = storyImageUrl(this.active()?.icon ?? '');
         if (icon) {return icon;}
-        for (const entry of this.subsections()) {
+        for (const entry of this.readableSubsections()) {
             const image = storyImageUrl((entry.patchOverview ?? entry.mainStory ?? entry.sideStories ?? entry.eventStory)?.imageUrl ?? '');
             if (image) {return image;}
         }
@@ -177,6 +179,7 @@ export class Story {
     readonly resetting = signal(false);
     confirmReset = false;
     showEntry(entry: Entry): boolean {
+        if (isStoryDivider(entry)) {return !this.incompleteOnly() || this.editMode();}
         if (!this.incompleteOnly() || this.editMode()) {return true;}
         const progress = storyProgress([entry]);
         return progress.completed < progress.total;
@@ -189,7 +192,7 @@ export class Story {
         } finally { this.resetting.set(false); }
     }
     readonly activeOutline = signal('');
-    readonly contentDirectories = computed(() => this.topics().filter(topic => topic.id !== 'main-story' && topic.id !== 'patch-overview')
+    readonly contentDirectories = computed(() => this.topics().filter(topic => !['main-story', 'patch-overview', 'divider'].includes(topic.id))
         .map(topic => ({ ...topic, entries: this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && entry.category === topic.id)
             .sort((a, b) => (storyTemplateFor(a)?.context?.region ?? '').localeCompare(storyTemplateFor(b)?.context?.region ?? '') || a.order - b.order || a.name.localeCompare(b.name)) }))
         .filter(directory => directory.entries.length));
@@ -201,7 +204,7 @@ export class Story {
     updateOutlineFromScroll(): void {
         const top = Math.max(0, this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0);
         const center = top + (window.innerHeight - top) / 2;
-        const selector = '[data-story-entry][id^="story-content-"]';
+        const selector = '[data-story-entry][id^="story-content-"]:not([data-story-divider])';
         const targets = [...this.host.nativeElement.querySelectorAll<HTMLElement>(selector)]
             .filter(target => target.getClientRects().length)
             .map(target => {
@@ -223,7 +226,7 @@ export class Story {
             (this.outlineCollapsed(id) && children.some(entry => this.activeOutline() === 'story-content-' + entry.id));
     }
     readonly outlineChapters = computed(() => {
-        const entries = this.subsections();
+        const entries = this.readableSubsections();
         const chapters: { entry: Entry | null; children: Entry[] }[] = [];
         for (const entry of entries) {
             if (['patch-overview', 'main-story'].includes(entry.category)) {chapters.push({ entry, children: [] });}
@@ -253,7 +256,7 @@ export class Story {
     }
     readonly encodeAnchor = (id: string) => '#' + encodeURIComponent(id);
     hasTemplate(entry: Entry): boolean {
-        return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity'].includes(entry.category);
+        return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity', 'divider'].includes(entry.category);
     }
     attachedQuests(entry: Entry): Entry[] {
         if (this.editMode() || !['main-story', 'side-stories', 'patch-overview', 'events'].includes(entry.category)) {return [];}
@@ -323,8 +326,9 @@ export class Story {
     readonly busy = computed(
         () => !this.store.initialized() || this.store.loading() || this.store.saving(),
     );
+    readonly readableSubsections = computed(() => this.subsections().filter(entry => !isStoryDivider(entry)));
     readonly progressCircles = computed(() => {
-        const entries = this.subsections();
+        const entries = this.readableSubsections();
         return [
             { id: 'overall', title: 'Overall', ...storyProgress(entries) },
             ...this.topics().filter((topic) => entries.some((entry) => entry.category === topic.id))
@@ -337,7 +341,7 @@ export class Story {
     }
     validNewSubsection(): boolean {
         const entry = this.editor;
-        return !!entry && !!entry.name.trim() && entry.name.length <= 200 &&
+        return !!entry && (isStoryDivider(entry) || (!!entry.name.trim() && entry.name.length <= 200)) &&
             this.topics().some((topic) => topic.id === entry.category) &&
             this.sections().some((section) => section.id === entry.storySection);
     }
@@ -356,7 +360,7 @@ export class Story {
         });
         inject(DestroyRef).onDestroy(() => { if (this.scrollFrame !== null) {cancelAnimationFrame(this.scrollFrame);} });
         effect(() => {
-            const entries = this.subsections();
+            const entries = this.readableSubsections();
             if (this.editMode() || this.fragment() || !entries.length) {return;}
             const game = this.game();
             const context = `${game}/${this.active()?.id ?? ''}`;
@@ -426,7 +430,7 @@ export class Story {
         }).catch(() => this.store.error.set('Could not navigate to this story section.'));
         this.selected.set(id);
         if (!this.editMode()) {
-            const first = this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && entry.storySection === id)
+            const first = this.store.entries().filter(entry => entry.game === this.game() && entry.kind === 'story' && !isStoryDivider(entry) && entry.storySection === id)
                 .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))[0];
             if (first) {this.positions.remember(this.game(), first.id);}
         }
@@ -447,6 +451,7 @@ export class Story {
     }
     editorTitle(entry: Entry): string {
         const existing = this.store.entries().some(saved => saved.id === entry.id);
+        if (isStoryDivider(entry)) {return existing ? 'Edit Divider' : 'Create Divider';}
         if (entry.kind === 'story-category') {
             return existing ? 'Edit Navigation Group' : 'Create Navigation Group';
         }
@@ -513,10 +518,10 @@ export class Story {
         const entry = this.editor;
         if (!entry || !this.editMode() || this.busy()) {return;}
         if (this.isNewSubsection() && !this.validNewSubsection()) {
-            this.error = 'Choose a content template and navigation category, and enter a section title.';
+            this.error = isStoryDivider(entry) ? 'Choose a navigation category for this divider.' : 'Choose a content template and navigation category, and enter a section title.';
             return;
         }
-        entry.name = entry.name.trim();
+        entry.name = isStoryDivider(entry) ? '' : entry.name.trim();
         entry.notes = entry.notes.trim();
         if (entry.icon !== globalThis.undefined) {entry.icon = entry.icon.trim();}
         if (entry.sectionImageUrl !== globalThis.undefined) {
@@ -538,7 +543,7 @@ export class Story {
                 'Check the content template: give each group a name, select uploaded images or use HTTP(S) image URLs, and use HTTP(S) source and content links.';
             return;
         }
-        if (!entry.name.trim() || !Number.isSafeInteger(entry.order) || entry.order < 0) {
+        if ((!isStoryDivider(entry) && !entry.name.trim()) || !Number.isSafeInteger(entry.order) || entry.order < 0) {
             this.error = 'Enter a title and a non-negative integer order.';
             return;
         }

@@ -1,14 +1,14 @@
 import { Entry } from "../../../../core/state/workspace.store";
 import { storyProgress, storyTemplate } from "./story-progress";
 import { StoryPosition } from "../state/story-position.store";
-import { storyRowDone } from "../../../../../../../common/quests/story-guide";
+import { isStoryDivider, storyRowDone } from "../../../../../../../common/quests/story-guide";
 
 function ordered(a: Entry, b: Entry): number { return a.order - b.order || a.name.localeCompare(b.name); }
 
 
 export function storyDashboard(entries: Entry[], game: string, position?: StoryPosition) {
     const sections = entries.filter(e => e.game === game && e.kind === 'story-category').sort(ordered);
-    const stories = sections.flatMap(section => entries.filter(e => e.game === game && e.kind === 'story' && e.storySection === section.id).sort(ordered));
+    const stories = sections.flatMap(section => entries.filter(e => e.game === game && e.kind === 'story' && !isStoryDivider(e) && e.storySection === section.id).sort(ordered));
     const progress = storyProgress(stories);
     const next = stories.find(entry => { const value = storyProgress([entry]); return value.completed < value.total; });
     const visited = stories.find(entry => entry.id === position?.entryId);

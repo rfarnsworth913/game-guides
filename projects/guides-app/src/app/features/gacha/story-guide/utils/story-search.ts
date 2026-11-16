@@ -1,6 +1,6 @@
 import { Entry } from "../../../../core/state/workspace.store";
 import { storyContentTypes } from "../../../../../../../common/quests/story-content-types";
-import { storyTemplateFor } from "../../../../../../../common/quests/story-guide";
+import { isStoryDivider, storyTemplateFor } from "../../../../../../../common/quests/story-guide";
 
 export type StorySearchResult = {
     id: string;
@@ -25,7 +25,7 @@ export function searchStoryGuides(entries: Entry[], game: string, query: string)
     for (const section of sections) {
         if (matches([section.name, section.notes])) {results.push({ id: section.id, title: section.name,
             context: 'Navigation Category', excerpt: section.notes, sectionId: section.id, target: 'story-section-content' });}
-        const content = entries.filter((entry) => entry.game === game && entry.kind === 'story' && entry.storySection === section.id)
+        const content = entries.filter((entry) => entry.game === game && entry.kind === 'story' && !isStoryDivider(entry) && entry.storySection === section.id)
             .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
         for (const entry of content) {
             const topic = topics.find((topic) => topic.id === entry.category)?.title ?? entry.category;

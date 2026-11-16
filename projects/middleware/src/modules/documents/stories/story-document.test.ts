@@ -28,6 +28,18 @@ const step: CatalogEntry = {
     notes: 'Follow the wind.',
 };
 
+await test('unnamed dividers keep their IDs and ordering through database round trips without relaxing quest titles', () => {
+    const divider: CatalogEntry = { ...step, id: 'break-1', category: 'divider', name: '', notes: '', order: 2 };
+    const next = { ...step, id: 'next-quest', order: 3 };
+    const catalog = [section, step, divider, next];
+    assert.ok(validCatalog(catalog, 'genshin'));
+    assert.deepEqual(decodeEntries(encodeEntries(catalog), 'genshin'), catalog);
+    assert.equal(validCatalog([section, { ...step, name: '' }], 'genshin'), false);
+    assert.equal(validCatalog([{ ...section, name: '' }, divider], 'genshin'), false);
+    assert.equal(validCatalog([section, { ...divider, id: step.id }, step], 'genshin'), false);
+    assert.equal(validCatalog([section, { ...divider, storySection: 'missing' }], 'genshin'), false);
+});
+
 await test('section overview images persist separately from navigation icons and can be cleared', () => {
     const withImage = { ...section, sectionImageUrl: '/api/games/genshin/images/mondstadt.png' };
     assert.ok(validCatalog([withImage, step], 'genshin'));

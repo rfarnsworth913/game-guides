@@ -20,6 +20,9 @@ describe('game-wide story search', () => {
         }
         expect(searchStoryGuides([section, info], 'endfield', ' FRIENDSHIP ')[0].target).toBe('story-row-info-operator');
     });
+    it('does not return decorative dividers, even if converted from a previously named template', () => {
+        expect(searchStoryGuides([section, { ...info, category: 'divider' }], 'endfield', 'operator')).toEqual([]);
+    });
     it('searches other navigation categories, limits results to the game and requires all search terms', () => {
         const foreignSection = { ...section, id: 'foreign', game: 'genshin' };
         const foreign = { ...event, game: 'genshin', id: 'foreign-event', storySection: foreignSection.id };

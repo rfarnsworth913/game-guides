@@ -13,6 +13,13 @@ const quest: Entry = { ...section, id: 'mission', name: 'First Mission', kind: '
     ] }, storyRowCompletion: { a: true } };
 
 describe('Dashboard story summaries', () => {
+    it('ignores dividers for completion and resume locations, including old saved divider positions', () => {
+        const divider: Entry = { ...quest, id: 'break', name: '', category: 'divider', order: -1, completed: true };
+        const result = storyDashboard([section, divider, quest], 'endfield', { entryId: divider.id, visitedAt: 123 });
+        expect(result).toMatchObject({ total: 2, completed: 1, resume: { id: quest.id }, lastLocation: '', action: 'Start guide' });
+        expect(storyDashboard([section, divider], 'endfield')).toMatchObject({ total: 0, completed: 0, action: 'Open guide' });
+        expect(storyDashboard([section, divider], 'endfield').resume).toBeUndefined();
+    });
     it('counts content rows, excludes headings/notes, and stays within the requested game', () => {
         const result = storyDashboard([section, quest, { ...quest, id: 'other-game', game: 'genshin' }], 'endfield');
         expect(result).toMatchObject({ total: 2, completed: 1, percent: 50, action: 'Start guide', row: { id: 'b' } });
