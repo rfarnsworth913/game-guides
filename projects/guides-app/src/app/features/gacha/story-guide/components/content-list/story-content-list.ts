@@ -1,3 +1,4 @@
+import { storyRequirementLinks } from '../../utils/story-requirement-links';
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { Entry } from "../../../../../core/state/workspace.store";
 import { MarkdownPipe } from "../../../../../shared/pipes/markdown/markdown";
@@ -17,6 +18,7 @@ import { PatchBadge } from "../../../shared/components/patch-badge/patch-badge";
     selector: 'gg-story-content-list',
     imports: [MarkdownPipe, NgTemplateOutlet, PatchBadge],
     templateUrl: "./story-content-list.html",
+    styleUrls: ['./patch-reading.scss', './patch-media.scss'],
 })
 export class StoryContentList {
     readonly entry = input.required<Entry>();
@@ -28,6 +30,7 @@ export class StoryContentList {
     readonly collapsed = signal<string[]>([]);
     readonly collapsedSections = signal<string[]>([]);
     readonly expandedNotes = signal<string[]>([]);
+    readonly patchOverview = computed(() => this.entry().category === 'patch-overview');
     readonly worldQuest = computed(() => this.entry().category === 'world-quests');
     readonly worldGroups = computed(() => worldQuestGroups(this.data()));
     readonly visibleWorldGroups = computed(() => this.worldGroups().filter(group => !this.incompleteOnly() || this.countDone(group.rows) < this.count(group.rows)));
@@ -54,6 +57,27 @@ export class StoryContentList {
             row.rowType === 'heading' || row.rowType === 'note' || !this.done(row),
         ) })).filter(group => group.rows.some(row => !row.rowType || row.rowType === 'quest'));
     });
+    private readonly mediaWords = /\b(trailers?|teasers?|media|music|eps?|soundtracks?|ost|videos?|cutscenes?|cinematics?|songs?|demos?|concerts?)\b/i;
+    mediaProvider(row: StoryTableRow): { name: string; kind: string } | null {
+        const value = httpUrl(row.contentUrl || row.content);
+        if (!value) {return null;}
+        const host = new URL(value).hostname.toLowerCase().replace(/^www\./, '');
+        if (['youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(host)) {return { name: 'YouTube', kind: 'youtube' };}
+        if (host === 'bilibili.com' || host.endsWith('.bilibili.com') || host === 'b23.tv') {return { name: 'Bilibili', kind: 'bilibili' };}
+        if (['vimeo.com', 'player.vimeo.com', 'twitch.tv', 'm.twitch.tv'].includes(host)) {return { name: host.includes('vimeo') ? 'Vimeo' : 'Twitch', kind: 'video' };}
+        return { name: host, kind: 'website' };
+    }
+    mediaGroup(group: ReturnType<typeof patchGroups>[number]): boolean {
+        if (/\bpatch\s*notes?\b/i.test(group.title)) {return false;}
+        const rows = group.rows.filter(row => !row.rowType || row.rowType === 'quest');
+        return this.mediaWords.test(group.title) || !!rows.length && rows.every(row => !!row.thumbnailUrl || !!row.duration || ['youtube', 'bilibili', 'video'].includes(this.mediaProvider(row)?.kind ?? ''));
+    }
+    groupIcon(group: ReturnType<typeof patchGroups>[number]): string {
+        return /\b(music|eps?|songs?|soundtracks?|ost)\b/i.test(group.title) ? 'music' : this.mediaGroup(group) ? 'play' : 'document';
+    }
+    mediaRow(row: StoryTableRow): boolean {
+        return this.patchOverview() && (!!row.thumbnailUrl || !!row.duration || ['youtube', 'bilibili', 'video'].includes(this.mediaProvider(row)?.kind ?? '') || this.groups().some(group => this.mediaGroup(group) && group.rows.some(item => item.id === row.id)));
+    }
     label(row?: StoryTableRow): string {
         const mode = storyTrackingMode(this.entry(), row);
         return mode === StoryTrackingMode.Recurring ? 'This cycle' : mode.charAt(0).toUpperCase() + mode.slice(1);
@@ -91,9 +115,8 @@ export class StoryContentList {
     contextNotes(context?: StoryContext) {
         return context?.requirements?.filter(item => !['prerequisite', 'unlock', 'time-gate'].includes(item.type)) ?? [];
     }
-    requirementTarget(id?: string): Entry | undefined {
-        return this.relatedEntries().find(entry => entry.game === this.entry().game && entry.id === id);
-    }
+    private readonly requirementLinks = computed(() => storyRequirementLinks(this.relatedEntries(), this.entry().game));
+    requirementTarget(id?: string) {return this.requirementLinks().find(link => link.id === id);}
     worldAnchor(row: StoryTableRow, groupId: string): string {
         const first = this.worldGroups().find(group => group.rows.some(item => item.id === row.id));
         return first?.id === groupId ? this.anchor(row) : `${this.anchor(row)}-membership-${groupId}`;

@@ -65,9 +65,7 @@ gg-story {
     .guide-row-body { flex: 1; min-width: 0; }
     .guide-row-title { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
     .guide-row-title a { color: var(--story-content-link); text-decoration: underline; text-underline-offset: 3px; }
-    .guide-row-done .guide-row-title > strong, .guide-row-done .guide-row-title > a { color: var(--guide-muted); }
-    .guide-subquest { padding-inline-start: 44px; }
-    .guide-row-heading { background: var(--guide-nested); border-inline-start: 2px solid var(--story-topic-accent); }
+    .guide-row-done .guide-row-title > strong, .guide-row-done .guide-row-title > a { color: var(--guide-muted); }    .guide-row-heading { background: var(--guide-nested); border-inline-start: 2px solid var(--story-topic-accent); }
     .guide-row-details { margin-top: 8px; color: var(--guide-muted); font-size: 13px; }
     .guide-row-details summary { cursor: pointer; font-size: 12px; width: fit-content; }
     .guide-row-details[open] > summary { margin-bottom: 12px; }
@@ -151,9 +149,7 @@ gg-story {
     gg-patch-overview .patch-table input[type='checkbox'] { accent-color: var(--guide-complete); }
     @media (max-width: 650px) {
         .guide-content-row { padding: 12px; gap: 10px; flex-wrap: wrap; }
-        .guide-row-body { flex-basis: calc(100% - 40px); }
-        .guide-subquest { padding-inline-start: 28px; }
-        .guide-split-notes, .guide-requirement-editor { grid-template-columns: minmax(0, 1fr); }
+        .guide-row-body { flex-basis: calc(100% - 40px); }        .guide-split-notes, .guide-requirement-editor { grid-template-columns: minmax(0, 1fr); }
     }
 }
 :root.theme-light gg-story, [data-theme='light'] gg-story {

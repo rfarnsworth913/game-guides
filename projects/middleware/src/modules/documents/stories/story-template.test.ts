@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Entry } from "../../../../../lib/types/workspace.type";
 import { fromCatalog, toCatalog, validCatalog, parseBackup } from "../../../../../common/workspace/workspace";
-import { validPatchOverview, patchGroups, preparePatchGroups } from "../../../../../common/quests/story-template";
+import { validPatchOverview, patchGroups, preparePatchGroups, trimPatchOverviewText } from "../../../../../common/quests/story-template";
 import { encodeEntries, decodeEntries } from "../game-document";
 
 const section: Entry = {
@@ -56,6 +56,28 @@ const patch: Entry = {
     },
     storyRowCompletion: { merged: true, split: false },
 };
+await test('optional media previews validate and roundtrip without changing existing rows or progress', () => {
+    const entry = structuredClone(patch);
+    const data = entry.patchOverview!;
+    data.rows[0] = { ...data.rows[0], thumbnailUrl: ' https://example.com/preview.webp ', duration: ' 02:36 ' };
+    trimPatchOverviewText(data);
+    assert.ok(validPatchOverview(data));
+    assert.equal(data.rows[0].duration, '02:36');
+    assert.equal(data.rows[0].thumbnailUrl, 'https://example.com/preview.webp');
+    const decoded = decodeEntries(encodeEntries([section, entry].map(toCatalog)), 'genshin').find(item => item.id === entry.id)!;
+    assert.deepEqual(decoded.patchOverview, data);
+    assert.deepEqual(entry.storyRowCompletion, patch.storyRowCompletion);
+    for (const duration of ['02:60', '-1:30', 'abc', '1:99:00']) {
+        assert.equal(validPatchOverview({ ...data, rows: [{ ...data.rows[0], duration }] }), false);
+    }
+    for (const thumbnailUrl of ['javascript' + ':alert(1)', 'data:image/svg+xml,test', '/untrusted/path.webp']) {
+        assert.equal(validPatchOverview({ ...data, rows: [{ ...data.rows[0], thumbnailUrl }] }), false);
+    }
+    for (const duration of ['', '12:30', '1:02:36']) {
+        assert.ok(validPatchOverview({ ...data, rows: [{ ...data.rows[0], duration }] }));
+    }
+    assert.ok(validPatchOverview(patch.patchOverview));
+});
 await test('patch template survives database round trips while row completion stays out of shared documents', () => {
     const catalog = [section, patch].map(toCatalog);
     assert.ok(validCatalog(catalog, 'genshin'));
@@ -83,11 +105,11 @@ await test('patch template survives database round trips while row completion st
 await test('template validation rejects unsafe URLs, duplicate row IDs and nested completion state', () => {
     assert.ok(validPatchOverview({ ...patch.patchOverview, imageUrl: '/api/games/genshin/images/header.png' }));
 // eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
-    assert.equal(validPatchOverview({ ...patch.patchOverview, versionImageUrl: 'javascript:alert(1)' }), false);
+    assert.equal(validPatchOverview({ ...patch.patchOverview, versionImageUrl: 'javascript' + ':alert(1)' }), false);
     assert.equal(validPatchOverview({ ...patch.patchOverview, imageUrl: '/api/games/genshin/images/../secret.png' }), false);
     assert.equal(
 // eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
-        validPatchOverview({ ...patch.patchOverview, imageUrl: 'javascript:alert(1)' }),
+        validPatchOverview({ ...patch.patchOverview, imageUrl: 'javascript' + ':alert(1)' }),
         false,
     );
     const row = patch.patchOverview!.rows[0];
@@ -125,7 +147,7 @@ await test('legacy content types become editable groups without changing row IDs
     overview.rows[0].contentUrl = 'https://example.com/trailer';
     assert.ok(validPatchOverview(overview));
 // eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
-    overview.rows[0].contentUrl = 'javascript:alert(1)';
+    overview.rows[0].contentUrl = 'javascript' + ':alert(1)';
     assert.equal(validPatchOverview(overview), false);
     overview.rows[0].contentUrl = '';
     overview.rows[0].groupId = 'missing';

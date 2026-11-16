@@ -1,0 +1,15 @@
+<div class="requirement-search">
+    <label>Link requirement (optional)
+        <input #searchInput type="search" role="combobox" autocomplete="off" placeholder="Search quest or content titles..." [value]="query()" [attr.aria-expanded]="open()" [attr.aria-controls]="listId" aria-autocomplete="list" [attr.aria-activedescendant]="open() && matches().length ? listId + '-' + active() : null" (focus)="open.set(true)" (input)="search($event)" (keydown)="keydown($event)" />
+    </label>
+    @if (value()) {
+        <div class="requirement-selected"><span>{{ selected()?.name || 'Previously linked content (unavailable)' }}</span><button type="button" (click)="clear()" aria-label="Remove linked requirement">Remove link</button></div>
+    }
+    @if (open()) {
+        <div class="requirement-options" role="listbox" [id]="listId" aria-label="Matching content">
+            @for (link of matches(); track link.id; let index = $index) {
+                <button type="button" role="option" [id]="listId + '-' + index" [attr.aria-selected]="value() === link.id" [class.active]="active() === index" (click)="choose(link)"><strong>{{ link.name }}</strong><small>{{ link.detail }}</small></button>
+            } @empty { <p role="status">No matching content in this game.</p> }
+        </div>
+    }
+</div>

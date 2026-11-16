@@ -235,7 +235,7 @@ describe('Story incomplete filter', () => {
         await fixture.whenStable();
         const modal = (fixture.nativeElement as HTMLElement).querySelector('.create-subsection-modal') as HTMLElement;
         expect(modal.querySelector('h2')?.textContent).toContain('Create Subsection');
-        expect([...modal.querySelectorAll('form > label')].map((label) => label.firstChild?.textContent?.trim())).toEqual(['Content Template', 'Navigation Category', 'Section Title']);
+        expect([...modal.querySelectorAll('form label')].map((label) => label.firstChild?.textContent?.trim())).toEqual(['Content Template', 'Navigation Category', 'Section Title']);
         expect(modal.querySelector('gg-patch-overview')).toBeNull();
         expect((modal.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
         component.editor!.name = '   ';

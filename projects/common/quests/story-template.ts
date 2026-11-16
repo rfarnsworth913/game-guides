@@ -11,6 +11,11 @@ export function httpUrl(value: string): string | null {
 }
 
 
+export function storyImageUrl(value: string): string | null {
+    return /^\/api\/games\/[a-z][a-z0-9-]*\/images\/[a-z0-9][a-z0-9-]*\.(png|jpg|webp|gif)$/.test(value)
+        ? value
+        : httpUrl(value);
+}
 export function validStoryTableRow(value: unknown): value is StoryTableRow {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {return false;}
     const row = value as StoryTableRow;
@@ -28,6 +33,8 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                         'notesRight',
                         'groupId',
                         'contentUrl',
+                        'thumbnailUrl',
+                        'duration',
                     ].includes(key),
                 ) &&
                 validStoryContext(row.context) &&
@@ -42,13 +49,15 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                 (row.contentUrl === globalThis.undefined ||
                     (typeof row.contentUrl === 'string' &&
                         (!row.contentUrl || !!httpUrl(row.contentUrl)))) &&
+                (row.thumbnailUrl === globalThis.undefined || (typeof row.thumbnailUrl === 'string' && row.thumbnailUrl.length <= 2048 && (!row.thumbnailUrl || !!storyImageUrl(row.thumbnailUrl)))) &&
+                (row.duration === globalThis.undefined || (typeof row.duration === 'string' && (!row.duration || /^(?:\d{1,3}:[0-5]\d|\d{1,3}:[0-5]\d:[0-5]\d)$/.test(row.duration)))) &&
                 (row.groupId === globalThis.undefined || typeof row.groupId === 'string')
     );
 }
 
 function trimStoryRow(row: StoryTableRow): void {
     trimStoryContext(row.context);
-    for (const key of ['contentType', 'content', 'contentUrl', 'patch', 'notes', 'notesRight'] as const) {
+    for (const key of ['contentType', 'content', 'contentUrl', 'thumbnailUrl', 'duration', 'patch', 'notes', 'notesRight'] as const) {
         const value = row[key];
         if (typeof value === 'string') {row[key] = value.trim();}
     }
@@ -116,11 +125,6 @@ export function preparePatchGroups(patch: PatchOverview): void {
     for (const group of groups) {
         if (group.id) {for (const row of group.rows) {row.groupId = group.id;}}
     }
-}
-export function storyImageUrl(value: string): string | null {
-    return /^\/api\/games\/[a-z][a-z0-9-]*\/images\/[a-z0-9][a-z0-9-]*\.(png|jpg|webp|gif)$/.test(value)
-        ? value
-        : httpUrl(value);
 }
 export function validRowCompletion(value: unknown): value is Record<string, boolean> | undefined {
     return (

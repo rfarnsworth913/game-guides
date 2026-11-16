@@ -25,7 +25,7 @@ import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, prepareP
     selector: 'gg-story',
     imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, StoryGuideHeader, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
     templateUrl: "./story.html",
-    styleUrls: ["./story.scss", "./story-navigation.scss"],
+    styleUrls: ["./story.scss", "./story-navigation.scss", "./story-editor-dialog.scss"],
     host: { '[style.--story-sticky-height]': "stickyHeight() + 'px'" },
 })
 export class Story {
@@ -493,6 +493,7 @@ export class Story {
             entry.patchOverview ??= emptyPatchOverview();
             preparePatchGroups(entry.patchOverview);
         }
+        if (this.editor === entry) {this.editor = { ...entry };}
     }
     async save(): Promise<void> {
         const entry = this.editor;
@@ -520,7 +521,7 @@ export class Story {
         if (entry.eventStory) {trimPatchOverviewText(entry.eventStory);}
         if (!validPatchOverview(entry.lore) || !validPatchOverview(entry.eventStory) || !validPatchOverview(entry.characterInformation) || !validPatchOverview(entry.sideStories) || !validPatchOverview(entry.worldQuests) || !validPatchOverview(entry.patchOverview) || !validPatchOverview(entry.mainStory)) {
             this.error =
-                'Check the content template: give each group a name, select uploaded images or use HTTP(S) image URLs, and use HTTP(S) source and content links.';
+                'Check the content template: give each group a name, select uploaded images or use HTTP(S) image URLs, use HTTP(S) source and content links, and enter media durations as minutes:seconds or hours:minutes:seconds.';
             return;
         }
         if ((!isStoryDivider(entry) && !entry.name.trim()) || !Number.isSafeInteger(entry.order) || entry.order < 0) {

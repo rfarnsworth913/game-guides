@@ -8,6 +8,8 @@ export type StoryTableRow = {
     rowType?: 'quest' | 'heading' | 'note';
     groupId?: string;
     contentUrl?: string;
+    thumbnailUrl?: string;
+    duration?: string;
     contentType: string;
     content: string;
     patch: string;

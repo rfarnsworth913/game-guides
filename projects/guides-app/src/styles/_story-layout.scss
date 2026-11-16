@@ -111,13 +111,6 @@ gg-patch-overview {
         .group-default-patch { flex: 0 0 120px; min-width: 0; }
         label { min-width: 0; }
     }
-    .group-overflow {
-        position: relative; flex-shrink: 0;
-        > summary { cursor: pointer; list-style: none; padding: 8px 12px; font-size: 24px; }
-        > summary::-webkit-details-marker { display: none; }
-        > div { position: absolute; right: 0; top: 100%; width: 160px; z-index: 4; padding: 8px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-secondary); box-shadow: 0 8px 24px #0004; }
-        button { display: block; width: 100%; text-align: left; margin-block: 4px; }
-    }
     .compact-row-card {
         border: 1px solid var(--color-border); border-radius: 10px; margin-top: 10px; background: var(--color-bg-primary);
         > summary { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; list-style: none; }
@@ -130,9 +123,7 @@ gg-patch-overview {
         .row-summary-text small { display: block; margin-top: 4px; }
         .row-drag-handle { cursor: grab; padding: 4px 8px; font-size: 20px; border-color: transparent; }
         .compact-row-fields { padding: 0 16px 16px; border-top: 1px solid var(--color-border); }
-        .row-link-patch { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 16px; }
-        .row-flags { display: flex; flex-wrap: wrap; gap: 16px; }
-        .multiline-toggle { border: 0; padding: 4px 0; font-size: 11px; color: var(--color-text-secondary); }
+        .row-link-patch { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 16px; }        .multiline-toggle { border: 0; padding: 4px 0; font-size: 11px; color: var(--color-text-secondary); }
         textarea { min-height: 56px; resize: vertical; }
         .patch-row-actions { justify-content: flex-start; padding-top: 14px; border-top: 1px solid var(--color-border); }
         .patch-row-actions .row-remove { margin-inline-start: auto; }

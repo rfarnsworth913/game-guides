@@ -57,7 +57,7 @@ describe('Patch Overview grouped row editor', () => {
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.textContent).toContain(label + ' Title');
         expect(root.textContent).toContain(label + ' Link');
-        expect(root.querySelector('.row-flags')?.textContent).not.toContain('Sub-quest');
+        expect(root.querySelector('.row-flags')).toBeNull();
         fixture.componentInstance.promoteMainQuest(child);
         expect(data.groups[0].mainQuest.id).toBe('child');
         expect(data.rows[0]).toMatchObject({ id: 'parent', notes: 'Original parent notes' });
@@ -173,16 +173,16 @@ describe('Patch Overview grouped row editor', () => {
         expect(editorText?.includes('Patch Details')).toBe(category === 'patch-overview');
         const groups = (fixture.nativeElement as HTMLElement).querySelectorAll('.patch-edit-group') as NodeListOf<HTMLElement>;
         expect(groups.length).toBe(2);
-        (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();
+        (groups[1].querySelector('.row-add-actions > button') as HTMLButtonElement).click();
         fixture.detectChanges();
         expect(data.rows[0].groupId).toBe('eps');
         expect(groups[0].querySelectorAll('.patch-row-editor').length).toBe(0);
         expect(groups[1].querySelectorAll('.patch-row-editor').length).toBe(1);
         const component = fixture.componentInstance;
         const first = data.rows[0];
-        (groups[0].querySelector('.patch-row-add button') as HTMLButtonElement).click();
+        (groups[0].querySelector('.row-add-actions > button') as HTMLButtonElement).click();
         fixture.detectChanges();
-        (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();
+        (groups[1].querySelector('.row-add-actions > button') as HTMLButtonElement).click();
         const last = data.rows[2];
         fixture.changeDetectorRef.markForCheck();
         fixture.detectChanges();

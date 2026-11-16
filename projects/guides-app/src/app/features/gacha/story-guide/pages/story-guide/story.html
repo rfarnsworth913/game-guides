@@ -248,6 +248,8 @@
                     <gg-game-image-picker [game]="entry.game" label="Region Header Background" [selectionOnly]="true"
                         [value]="entry.sectionImageUrl ?? ''" (valueChange)="entry.sectionImageUrl = $event" />
                 } @else {
+                    <ng-template #overviewFields>
+                    <div class="section-overview-identity">
                     <label
                         >Content Template<select
                             name="topic"
@@ -285,19 +287,14 @@
                     <p class="story-create-description">A decorative section break. No title or completion tracking is needed.</p>
                     <gg-story-divider />
                 }
-                    @if (!isNewSubsection() && !isDivider(entry)) {
-                    @if (entry.category === 'character-information') {
-                        <p>Use primary sections for characters or topics, secondary headings for groupings, and global notes for shared information. In reading mode this follows the preceding story or patch template.</p>
-                        <gg-character-information [entry]="entry" [editing]="true" />
-                    } @else if (entry.category === 'lore') {
-                        <gg-lore [entry]="entry" [editing]="editor === entry" [incompleteOnly]="incompleteOnly() && !editMode()" />
-                    } @else if (entry.category === 'world-quests') {
-                        <p>In reading mode, this template follows the preceding story or patch template in this navigation category. Drag its edit header to position it.</p>
-                        <gg-world-quests [entry]="entry" [editing]="true" />
-                    } @else if (hasTemplate(entry)) {
-                        <gg-patch-overview [entry]="entry" [editing]="true" />
+
+                    </div>
+                    </ng-template>
+                    @if (!isNewSubsection() && !isDivider(entry) && hasTemplate(entry)) {
+                        <gg-patch-overview [entry]="entry" [editing]="true" [overviewFields]="overviewFields" />
+                    } @else {
+                        <ng-container *ngTemplateOutlet="overviewFields" />
                     }
-                }
                 }
                 @if (error) {
                     <p class="error" role="alert">{{ error }}</p>
@@ -307,7 +304,7 @@
                         <button type="submit" class="primary" [disabled]="busy() || sectionForm.invalid || !validNewSubsection()">Create Subsection</button>
                         <button type="button" class="cancel-create" (click)="editor = null">Cancel</button>
                     } @else {
-                        <button type="submit" class="primary" [disabled]="busy()">Save changes</button>
+                        <button type="submit" class="primary" [disabled]="busy() || sectionForm.invalid">Save changes</button>
                         <button type="button" (click)="editor = null">Cancel</button>
                     }
                 </div>

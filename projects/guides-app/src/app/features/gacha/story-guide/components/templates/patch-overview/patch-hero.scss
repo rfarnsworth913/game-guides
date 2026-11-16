@@ -1,0 +1,38 @@
+.patch-overview-layout {
+    gap: 10px;
+    .patch-hero {
+        isolation: isolate;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-content: end;
+        column-gap: 24px;
+        padding: 32px;
+        min-height: 300px;
+        max-height: none;
+        aspect-ratio: 3.3 / 1;
+        border-radius: 14px;
+        border: 1px solid var(--guide-border, var(--color-border));
+        &::after { background: linear-gradient(90deg, rgba(4, 13, 20, .94), rgba(4, 13, 20, .65) 30%, rgba(4, 13, 20, .08) 70%); }
+    }
+    .patch-hero .patch-hero-copy {
+        display: contents;
+        color: white;
+        h3 { grid-column: 1; font-size: clamp(28px, 3.4vw, 48px); line-height: 1.12; margin: 14px 0 8px; text-wrap: balance; }
+    }
+    .patch-game-name { grid-column: 1 / -1; font-size: 12px; letter-spacing: .24em; line-height: 1.5; }
+    .patch-hero-meta { grid-column: 1; grid-row: 3; align-self: end; display: flex; align-items: center; flex-wrap: wrap; gap: 14px; font-size: 16px; }
+    .patch-version { background: var(--color-primary, #f5a66b); color: var(--color-on-primary, #10131a); font-weight: 750; border-radius: 7px; padding: 6px 12px; }
+    .patch-meta-divider { width: 1px; height: 22px; background: rgba(255, 255, 255, .6); }
+    .patch-hero-rule { grid-column: 1 / -1; grid-row: 4; width: 64px; height: 2px; margin-top: 18px; background: var(--color-primary, #f5a66b); }
+    .patch-banner-release { position: static; grid-column: 2; grid-row: 2 / 4; align-self: end; padding: 12px 16px; border-radius: 12px; color: white; background: rgba(8, 20, 32, .9); border: 1px solid rgba(160, 185, 210, .25); svg { width: 26px; height: 26px; } }
+    .patch-source { margin: 0; }
+    @media (max-width: 700px) {
+        .patch-hero { aspect-ratio: auto; min-height: 340px; padding: 24px 20px; column-gap: 12px; }
+        .patch-hero .patch-hero-copy h3 { grid-column: 1 / -1; font-size: 30px; }
+        .patch-banner-release { grid-row: 3; }
+        .patch-banner-release { padding: 10px 12px; }
+        .patch-hero-meta { font-size: 14px; flex-direction: column; align-items: flex-start; gap: 8px; }
+        .patch-version { order: 1; }
+        .patch-meta-divider { display: none; }
+    }
+}

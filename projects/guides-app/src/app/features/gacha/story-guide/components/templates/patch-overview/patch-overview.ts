@@ -1,10 +1,12 @@
 import { storyContentName } from "../../../../../../../../../common/quests/story-content-types";
-import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, signal } from '@angular/core';
+import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, signal, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { GameImagePicker } from "../../../../../../shared/components/image-selector/game-image-picker";
 import { Entry, WorkspaceStore, GAMES } from "../../../../../../core/state/workspace.store";
 import { StoryContentList } from "../../content-list/story-content-list";
+import { storyRequirementLinks } from '../../../utils/story-requirement-links';
+import { StorySubtypeEditor } from '../../context-editor/story-subtype-editor';
 import { StoryContextEditor } from "../../context-editor/story-context-editor";
 import { MarkdownPipe } from "../../../../../../shared/pipes/markdown/markdown";
 import { worldQuestPrerequisites } from "../../../../../../../../../common/quests/world-quest";
@@ -18,22 +20,36 @@ import type { StoryTableRow } from "../../../../../../../../../lib/types/story-t
 
 @Component({
     selector: 'gg-patch-overview',
-    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, MarkdownPipe, PatchBadge],
+    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, StorySubtypeEditor, MarkdownPipe, PatchBadge],
     templateUrl: "./patch-overview.html",
-    styleUrl: "./patch-overview.scss",
+    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss"],
 })
 export class PatchOverviewTemplate {
     private readonly injector = inject(Injector);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     readonly entry = input.required<Entry>();
     readonly editing = input(false);
+    readonly overviewFields = input<TemplateRef<unknown> | null>(null);
+    readonly editorSelection = signal<string | null>(null);
+    readonly templateDetailsOpen = signal(false);
+    readonly draggingGroup = signal('');
+    readonly groupDropTarget = signal('');
+    readonly groupDropAfter = signal(false);
+    readonly groupAnnouncement = signal('');
+    readonly patchListId = 'editor-patch-versions-' + crypto.randomUUID();
     readonly incompleteOnly = input(false);
     readonly store = inject(WorkspaceStore);
     readonly completionError = signal('');
     readonly groupedTemplate = computed(() => ['world-quests', 'lore', 'character-information'].includes(this.entry().category));
     readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events', 'endgame-activity'].includes(this.entry().category));
-    readonly data = computed(() => storyTemplateFor(this.entry()) ?? emptyPatchOverview());
+    readonly data = computed(() => {
+        const data = storyTemplateFor(this.entry()) ?? emptyPatchOverview();
+        if (this.editing()) {preparePatchGroups(data);}
+        return data;
+    });
     readonly relatedEntries = computed(() => this.store.entries?.() ?? []);
+    private readonly requirementLinks = computed(() => storyRequirementLinks(this.relatedEntries(), this.entry().game));
+    requirementTarget(id?: string) {return this.requirementLinks().find(link => link.id === id);}
     readonly done = (row: StoryTableRow) => storyRowDone(this.entry(), row);
     readonly canTrack = (row: StoryTableRow) => storyCompletionKey(this.entry(), row) !== null;
     editorContext(): StoryContext { const data = this.data(); data.context ??= {}; return data.context; }
@@ -101,6 +117,18 @@ export class PatchOverviewTemplate {
     rowTitle(row: StoryTableRow): string {
         return (row.rowType === 'note' ? row.notes : row.content).trim().split('\n')[0] ||
             (row.rowType === 'heading' ? 'New heading' : row.rowType === 'note' ? 'Global notes' : 'Untitled content');
+    }
+    rowKind(row: StoryTableRow): string {
+        return row.rowType === 'heading' ? 'Heading' : row.rowType === 'note' ? 'Note' : httpUrl(row.contentUrl || row.content) ? 'Link' : 'Text';
+    }
+    availablePatches(): string[] {
+        const templates = [this.data(), ...this.relatedEntries().filter(entry => entry.game === this.entry().game).map(entry => storyTemplateFor(entry)).filter(template => !!template)];
+        return [...new Set(templates.flatMap(template => [template.patchVersion ?? '', ...template.groups?.map(group => group.defaultPatch ?? '') ?? [], ...template.rows.map(row => row.patch)]).map(version => version.trim()).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, globalThis.undefined, { numeric: true }));
+    }
+    closeRowMenu(event: FocusEvent): void {
+        const menu = event.currentTarget as HTMLDetailsElement;
+        if (!(event.relatedTarget instanceof Node) || !menu.contains(event.relatedTarget)) {menu.open = false;}
     }
     toggleRow(event: Event, id: string): void {
         event.preventDefault();
@@ -179,6 +207,7 @@ export class PatchOverviewTemplate {
         const group: StoryGroup = { id: crypto.randomUUID(), title: narrative && groupType === 'quest' ? 'New ' + this.questEditorLabel().toLowerCase() : 'New group', ...(narrative ? { groupType } : {}) };
         if (this.isQuestGroup(group)) {this.ensureMainQuest(group);}
         this.data().groups!.push(group);
+        this.selectEditorPanel(group.id);
     }
     removeGroup(id: string): void {
         preparePatchGroups(this.data());
@@ -186,12 +215,77 @@ export class PatchOverviewTemplate {
         if (parent) {this.data().rows.push(parent);}
         this.data().groups = this.data().groups!.filter((group) => group.id !== id);
         for (const row of this.data().rows) {if (row.groupId === id) {delete row.groupId;}}
+        if (this.editorSelection() === id) {this.selectEditorPanel(this.rowsForGroup('').length ? '' : this.data().groups?.[0]?.id ?? null);}
     }
     moveGroup(index: number, direction: number): void {
         const groups = this.data().groups ?? [];
         const target = index + direction;
         if (target < 0 || target >= groups.length) {return;}
         [groups[index], groups[target]] = [groups[target], groups[index]];
+        this.groupAnnouncement.set(`${groups[target].title} moved to position ${target + 1} of ${groups.length}.`);
+    }
+    editorPanelTitle(): string {
+        if (this.templateDetailsOpen()) {return 'Template Details';}
+        const selected = this.editorSelection();
+        return selected === null ? 'Overview' : selected === '' ? 'Ungrouped content'
+            : this.data().groups?.find(group => group.id === selected)?.title || 'Content group';
+    }
+    selectEditorPanel(id: string | null): void {
+        this.templateDetailsOpen.set(false);
+        this.editorSelection.set(id);
+        afterNextRender(() => {
+            const pane = this.host.nativeElement.querySelector<HTMLElement>('.section-editor-main');
+            if (pane) {pane.scrollTop = 0;}
+        }, { injector: this.injector });
+    }
+    selectTemplateDetails(): void {
+        this.selectEditorPanel(null);
+        this.templateDetailsOpen.set(true);
+    }
+    startGroupDrag(event: DragEvent, group: StoryGroup): void {
+        if (!this.editing()) {event.preventDefault(); return;}
+        this.endRowDrag();
+        this.draggingGroup.set(group.id);
+        event.dataTransfer?.setData('application/x-story-group', group.id);
+        if (event.dataTransfer) {event.dataTransfer.effectAllowed = 'move';}
+    }
+    allowGroupDrop(event: DragEvent, group: StoryGroup): void {
+        if (!this.draggingGroup() || this.draggingGroup() === group.id) {return;}
+        event.preventDefault();
+        if (event.dataTransfer) {event.dataTransfer.dropEffect = 'move';}
+        const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        this.groupDropTarget.set(group.id);
+        this.groupDropAfter.set(event.clientY > bounds.top + bounds.height / 2);
+    }
+    dropGroup(event: DragEvent, target: StoryGroup): void {
+        event.preventDefault();
+        const groups = this.data().groups ?? [];
+        const source = groups.find(group => group.id === this.draggingGroup());
+        if (this.editing() && source && source !== target && groups.includes(target)) {
+            const next = groups.filter(group => group !== source);
+            next.splice(next.indexOf(target) + (this.groupDropAfter() ? 1 : 0), 0, source);
+            this.data().groups = next;
+            this.selectEditorPanel(source.id);
+            this.groupAnnouncement.set(`${source.title} moved to position ${next.indexOf(source) + 1} of ${next.length}.`);
+            this.focusGroup(source.id);
+        }
+        this.endGroupDrag();
+    }
+    endGroupDrag(): void {this.draggingGroup.set(''); this.groupDropTarget.set('');}
+    groupKeydown(event: KeyboardEvent, index: number): void {
+        if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key)) {return;}
+        event.preventDefault();
+        const id = this.data().groups?.[index]?.id;
+        this.moveGroup(index, event.key === 'ArrowUp' ? -1 : 1);
+        if (id) {this.selectEditorPanel(id); this.focusGroup(id);}
+    }
+    private focusGroup(id: string): void {
+        afterNextRender(() => {
+            const button = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-editor-group]')]
+                .find(element => element.dataset['editorGroup'] === id)?.querySelector<HTMLButtonElement>('.editor-group-link');
+            button?.focus({ preventScroll: true });
+            button?.scrollIntoView?.({ block: 'center', behavior: 'instant' });
+        }, { injector: this.injector });
     }
     rowsForGroup(id: string): StoryTableRow[] {
         return this.data().rows.filter((row) => (row.groupId ?? '') === id);
@@ -215,13 +309,6 @@ export class PatchOverviewTemplate {
             if (group.objectiveIds) {
                 group.objectiveIds = group.objectiveIds.filter(objectiveId => objectiveId !== id);
             }
-        }
-    }
-    splitNotes(row: StoryTableRow, split: boolean): void {
-        if (split) {row.notesRight = '';}
-        else {
-            row.notes = [row.notes, row.notesRight].filter(Boolean).join('\n');
-            delete row.notesRight;
         }
     }
     moveRow(index: number, direction: number): void {

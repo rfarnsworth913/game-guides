@@ -220,7 +220,7 @@ try {
     const entries: CatalogEntry[] = [
         { ...baseEntry, id: 'e2e-section', kind: 'story-category', name: 'E2E Chapter' },
         { ...baseEntry, id: 'e2e-quest', kind: 'story', name: 'E2E Main Quest', category: 'main-story', storySection: 'e2e-section',
-            mainStory: { ...emptyPatchOverview(), groups: [{ id: 'quest-group', title: 'E2E Quest Group' }], rows: [
+            mainStory: { ...emptyPatchOverview(), context: { region: 'Original region', area: 'Original area', chain: 'Original chain', chapter: 'Original act', cycleId: 'original-cycle', resetSchedule: 'Weekly' }, groups: [{ id: 'quest-group', title: 'E2E Quest Group' }], rows: [
                 { id: 'e2e-row', groupId: 'quest-group', content: 'E2E Objective', contentUrl: 'https://example.invalid/quest', contentType: '', patch: '1.0', notes: 'E2E notes' },
             ] } },
     ];
@@ -280,6 +280,99 @@ try {
     await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
     await clickButton(editor, 'Edit');
     await editor.waitForSelector('gg-story [role=dialog] input[name=title]');
+    const workspace = 'gg-story [role=dialog] .section-editor-workspace';
+    const editorLayout = await editor.$eval(workspace, element => {
+        const sidebar = element.querySelector('.section-editor-sidebar')!.getBoundingClientRect();
+        const pane = element.querySelector('.section-editor-main')!.getBoundingClientRect();
+        const dialog = element.closest('[role=dialog]')!.getBoundingClientRect();
+        return { sidebarLeft: sidebar.left, sidebarRight: sidebar.right, paneLeft: pane.left, paneWidth: pane.width, dialogLeft: dialog.left };
+    });
+    assert.ok(editorLayout.sidebarLeft >= editorLayout.dialogLeft && editorLayout.paneLeft >= editorLayout.sidebarRight - 1 && editorLayout.paneWidth > 400, 'Editor panes must stay inside the dialog and use separate columns.');
+    const beforeGroupEdits = await repository.read('genshin');
+    await editor.click(`${workspace} [data-editor-group="quest-group"] .editor-group-link`);
+    const rowEditor = `${workspace} [data-story-editor-row="e2e-row"]`;
+    await editor.click(`${rowEditor} [aria-label="Edit E2E Objective"]`);
+    await editor.waitForSelector(`${rowEditor} .compact-row-fields`, { visible: true });
+    assert.equal(await editor.$$eval(`${rowEditor} .context-panel-toggle`, buttons => buttons.every(button => button.getAttribute('aria-expanded') === 'false')), true);
+    await editor.click(`${rowEditor} .context-panel-toggle`);
+    await editor.waitForSelector(`${rowEditor} .context-panel-body.expanded`);
+    await editor.$eval(`${workspace} .section-editor-main`, element => { element.scrollTop = 0; });
+    await editor.screenshot({ path: join(artifacts, 'content-group-details-desktop.png') });
+    await editor.setViewport({ width: 390, height: 844 });
+    assert.equal(await editor.$eval(`${workspace} .section-editor-main`, element => element.scrollWidth <= element.clientWidth), true, 'Expanded row must fit the mobile editor.');
+    await editor.screenshot({ path: join(artifacts, 'content-group-details-mobile.png') });
+    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.click(`${workspace} .editor-overview-link`);
+    await editor.click(`${workspace} .editor-add-group`);
+    await editor.waitForSelector(`${workspace} .patch-edit-group:not([hidden]) input[name^=groupTitle-]`);
+    await editor.$eval(`${workspace} .patch-edit-group:not([hidden]) input[name^=groupTitle-]`, element => {
+        const input = element as HTMLInputElement; input.value = 'E2E Related Media'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Related Media'), {}, `${workspace} .editor-group-list`);
+    await editor.$eval(workspace, element => {
+        const groups = [...element.querySelectorAll<HTMLElement>('[data-editor-group]')];
+        const source = groups.at(-1)!;
+        const target = groups[0];
+        const transfer = new DataTransfer();
+        source.querySelector('.editor-group-handle')!.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: transfer }));
+        const bounds = target.getBoundingClientRect();
+        target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer, clientY: bounds.top + 2 }));
+        target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer, clientY: bounds.top + 2 }));
+    });
+    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Related Media'), {}, `${workspace} .editor-group-link`);
+    assert.equal((await repository.read('genshin')).revision, beforeGroupEdits.revision, 'Group edits must remain drafts until Save.');
+    await editor.screenshot({ path: join(artifacts, 'section-editor-group-desktop.png') });
+    await editor.setViewport({ width: 390, height: 844 });
+    assert.equal(await editor.$eval('gg-story [role=dialog]', element => element.getBoundingClientRect().width <= innerWidth), true);
+    assert.equal(await editor.$eval(`${workspace} .section-editor-main`, element => element.scrollWidth <= element.clientWidth), true);
+    await editor.screenshot({ path: join(artifacts, 'section-editor-mobile.png') });
+    await editor.setViewport({ width: 1440, height: 1000 });
+    await clickButton(editor, 'Cancel');
+    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    assert.deepEqual((await repository.read('genshin')).entries, beforeGroupEdits.entries, 'Cancel must discard group additions and ordering.');
+    await clickButton(editor, 'Edit');
+    await editor.waitForSelector(`${workspace} .editor-overview-link`);
+    assert.equal(await editor.$$eval(`${workspace} [data-editor-group]`, elements => elements.length), 1);
+    await editor.click(`${workspace} .editor-add-group`);
+    await editor.waitForSelector(`${workspace} .patch-edit-group:not([hidden]) input[name^=groupTitle-]`);
+    await editor.$eval(`${workspace} .patch-edit-group:not([hidden]) input[name^=groupTitle-]`, element => {
+        const input = element as HTMLInputElement; input.value = 'E2E Saved Media'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await editor.focus(`${workspace} .editor-group-item.selected .editor-group-link`);
+    await editor.keyboard.down('Alt'); await editor.keyboard.press('ArrowUp'); await editor.keyboard.up('Alt');
+    await editor.click(`${workspace} .editor-overview-link`);
+    await editor.screenshot({ path: join(artifacts, 'section-editor-overview.png') });
+    await editor.click(`${workspace} .editor-template-details-link`);
+    const guideContext = 'gg-story [role=dialog] .section-editor-template-details > gg-story-context-editor';
+    const contextLabels = await editor.$$eval(`${guideContext} label`, labels => labels.map(label => label.textContent ?? '').join('\n'));
+    assert.ok(!/Tracking mode|Current cycle ID|Reset schedule|Chapter \/ act|Quest chain|Region|Area/.test(contextLabels));
+    await editor.$eval(guideContext, element => {
+        const button = [...element.querySelectorAll('button')].find(button => button.textContent?.trim() === '+ Add requirement');
+        if (!button) throw new Error('Add requirement control is missing.');
+        button.click();
+    });
+    await editor.click(`${guideContext} .requirement-link-options summary`);
+    await editor.waitForSelector(`${guideContext} gg-requirement-picker input`, { visible: true });
+    await editor.type(`${guideContext} gg-requirement-picker input`, 'objective');
+    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Objective'), {}, `${guideContext} [role=listbox]`);
+    await editor.locator(`${guideContext} [role=option]`).click();
+    await editor.waitForSelector(`${guideContext} .requirement-selected`);
+    assert.match(await editor.$eval(`${guideContext} .requirement-selected`, element => element.textContent ?? ''), /E2E Objective/);
+    assert.equal(await editor.$(`${guideContext} [role=listbox]`), null);
+    await editor.$eval(guideContext, element => {
+        const button = [...element.querySelectorAll('button')].find(button => button.textContent?.trim() === '+ Add requirement');
+        if (!button) throw new Error('Add requirement control is missing.');
+        button.click();
+    });
+    await editor.waitForFunction((selector: string) => document.querySelectorAll(selector).length === 2, {}, `${guideContext} .guide-requirement-editor`);
+    await editor.$$eval(`${guideContext} .guide-requirement-editor textarea`, elements => {
+        const input = elements.at(-1) as HTMLTextAreaElement;
+        input.value = 'Reach Adventure Rank 25'; input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.scrollIntoView({ block: 'center' });
+    });
+    assert.equal(await editor.$eval(`${guideContext} .guide-requirement-editor:last-of-type .requirement-link-options`, element => (element as HTMLDetailsElement).open), false);
+    await editor.screenshot({ path: join(artifacts, 'section-editor-requirements.png') });
+    await editor.click(`${workspace} .editor-overview-link:not(.editor-template-details-link)`);
     await editor.$eval('gg-story [role=dialog] input[name=title]', element => {
         const input = element as HTMLInputElement;
         input.value = 'E2E Edited Quest';
@@ -289,6 +382,7 @@ try {
     const { writeFile } = await import('node:fs/promises');
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aHHsAAAAASUVORK5CYII=', 'base64');
     await writeFile(imagePath, png);
+    await editor.click(`${workspace} .editor-template-details-link`);
     const upload = editor.waitForResponse(response => /\/api\/games\/genshin\/images/.test(response.url()) && response.request().method() === 'POST');
     const fileInput = await editor.$('gg-story [role=dialog] gg-game-image-picker input[type=file]');
     assert.ok(fileInput);
@@ -310,8 +404,23 @@ try {
     await editor.reload({ waitUntil: 'networkidle0' });
     await checked(editor, true);
     assert.equal((await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.imageUrl, image.url);
+    const savedContext = (await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.context;
+    assert.equal(savedContext?.requirements?.[0].targetId, 'quest:e2e-quest:e2e-row');
+    assert.equal(savedContext?.requirements?.[1].text, 'Reach Adventure Rank 25');
+    assert.equal(savedContext?.requirements?.[1].targetId, globalThis.undefined);
+    assert.equal(savedContext?.region, 'Original region');
+    assert.equal(savedContext?.area, 'Original area');
+    assert.equal(savedContext?.chain, 'Original chain');
+    assert.equal(savedContext?.chapter, 'Original act');
+    assert.equal(savedContext?.cycleId, 'original-cycle');
+    assert.equal(savedContext?.resetSchedule, 'Weekly');
+    const savedGroups = (await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.groups;
+    assert.deepEqual(savedGroups?.map(group => group.title), ['E2E Saved Media', 'E2E Quest Group']);
+    assert.equal((await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.rows[0].id, 'e2e-row');
     assert.equal((await api('/api/games/genshin/images', playerToken, 'POST')).status, 403);
     console.log('PASS shared UI edits, browser upload, image persistence/download, and upload permission denial.');
+    console.log('PASS requirement title lookup saves an existing quest reference and preserves hidden legacy metadata.');
+    console.log('PASS two-pane content editor: responsive layout, group drag ordering, cancel isolation and saved group order.');
 
     await editor.click(activeEditSwitch);
     await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
