@@ -1,0 +1,149 @@
+import { TestBed } from '@angular/core/testing';
+import type { Entry } from '@lib/types/workspace.type';
+import { StoryGuideHeader } from './story-guide-header';
+
+const region: Entry = { id: 'snow', game: 'genshin', kind: 'story-category', name: 'Snezhnaya', category: '', notes: '', order: 0,
+    icon: '/api/games/genshin/images/icon.png', sectionImageUrl: '/api/games/genshin/images/background.png', completed: false,
+    quantity: 0, target: 0, rarity: 1, members: [], requirements: [], day: '' };
+
+describe('Story guide header', () => {
+    afterEach(() => vi.unstubAllGlobals());
+    async function setup() {
+        const fixture = TestBed.createComponent(StoryGuideHeader);
+        fixture.componentRef.setInput('gameName', 'Genshin Impact');
+        fixture.componentRef.setInput('updated', 'November 16, 2026');
+        fixture.componentRef.setInput('regions', [region, { ...region, id: 'forest', name: 'Sumeru' }]);
+        fixture.componentRef.setInput('region', region);
+        fixture.componentRef.setInput('subsectionCount', 8);
+        fixture.componentRef.setInput('progress', [{ id: 'overall', title: 'Overall', completed: 3, total: 12, percent: 25 }, { id: 'main-story', title: 'Archon Quest', completed: 3, total: 12, percent: 25 }]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return { fixture, header: fixture.componentInstance, root: fixture.nativeElement as HTMLElement };
+    }
+    it('uses configured region artwork separately from its icon and keeps statistics accurate', async () => {
+        const { fixture, root } = await setup();
+        expect(root.querySelector<HTMLImageElement>('.region-artwork')?.getAttribute('src')).toBe(region.sectionImageUrl);
+        expect(root.querySelector<HTMLImageElement>('.region-emblem img')?.getAttribute('src')).toBe(region.icon);
+        expect(root.querySelector('.guide-title h1')?.textContent).toBe('Story Guide');
+        expect(root.querySelector('.guide-last-updated')?.textContent).toContain('Last Updated: November 16, 2026');
+        expect(root.querySelector('.story-overview-identity p')?.textContent).toContain('8 subsections · 12 tracked items');
+        expect(root.querySelector('.story-progress-ring')?.getAttribute('aria-valuenow')).toBe('25');
+        root.querySelector<HTMLButtonElement>('.story-category-toggle')!.click();
+        fixture.detectChanges();
+        expect(root.querySelector('#story-category-progress')?.classList.contains('expanded')).toBe(true);
+        expect(root.querySelector('.story-category-card small')?.textContent).toBe('3 / 12');
+    });
+    it('switches artwork with the selected region and handles missing or failed artwork', async () => {
+        const { fixture, header, root } = await setup();
+        root.querySelector('.region-artwork')!.dispatchEvent(new Event('error'));
+        fixture.detectChanges();
+        expect(root.querySelector('.region-artwork')).toBeNull();
+        fixture.componentRef.setInput('region', { ...region, id: 'forest', name: 'Sumeru', sectionImageUrl: '/api/games/genshin/images/forest.png' });
+        fixture.detectChanges();
+        expect(root.querySelector<HTMLImageElement>('.region-artwork')?.getAttribute('src')).toContain('forest.png');
+        fixture.componentRef.setInput('region', { ...region, sectionImageUrl: '' });
+        fixture.detectChanges();
+        expect(header.background()).toBeNull();
+        expect(root.querySelector('.region-artwork')).toBeNull();
+    });
+    it('shares search and incomplete state across expanded and compact controls', async () => {
+        const { fixture, header, root } = await setup();
+        const searches = root.querySelectorAll<HTMLInputElement>('input[type=search]');
+        searches[0].value = 'Alyosha';
+        searches[0].dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(header.query()).toBe('Alyosha');
+        expect(searches[1].value).toBe('Alyosha');
+        searches[1].value = 'World quests';
+        searches[1].dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(searches[0].value).toBe('World quests');
+        const checkboxes = root.querySelectorAll<HTMLInputElement>('input[type=checkbox]');
+        checkboxes[1].dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+        expect(header.incompleteOnly()).toBe(true);
+        expect(checkboxes[0].checked).toBe(true);
+        fixture.componentRef.setInput('editing', true);
+        fixture.detectChanges();
+        expect([...checkboxes].every(control => control.disabled)).toBe(true);
+    });
+    it('reuses region-selection events and gates editor controls', async () => {
+        const { fixture, header, root } = await setup();
+        const selected = vi.fn(); header.regionSelected.subscribe(selected);
+        root.querySelector<HTMLButtonElement>('#story-tab-forest')!.click();
+        expect(selected).toHaveBeenCalledWith('forest');
+        expect(root.querySelector('.story-mode-toggle')).toBeNull();
+        fixture.componentRef.setInput('canEdit', true);
+        fixture.detectChanges();
+        expect(root.querySelectorAll('.story-mode-toggle')).toHaveLength(2);
+        const toggle = vi.fn(); header.editToggled.subscribe(toggle);
+        root.querySelector<HTMLButtonElement>('.story-mode-toggle')!.click();
+        expect(toggle).toHaveBeenCalledOnce();
+        fixture.componentRef.setInput('editorOpen', true);
+        fixture.detectChanges();
+        expect([...root.querySelectorAll<HTMLButtonElement>('.story-mode-toggle')].every(button => button.disabled)).toBe(true);
+    });
+    it('opens compact progress details with live counts and closes on Escape, outside interaction or region change', async () => {
+        const { fixture, header, root } = await setup();
+        header.compact.set(true);
+        fixture.detectChanges();
+        const button = root.querySelector<HTMLButtonElement>('.compact-progress')!;
+        const details = root.querySelector<HTMLElement>('.compact-progress-details')!;
+        expect(details.inert).toBe(true);
+        button.click();
+        fixture.detectChanges();
+        expect(button.getAttribute('aria-expanded')).toBe('true');
+        expect(details.inert).toBe(false);
+        expect(details.textContent).toContain('Archon Quest');
+        expect(details.querySelector('.compact-progress-summary p')?.textContent).toContain('3 / 12 complete');
+        expect(header.statisticsExpanded()).toBe(false);
+        fixture.componentRef.setInput('progress', [{ id: 'overall', title: 'Overall', completed: 4, total: 12, percent: 33 }, { id: 'main-story', title: 'Archon Quest', completed: 4, total: 12, percent: 33 }]);
+        fixture.componentRef.setInput('region', { ...region });
+        fixture.detectChanges();
+        expect(header.compactProgressExpanded()).toBe(true);
+        expect(details.querySelector('.story-category-card small')?.textContent).toBe('4 / 12');
+        const focus = vi.spyOn(button, 'focus');
+        details.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(header.compactProgressExpanded()).toBe(false);
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        button.click(); fixture.detectChanges();
+        details.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        expect(header.compactProgressExpanded()).toBe(true);
+        document.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(header.compactProgressExpanded()).toBe(false);
+        button.click(); fixture.detectChanges();
+        fixture.componentRef.setInput('region', { ...region, id: 'forest', name: 'Sumeru' });
+        fixture.detectChanges();
+        expect(header.compactProgressExpanded()).toBe(false);
+    });
+    it('activates compact mode only after the expanded header leaves above the viewport and cleans observers up', async () => {
+        let intersect: IntersectionObserverCallback | undefined;
+        const disconnected = vi.fn();
+        vi.stubGlobal('IntersectionObserver', class {
+            constructor(callback: IntersectionObserverCallback) {intersect = callback;}
+            observe = vi.fn(); disconnect = disconnected;
+        });
+        const { fixture, header, root } = await setup();
+        const toolbar = root.querySelector<HTMLElement>('.story-sticky-header')!;
+        vi.spyOn(toolbar, 'getBoundingClientRect').mockReturnValue({ bottom: 72, height: 72 } as DOMRect);
+        const notify = (bottom: number, isIntersecting: boolean) => intersect!([{ boundingClientRect: { bottom }, isIntersecting } as IntersectionObserverEntry], {} as IntersectionObserver);
+        notify(1200, false);
+        expect(header.compact()).toBe(false);
+        expect(header.readingOffset()).toBe(0);
+        notify(-1, false);
+        fixture.detectChanges();
+        expect(header.readingOffset()).toBe(72);
+        expect(toolbar.classList.contains('visible')).toBe(true);
+        expect(root.querySelector<HTMLElement>('.story-header-expanded')?.inert).toBe(true);
+        notify(20, true);
+        fixture.detectChanges();
+        expect(header.compact()).toBe(false);
+        expect(toolbar.inert).toBe(true);
+        fixture.destroy();
+        expect(disconnected).toHaveBeenCalledOnce();
+    });
+});

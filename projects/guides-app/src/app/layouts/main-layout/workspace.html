@@ -76,6 +76,7 @@
                     }}<button (click)="notice.set('')" aria-label="Dismiss notification">×</button>
                 </div>
             }
+            @if (page() !== 'story' || !context()) {
             <div class="page-heading">
                 <div>
                     <div class="eyebrow">
@@ -127,6 +128,7 @@
                     }
                 </div>
             </div>
+            }
             @if (page() === 'dashboard') {
                 @defer (on immediate) { <gg-dashboard [context]="context()" (editPlan)="open('plans', $event)" /> } @placeholder { <p role="status">Loading dashboard...</p> }
             } @else if (page() === 'games') {
@@ -147,7 +149,7 @@
                 }
             } @else if (page() === 'story') {
                 @if (context(); as game) {
-                    @defer (on immediate) { <gg-story [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> }
+                    @defer (on immediate) { <gg-story [game]="game.id" [gameName]="game.name" [updated]="date" /> } @placeholder { <p role="status">Loading...</p> }
                 }
             } @else if (page() === 'settings') {
                 @defer (on immediate) { <gg-settings [settingsTab]="settingsTab()" (notice)="notice.set($event)" /> } @placeholder { <p role="status">Loading settings...</p> }

@@ -156,6 +156,7 @@ async function newPage(subject?: string, invalidRefresh = false): Promise<{ page
 }
 
 const checkbox = '#story-row-e2e-quest-e2e-row input[type=checkbox]';
+const activeEditSwitch = 'gg-story .story-header-expanded:not([inert]) .story-mode-toggle, gg-story .compact-story-toolbar.visible .story-mode-toggle';
 async function openStory(page: Page): Promise<void> {
     await page.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle0' });
     await page.waitForSelector(checkbox);
@@ -275,7 +276,7 @@ try {
     console.log('PASS editor UI authorization, saved account completion, fresh-browser restoration, player/account isolation.');
 
     // Exercise the UI editor and upload via the browser's real SDK-attached bearer token.
-    await editor.click('gg-story .story-mode-toggle');
+    await editor.click(activeEditSwitch);
     await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
     await clickButton(editor, 'Edit');
     await editor.waitForSelector('gg-story [role=dialog] input[name=title]');
@@ -312,7 +313,7 @@ try {
     assert.equal((await api('/api/games/genshin/images', playerToken, 'POST')).status, 403);
     console.log('PASS shared UI edits, browser upload, image persistence/download, and upload permission denial.');
 
-    await editor.click('gg-story .story-mode-toggle');
+    await editor.click(activeEditSwitch);
     await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
     await clickButton(editor, '+ Add subsection');
     await editor.select('gg-story [role=dialog] select[name=topic]', 'divider');
@@ -342,7 +343,7 @@ try {
     const beforeNavigation = await repository.read('genshin');
     const sampleTemplate = (title: string) => ({ ...emptyPatchOverview(), rows: [{ id: 'sample-objective', content: title, contentType: '', patch: '7.0', notes: '' }] });
     const navigationEntries: CatalogEntry[] = [
-        ...beforeNavigation.entries,
+        ...beforeNavigation.entries.map(entry => entry.kind === 'story-category' ? { ...entry, sectionImageUrl: image.url } : entry),
         { ...baseEntry, id: 'nav-world', kind: 'story', name: 'An Ark That Used to Be a Soul', category: 'world-quests', storySection: 'e2e-section', order: 2, worldQuests: sampleTemplate('In the Dwelling of Life') },
         { ...baseEntry, id: 'nav-character', kind: 'story', name: 'Fischl', category: 'character-information', storySection: 'e2e-section', order: 3, characterInformation: sampleTemplate('Character Profile') },
         { ...baseEntry, id: 'nav-side', kind: 'story', name: 'Wraith’s Nocturne', category: 'side-stories', storySection: 'e2e-section', order: 4, sideStories: sampleTemplate('Story Quest') },
@@ -351,6 +352,7 @@ try {
     ];
     assert.equal((await update(editorToken, beforeNavigation.revision, navigationEntries)).status, 200);
     await guest.reload({ waitUntil: 'networkidle0' });
+    assert.equal(await guest.$eval('.region-artwork', target => target.getAttribute('src')), image.url);
     assert.equal(await guest.$$eval('.outline-chapter-heading a', links => links.length), 2);
     assert.equal(await guest.$$eval('.outline-children', elements => elements.every(element => (element as HTMLElement).inert)), true);
     const navigationIcons = await guest.$$eval('.story-outline svg', icons => icons.filter(icon => icon.getClientRects().length).map(icon => {
@@ -376,6 +378,15 @@ try {
         window.scrollBy({ top: bounds.top + bounds.height / 2 - (top + (innerHeight - top) / 2), behavior: 'instant' });
     });
     await guest.waitForSelector('.outline-secondary[href="#story-content-nav-world"][aria-current=location]');
+    await guest.waitForSelector('.compact-story-toolbar.visible');
+    const toolbarHeight = await guest.$eval('.compact-story-toolbar', target => target.getBoundingClientRect().height);
+    assert.ok(toolbarHeight >= 60 && toolbarHeight <= 80);
+    assert.ok(await guest.$eval('.story-outline', target => target.getBoundingClientRect().top) >= toolbarHeight);
+    await guest.click('.compact-progress');
+    await guest.waitForSelector('.compact-progress-details.open');
+    assert.equal(await guest.$$eval('.compact-progress-details .story-category-card', cards => cards.length), 6);
+    await guest.keyboard.press('Escape');
+    await guest.waitForFunction(() => !document.querySelector('.compact-progress-details')!.classList.contains('open'));
     assert.equal(await guest.$eval('.outline-secondary.active', target => getComputedStyle(target).boxShadow), 'none');
     await (await guest.$('.story-outline'))!.screenshot({ path: join(artifacts, 'story-navigation-desktop.png') });
     await guest.setViewport({ width: 390, height: 844 });
@@ -386,6 +397,22 @@ try {
         return { x: bounds.left, y: bounds.top + scrollY, width: bounds.width, height: bounds.height };
     });
     await guest.screenshot({ path: join(artifacts, 'story-navigation-mobile.png'), clip: mobileOutline, captureBeyondViewport: true });
+    await guest.evaluate(() => window.scrollTo({ top: document.querySelector('.story-header-expanded')!.getBoundingClientRect().bottom + scrollY + 80, behavior: 'instant' }));
+    await guest.waitForSelector('.compact-story-toolbar.visible');
+    await guest.click('.compact-progress');
+    await guest.waitForSelector('.compact-progress-details.open');
+    assert.equal(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await guest.click('.compact-search-trigger');
+    await guest.waitForSelector('.compact-story-toolbar.search-open');
+    await guest.$eval('.compact-story-toolbar input[type=search]', target => {
+        const input = target as HTMLInputElement; input.value = 'Fischl'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await guest.waitForSelector('.compact-story-toolbar .story-search-result');
+    assert.equal(await guest.$eval('.story-header-expanded input[type=search]', target => (target as HTMLInputElement).value), 'Fischl');
+    assert.equal(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await guest.$eval('.compact-story-toolbar input[type=search]', target => {
+        const input = target as HTMLInputElement; input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
     await guest.setViewport({ width: 1440, height: 1000 });
     const afterNavigation = await repository.read('genshin');
     assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);

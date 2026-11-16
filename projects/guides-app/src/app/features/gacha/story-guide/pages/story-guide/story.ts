@@ -8,7 +8,8 @@ import { StoryPositionStore } from "../../state/story-position.store";
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
-import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
+import { Entry, GAMES, WorkspaceStore } from "../../../../../core/state/workspace.store";
+import { StoryGuideHeader } from '../../components/header/story-guide-header';
 import { PatchOverviewTemplate } from "../../components/templates/patch-overview/patch-overview";
 import { StoryDividerTemplate } from "../../components/templates/divider/divider";
 import { WorldQuestsTemplate } from "../../components/templates/world-quests/world-quests";
@@ -22,9 +23,10 @@ import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, prepareP
 
 @Component({
     selector: 'gg-story',
-    imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
+    imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, StoryGuideHeader, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
     templateUrl: "./story.html",
     styleUrls: ["./story.scss", "./story-navigation.scss"],
+    host: { '[style.--story-sticky-height]': "stickyHeight() + 'px'" },
 })
 export class Story {
     private readonly injector = inject(Injector);
@@ -56,7 +58,7 @@ export class Story {
             this.updateOutlineFromScroll();
             const content = this.host.nativeElement.querySelector('.story-subsections')?.getBoundingClientRect();
             if (!content || content.bottom <= 0) {return;}
-            const y = Math.max(20, (this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0) + 32);
+            const y = Math.max(20, (this.header()?.readingOffset() ?? 0) + 32);
             const target = document.elementFromPoint(Math.min(window.innerWidth - 20, content.left + content.width / 2), y);
             if (target && this.host.nativeElement.contains(target)) {this.rememberTarget(target);}
         });
@@ -72,8 +74,12 @@ export class Story {
         }, { injector: this.injector });
     }
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-    private readonly stickyHeader = viewChild<ElementRef<HTMLElement>>('stickyHeader');
+    readonly header = viewChild(StoryGuideHeader);
+    readonly stickyHeight = signal(72);
     readonly game = input.required<string>();
+    readonly gameName = input('');
+    readonly updated = input('');
+    readonly gameTitle = computed(() => this.gameName() || GAMES.find(game => game.id === this.game())?.name || this.game());
     readonly store = inject(WorkspaceStore);
     readonly selected = signal('');
     readonly dragId = signal('');
@@ -103,7 +109,7 @@ export class Story {
             const bounds = target.getBoundingClientRect();
             this.dropAfter.set(event.clientY > bounds.top + bounds.height / 2);
         }
-        const headerBottom = this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0;
+        const headerBottom = this.header()?.readingOffset() ?? 0;
         if (event.clientY < headerBottom + 35) {window.scrollBy(0, -20);}
         else if (event.clientY > window.innerHeight - 45) {window.scrollBy(0, 20);}
     }
@@ -161,17 +167,6 @@ export class Story {
     readonly incompleteOnly = signal(false);
     readonly showCategoryProgress = signal(false);
     readonly isDivider = isStoryDivider;
-    readonly sectionImage = computed(() => {
-        const image = storyImageUrl(this.active()?.sectionImageUrl ?? '');
-        if (image) {return image;}
-        const icon = storyImageUrl(this.active()?.icon ?? '');
-        if (icon) {return icon;}
-        for (const entry of this.readableSubsections()) {
-            const image = storyImageUrl((entry.patchOverview ?? entry.mainStory ?? entry.sideStories ?? entry.eventStory)?.imageUrl ?? '');
-            if (image) {return image;}
-        }
-        return null;
-    });
     topicIcon(id: string): string {
         return ({ 'patch-overview': '◉', 'main-story': '▤', 'side-stories': '♧', 'world-quests': '◇',
             events: '✦', 'endgame-activity': '⚑', lore: '◈', 'character-information': '▣' } as Record<string, string>)[id] ?? '◇';
@@ -195,7 +190,7 @@ export class Story {
     readonly expandedOutline = signal('');
     outlineCollapsed(id: string): boolean { return this.expandedOutline() !== id; }
     updateOutlineFromScroll(): void {
-        const top = Math.max(0, this.stickyHeader()?.nativeElement.getBoundingClientRect().bottom ?? 0);
+        const top = Math.max(0, this.header()?.readingOffset() ?? 0);
         const center = top + (window.innerHeight - top) / 2;
         const selector = '[data-story-entry][id^="story-content-"]:not([data-story-divider])';
         const targets = [...this.host.nativeElement.querySelectorAll<HTMLElement>(selector)]
@@ -377,15 +372,6 @@ export class Story {
                 this.resumedTarget = key;
                 this.revealAndScroll(fragment, 'instant');
             }, { injector: this.injector });
-        });
-        effect((onCleanup) => {
-            const header = this.stickyHeader()?.nativeElement;
-            if (!header || typeof ResizeObserver === 'undefined') {return;}
-            const update = () => this.host.nativeElement.style.setProperty('--story-sticky-height', `${header.getBoundingClientRect().height}px`);
-            const observer = new ResizeObserver(update);
-            observer.observe(header);
-            update();
-            onCleanup(() => observer.disconnect());
         });
         effect(() => {
             const game = this.game();

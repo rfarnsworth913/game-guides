@@ -1,172 +1,23 @@
-<ng-template #storyNavigation>
-<div class="story-navigation">
-    <div
-        class="story-tabs"
-        role="tablist"
-        aria-label="Story guide sections"
-        (keydown)="navigateTabs($event)"
-    >
-        @for (section of sections(); track section.id) {
-            <button
-                type="button"
-                role="tab"
-                [id]="'story-tab-' + section.id"
-                [attr.aria-selected]="active()?.id === section.id"
-                aria-controls="story-section-content"
-                [tabIndex]="active()?.id === section.id ? 0 : -1"
-                [class.active]="active()?.id === section.id"
-                (click)="selectSection(section.id)"
-            >
-                <ng-container
-                    *ngTemplateOutlet="sectionIcon; context: { $implicit: section.icon }"
-                />
-                {{ section.name }}
-            </button>
+<gg-story-guide-header [gameName]="gameTitle()" [updated]="updated()" [regions]="sections()" [region]="active()"
+    [subsectionCount]="readableSubsections().length" [progress]="progressCircles()" [categoryIcon]="topicIcon"
+    [canEdit]="canEdit()" [editing]="editMode()" [busy]="busy()" [editorOpen]="editor !== null || deleting !== null" [resetting]="resetting()"
+    [query]="searchQuery()" (queryChange)="searchQuery.set($event)" [searchResults]="searchResults()" (resultSelected)="openSearchResult($event)"
+    [incompleteOnly]="incompleteOnly()" (incompleteOnlyChange)="incompleteOnly.set($event)"
+    [statisticsExpanded]="showCategoryProgress()" (statisticsExpandedChange)="showCategoryProgress.set($event)"
+    (regionSelected)="selectSection($event)" (regionKey)="navigateTabs($event)" (editToggled)="toggleEditMode()"
+    (addRegion)="open('story-category')" (resetRequested)="confirmReset = true" (toolbarHeight)="stickyHeight.set($event)">
+    <div story-editor-actions class="story-actions">
+        @if (active(); as section) {
+            <button type="button" aria-label="Move section left" [disabled]="busy() || sections()[0].id === section.id" (click)="move(-1)">&#8592;</button>
+            <button type="button" aria-label="Move section right" [disabled]="busy() || sections()[sections().length - 1].id === section.id" (click)="move(1)">&#8594;</button>
+            <button type="button" [disabled]="busy()" (click)="open('story-category', section)">Edit section</button>
+            <button type="button" [disabled]="busy()" (click)="deleting = section">Delete section</button>
+            <button type="button" class="primary" [disabled]="busy()" (click)="open('story')">+ Add subsection</button>
         }
     </div>
-    @if (editMode()) {
-        <button class="primary" type="button" [disabled]="busy()" (click)="open('story-category')">
-            + Add section
-        </button>
-    }
-    @if (canEdit()) {
-    <button
-        class="story-mode-toggle"
-        type="button"
-        role="switch"
-        aria-label="Edit mode"
-        [attr.aria-checked]="editMode()"
-        [class.active]="editMode()"
-        [disabled]="busy() || editor !== null || deleting !== null"
-        (click)="toggleEditMode()"
-    >
-        Edit mode
-        <span class="story-switch-track" aria-hidden="true"
-            ><span class="story-switch-thumb"></span
-        ></span>
-    </button>
-    }
-</div>
-
-</ng-template>
-
+</gg-story-guide-header>
 @if (active(); as section) {
-    <section
-        id="story-section-content"
-        role="tabpanel"
-        [attr.aria-labelledby]="'story-tab-' + section.id"
-        tabindex="0"
-    >
-        <div class="story-sticky-header" #stickyHeader>
-            <ng-container *ngTemplateOutlet="storyNavigation" />
-        <div class="story-overview" [class.collapsed]="!showCategoryProgress()">
-            <header class="story-heading">
-                <div class="story-overview-identity">
-                    @if (sectionImage(); as image) { <img [src]="image" alt="" class="story-overview-image" /> }
-                    <div><h2>{{ section.name }}</h2>
-                        <p>{{ readableSubsections().length }} subsections &middot; {{ progressCircles()[0].total }} tracked items</p>
-                    </div>
-                </div>
-                @let overall = progressCircles()[0];
-                <div class="story-overall-progress">
-                    <div class="story-progress-ring" role="progressbar" aria-label="Overall completion"
-                        aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="overall.percent"
-                        [style.--progress]="overall.percent + '%'"><span>{{ overall.percent }}%</span></div>
-                    <div><h3>Overall Progress</h3><p>{{ overall.completed }} / {{ overall.total }} complete</p>
-                        <progress [value]="overall.completed" [max]="overall.total || 1" aria-label="Overall progress"></progress>
-                    </div>
-                </div>
-                <button type="button" class="story-category-toggle"
-                    [attr.aria-expanded]="showCategoryProgress()" aria-controls="story-category-progress"
-                    [attr.aria-label]="showCategoryProgress() ? 'Collapse category progress' : 'Expand category progress'"
-                    [title]="showCategoryProgress() ? 'Collapse category progress' : 'Expand category progress'"
-                    (click)="showCategoryProgress.set(!showCategoryProgress())">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        [class.expanded]="showCategoryProgress()"><path d="m6 9 6 6 6-6" /></svg>
-                </button>
-            </header>
-            @if (showCategoryProgress()) {
-                <div id="story-category-progress" class="story-category-cards">
-                    @for (progress of progressCircles().slice(1); track progress.id) {
-                        <div class="story-category-card" [attr.data-story-topic]="progress.id">
-                            <div><span class="story-category-icon" aria-hidden="true">{{ topicIcon(progress.id) }}</span>
-                                <strong>{{ progress.title }}</strong><span>{{ progress.percent }}%</span></div>
-                            <progress [value]="progress.completed" [max]="progress.total || 1" [attr.aria-label]="progress.title + ' completion'"></progress>
-                            <small>{{ progress.completed }} / {{ progress.total }}</small>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-        <div class="story-overview-toolbar">
-            <div class="story-search">
-                <label class="story-search-input">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
-                    <input type="search" aria-label="Search all story guides for the current game"
-                        placeholder="Search guide..." [ngModelOptions]="{standalone:true}"
-                        [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
-                        (keydown.escape)="searchQuery.set(''); $event.stopPropagation()" />
-                </label>
-                @if (searchQuery().trim()) {
-                    <div class="story-search-results" aria-label="Story guide search results">
-                        <div class="story-search-results-heading"><span role="status">{{ searchResults().length }} results in this game</span>
-                            <button type="button" (click)="searchQuery.set('')">Clear</button></div>
-                        @for (result of searchResults(); track result.id) {
-                            <button type="button" class="story-search-result" (click)="openSearchResult(result)">
-                                <strong>{{ result.title }}</strong><small>{{ result.context }}</small>
-                                @if (result.excerpt) { <span>{{ result.excerpt }}</span> }
-                            </button>
-                        } @empty { <p>No matching content. Try another title, note, link, or patch.</p> }
-                    </div>
-                }
-            </div>
-<div class="story-progress-controls">
-    <label><input type="checkbox" role="switch" [checked]="incompleteOnly()"
-        [disabled]="editMode()" (change)="incompleteOnly.set(!incompleteOnly())" />Show incomplete only</label>
-    <button type="button" [disabled]="busy() || resetting()" (click)="confirmReset = true">Reset progress</button>
-</div>
-
-            @if (editMode()) {
-                <div class="story-actions">
-                    <button
-                        type="button"
-                        aria-label="Move section left"
-                        [disabled]="busy() || sections()[0].id === section.id"
-                        (click)="move(-1)"
-                    >
-                        &#8592;
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Move section right"
-                        [disabled]="busy() || sections()[sections().length - 1].id === section.id"
-                        (click)="move(1)"
-                    >
-                        &#8594;
-                    </button>
-                    <button
-                        type="button"
-                        [disabled]="busy()"
-                        (click)="open('story-category', section)"
-                    >
-                        Edit section
-                    </button>
-                    <button type="button" [disabled]="busy()" (click)="deleting = section">
-                        Delete section
-                    </button>
-                    <button
-                        class="primary"
-                        type="button"
-                        [disabled]="busy()"
-                        (click)="open('story')"
-                    >
-                        + Add subsection
-                    </button>
-                </div>
-            }
-
-        </div>
-        </div>
+    <section id="story-section-content" role="tabpanel" aria-labelledby="story-region-title" tabindex="0">
         <div class="story-content-layout">
             @if (readableSubsections().length) {
                 <nav class="story-outline" aria-label="Guide contents">
@@ -340,7 +191,6 @@
         </div>
     </section>
 } @else {
-    <div class="story-sticky-header" #stickyHeader><ng-container *ngTemplateOutlet="storyNavigation" /></div>
     <section class="panel empty">
         <h2>Organize your story guides</h2>
         <p>
@@ -395,7 +245,7 @@
                             [value]="entry.icon ?? ''" (valueChange)="entry.icon = $event" />
                     </div>
                 </div>
-                    <gg-game-image-picker [game]="entry.game" label="Section Image" [selectionOnly]="true"
+                    <gg-game-image-picker [game]="entry.game" label="Region Header Background" [selectionOnly]="true"
                         [value]="entry.sectionImageUrl ?? ''" (valueChange)="entry.sectionImageUrl = $event" />
                 } @else {
                     <label

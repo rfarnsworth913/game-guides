@@ -191,6 +191,7 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         const rect = (top: number, bottom: number) => ({ top, bottom } as DOMRect);
+        fixture.componentInstance.header()!.compact.set(true);
         vi.spyOn(root.querySelector<HTMLElement>('.story-sticky-header')!, 'getBoundingClientRect').mockReturnValue(rect(0, 100));
         const parent = root.querySelector<HTMLElement>('#story-content-first')!;
         const child = root.querySelector<HTMLElement>('#story-content-second')!;
