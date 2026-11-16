@@ -6,7 +6,7 @@ import { AccountMenu, accountInitials } from "../../features/global/accounts/com
 import { AuthStore } from "../../core/auth/auth.store";
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ThemeService } from "../../core/theme/theme.service";
 import { GameTheme } from "../../models/types/index";
@@ -24,10 +24,11 @@ import { guideUrl } from "../../../../../common/characters/characters";
 import { eventDate } from "../../features/gacha/events/utils/event-calendar";
 import { BackToTop } from "../../shared/components/back-to-top/back-to-top";
 import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialog-focus";
+import { WorkspaceSidebar } from './components/sidebar/workspace-sidebar';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [DashboardPage, GameCollectionPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop],
+    imports: [DashboardPage, GameCollectionPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop, WorkspaceSidebar],
     templateUrl: "./workspace.html",
     styleUrl: "./workspace.scss",
 })
@@ -110,25 +111,6 @@ export class Workspace {
         this.router.navigateByUrl(path).catch(() => {
             this.notice.set('Could not open this page. Please try again.');
         });
-    }
-    setGame(value: string): void {
-        const page = [
-            'dashboard',
-            'inventory',
-            'characters',
-            'teams',
-            'plans',
-            'story',
-            'farming',
-            'events',
-            'achievements',
-        ].includes(this.page())
-            ? this.page()
-            : 'dashboard';
-        this.navigate(value === 'default' ? '/dashboard' : `/games/${value}/${page}`);
-        this.search.set('');
-        this.category.set('');
-        this.rarity.set('');
     }
     gameName(id: string): string {
         return this.games.find((g) => g.id === id)?.name ?? 'All games';

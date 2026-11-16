@@ -331,6 +331,50 @@ try {
     }
     console.log('PASS global and game feature pages load through their existing routes.');
 
+    const previousRoute = editor.url();
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('gg-workspace-sidebar #game-selection');
+    assert.equal(editor.url(), previousRoute, 'Browsing games must preserve the current workspace.');
+    await editor.click('[aria-label="Add Honkai: Star Rail to favorites"]');
+    assert.equal(editor.url(), previousRoute, 'Favorites must not switch games.');
+    await editor.type('gg-workspace-sidebar input[type=search]', 'star rail');
+    await editor.waitForFunction(() => document.querySelectorAll('gg-workspace-sidebar .game-choice').length === 1);
+    await editor.screenshot({ path: join(artifacts, 'sidebar-game-search.png') });
+    await editor.keyboard.press('Escape');
+    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
+    assert.equal(editor.url(), previousRoute);
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('gg-workspace-sidebar .is-current .game-choice');
+    await editor.click('gg-workspace-sidebar .is-current .game-choice');
+    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
+    assert.equal(editor.url(), previousRoute, 'Reselecting the current game must preserve the full route.');
+
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('gg-workspace-sidebar .filter-action');
+    await editor.click('gg-workspace-sidebar [aria-label="Game list"] button:nth-child(2)');
+    await editor.waitForFunction(() => document.querySelector('gg-workspace-sidebar .game-choice')?.textContent?.includes('Honkai: Star Rail'));
+    await editor.click('gg-workspace-sidebar .game-choice');
+    await editor.waitForFunction(() => location.pathname === '/games/hsr/dashboard');
+    await editor.waitForSelector('gg-workspace-sidebar a[href="/games/hsr/story"]');
+    await editor.screenshot({ path: join(artifacts, 'sidebar-workspace.png') });
+    await editor.reload({ waitUntil: 'networkidle0' });
+    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('[aria-label="Remove Honkai: Star Rail from favorites"]');
+    await editor.screenshot({ path: join(artifacts, 'sidebar-game-list.png') });
+    await editor.keyboard.press('Escape');
+
+    await editor.setViewport({ width: 390, height: 844 });
+    await editor.keyboard.down('Control');
+    await editor.keyboard.press('k');
+    await editor.keyboard.up('Control');
+    await editor.waitForSelector('aside.open gg-workspace-sidebar input[type=search]', { visible: true });
+    await editor.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Search games');
+    await editor.screenshot({ path: join(artifacts, 'sidebar-mobile.png') });
+    await editor.keyboard.press('Escape');
+    await editor.setViewport({ width: 1440, height: 1000 });
+    console.log('PASS two-mode sidebar: route preservation, search, favorites persistence, game switching and mobile keyboard access.');
+
     await editor.click('[popovertarget=profile-menu]');
     await Promise.all([
         editor.waitForNavigation({ waitUntil: 'networkidle0' }),
