@@ -42,14 +42,14 @@ export class DashboardPage extends DashboardState {
             return rank(a) - rank(b) || (this.eventStatus(a) === 'Ended' ? date(b) - date(a) : date(a) - date(b)) || a.name.localeCompare(b.name);
         }));
     readonly resumeGuide = computed(() => [...this.dashboardStories()]
-        .filter(guide => guide.resume).sort((a, b) => b.visitedAt - a.visitedAt)[0]);
+        .filter(guide => guide.resume && this.supportsGame(guide.id, 'story')).sort((a, b) => b.visitedAt - a.visitedAt)[0]);
     readonly stats = computed(() => [
         { label: 'Games', value: this.context() ? 1 : this.games.length, detail: 'Worlds to explore', link: '/games', icon: 'games' },
         { label: 'Characters', value: this.count('characters'), detail: 'In your collection', link: this.sectionLink('characters'), icon: 'characters' },
         { label: 'Plans', value: this.plans().length, detail: 'Farming & goals', link: this.sectionLink('plans'), icon: 'plans' },
         { label: 'Story Progress', value: `${this.storyCompletion().percent}%`, detail: `${this.storyCompletion().completed} / ${this.storyCompletion().total} items`, link: this.sectionLink('story'), icon: 'story' },
         { label: 'Active Events', value: this.activeEvents().length, detail: `${this.dueSoon()} ending within 3 days`, link: '#dashboard-events', icon: 'events' },
-    ]);
+    ].filter(stat => stat.icon === 'games' || this.supports(stat.icon)));
     readonly icons: Record<string, string> = {
         games: 'M6 8h12l3 10a2 2 0 0 1-3 2l-4-3h-4l-4 3a2 2 0 0 1-3-2L6 8Zm1 4h4m-2-2v4m7-2h.01m2 2h.01',
         characters: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-4M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8 0a4 4 0 0 1 0 8',

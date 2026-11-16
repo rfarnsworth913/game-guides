@@ -33,7 +33,7 @@ export class SettingsPage {
                 throw new Error();
             }
             const raw = await file.text();
-            const entries = parseBackup(raw);
+            const entries = parseBackup(raw, this.store.games().map(game => game.id));
             const backup = JSON.parse(raw) as { characterRules?: Parameters<WorkspaceStore['replace']>[1]; personalTeams?: unknown };
             const rules = backup.characterRules;
             const merged = new Map(this.store.entries().map((e) => [e.id, e]));

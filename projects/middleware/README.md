@@ -240,6 +240,14 @@ The Auth0 MCP connection was not available in this session to apply those settin
 
 ### Deployment and validation
 
+If Auth0's `/oauth/token` endpoint returns `invalid_grant` with "Unknown or invalid
+refresh token", reload the application and use **Sign in again**. The app clears only
+the Auth0 SDK session and stops retrying the invalid token; guest progress, preferences
+and server-side account progress are retained. Normal network failures and API editor
+permission denials do not trigger this reset. Auth0 recommends treating this refresh
+token as permanently invalid and obtaining a new login, rather than retrying it:
+[Auth0 refresh-token troubleshooting](https://support.auth0.com/center/s/article/troubleshoot-refresh-token-unknown-or-invalid-before-expiry-403-unknown-or-invalid-refresh-token).
+
 Serve Angular and `/api` from the same HTTPS origin. Set `NODE_ENV=production` and
 `APP_ORIGIN` to the real browser origin. Add its callback, logout and web-origin URLs to
 Auth0. This app does not enable Angular SSR. Authentication is initialized on the browser.

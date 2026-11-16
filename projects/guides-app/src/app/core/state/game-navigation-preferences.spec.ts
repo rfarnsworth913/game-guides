@@ -34,15 +34,21 @@ describe('Game navigation preferences', () => {
         expect(preferences.recentGameIds()).toEqual([]);
     });
 
-    it('removes unknown and duplicate IDs without losing valid preferences', () => {
-        values.set('gg-game-navigation-v1', JSON.stringify({ version: 1, favorites: ['genshin', 'unknown', 'genshin', 5], recent: ['hsr', null, 'unknown', 'hsr'] }));
+    it('removes invalid and duplicate IDs without losing valid preferences', () => {
+        values.set('gg-game-navigation-v1', JSON.stringify({ version: 1, favorites: ['genshin', 'invalid/id', 'genshin', 5], recent: ['hsr', null, 'invalid/id', 'hsr'] }));
         const preferences = TestBed.inject(GameNavigationPreferences);
         expect(preferences.favoriteGameIds()).toEqual(['genshin']);
         expect(preferences.recentGameIds()).toEqual(['hsr']);
-        preferences.toggleFavorite('unknown');
-        preferences.remember('unknown');
+        preferences.toggleFavorite('invalid/id');
+        preferences.remember('invalid/id');
         expect(preferences.favoriteGameIds()).toEqual(['genshin']);
         expect(preferences.recentGameIds()).toEqual(['hsr']);
+    });
+    it('retains custom game preferences before the registry has loaded', () => {
+        values.set('gg-game-navigation-v1', JSON.stringify({ version: 1, favorites: ['custom-rpg'], recent: ['custom-rpg'] }));
+        const preferences = TestBed.inject(GameNavigationPreferences);
+        expect(preferences.favoriteGameIds()).toEqual(['custom-rpg']);
+        expect(preferences.recentGameIds()).toEqual(['custom-rpg']);
     });
 
     it('keeps preferences usable when storage is unavailable', () => {

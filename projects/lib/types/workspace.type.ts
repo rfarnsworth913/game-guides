@@ -1,6 +1,7 @@
 import type { PatchOverview } from './story-template.type';
 import type { Team } from './team.type';
 import type { CharacterCollection, CharacterDefinition, CharacterRules } from './character.type';
+import type { GameOverview } from './game-overview.type';
 
 export type Kind =
     | 'inventory'
@@ -54,4 +55,4 @@ export type Entry = {
 /** Player-owned state is stored separately; these fields never enter the shared catalog. */
 export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection'> & { teams?: Team[] };
 export type CatalogEntry = Omit<Entry, keyof PlayerState>;
-export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules };
+export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules; overview?: GameOverview };

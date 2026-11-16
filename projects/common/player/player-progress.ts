@@ -1,5 +1,6 @@
 import type { PlayerState } from '../../lib/types/workspace.type';
 import { GAMES } from '../../lib/constants/workspace.constants';
+import { validGameId } from '../workspace/game-overview';
 import { validRowCompletion } from '../quests/story-template';
 import { validCharacterCollection } from '../characters/characters';
 import { TEAM_PROGRESS_ID } from '../../lib/constants/team.constants';
@@ -33,7 +34,7 @@ export function validPlayerState(value: unknown): value is PlayerState {
         Object.keys(state.storyRowCompletion ?? {}).every(safeId)
     );
 }
-export function validProgressState(value: unknown): value is Record<string, PlayerState> {
+export function validProgressState(value: unknown, gameIds: readonly string[] | null = GAMES.map(game => game.id)): value is Record<string, PlayerState> {
     return (
         !!value &&
         typeof value === 'object' &&
@@ -43,7 +44,7 @@ export function validProgressState(value: unknown): value is Record<string, Play
             const slash = key.indexOf('/');
             return (
                 slash > 0 &&
-                GAMES.some((game) => game.id === key.slice(0, slash)) &&
+                validGameId(key.slice(0, slash)) && (gameIds === null || gameIds.includes(key.slice(0, slash))) &&
                 safeId(key.slice(slash + 1)) &&
                 validPlayerState(state) &&
                 (key.slice(slash + 1) === TEAM_PROGRESS_ID

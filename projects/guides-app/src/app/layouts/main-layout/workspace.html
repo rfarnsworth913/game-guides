@@ -1,6 +1,7 @@
 <div class="shell">
     <aside [class.open]="mobile">
-        <gg-workspace-sidebar [activeGameId]="context()?.id ?? null" [links]="nav" [planCount]="plans().length"
+        <gg-workspace-sidebar [activeGameId]="context()?.id ?? null" [links]="nav" [planCount]="plans().length" [catalog]="games()" [canManage]="store.canEdit()"
+            (manageGame)="gameManagement = $event"
             (openNavigation)="mobile = true" (navigated)="mobile = false; search.set(''); category.set(''); rarity.set('')" />
     </aside>
     <div class="main-shell">
@@ -53,7 +54,9 @@
             </div>
         </header>
         <main id="main-content">
-            @if (store.error()) {
+            @if (auth.reauthenticationRequired()) {
+                <div class="alert" role="alert"><span>{{ auth.error() }}</span><button type="button" (click)="auth.login()">Sign in again</button></div>
+            } @else if (store.error()) {
                 <div class="alert" role="alert">
                     {{ store.error() }}
                     <button
@@ -192,7 +195,7 @@
                         (ngModelChange)="changeEditorGame()"
                         [disabled]="true"
                     >
-                        @for (g of games; track g.id) {
+                        @for (g of games(); track g.id) {
                             <option [value]="g.id">{{ g.name }}</option>
                         }
                     </select></label
@@ -372,3 +375,4 @@
     </div>
 }
 <gg-back-to-top />
+@if (gameManagement && store.canEdit()) { <gg-game-manager [request]="gameManagement" (closed)="gameManagement = null" /> }

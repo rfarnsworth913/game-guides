@@ -6,6 +6,7 @@ import { provideRouter } from '@angular/router';
 import { DashboardPage } from './dashboard';
 import { WorkspaceStore, GAMES, type Entry } from '../../../../../core/state/workspace.store';
 import { StoryPositionStore } from '../../../../gacha/story-guide/state/story-position.store';
+import { defaultGameOverview } from '@common/workspace/game-overview';
 
 describe('Dashboard feature ownership', () => {
     const savedValues = new Map<string, string>();
@@ -79,6 +80,26 @@ describe('Dashboard feature ownership', () => {
         expect(page.image({ ...event, icon: 'icons/genshin-impact/event.svg' })).toBe('/icons/genshin-impact/event.svg');
         page.imageFailed(event.id);
         expect(page.image({ ...event, icon: 'https://example.com/image.webp' })).toBeNull();
+    });
+    it('hides disabled feature cards and panels without removing their data', () => {
+        const { page, fixture, root } = setupEvents();
+        const original = page.store.entries();
+        page.store.games.set([{ ...defaultGameOverview('genshin'), features: ['events'] }]);
+        fixture.componentRef.setInput('context', GAMES.find(game => game.id === 'genshin'));
+        fixture.detectChanges();
+        expect(root.querySelector('.summary-characters')).toBeNull();
+        expect(root.querySelector('.summary-story')).toBeNull();
+        expect(root.querySelector('.story-panel')).toBeNull();
+        expect(root.querySelector('.plans-panel')).toBeNull();
+        expect(root.querySelector('.events-panel')).not.toBeNull();
+        page.store.games.set([{ ...defaultGameOverview('genshin'), features: [] }]);
+        fixture.detectChanges();
+        expect(root.querySelector('.events-panel')).toBeNull();
+        expect(page.store.entries()).toEqual(original);
+        page.store.games.set([defaultGameOverview('genshin')]);
+        fixture.detectChanges();
+        expect(root.querySelector('.story-panel')).not.toBeNull();
+        expect(root.querySelector('.events-panel')).not.toBeNull();
     });
     it('restores saved status and multiple types after recreating the dashboard and persists resets', () => {
         const { page, fixture } = setupEvents();

@@ -1,0 +1,46 @@
+.game-manager-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; width: min(940px, 95vw); max-height: 90dvh; overflow-y: auto; box-shadow: 0 24px 80px var(--color-shadow); }
+.game-editor { height: 90dvh; scrollbar-gutter: stable; }
+.game-manager-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.game-manager-header h2 { margin: 0 0 7px; font-size: 24px; }
+.game-manager-header p, .game-feature-section p, .game-registry-toolbar p { margin: 0; font-size: 13px; color: var(--muted); }
+.game-manager-header > button { border: 0; background: transparent; font-size: 24px; padding: 0 4px; color: var(--muted); }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.game-overview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; margin-bottom: 16px; }
+label input, label textarea { width: 100%; margin: 0; }
+.game-field-help { margin: -6px 0 16px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.game-editor-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+.game-editor-tabs button { flex: 1; }
+.game-editor-tabs [aria-selected=true] { color: var(--editor-accent, var(--color-primary)); border-color: currentColor; background: var(--color-bg-hover); }
+.game-tab-panel[hidden] { display: none; }
+.game-image-field { border: 1px solid var(--line); padding: 14px; border-radius: 10px; margin-bottom: 16px; }
+.game-image-field h3 { margin: 0; font-size: 14px; }
+.game-image-field h3 small { color: var(--muted); }
+.field-error { color: var(--color-error); font-size: 12px; line-height: 1.5; margin: -8px 0 16px; }
+.field-error:empty { display: none; }
+[aria-invalid=true] { border-color: var(--color-error); }
+.game-validation-summary { padding: 12px; margin-bottom: 16px; border: 1px solid var(--color-error); border-radius: 8px; font-size: 12px; }
+.game-validation-summary ul { padding-left: 18px; margin-bottom: 0; }
+.game-validation-summary button { border: 0; background: transparent; text-align: left; padding: 4px; color: var(--color-error); }
+.game-color-field { margin-top: 20px; }
+.game-color-controls { display: flex; gap: 10px; margin-bottom: 16px; }
+.game-color-controls input[type=color] { width: 48px; height: 44px; padding: 4px; flex: 0 0 48px; }
+.game-color-controls input[type=text] { min-width: 0; flex: 1; }
+.game-color-preview { display: flex; align-items: center; gap: 12px; }
+.game-color-preview span { width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--line); }
+.game-feature-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.game-feature-section h3 { margin: 0 0 8px; }
+.game-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.game-feature { flex-direction: row; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; margin: 0; }
+.game-feature input { width: 16px; flex: 0 0 16px; margin-top: 2px; accent-color: var(--editor-accent, var(--color-primary)); }
+.game-feature svg { width: 21px; height: 21px; flex: 0 0 21px; fill: none; stroke: var(--editor-accent, var(--color-primary)); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.game-feature small, .game-registry-list small { display: block; color: var(--muted); font-size: 11px; margin-top: 6px; line-height: 1.5; }
+.game-manager-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 20px; margin-top: 24px; border-top: 1px solid var(--line); }
+.game-manager-buttons { display: flex; gap: 10px; margin-left: auto; }
+.danger, .game-manager-error { color: var(--color-error); }
+.game-remove-confirm { margin-top: 20px; padding: 16px; border: 1px solid var(--color-error); border-radius: 8px; font-size: 13px; }
+.game-remove-confirm button { margin-right: 8px; }
+.game-registry-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.game-registry-list { padding: 0; list-style: none; }
+.game-registry-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+@media (max-width: 650px) { .game-overview-grid { grid-template-columns: 1fr; } .game-feature-grid { grid-template-columns: 1fr; } .game-manager-panel { padding: 18px; } .game-manager-footer { flex-wrap: wrap; } }

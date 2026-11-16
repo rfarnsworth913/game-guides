@@ -1,4 +1,4 @@
-import { inject, Component, computed, ElementRef, input, model, signal, viewChild } from '@angular/core';
+import { inject, Component, computed, effect, ElementRef, input, model, signal, viewChild } from '@angular/core';
 import { AuthStore } from "../../../core/auth/auth.store";
 
 import { FormsModule } from '@angular/forms';
@@ -21,6 +21,12 @@ export class GameImagePicker {
     readonly banner = input(false);
     readonly compact = input(false);
     readonly selectionOnly = input(false);
+    readonly deferUploads = input(false);
+    readonly libraryAvailable = input(true);
+    readonly pendingFile = model<File | null>(null);
+    private readonly pendingContentType = signal('');
+    private readonly pendingPreview = signal('');
+    readonly previewUrl = computed(() => this.pendingPreview() || storyImageUrl(this.value()));
     readonly iconMenuId = `icon-menu-${crypto.randomUUID()}`;
     readonly iconMenu = viewChild<ElementRef<HTMLElement>>('iconMenu');
     readonly iconDraft = signal('');
@@ -51,6 +57,27 @@ export class GameImagePicker {
     readonly error = signal('');
     readonly failedPreview = signal('');
     readonly imageUrl = storyImageUrl;
+    constructor() {
+        effect(onCleanup => {
+            const file = this.pendingFile();
+            if (!file) {this.pendingPreview.set(''); return;}
+            const url = URL.createObjectURL(file);
+            this.pendingPreview.set(url);
+            onCleanup(() => URL.revokeObjectURL(url));
+        });
+    }
+    removeImage(): void {
+        this.pendingFile.set(null);
+        this.value.set('');
+        this.failedPreview.set('');
+        this.error.set('');
+    }
+    setImageUrl(value: string): void {
+        this.pendingFile.set(null);
+        this.value.set(value.trim());
+        this.failedPreview.set('');
+        this.error.set('');
+    }
     showIconMenu(event: Event): void {
         this.iconDraft.set(this.value());
         const menu = this.iconMenu()?.nativeElement;
@@ -62,7 +89,7 @@ export class GameImagePicker {
     }
     closeIconMenu(): void { this.iconMenu()?.nativeElement.hidePopover?.(); }
     useIconDraft(): void {
-        this.value.set(this.iconDraft().trim());
+        this.setImageUrl(this.iconDraft());
         this.failedPreview.set('');
         this.closeIconMenu();
     }
@@ -91,6 +118,7 @@ export class GameImagePicker {
 
     displayName(image: GameImage): string { return image.details?.title || friendlyImageName(image.name); }
     currentName(): string {
+        if (this.pendingFile()) {return this.pendingFile()!.name;}
         const image = this.images().find((item) => item.url === this.value());
         return image ? this.displayName(image) : friendlyImageName(this.value().split('/').at(-1)?.split('?')[0] || 'Image');
     }
@@ -118,7 +146,7 @@ export class GameImagePicker {
     useSelected(): void {
         const image = this.pending();
         if (!image) {return;}
-        this.value.set(image.url);
+        this.setImageUrl(image.url);
         this.description.set(image.details?.description ?? '');
         this.sourceName.set(image.details?.sourceName ?? '');
         this.sourceUrl.set(image.details?.sourceUrl ?? '');
@@ -149,6 +177,7 @@ export class GameImagePicker {
     }
 
     async browse(): Promise<void> {
+        if (!this.libraryAvailable()) {return;}
         this.closeIconMenu();
         this.open.set(true);
         this.pending.set(null);
@@ -177,8 +206,8 @@ export class GameImagePicker {
         if (!file) {return;}
         input.value = '';
         this.error.set('');
-        if (file.size > 10 * 1024 * 1024) {
-            this.error.set('Images must be 10 MB or smaller.');
+        if (!file.size || file.size > 10 * 1024 * 1024) {
+            this.error.set('Choose a non-empty image of 10 MB or smaller.');
             return;
         }
         const extension = file.name.split('.').at(-1)?.toLowerCase();
@@ -191,8 +220,35 @@ export class GameImagePicker {
             this.error.set('Choose a PNG, JPEG, WebP, or GIF image.');
             return;
         }
+        if (this.deferUploads()) {
+            this.pendingContentType.set(contentType);
+            this.value.set('');
+            this.pendingFile.set(file);
+            this.failedPreview.set('');
+            this.closeIconMenu();
+            return;
+        }
         this.uploading.set(true);
         try {
+            await this.persistFile(file, contentType);
+        } catch (error) {
+            this.error.set(error instanceof Error ? error.message : 'Could not upload image. Please try again.');
+        } finally {
+            this.uploading.set(false);
+        }
+    }
+    async commitPendingUpload(): Promise<string> {
+        const file = this.pendingFile();
+        if (!file) {return this.value();}
+        this.error.set('');
+        this.uploading.set(true);
+        try {return await this.persistFile(file, this.pendingContentType());}
+        catch (error) {
+            this.error.set(error instanceof Error ? error.message : 'Could not upload image. Please try again.');
+            throw error;
+        } finally {this.uploading.set(false);}
+    }
+    private async persistFile(file: File, contentType: string): Promise<string> {
             const response = await this.auth.request(`/api/games/${this.game()}/images?name=${encodeURIComponent(file.name)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': contentType },
@@ -200,7 +256,9 @@ export class GameImagePicker {
             });
             const result = await response.json() as GameImage & { error?: string };
             if (!response.ok) {throw new Error(result.error || 'Could not upload image.');}
+            if (typeof result.url !== 'string' || !result.url.startsWith(`/api/games/${this.game()}/images/`) || !storyImageUrl(result.url)) {throw new Error('Invalid image upload response.');}
             this.value.set(result.url);
+            this.pendingFile.set(null);
             this.title.set(friendlyImageName(file.name));
             this.category.set(this.compact() ? 'icon' : this.banner() ? 'banner' : 'landscape');
             this.description.set('');
@@ -213,10 +271,6 @@ export class GameImagePicker {
             this.failedPreview.set('');
             this.closeIconMenu();
             if (this.open()) {await this.browse();}
-        } catch (error) {
-            this.error.set(error instanceof Error ? error.message : 'Could not upload image. Please try again.');
-        } finally {
-            this.uploading.set(false);
-        }
+            return result.url;
     }
 }

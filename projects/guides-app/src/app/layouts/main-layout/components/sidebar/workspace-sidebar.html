@@ -11,7 +11,7 @@
     @if (mode() === 'workspace') {
         <button #gameSelector type="button" class="active-game-selector" [attr.aria-label]="activeGame() ? 'Switch game: ' + activeGame()!.name : 'Choose a game'" (click)="openSelector()">
             @if (activeGame(); as game) {
-                <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">{{ game.short }}</span>
+                <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">@if (game.icon && !failedImages().includes(game.icon)) { <img [src]="game.icon" alt="" (error)="imageFailed(game.icon)" /> } @else { {{ game.short }} }</span>
                 <strong>{{ game.name }}</strong>
             } @else { <strong>Choose a game</strong> }
             <svg class="switch-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4" /></svg>
@@ -19,7 +19,7 @@
         @if (activeGame()) {
             <p class="nav-label">GAME NAVIGATION</p>
             <a [routerLink]="sectionLink('dashboard')" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="onNavigate()"><span class="nav-icon" aria-hidden="true">&#9672;</span>Overview</a>
-            @for (link of links().slice(2); track link.id) {
+            @for (link of workspaceLinks(); track link.id) {
                 @if (link.divider) { <hr class="nav-divider" /> }
                 <a [routerLink]="sectionLink(link.id)" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="onNavigate()">
                     <span class="nav-icon" aria-hidden="true">
@@ -34,6 +34,9 @@
     } @else {
         <section id="game-selection" aria-label="Choose a game" [attr.aria-busy]="switching()">
             <button type="button" class="back-action" (click)="closeSelector()"><span aria-hidden="true">&#8592;</span> Back to {{ activeGame()?.name ?? 'workspace' }}</button>
+            @if (canManage()) {
+                <div class="game-management-actions"><button type="button" (click)="manageGame.emit({ action: 'add' })">+ Add Game</button><button type="button" (click)="manageGame.emit({ action: 'list' })">Manage Games</button></div>
+            }
             <p class="nav-label">GAMES</p>
             <div class="game-filters" role="group" aria-label="Game list">
                 @for (item of filters; track item.id) {
@@ -57,10 +60,11 @@
                 @for (game of games(); track game.id) {
                     <li class="game-list-row" [class.is-current]="activeGameId() === game.id">
                         <button type="button" class="game-choice" [disabled]="switching()" [attr.aria-current]="activeGameId() === game.id ? 'true' : null" (click)="selectGame(game.id)">
-                            <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">{{ game.short }}</span>
+                            <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">@if (game.icon && !failedImages().includes(game.icon)) { <img [src]="game.icon" alt="" (error)="imageFailed(game.icon)" /> } @else { {{ game.short }} }</span>
                             <span>{{ game.name }}</span>
                             @if (activeGameId() === game.id) { <span class="selected-check" aria-label="Current game">&#10003;</span> }
                         </button>
+                        @if (canManage()) { <button type="button" class="game-edit" [attr.aria-label]="'Edit ' + game.name + ' overview'" (click)="manageGame.emit({ action: 'edit', id: game.id })"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z" /></svg></button> }
                         <button type="button" class="favorite-toggle" [class.is-favorite]="preferences.favoriteGameIds().includes(game.id)" [attr.aria-pressed]="preferences.favoriteGameIds().includes(game.id)" [attr.aria-label]="(preferences.favoriteGameIds().includes(game.id) ? 'Remove ' : 'Add ') + game.name + (preferences.favoriteGameIds().includes(game.id) ? ' from favorites' : ' to favorites')" (click)="preferences.toggleFavorite(game.id)">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" /></svg>
                         </button>

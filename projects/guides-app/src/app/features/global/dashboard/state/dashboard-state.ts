@@ -4,23 +4,31 @@ import { StoryPositionStore } from '../../../gacha/story-guide/state/story-posit
 import { storyDashboard } from '../../../gacha/story-guide/utils/story-dashboard';
 import { storyProgress } from '../../../gacha/story-guide/utils/story-progress';
 import { GAMES } from '../../../../../../../lib/constants/workspace.constants';
+import { defaultGameOverview, gameSupports } from '@common/workspace/game-overview';
+import type { GameOverview } from '@lib/types/game-overview.type';
 
 /** Read model shared by the global dashboard and game collection views. */
 @Directive()
 export abstract class DashboardState {
     readonly context = input<(typeof GAMES)[number]>();
-    readonly games = [...GAMES].sort((a, b) => a.name.localeCompare(b.name));
     readonly store = inject(WorkspaceStore);
+    get games(): GameOverview[] {return (this.store.games?.() ?? GAMES.map(game => defaultGameOverview(game.id))).slice().sort((a, b) => a.name.localeCompare(b.name));}
+    supports(feature: string): boolean {
+        return this.games.some(game => (!this.context() || game.id === this.context()!.id) && gameSupports(game, feature));
+    }
+    supportsGame(id: string, feature: string): boolean {return gameSupports(this.games.find(game => game.id === id), feature);}
     readonly storyPositions = inject(StoryPositionStore);
     readonly storyDashboards = computed(() => Object.fromEntries(this.games.map(game => [game.id,
-        storyDashboard(this.store.entries(), game.id, this.storyPositions.positions()[game.id]),
+        storyDashboard(gameSupports(game, 'story') ? this.store.entries() : [], game.id, this.storyPositions.positions()[game.id]),
     ])));
     readonly storyCompletion = computed(() => storyProgress(this.story()));
     readonly dashboardStories = computed(() => this.games.filter(game => !this.context() || this.context()!.id === game.id)
         .map(game => ({ ...game, ...this.storyDashboards()[game.id] }))
         .sort((a, b) => a.name.localeCompare(b.name)));
+    readonly storyGames = computed(() => this.dashboardStories().filter(game => gameSupports(game, 'story')));
     readonly scoped = computed(() =>
-        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.id),
+        this.store.entries().filter((e) => (!this.context() || e.game === this.context()!.id) &&
+            this.supportsGame(e.game, e.kind === 'story-category' ? 'story' : e.kind === 'achievement-category' ? 'achievements' : e.kind)),
     );
     readonly plans = computed(() =>
         this.scoped().filter((e) => e.kind === 'plans' && !e.completed),
@@ -29,7 +37,7 @@ export abstract class DashboardState {
     readonly today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
     readonly farming = computed(() =>
         this.materials().filter(
-            (m) => m.missing > 0 && (m.day === 'Any day' || m.day === this.today),
+            (m) => this.supportsGame(m.game, 'farming') && m.missing > 0 && (m.day === 'Any day' || m.day === this.today),
         ),
     );
     readonly story = computed(() =>

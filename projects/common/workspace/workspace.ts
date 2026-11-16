@@ -3,6 +3,7 @@ import { storyRowDone, storyTemplateFor } from '../quests/story-guide';
 import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '../characters/characters';
 import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
 import { GAMES } from '../../lib/constants/workspace.constants';
+import { validGameId } from './game-overview';
 
 /** Give legacy guide steps a stable parent without changing their player progress keys. */
 export function migrateStory(entries: Entry[]): Entry[] {
@@ -35,7 +36,7 @@ export function migrateStory(entries: Entry[]): Entry[] {
     return result;
 }
 
-export function validEntries(value: unknown): value is Entry[] {
+export function validEntries(value: unknown, gameIds: readonly string[] | null = GAMES.map(game => game.id)): value is Entry[] {
     return (
         Array.isArray(value) &&
         value.length <= 20000 &&
@@ -43,7 +44,7 @@ export function validEntries(value: unknown): value is Entry[] {
             (e: Entry) =>
                 e &&
                 typeof e.id === 'string' &&
-                GAMES.some((g) => g.id === e.game) &&
+                validGameId(e.game) && (gameIds === null || gameIds.includes(e.game)) &&
                 [
                     'inventory',
                     'characters',
@@ -210,7 +211,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
     if (entries.some((entry) => !Number.isSafeInteger(entry.order))) {
         return false;
     }
-    if (!validEntries(entries) || entries.some((e) => e.game !== game || !e.id || !e.name.trim())) {
+    if (!validGameId(game) || !validEntries(entries, [game]) || entries.some((e) => e.game !== game || !e.id || !e.name.trim())) {
         return false;
     }
     const ids = new Map(entries.map((e) => [e.id, e]));
@@ -265,7 +266,7 @@ export function migrateAchievements(entries: Entry[]): Entry[] {
     }
     return result;
 }
-export function parseBackup(raw: string): Entry[] {
+export function parseBackup(raw: string, gameIds: readonly string[] | null = GAMES.map(game => game.id)): Entry[] {
     const data: unknown = JSON.parse(raw);
     if (
         !data ||
@@ -273,9 +274,9 @@ export function parseBackup(raw: string): Entry[] {
         !('version' in data) ||
         data.version !== 1 ||
         !('entries' in data) ||
-        !validEntries(data.entries) ||
+        !validEntries(data.entries, gameIds) ||
         ('characterRules' in data && (!data.characterRules || typeof data.characterRules !== 'object' || Array.isArray(data.characterRules) ||
-            !Object.entries(data.characterRules).every(([game, rules]) => GAMES.some(item => item.id === game) && validCharacterRules(rules))))
+            !Object.entries(data.characterRules).every(([game, rules]) => validGameId(game) && (gameIds === null || gameIds.includes(game)) && validCharacterRules(rules))))
     ) {
         throw new Error('Invalid workspace backup');
     }

@@ -3,13 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { WorkspaceStore } from '../../../../../core/state/workspace.store';
 import type { Entry } from '../../../../../../../../lib/types/workspace.type';
 import { GAMES } from '../../../../../../../../lib/constants/workspace.constants';
+import { defaultGameOverview } from '@common/workspace/game-overview';
 
 @Component({ selector: 'gg-progression', imports: [FormsModule], templateUrl: './progression.html', styles: [':host { display: block; }'] })
 export class ProgressionPage {
     readonly context = input<(typeof GAMES)[number]>();
     readonly page = input('plans');
     readonly title = input('Planner');
-    readonly games = [...GAMES].sort((a, b) => a.name.localeCompare(b.name));
+    get games() {return (this.store.games?.() ?? GAMES.map(game => defaultGameOverview(game.id))).slice().sort((a, b) => a.name.localeCompare(b.name));}
     readonly store = inject(WorkspaceStore);
     readonly editEntry = output<{ kind: string; entry?: Entry }>();
     readonly removeEntry = output<Entry>();

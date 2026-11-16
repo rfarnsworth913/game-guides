@@ -6,10 +6,12 @@ import { httpUrl } from '../../../../common/quests/story-template';
 import { ApiError } from '../../core/errors/app-error';
 import { ImageRepository } from './images.repository';
 import { IMAGE_FILENAME, imageType } from './images.schema';
+import { validGameId } from '../../../../common/workspace/game-overview';
 export function gameImageFolder(id: string): string {
     const game = GAMES.find((game) => game.id === id);
-    if (!game)
+    if (!game && !validGameId(id))
         {throw new ApiError(404, 'Unknown game.');}
+    if (!game) {return `game-${id}`;}
     return game.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 export class ImagesService {

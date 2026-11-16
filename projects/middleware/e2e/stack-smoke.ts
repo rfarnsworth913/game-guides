@@ -15,6 +15,7 @@ import { GAMES } from '../../lib/constants/workspace.constants';
 import type { CatalogEntry } from '../../lib/types/workspace.type';
 import { emptyPatchOverview } from '../../common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
+import { defaultGameOverview } from '../../common/workspace/game-overview';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.
 const databaseName = `game_guides_e2e_${randomUUID().replaceAll('-', '')}`;
@@ -105,7 +106,7 @@ const uiServer = createServer((req, res) => {
     })().catch(() => { res.writeHead(500); res.end('E2E static server failed'); });
 });
 
-async function newPage(subject?: string): Promise<{ page: Page; context: BrowserContext }> {
+async function newPage(subject?: string, invalidRefresh = false): Promise<{ page: Page; context: BrowserContext }> {
     assert.ok(browser);
     const context = await browser.createBrowserContext();
     const page = await context.newPage();
@@ -117,7 +118,13 @@ async function newPage(subject?: string): Promise<{ page: Page; context: Browser
     await page.setRequestInterception(true);
     page.on('request', request => {
         const url = new URL(request.url());
-        if (url.origin === issuer.slice(0, -1) && ['/v2/logout', '/oidc/logout'].includes(url.pathname)) {
+        if (invalidRefresh && url.origin === issuer.slice(0, -1) && url.pathname === '/oauth/token') {
+            // Fixture only: reproduce a permanently invalid refresh token without contacting a real tenant.
+            void request.respond({ status: request.method() === 'OPTIONS' ? 204 : 403,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                    'Access-Control-Allow-Headers': request.headers()['access-control-request-headers'] ?? 'content-type, auth0-client' },
+                ...(request.method() === 'OPTIONS' ? {} : { body: JSON.stringify({ error: 'invalid_grant', error_description: 'Unknown or invalid refresh token.' }) }) });
+        } else if (url.origin === issuer.slice(0, -1) && ['/v2/logout', '/oidc/logout'].includes(url.pathname)) {
             // Exercise SDK logout/cache clearing; replace only the remote provider redirect.
             void request.respond({ status: 302, headers: { location: origin + '/' } });
         } else if (url.origin === origin || ['data:', 'blob:', 'about:'].includes(url.protocol)) {
@@ -133,16 +140,17 @@ async function newPage(subject?: string): Promise<{ page: Page; context: Browser
         const idToken = jwt(subject, { aud: AUTH0_PUBLIC.clientId });
         // Pre-authenticated fixture only: login redirects/Google/MFA/refresh rotation require a provider suite.
         // The actual Angular SDK obtains this token; the API still validates its signature and claims.
-        await page.evaluate(({ config, subject, accessToken, idToken, issuer }) => {
+        await page.evaluate(({ config, subject, accessToken, idToken, issuer, invalidRefresh }) => {
             const scope = 'openid profile email offline_access';
             const expiresAt = Math.floor(Date.now() / 1000) + 3600;
             const decodedToken = { user: { sub: subject, name: subject }, claims: { sub: subject, name: subject, iss: issuer, aud: config.clientId, exp: expiresAt, __raw: idToken } };
             localStorage.setItem(`@@auth0spajs@@::${config.clientId}::${config.audience}::${scope}`, JSON.stringify({
-                body: { client_id: config.clientId, audience: config.audience, scope, access_token: accessToken, id_token: idToken, decodedToken, expires_in: 3600, token_type: 'Bearer' }, expiresAt,
+                body: { client_id: config.clientId, audience: config.audience, scope, access_token: accessToken, id_token: idToken, decodedToken, expires_in: 3600, token_type: 'Bearer', ...(invalidRefresh ? { refresh_token: 'e2e-invalid-refresh-token' } : {}) },
+                expiresAt: invalidRefresh ? Math.floor(Date.now() / 1000) - 60 : expiresAt,
             }));
             localStorage.setItem(`@@auth0spajs@@::${config.clientId}::@@user@@`, JSON.stringify({ id_token: idToken, decodedToken }));
             document.cookie = `auth0.${config.clientId}.is.authenticated=true; path=/; SameSite=Lax`;
-        }, { config: AUTH0_PUBLIC, subject, accessToken, idToken, issuer });
+        }, { config: AUTH0_PUBLIC, subject, accessToken, idToken, issuer, invalidRefresh });
     }
     return { page, context };
 }
@@ -375,6 +383,129 @@ try {
     await editor.setViewport({ width: 1440, height: 1000 });
     console.log('PASS two-mode sidebar: route preservation, search, favorites persistence, game switching and mobile keyboard access.');
 
+    const customId = 'e2e-custom-rpg';
+    assert.equal((await api('/api/games/registry')).status, 401);
+    assert.equal((await api('/api/games/registry', playerToken)).status, 403);
+    assert.equal((await api('/api/games', playerToken, 'POST', defaultGameOverview(customId))).status, 403);
+    await guest.reload({ waitUntil: 'networkidle0' });
+    await guest.click('gg-workspace-sidebar .active-game-selector');
+    await guest.waitForSelector('gg-workspace-sidebar #game-selection');
+    assert.equal(await guest.$('.game-management-actions'), null);
+
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('.game-management-actions');
+    await clickButton(editor, '+ Add Game', 'gg-workspace-sidebar');
+    await editor.waitForSelector('gg-game-manager input[name=game-title]');
+    const fillGame = async (name: string, value: string) => editor.$eval(`gg-game-manager [name=${name}]`, (element, value) => {
+        const input = element as HTMLInputElement;
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }, value);
+    await fillGame('game-title', 'E2E Custom RPG');
+    await fillGame('game-type', 'JRPG');
+    await fillGame('game-description', 'A configurable game overview.');
+    await editor.$$eval('gg-game-manager .game-feature', labels => {
+        (labels.find(label => label.querySelector('strong')?.textContent === 'Events')?.querySelector('input') as HTMLInputElement).click();
+    });
+    let draftUploads = 0;
+    editor.on('request', request => {if (request.url().includes(`/api/games/${customId}/images`) && request.method() === 'POST') {draftUploads++;}});
+    const draftFiles = await editor.$$('gg-game-manager input[type=file]');
+    assert.equal(draftFiles.length, 2);
+    await draftFiles[0].uploadFile(imagePath);
+    await draftFiles[1].uploadFile(imagePath);
+    await editor.waitForFunction(() => document.querySelectorAll('gg-game-manager .image-preview[src^="blob:"]').length === 2);
+    assert.equal(draftUploads, 0, 'Draft images must preview without uploading before creation.');
+    await clickButton(editor, 'Advanced', 'gg-game-manager');
+    await editor.waitForSelector('#game-advanced-panel:not([hidden])');
+    await fillGame('game-short', 'TEST');
+    await clickButton(editor, 'Overview', 'gg-game-manager');
+    await editor.waitForSelector('#game-overview-panel:not([hidden])');
+    await fillGame('game-color', '#3399ff');
+    await clickButton(editor, 'Create Game', 'gg-game-manager');
+    await editor.waitForSelector('gg-game-manager .game-registry-list');
+    assert.equal(draftUploads, 2);
+    const createdOverview = (await repository.read(customId)).overview!;
+    assert.equal(createdOverview.short, 'TEST');
+    assert.equal(createdOverview.color, 'rgba(51, 153, 255, 1)');
+    assert.ok(createdOverview.icon && createdOverview.banner);
+    await editor.click('[aria-label="Close game manager"]');
+    await editor.waitForSelector('gg-game-manager', { hidden: true });
+    const selectCustom = async () => {
+        await editor.waitForFunction(() => [...document.querySelectorAll('gg-workspace-sidebar .game-choice')].some(button => button.textContent?.includes('E2E')));
+        await editor.$$eval('gg-workspace-sidebar .game-choice', buttons => (buttons.find(button => button.textContent?.includes('E2E')) as HTMLButtonElement).click());
+        await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, {}, customId);
+        await editor.waitForSelector('gg-dashboard .events-panel');
+    };
+    await selectCustom();
+    assert.equal(await editor.evaluate(() => document.documentElement.style.getPropertyValue('--color-game-accent')), 'rgba(51, 153, 255, 1)');
+    assert.equal(await editor.$('gg-workspace-sidebar a[href$="/story"]'), null);
+    assert.equal(await editor.$('gg-dashboard .story-panel'), null);
+    assert.equal(await editor.$('gg-dashboard .summary-characters'), null);
+    assert.equal((await api(`/api/games/${customId}/catalog`, editorToken, 'PUT', { revision: 0, entries: [{
+        id: 'custom-event', game: customId, kind: 'events', name: 'Custom event', notes: '', category: 'temporary', rarity: 1,
+        day: '', order: 0, members: [], requirements: [], startDate: '2026-01-01', endDate: '2099-12-31',
+    }] })).status, 200);
+    const customProgress = await (await api('/api/me/progress', editorToken)).json();
+    assert.equal((await api('/api/me/progress', editorToken, 'PATCH', { revision: customProgress.revision, changes: {
+        [`${customId}/custom-event`]: { completed: true, quantity: 0, target: 0 },
+    } })).status, 200);
+    await editor.goto(origin + `/games/${customId}/story`, { waitUntil: 'networkidle0' });
+    await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, {}, customId);
+    await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('[aria-label="Edit E2E Custom RPG overview"]');
+    await editor.click('[aria-label="Edit E2E Custom RPG overview"]');
+    await editor.waitForSelector('gg-game-manager input[name=game-title]');
+    await fillGame('game-title', 'E2E Renamed RPG');
+    const customUpload = editor.waitForResponse(response => response.url().includes(`/api/games/${customId}/images`) && response.request().method() === 'POST');
+    const customIcon = await editor.$('gg-game-manager input[type=file]');
+    assert.ok(customIcon);
+    await customIcon.uploadFile(imagePath);
+    await editor.waitForSelector('gg-game-manager [data-game-field=icon] .image-preview[src^="blob:"]');
+    await fillGame('game-color', 'url(https://example.com/invalid)');
+    assert.equal(await editor.$$eval('gg-game-manager button', buttons => (buttons.find(button => button.textContent?.trim() === 'Save Changes') as HTMLButtonElement).disabled), true);
+    await fillGame('game-color', '#7c3aed');
+    await clickButton(editor, 'Advanced', 'gg-game-manager');
+    await editor.waitForSelector('#game-advanced-panel:not([hidden])');
+    assert.equal(await editor.$eval('gg-game-manager [name=game-id]', element => (element as HTMLInputElement).readOnly), true);
+    await clickButton(editor, 'Overview', 'gg-game-manager');
+    await editor.waitForSelector('#game-overview-panel:not([hidden])');
+    assert.equal(await editor.$$eval('gg-game-manager .game-feature svg', icons => icons.length), 8);
+    await editor.screenshot({ path: join(artifacts, 'game-overview-editor.png') });
+    await clickButton(editor, 'Save Changes', 'gg-game-manager');
+    assert.equal((await customUpload).status(), 201);
+    await editor.waitForSelector('[aria-label="Edit E2E Renamed RPG"]');
+    assert.equal(await editor.evaluate(() => document.documentElement.style.getPropertyValue('--color-game-accent')), 'rgba(124, 58, 237, 1)');
+    await editor.click('[aria-label="Edit E2E Renamed RPG"]');
+    await editor.waitForSelector('gg-game-manager input[name=game-title]');
+    await clickButton(editor, 'Remove Game', 'gg-game-manager');
+    await editor.waitForSelector('.game-remove-confirm');
+    await clickButton(editor, 'Confirm Remove Game', 'gg-game-manager');
+    await editor.waitForFunction(() => location.pathname === '/games');
+    assert.equal((await api(`/api/games/${customId}`)).status, 404);
+    assert.equal((await db.collection('games').findOne({ _gameId: customId }))?.['events'].length, 1);
+    assert.equal((await (await api('/api/me/progress', editorToken)).json()).state[`${customId}/custom-event`].completed, true);
+    await repository.initialize();
+    assert.equal((await repository.list()).some(game => game.id === customId), false, 'Startup must not resurrect removed games.');
+    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
+    await editor.click('gg-workspace-sidebar .active-game-selector');
+    await editor.waitForSelector('.game-management-actions');
+    await clickButton(editor, 'Manage Games', 'gg-workspace-sidebar');
+    await editor.waitForSelector('[aria-label="Edit E2E Renamed RPG"]');
+    await editor.click('[aria-label="Edit E2E Renamed RPG"]');
+    await editor.waitForSelector('gg-game-manager input[name=game-title]');
+    await clickButton(editor, 'Restore Game', 'gg-game-manager');
+    await editor.waitForSelector('gg-game-manager .game-registry-list');
+    await editor.click('[aria-label="Close game manager"]');
+    await editor.waitForSelector('gg-game-manager', { hidden: true });
+    await selectCustom();
+    await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
+    const restoredGame = await repository.read(customId);
+    assert.equal(restoredGame.name, 'E2E Renamed RPG');
+    assert.ok(restoredGame.overview?.icon.startsWith(`/api/games/${customId}/images/`));
+    assert.equal((await api(restoredGame.overview!.icon)).status, 200);
+    console.log('PASS editor-only game creation, overview/image editing, feature routing, archive/restore and retained custom-game progress.');
+
     await editor.click('[popovertarget=profile-menu]');
     await Promise.all([
         editor.waitForNavigation({ waitUntil: 'networkidle0' }),
@@ -387,6 +518,25 @@ try {
     assert.equal((await api('/api/me/progress')).status, 401);
     assert.equal((await api('/api/me/progress', editorToken)).status, 200, 'Logout clears browser credentials; an issued JWT remains valid until expiry.');
     await editorContext.close();
+    const { page: expired, context: expiredContext } = await newPage('e2e-editor', true);
+    const preservedProgress = JSON.stringify({ version: 1, state: { 'genshin/guest-preserved': { completed: true, quantity: 0, target: 0 } } });
+    await expired.evaluate(progress => { localStorage.setItem('gg-player-v1', progress); localStorage.setItem('e2e-preserved-data', 'keep'); }, preservedProgress);
+    let refreshAttempts = 0;
+    expired.on('request', request => {if (new URL(request.url()).pathname === '/oauth/token' && request.method() === 'POST') {refreshAttempts++;}});
+    await expired.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle0' });
+    await expired.waitForFunction(() => document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
+    // The SDK swallows its initial checkSession error; the first application request then reports it.
+    assert.equal(refreshAttempts, 2, 'Only SDK startup and the first application request should attempt the invalid token.');
+    await expired.click('gg-workspace-sidebar a[href="/games"]');
+    await expired.waitForFunction(() => location.pathname === '/games' && document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
+    await expired.waitForNetworkIdle({ idleTime: 300, timeout: 5000 });
+    assert.equal(refreshAttempts, 2, 'Navigating after recovery must not retry the invalid token.');
+    assert.equal(await expired.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('@@auth0spajs@@'))), false);
+    assert.equal(await expired.evaluate(() => localStorage.getItem('gg-player-v1')), preservedProgress);
+    assert.equal(await expired.evaluate(() => localStorage.getItem('e2e-preserved-data')), 'keep');
+    await expired.screenshot({ path: join(artifacts, 'expired-session-recovery.png') });
+    await expiredContext.close();
+    console.log('PASS invalid refresh token clears only SDK credentials and offers reauthentication without a retry loop or loss of local progress.');
     assert.deepEqual(runtimeErrors, []);
     assert.deepEqual(externalRequests, []);
     assert.ok((await readdir(join(assets, 'genshin-impact'))).length > 0);

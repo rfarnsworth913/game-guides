@@ -6,7 +6,8 @@ import { respond } from '../../core/http/response';
 import { GamesService } from './games.service';
 
 export async function allGamesController(response: ServerResponse, repository: CatalogRepository): Promise<void> {
-    respond(response, 200, { games: await Promise.all(GAMES.map(game => repository.read(game.id))) });
+    const games = repository.list ? await repository.list() : GAMES;
+    respond(response, 200, { games: await Promise.all(games.map(game => repository.read(game.id))) });
 }
 export async function readGameController(response: ServerResponse, repository: CatalogRepository, id: string, parsed: boolean): Promise<void> {
     respond(response, 200, parsed ? await repository.parsed(id) : await repository.read(id));

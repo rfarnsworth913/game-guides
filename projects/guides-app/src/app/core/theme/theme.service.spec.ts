@@ -167,6 +167,19 @@ describe("ThemeService", () => {
         expect(document.documentElement.dataset["game"]).toBe("genshin");
         expect(document.documentElement.style.colorScheme).toBe("light");
     });
+    it('applies a saved highlight with readable button text and restores theme defaults', () => {
+        const service = createService('dark');
+        service.setGame('genshin', '#ffffff');
+        expect(document.documentElement.style.getPropertyValue('--color-game-accent')).toBe('rgba(255, 255, 255, 1)');
+        expect(document.documentElement.style.getPropertyValue('--color-on-primary')).toBe('rgba(0, 0, 0, 1)');
+        service.setTheme('light');
+        expect(document.documentElement.style.getPropertyValue('--color-game-accent')).toBe('rgba(255, 255, 255, 1)');
+        service.setGame('default', 'rgba(0, 0, 0, 1)');
+        expect(document.documentElement.style.getPropertyValue('--color-on-primary')).toBe('rgba(255, 255, 255, 1)');
+        service.setGame('genshin');
+        expect(document.documentElement.style.getPropertyValue('--color-game-accent')).toBe('');
+        expect(document.documentElement.style.getPropertyValue('--color-on-primary')).toBe('');
+    });
 
     it("follows system changes only while System is selected", () => {
         const service = createService('system', true);

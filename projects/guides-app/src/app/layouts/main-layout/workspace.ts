@@ -25,10 +25,12 @@ import { eventDate } from "../../features/gacha/events/utils/event-calendar";
 import { BackToTop } from "../../shared/components/back-to-top/back-to-top";
 import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialog-focus";
 import { WorkspaceSidebar } from './components/sidebar/workspace-sidebar';
+import { GameManager, type GameManagementRequest } from './components/game-manager/game-manager';
+import { gameSupports } from '@common/workspace/game-overview';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [DashboardPage, GameCollectionPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop, WorkspaceSidebar],
+    imports: [DashboardPage, GameCollectionPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop, WorkspaceSidebar, GameManager],
     templateUrl: "./workspace.html",
     styleUrl: "./workspace.scss",
 })
@@ -42,7 +44,8 @@ export class Workspace {
     readonly params = toSignal(inject(ActivatedRoute).paramMap);
     readonly settingsParams = toSignal(inject(ActivatedRoute).queryParamMap);
     readonly settingsTab = computed(() => this.settingsParams()?.get('tab'));
-    readonly games = [...GAMES].sort((a, b) => a.name.localeCompare(b.name));
+    readonly games = computed(() => this.store.games().slice().sort((a, b) => a.name.localeCompare(b.name)));
+    gameManagement: GameManagementRequest | null = null;
     readonly nav = [
         { id: 'dashboard', label: 'Dashboard', icon: '\u25c8' },
         { id: 'games', label: 'Games Collection', icon: '\u25a6' },
@@ -61,16 +64,18 @@ export class Workspace {
             ? 'Overview'
             : this.nav.find((n) => n.id === this.page())?.label ?? 'Settings',
     );
-    readonly context = computed(() => this.games.find((g) => g.id === this.params()?.get('game')));
+    readonly context = computed(() => this.games().find((g) => g.id === this.params()?.get('game')));
     constructor() {
         this.store.initialize().catch(() => this.notice.set('Could not initialize game data.'));
         effect(() => {
             const game = this.params()?.get('game');
-            if (game && !this.context()) {
+            if (game && !this.context() && this.store.initialized()) {
                 this.navigate('/games');
                 return;
             }
-            this.theme.setGame((this.context()?.id ?? 'default') as GameTheme);
+            const context = this.context();
+            this.theme.setGame((GAMES.some(item => item.id === context?.id) ? context!.id : 'default') as GameTheme, context?.color);
+            if (context && !gameSupports(context, this.page())) {this.navigate(`/games/${context.id}/dashboard`);}
         });
     }
     sectionLink(page: string): string {
@@ -113,7 +118,7 @@ export class Workspace {
         });
     }
     gameName(id: string): string {
-        return this.games.find((g) => g.id === id)?.name ?? 'All games';
+        return this.games().find((g) => g.id === id)?.name ?? 'All games';
     }
     isExisting(id: string): boolean {
         return this.store.entries().some((e) => e.id === id);
@@ -207,7 +212,7 @@ export class Workspace {
                 return;
             }
         }
-        if (!this.editor.name || !validEntries([this.editor])) {
+        if (!this.editor.name || !validEntries([this.editor], this.games().map(game => game.id))) {
             this.formError = 'Enter a name and valid non-negative numbers.';
             return;
         }

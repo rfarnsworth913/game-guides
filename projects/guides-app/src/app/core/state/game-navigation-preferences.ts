@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { GAMES } from '@lib/constants/workspace.constants';
+import { validGameId } from '@common/workspace/game-overview';
 
 const STORAGE_KEY = 'gg-game-navigation-v1';
 type Preferences = { version: 1; favorites: string[]; recent: string[] };
@@ -16,7 +16,7 @@ export class GameNavigationPreferences {
 
     private knownIds(value: unknown): string[] {
         return Array.isArray(value) ? [...new Set(value.filter((id): id is string =>
-            typeof id === 'string' && GAMES.some(game => game.id === id)))].slice(0, GAMES.length) : [];
+            typeof id === 'string' && validGameId(id)))].slice(0, 200) : [];
     }
 
     private read(): Preferences {
@@ -40,14 +40,14 @@ export class GameNavigationPreferences {
     }
 
     toggleFavorite(id: string): void {
-        if (!GAMES.some(game => game.id === id)) {return;}
+        if (!validGameId(id)) {return;}
         this.favorites.update(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
         this.persist();
     }
 
     remember(id: string): void {
-        if (!GAMES.some(game => game.id === id) || this.recent()[0] === id) {return;}
-        this.recent.update(ids => [id, ...ids.filter(value => value !== id)].slice(0, GAMES.length));
+        if (!validGameId(id) || this.recent()[0] === id) {return;}
+        this.recent.update(ids => [id, ...ids.filter(value => value !== id)].slice(0, 200));
         this.persist();
     }
 }

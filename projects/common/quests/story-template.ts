@@ -118,7 +118,7 @@ export function preparePatchGroups(patch: PatchOverview): void {
     }
 }
 export function storyImageUrl(value: string): string | null {
-    return /^\/api\/games\/[a-z]+\/images\/[a-z0-9][a-z0-9-]*\.(png|jpg|webp|gif)$/.test(value)
+    return /^\/api\/games\/[a-z][a-z0-9-]*\/images\/[a-z0-9][a-z0-9-]*\.(png|jpg|webp|gif)$/.test(value)
         ? value
         : httpUrl(value);
 }

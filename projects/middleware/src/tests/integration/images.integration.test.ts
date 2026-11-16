@@ -6,11 +6,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AddressInfo } from 'node:net';
 import { createApi } from "../../app/server";
+import { ApiError } from '../../core/errors/app-error';
+import { GAMES } from '../../../../lib/constants/workspace.constants';
 
 await test('game image uploads persist, list per game, serve immediately and reject unsafe input', async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'guides-images-'));
     const server = createApi({
-        async read() { throw new Error('Unexpected database call'); },
+        async read(id) {
+            const game = GAMES.find(item => item.id === id);
+            if (!game) {throw new ApiError(404, 'Unknown game.');}
+            return { id, name: game.name, revision: 0, entries: [] };
+        },
         async write() { throw new Error('Unexpected database call'); },
         async parsed() { throw new Error('Unexpected database call'); },
     }, ['http://localhost:4200'], async () => true, root, editorFixture);

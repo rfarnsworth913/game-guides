@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { GAMES } from '@lib/constants/workspace.constants';
 import { WorkspaceSidebar, type SidebarLink } from './workspace-sidebar';
+import { defaultGameOverview } from '@common/workspace/game-overview';
 
 @Component({ selector: 'gg-sidebar-route-test', template: '' })
 class RouteTarget {}
@@ -148,5 +149,20 @@ describe('Workspace sidebar game selection', () => {
         fixture.detectChanges();
         expect(root.querySelector('a[href="/games/ffxiv/characters"]')).not.toBeNull();
         expect(root.querySelector('a[href="/games/ffxiv/story"]')).toBeNull();
+    });
+    it('uses registry metadata and exposes management only to editors', async () => {
+        const { fixture, component, root } = await setup('custom-rpg');
+        fixture.componentRef.setInput('catalog', [{ ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: ['characters'] }]);
+        fixture.detectChanges();
+        expect(root.querySelector('a[href="/games/custom-rpg/characters"]')).not.toBeNull();
+        expect(root.querySelector('a[href="/games/custom-rpg/story"]')).toBeNull();
+        component.openSelector();
+        fixture.detectChanges();
+        expect(root.querySelector('.game-management-actions')).toBeNull();
+        fixture.componentRef.setInput('canManage', true);
+        fixture.detectChanges();
+        expect(root.querySelector('.game-management-actions')).not.toBeNull();
+        expect(root.querySelector('[aria-label="Edit Custom RPG overview"]')).not.toBeNull();
+        expect(component.games().map(game => game.name)).toEqual(['Custom RPG']);
     });
 });

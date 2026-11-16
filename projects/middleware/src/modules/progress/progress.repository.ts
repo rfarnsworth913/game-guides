@@ -22,7 +22,7 @@ export class ProgressRepository {
         if (BSON.calculateObjectSize({ state }) > 8 * 1024 * 1024) {
             throw new ApiError(413, 'Account progress is too large.');
         }
-        if (!validProgressState(state)) {
+        if (!validProgressState(state, null)) {
             throw new ApiError(400, 'Invalid player progress.');
         }
         if (revision === 0) {

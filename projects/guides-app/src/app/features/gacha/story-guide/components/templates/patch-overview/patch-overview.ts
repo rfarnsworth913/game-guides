@@ -155,7 +155,7 @@ export class PatchOverviewTemplate {
     readonly imageUrl = storyImageUrl;
     readonly storyTemplateName = computed(() => storyContentName(this.entry().game, this.entry().category === 'endgame-activity' ? 'endgame-activity' : this.entry().category === 'events' ? 'events' : this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
     readonly gameName = computed(
-        () => GAMES.find((game) => game.id === this.entry().game)?.name ?? '',
+        () => (this.store.games?.() ?? GAMES).find((game) => game.id === this.entry().game)?.name ?? '',
     );
     groupAnchor(id: string): string {
         return `patch-group-${this.entry().id}-${id || 'overview'}`;

@@ -13,6 +13,8 @@ import type { PlayerState, Entry, GameSnapshot } from "../../../../../lib/types/
 
 import { GAMES } from "../../../../../lib/constants/workspace.constants";
 import { validEntries, parseBackup, toCatalog, fromCatalog, validCatalog } from "../../../../../common/workspace/workspace";
+import { defaultGameOverview, validGameOverview } from '@common/workspace/game-overview';
+import type { GameOverview } from '@lib/types/game-overview.type';
 export type { Entry, Kind } from "../../../../../lib/types/workspace.type";
 export { GAMES } from "../../../../../lib/constants/workspace.constants";
 export { validEntries, parseBackup } from "../../../../../common/workspace/workspace";
@@ -30,6 +32,7 @@ export class WorkspaceStore {
     readonly initialized = signal(false);
     readonly loading = signal(false);
     readonly saving = signal(false);
+    readonly games = signal<GameOverview[]>(GAMES.map(game => defaultGameOverview(game.id)));
     readonly characterRules = signal<Record<string, CharacterRules>>({});
     readonly teams = signal<Record<string, Team[]>>({});
     private snapshots = new Map<string, GameSnapshot>();
@@ -38,9 +41,9 @@ export class WorkspaceStore {
     private playerKey(entry: { game: string; id: string }): string {
         return `${entry.game}/${entry.id}`;
     }
-    private async request(path: string, body?: unknown): Promise<unknown> {
+    private async request(path: string, body?: unknown, method = body ? 'PUT' : 'GET'): Promise<unknown> {
         const init: RequestInit = {
-            method: body ? 'PUT' : 'GET',
+            method,
             ...(body
                 ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
                 : {}),
@@ -91,25 +94,50 @@ export class WorkspaceStore {
             !('entries' in value) ||
             !validCatalog(value.entries, value.id)
             || ('characterRules' in value && !validCharacterRules(value.characterRules))
+            || ('overview' in value && (!validGameOverview(value.overview) || value.overview.id !== value.id || value.overview.archived))
         ) {
             throw new Error('Invalid game data received from middleware.');
         }
         return {
             id: value.id,
-            name: GAMES.find((g) => g.id === value.id)?.name ?? value.id,
+            name: 'overview' in value ? (value.overview as GameOverview).name : GAMES.find((g) => g.id === value.id)?.name ?? value.id,
             revision: Number(value.revision),
             entries: value.entries,
             ...('characterRules' in value ? { characterRules: value.characterRules as CharacterRules } : {}),
+            overview: 'overview' in value ? value.overview as GameOverview : defaultGameOverview(value.id),
         };
     }
     private showSnapshots(): void {
-        this.teams.set(Object.fromEntries(GAMES.map(game => [game.id, structuredClone(this.player[`${game.id}/${TEAM_PROGRESS_ID}`]?.teams ?? [])])));
+        this.teams.set(Object.fromEntries(this.games().map(game => [game.id, structuredClone(this.player[`${game.id}/${TEAM_PROGRESS_ID}`]?.teams ?? [])])));
         this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
             [...this.snapshots.values()].flatMap((game) =>
                 game.entries.map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
             ),
         );
+    }
+    async gameRegistry(): Promise<GameOverview[]> {
+        if (!this.canEdit()) {throw new Error('Editor access is required.');}
+        const data = await this.request('games/registry');
+        if (!data || typeof data !== 'object' || !('games' in data) || !Array.isArray(data.games) || !data.games.every(validGameOverview)) {
+            throw new Error('Invalid game registry response.');
+        }
+        return data.games as GameOverview[];
+    }
+    async saveGameOverview(game: GameOverview, create = false, remove = false): Promise<GameOverview> {
+        if (!this.canEdit() || this.saving() || this.loading()) {throw new Error('Editor access and an idle workspace are required.');}
+        if (!validGameOverview(game)) {throw new Error('Complete the required game fields and valid image URLs.');}
+        this.saving.set(true);
+        try {
+            const data = await this.request(create ? 'games' : `games/${game.id}${remove ? '' : '/overview'}`,
+                remove ? { revision: game.revision } : game, create ? 'POST' : remove ? 'DELETE' : 'PUT');
+            if (!validGameOverview(data) || data.id !== game.id) {throw new Error('Invalid saved game response.');}
+            if (data.archived) {this.snapshots.delete(data.id);}
+            else {this.snapshots.set(data.id, this.snapshot(await this.request(`games/${data.id}`)));}
+            this.games.set([...this.games().filter(item => item.id !== data.id), ...(data.archived ? [] : [data])].sort((a, b) => a.name.localeCompare(b.name)));
+            this.showSnapshots();
+            return data;
+        } finally {this.saving.set(false);}
     }
     /** Fetch definitions once, and migrate old browser catalogs only after a successful server write. */
     initialize(): Promise<boolean> {
@@ -165,11 +193,11 @@ export class WorkspaceStore {
                         );
                     }
                 }
-                if (!validProgressState(parsed.state)) {throw new Error('Invalid local player data. Your stored data has not been overwritten.');}
+                if (!validProgressState(parsed.state, null)) {throw new Error('Invalid local player data. Your stored data has not been overwritten.');}
                 this.player = parsed.state as typeof this.player;
             }
             const legacyRaw = !signedIn ? localStorage.getItem(KEY) : null;
-            const legacy = legacyRaw ? parseBackup(legacyRaw) : [];
+            const legacy = legacyRaw ? parseBackup(legacyRaw, null) : [];
             const response = await this.request('games');
             if (
                 !response ||
@@ -181,12 +209,12 @@ export class WorkspaceStore {
             }
             const snapshots = response.games.map((game: unknown) => this.snapshot(game));
             if (
-                snapshots.length !== GAMES.length ||
-                !GAMES.every((game) => snapshots.some((snapshot) => snapshot.id === game.id))
+                new Set(snapshots.map(game => game.id)).size !== snapshots.length
             ) {
                 throw new Error('Middleware returned an incomplete game catalog.');
             }
             this.snapshots = new Map(snapshots.map((game) => [game.id, game]));
+            this.games.set(snapshots.map(game => game.overview!).sort((a, b) => a.name.localeCompare(b.name)));
             if (legacy.length) {
                 for (const entry of legacy) {
                     this.player[this.playerKey(entry)] ??= {
@@ -247,11 +275,11 @@ export class WorkspaceStore {
             this.error.set('Game data is not ready or a save is in progress. Please retry.');
             return false;
         }
-        if (!validEntries(entries)) {
+        if (!validEntries(entries, this.games().map(game => game.id))) {
             this.error.set('Invalid workspace entries.');
             return false;
         }
-        if (ruleUpdates && !Object.entries(ruleUpdates).every(([game, rules]) => GAMES.some(item => item.id === game) && validCharacterRules(rules))) {
+        if (ruleUpdates && !Object.entries(ruleUpdates).every(([game, rules]) => this.games().some(item => item.id === game) && validCharacterRules(rules))) {
             this.error.set('Invalid game character rules.'); return false;
         }
         this.saving.set(true);
@@ -273,12 +301,12 @@ export class WorkspaceStore {
             if (!this.auth?.user()) {
                 const raw = localStorage.getItem('gg-player-v1');
                 const latest = (raw ? JSON.parse(raw) : { version: 1, state: {} }) as { version?: unknown; state?: unknown };
-                if (latest.version !== 1 || !validProgressState(latest.state)) {throw new Error('Invalid local player data. Your stored data has not been overwritten.');}
+                if (latest.version !== 1 || !validProgressState(latest.state, null)) {throw new Error('Invalid local player data. Your stored data has not been overwritten.');}
                 const merged = mergeUpdates(this.player, player, latest.state);
                 localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: merged }));
                 this.player = merged;
             }
-            for (const game of GAMES) {
+            for (const game of this.games()) {
                 const snapshot = this.snapshots.get(game.id)!;
                 const catalog = entries
                     .filter((entry) => entry.game === game.id)
@@ -362,7 +390,7 @@ export class WorkspaceStore {
         if (!value || typeof value !== 'object' || Array.isArray(value)) { this.error.set('Invalid team data.'); return false; }
         const updates: Record<string, Team[]> = {};
         for (const [game, incoming] of Object.entries(value)) {
-            if (!GAMES.some(item => item.id === game) || !validTeams(incoming)) { this.error.set('Invalid team data.'); return false; }
+            if (!this.games().some(item => item.id === game) || !validTeams(incoming)) { this.error.set('Invalid team data.'); return false; }
             const existing = this.teams()[game] ?? [];
             for (const team of incoming) {
                 if (JSON.stringify(existing.find(item => item.id === team.id)) === JSON.stringify(team)) {continue;}
@@ -378,7 +406,7 @@ export class WorkspaceStore {
     }
     private async persistTeams(updates: Record<string, Team[]>): Promise<boolean> {
         if (this.saving() || this.loading() || !this.initialized()) {return false;}
-        if (!Object.entries(updates).every(([game, teams]) => GAMES.some(item => item.id === game) && validTeams(teams))) { this.error.set('Invalid team data.'); return false; }
+        if (!Object.entries(updates).every(([game, teams]) => this.games().some(item => item.id === game) && validTeams(teams))) { this.error.set('Invalid team data.'); return false; }
         const changes = Object.fromEntries(Object.entries(updates).map(([game, teams]) => [`${game}/${TEAM_PROGRESS_ID}`, { completed: false, quantity: 0, target: 0, teams: structuredClone(teams) }]));
         this.saving.set(true); this.error.set('');
         try {
@@ -388,7 +416,7 @@ export class WorkspaceStore {
             } else {
                 const raw = localStorage.getItem('gg-player-v1');
                 const latest = (raw ? JSON.parse(raw) : { version: 1, state: {} }) as { version?: unknown; state?: unknown };
-                if (latest.version !== 1 || !validProgressState(latest.state)) {throw new Error('Invalid local progress. Stored data has not been overwritten.');}
+                if (latest.version !== 1 || !validProgressState(latest.state, null)) {throw new Error('Invalid local progress. Stored data has not been overwritten.');}
                 const merged = mergeUpdates(this.player, { ...this.player, ...changes }, latest.state);
                 localStorage.setItem('gg-player-v1', JSON.stringify({ version: 1, state: merged }));
                 this.player = merged;
@@ -400,7 +428,7 @@ export class WorkspaceStore {
     private async readProgress(): Promise<ProgressSnapshot> {
         const response = await this.auth!.request('/api/me/progress');
         const data = await response.json() as Record<string, unknown>;
-        if (!response.ok || !Number.isSafeInteger(data['revision']) || Number(data['revision']) < 0 || !validProgressState(data['state'])) {throw new Error('Could not load account progress.');}
+        if (!response.ok || !Number.isSafeInteger(data['revision']) || Number(data['revision']) < 0 || !validProgressState(data['state'], null)) {throw new Error('Could not load account progress.');}
         return data as ProgressSnapshot;
     }
     private async writeProgress(changes: ProgressSnapshot['state']): Promise<ProgressSnapshot> {
@@ -420,7 +448,7 @@ export class WorkspaceStore {
                 current = latest;
                 continue;
             }
-            if (!Number.isSafeInteger(data['revision']) || Number(data['revision']) < 0 || !validProgressState(data['state'])) {throw new Error('Invalid progress response.');}
+            if (!Number.isSafeInteger(data['revision']) || Number(data['revision']) < 0 || !validProgressState(data['state'], null)) {throw new Error('Invalid progress response.');}
             return data as ProgressSnapshot;
         }
         throw new Error('Progress is being updated repeatedly. Try saving again shortly.');
@@ -429,7 +457,7 @@ export class WorkspaceStore {
         const raw = localStorage.getItem('gg-player-v1');
         if (!raw) {return {};}
         const data = JSON.parse(raw) as { version?: unknown; state?: unknown };
-        if (data.version !== 1 || !validProgressState(data['state'])) {throw new Error('Invalid guest progress. Export a backup before continuing.');}
+        if (data.version !== 1 || !validProgressState(data['state'], null)) {throw new Error('Invalid guest progress. Export a backup before continuing.');}
         const result: ProgressSnapshot['state'] = {};
         for (const entry of this.entries()) {
             const key = this.playerKey(entry); const guest = data['state'][key];
@@ -444,7 +472,7 @@ export class WorkspaceStore {
             const collection = account?.characterCollection ?? guest.characterCollection;
             if (collection) {result[key].characterCollection = structuredClone(collection);}
         }
-        for (const game of GAMES) {
+        for (const game of this.games()) {
             const key = `${game.id}/${TEAM_PROGRESS_ID}`;
             const incoming: Team[] | undefined = data['state'][key]?.teams;
             if (!incoming) {continue;}

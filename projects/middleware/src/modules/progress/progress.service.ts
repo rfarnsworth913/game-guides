@@ -12,7 +12,7 @@ export class ProgressService {
         const { repository, progress } = this;
         if (!body || typeof body !== 'object' || Object.keys(body).some((key) => !['revision', 'changes'].includes(key)) ||
             !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0 ||
-            !('changes' in body) || !validProgressState(body.changes))
+            !('changes' in body) || !validProgressState(body.changes, null))
             {throw new ApiError(400, 'Invalid progress update.');}
         const previous = await progress.read(userId);
         const requestedChanges = body.changes;

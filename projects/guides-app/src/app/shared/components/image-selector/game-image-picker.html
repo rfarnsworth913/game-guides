@@ -2,7 +2,7 @@
     <button type="button" class="compact-icon-button" [class.has-icon]="value()"
         [attr.aria-label]="'Choose ' + label()" [attr.aria-controls]="iconMenuId"
         [title]="label() + ' (optional)'" (click)="showIconMenu($event)">
-        @if (imageUrl(value()); as url) {
+        @if (previewUrl(); as url) {
             @if (failedPreview() !== url) { <img [src]="url" alt="" (error)="failedPreview.set(url)" /> }
             @else { <span aria-hidden="true">?</span> }
         } @else if (value()) { <span aria-hidden="true">{{ value() }}</span> }
@@ -11,18 +11,18 @@
     <div #iconMenu [id]="iconMenuId" popover="auto" class="compact-icon-menu"
         (keydown.escape)="$event.stopPropagation()" (keydown.enter)="preventLibrarySubmit($event)">
         <strong>{{ label() }}</strong>
-        <button type="button" (click)="browse()">Browse Game Library</button>
+        <button type="button" [disabled]="!libraryAvailable()" (click)="browse()">Browse Game Library</button>
         <button type="button" [disabled]="uploading()" (click)="iconUpload.click()">Upload Icon</button>
         <input #iconUpload type="file" class="image-file-input" accept=".png,.jpg,.jpeg,.webp,.gif" (change)="upload($event)" />
         <label>Image URL or Symbol<input [ngModelOptions]="{standalone:true}" [ngModel]="iconDraft()" (ngModelChange)="iconDraft.set($event)" placeholder="https://... or a symbol" /></label>
         <button type="button" (click)="useIconDraft()">Use Icon</button>
-        @if (value()) { <button type="button" (click)="value.set(''); closeIconMenu()">Remove Icon</button> }
+        @if (value() || pendingFile()) { <button type="button" (click)="removeImage(); closeIconMenu()">Remove Icon</button> }
         @if (uploading()) { <p role="status">Uploading icon...</p> }
         @if (error()) { <p role="alert">{{ error() }}</p> }
     </div>
 } @else {
 <div class="image-picker">
-    @if (imageUrl(value()); as url) {
+    @if (previewUrl(); as url) {
         @if (failedPreview() !== url) {
             <img class="image-preview" [class.banner-preview]="banner()" [src]="url" [alt]="description() || label() + ' preview'"
                 [style.object-position]="positionX() + '% ' + positionY() + '%'"
@@ -30,9 +30,9 @@
         } @else { <p>Image preview unavailable.</p> }
     } @else { <div class="image-empty">No image selected</div> }
     <div class="image-control-row">
-        <p class="current-image">@if (value()) { Current {{ banner() ? 'banner' : 'image' }} &middot; {{ currentName() }} } @else { Select an image }</p>
+        <p class="current-image">@if (value() || pendingFile()) { {{ pendingFile() ? 'Selected' : 'Current' }} {{ banner() ? 'banner' : 'image' }} &middot; {{ currentName() }} } @else { Select an image }</p>
         <div class="image-actions">
-            <button type="button" (click)="browse()" [disabled]="loading() || uploading()">
+            <button type="button" (click)="browse()" [disabled]="!libraryAvailable() || loading() || uploading()">
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="16" height="15" rx="2" /><path d="m6 6 1-3 15 3-2 12M4 17l5-5 4 4 3-3 3 3" /><circle cx="8" cy="10" r="1" /></svg>
                 Browse Library
             </button>
@@ -42,14 +42,18 @@
             </button>
             <input #uploadInput class="image-file-input" type="file" tabindex="-1" aria-label="Upload image file"
                 accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif" (change)="upload($event)" />
-            @if (value()) {
-                <button type="button" class="remove-image" aria-label="Remove image" title="Remove image" (click)="value.set('')" [disabled]="uploading()">
+            @if (value() || pendingFile()) {
+                <button type="button" class="remove-image" aria-label="Remove image" title="Remove image" (click)="removeImage()" [disabled]="uploading()">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7" /></svg>
                 </button>
             }
         </div>
     </div>
     <div class="image-upload-hints"><p class="image-help image-formats">PNG, JPEG, WebP, GIF &middot; Max 10 MB</p></div>
+    @if (deferUploads()) { <p class="image-help">Images upload when you save. @if (!libraryAvailable()) { The library becomes available after the game is created. }</p> }
+    @if (deferUploads() && selectionOnly()) {
+        <details class="image-advanced"><summary>Use Image URL</summary><label>{{ label() }} URL (optional)<input type="text" [ngModelOptions]="{standalone:true}" [ngModel]="value()" (ngModelChange)="setImageUrl($event)" placeholder="https://..." /></label></details>
+    }
     @if (uploading()) { <p role="status">Uploading image?</p> }
     @if (error()) { <p class="image-error" role="alert">{{ error() }}</p> }
     @if (message()) { <p role="status">{{ message() }}</p> }

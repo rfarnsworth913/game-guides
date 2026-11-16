@@ -1,3 +1,13 @@
+@if (context(); as game) {
+    @for (overview of games; track overview.id) {
+        @if (overview.id === game.id && (overview.banner || overview.icon || overview.description || overview.gameType)) {
+            <section class="game-overview-card" aria-label="Game overview">
+                @if (overview.banner) { <img class="game-overview-banner" [src]="overview.banner" alt="" /> }
+                <div>@if (overview.icon) { <img class="game-overview-icon" [src]="overview.icon" alt="" /> }<span><strong>{{ overview.gameType }}</strong>@if (overview.description) { <p>{{ overview.description }}</p> }</span></div>
+            </section>
+        }
+    }
+}
 <section class="dashboard-stats" aria-label="Workspace summary">
     @for (stat of stats(); track stat.label) {
         <a [class]="'summary-card summary-' + stat.icon" [routerLink]="stat.icon === 'events' ? [] : stat.link" [fragment]="stat.icon === 'events' ? 'dashboard-events' : undefined" (click)="stat.icon === 'events' && openEvents()">
@@ -14,12 +24,15 @@
         @for (game of dashboardStories(); track game.id) {
             <a class="dashboard-world" [routerLink]="'/games/' + game.id + '/dashboard'" [style.--game-color]="game.color">
                 <span class="world-tile">{{ game.short }}</span>
-                <span class="row-name"><strong>{{ game.name }}</strong><small>{{ gameCount(game.id, 'characters') }} characters &#183; {{ gameCount(game.id, 'plans') }} plans</small></span>
+                <span class="row-name"><strong>{{ game.name }}</strong><small>@if (supportsGame(game.id, 'characters')) { {{ gameCount(game.id, 'characters') }} characters } @if (supportsGame(game.id, 'plans')) { &middot; {{ gameCount(game.id, 'plans') }} plans }</small></span>
+                @if (supportsGame(game.id, 'story')) {
                 <span class="row-progress"><b>{{ game.percent }}%</b><small>{{ game.completed }} / {{ game.total }}</small><progress max="100" [value]="game.percent" [attr.aria-label]="game.name + ' story completion'"></progress></span>
+                }
                 <span class="chevron" aria-hidden="true">&#8250;</span>
             </a>
         }
     </section>
+    @if (supports('events')) {
     <section class="dashboard-panel events-panel" id="dashboard-events">
         <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['events']" /></svg>Events <small>{{ events().length }}</small></h2>@if (context()) { <a [routerLink]="sectionLink('events')">View events &#8594;</a> }</header>
         <p class="panel-description">Active events ending soonest appear first.</p>
@@ -59,38 +72,46 @@
         </div>
         @if (filteredEvents().length > 5) { <button type="button" class="show-events" (click)="showAllEvents.set(!showAllEvents())">{{ showAllEvents() ? 'Show fewer events' : 'Show all ' + filteredEvents().length + ' events' }}</button> }
     </section>
+    }
+    @if (supports('plans') || supports('farming')) {
     <section class="dashboard-panel plans-panel">
-        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['plans']" /></svg>Plans &amp; Farming <small>{{ plans().length }}</small></h2><div class="panel-actions"><a [routerLink]="sectionLink('plans')">View all plans &#8594;</a><button type="button" class="new-plan" [disabled]="!store.canEdit()" (click)="open('plans')">+ New Plan</button></div></header>
+        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['plans']" /></svg>{{ supports('plans') ? supports('farming') ? 'Plans & Farming' : 'Plans' : 'Farming' }} <small>{{ plans().length }}</small></h2>@if (supports('plans')) {<div class="panel-actions"><a [routerLink]="sectionLink('plans')">View all plans &#8594;</a><button type="button" class="new-plan" [disabled]="!store.canEdit()" (click)="open('plans')">+ New Plan</button></div>}</header>
         <p class="panel-description">Material goals, character builds, and farming lists.</p>
+        @if (supports('plans')) {
         @for (plan of plans().slice(0, 4); track plan.id) {
             <button type="button" class="plan-row dashboard-plan" [disabled]="!store.canEdit()" (click)="open('plans', plan)" [style.--game-color]="gameColor(plan.game)">
                 <span class="world-tile">{{ gameShort(plan.game) }}</span><span class="row-name"><strong>{{ plan.name }}</strong><small>{{ gameName(plan.game) }} &#183; {{ plan.category || 'Plan' }}</small></span>
                 <progress max="100" [value]="store.progress(plan)" [attr.aria-label]="plan.name + ' progress'"></progress><b>{{ store.progress(plan) }}%</b><span class="chevron" aria-hidden="true">&#8250;</span>
             </button>
         } @empty { <p class="dashboard-empty">Create a plan to track your next goal.</p> }
-        @if (farming().length) {
+        }
+        @if (supports('farming') && farming().length) {
             <h3 class="farming-title">Today's farming &#183; {{ today }}</h3>
             @for (material of farming().slice(0, 4); track material.id) { <a class="dashboard-material" [routerLink]="'/games/' + material.game + '/farming'"><span class="row-name"><strong>{{ material.name }}</strong><small>{{ gameName(material.game) }}</small></span><span>{{ material.own }} / {{ material.need }}<small>{{ material.missing }} remaining</small></span></a> }
         }
     </section>
+    }
     <section class="dashboard-panel">
         <header><h2>Quick Actions</h2></header>
         <div class="quick-actions">
             @if (resumeGuide(); as guide) { <a [routerLink]="'/games/' + guide.id + '/story'" [queryParams]="guide.section ? { section: guide.section.id } : {}" [fragment]="guide.fragment"><strong>Continue Story &#8594;</strong><small>{{ guide.lastLocation || (guide.resume ? guide.resume.name : '') }}</small></a> }
-            <a href="#dashboard-events" (click)="$event.preventDefault(); openEvents()"><strong>All Events &#8594;</strong><small>Check your event schedule</small></a>
-            <a [routerLink]="sectionLink('plans')"><strong>Manage Plans &#8594;</strong><small>Update farming and goals</small></a>
-            <a [routerLink]="sectionLink('story')"><strong>Browse Guides &#8594;</strong><small>Quests, characters, and lore</small></a>
+            @if (supports('events')) {<a href="#dashboard-events" (click)="$event.preventDefault(); openEvents()"><strong>All Events &#8594;</strong><small>Check your event schedule</small></a>}
+            @if (supports('plans')) {<a [routerLink]="sectionLink('plans')"><strong>Manage Plans &#8594;</strong><small>Update farming and goals</small></a>}
+            @if (supports('story')) {<a [routerLink]="sectionLink('story')"><strong>Browse Guides &#8594;</strong><small>Quests, characters, and lore</small></a>}
+            @if (!supports('events') && !supports('plans') && !supports('story')) {<a routerLink="/games"><strong>Browse Games &#8594;</strong><small>Explore your game collection</small></a>}
         </div>
     </section>
+    @if (supports('story')) {
     <section class="dashboard-panel story-panel">
         <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['story']" /></svg>Story Progress</h2><strong>{{ storyCompletion().percent }}%</strong></header>
         <p class="panel-description">Your completion and where you left off.</p>
         <progress class="overall-progress" max="100" [value]="storyCompletion().percent" aria-label="Overall story completion"></progress>
         <small>{{ storyCompletion().completed }} / {{ storyCompletion().total }} items complete</small>
         <div class="story-resume-list">
-            @for (guide of dashboardStories(); track guide.id) {
+            @for (guide of storyGames(); track guide.id) {
                 <a class="story-resume" [routerLink]="'/games/' + guide.id + '/story'" [queryParams]="guide.section ? { section: guide.section.id } : {}" [fragment]="guide.fragment" [style.--game-color]="guide.color"><span class="row-name"><strong>{{ guide.name }} <span>{{ guide.percent }}%</span></strong><small>{{ guide.lastLocation || (guide.resume ? guide.resume.name : '') || 'No story content yet' }}</small></span><span class="chevron" aria-hidden="true">&#8250;</span></a>
             }
         </div>
     </section>
+    }
 </div>

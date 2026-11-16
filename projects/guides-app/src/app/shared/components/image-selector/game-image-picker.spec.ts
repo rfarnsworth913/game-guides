@@ -137,4 +137,55 @@ describe('GameImagePicker', () => {
         expect(component.error()).toBe('Upload failed');
         expect(component.uploading()).toBe(false);
     });
+    it('previews deferred files, uploads only on commit and releases the preview URL', async () => {
+        class PreviewURL extends URL {
+            static override createObjectURL = vi.fn(() => 'blob:pending-preview');
+            static override revokeObjectURL = vi.fn();
+        }
+        vi.stubGlobal('URL', PreviewURL);
+        const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ name: 'icon-a.png', url: '/api/games/endfield/images/icon-a.png' }) });
+        vi.stubGlobal('fetch', fetcher);
+        const fixture = picker();
+        fixture.componentRef.setInput('deferUploads', true);
+        fixture.componentRef.setInput('selectionOnly', true);
+        fixture.componentRef.setInput('libraryAvailable', false);
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        const file = new File(['bytes'], 'Icon.png', { type: 'image/png' });
+        await component.upload({ target: { files: [file], value: 'Icon.png' } } as unknown as Event);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.pendingFile()).toBe(file);
+        expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe('blob:pending-preview');
+        await component.browse();
+        expect(fetcher).not.toHaveBeenCalled();
+        expect(await component.commitPendingUpload()).toBe('/api/games/endfield/images/icon-a.png');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.pendingFile()).toBeNull();
+        expect(fetcher).toHaveBeenCalledTimes(1);
+        expect(PreviewURL.revokeObjectURL).toHaveBeenCalledWith('blob:pending-preview');
+        fixture.destroy();
+    });
+    it('retains a deferred file on upload failure and allows a URL to replace it', async () => {
+        class PreviewURL extends URL {
+            static override createObjectURL = vi.fn(() => 'blob:pending-preview');
+            static override revokeObjectURL = vi.fn();
+        }
+        vi.stubGlobal('URL', PreviewURL);
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'Image not accepted' }) }));
+        const fixture = picker();
+        fixture.componentRef.setInput('deferUploads', true);
+        const component = fixture.componentInstance;
+        const file = new File(['bytes'], 'Icon.png', { type: 'image/png' });
+        await component.upload({ target: { files: [file], value: '' } } as unknown as Event);
+        await expect(component.commitPendingUpload()).rejects.toThrow('Image not accepted');
+        expect(component.pendingFile()).toBe(file);
+        component.setImageUrl('https://example.com/replacement.png');
+        fixture.detectChanges();
+        expect(component.error()).toBe('');
+        expect(component.pendingFile()).toBeNull();
+        expect(component.previewUrl()).toBe('https://example.com/replacement.png');
+        fixture.destroy();
+    });
 });

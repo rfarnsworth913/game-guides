@@ -3,6 +3,7 @@ import { Injectable, OnDestroy, signal } from "@angular/core";
 import { GameTheme, GlobalTheme } from "@models/types";
 
 import { GAME_THEMES } from '../../games/registry/game-themes';
+import { gameColorChannels, normalizeGameColor } from '@common/workspace/game-overview';
 
 
 @Injectable({ providedIn: "root" })
@@ -11,6 +12,7 @@ export class ThemeService implements OnDestroy {
     readonly preference = signal<'system' | GlobalTheme>(this.readPreference());
     private readonly activeTheme = signal<GlobalTheme>(this.resolveTheme());
     private readonly activeGame = signal<GameTheme>(this.readGame());
+    private highlight: string | null = null;
 
     readonly theme = this.activeTheme.asReadonly();
     readonly game = this.activeGame.asReadonly();
@@ -52,11 +54,12 @@ export class ThemeService implements OnDestroy {
     }
 
     /** Changes only the game context and accent. */
-    setGame (game: GameTheme): void {
+    setGame (game: GameTheme, color?: string): void {
         if (!GAME_THEMES.some(option => option.id === game)) {
             return;
         }
         this.activeGame.set(game);
+        this.highlight = color ? normalizeGameColor(color) : null;
         this.applyTheme();
         this.persist("gg-game", game);
     }
@@ -103,5 +106,15 @@ export class ThemeService implements OnDestroy {
         root.dataset["theme"] = this.theme();
         root.dataset["game"] = this.game();
         root.style.colorScheme = this.theme();
+        const channels = this.highlight ? gameColorChannels(this.highlight) : null;
+        if (this.highlight && channels) {
+            root.style.setProperty('--color-game-accent', this.highlight);
+            const luminance = channels.map(channel => channel / 255).map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4)
+                .reduce((total, channel, index) => total + channel * [.2126, .7152, .0722][index], 0);
+            root.style.setProperty('--color-on-primary', luminance > .179 ? 'rgba(0, 0, 0, 1)' : 'rgba(255, 255, 255, 1)');
+        } else {
+            root.style.removeProperty('--color-game-accent');
+            root.style.removeProperty('--color-on-primary');
+        }
     }
 }
