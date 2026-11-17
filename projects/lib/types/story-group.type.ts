@@ -1,4 +1,5 @@
 import type { StoryTableRow } from './story-template.type';
+import type { WorldQuestGroupType } from './world-quest.type';
 
 export type StoryGroup = {
     id: string;
@@ -12,7 +13,7 @@ export type StoryGroup = {
     groupType?: "quest" | "content";
 
     /** World Quest organization; omitted legacy groups display as regions. */
-    worldQuestMode?: "region" | "questChain";
+    worldQuestMode?: WorldQuestGroupType;
 
     /** Additional memberships reference canonical rows, never copies of player progress. */
     objectiveIds?: Array<string>;

@@ -57,11 +57,11 @@
                     </select></label>
                     <label>Description<textarea rows="1" placeholder="e.g. Reach Adventure Rank 25" [ngModelOptions]="standalone" [ngModel]="gate.text" (ngModelChange)="setPrerequisite(index, 'text', $event)"></textarea></label>
                     <button type="button" class="requirement-remove" (click)="removePrerequisite(index)" aria-label="Remove prerequisite">Remove</button>
-                    <details class="requirement-link-options" [open]="!!gate.targetId"><summary>Link content (optional)</summary><gg-requirement-picker [game]="game()" [entries]="entries()" [value]="gate.targetId || ''" (valueChange)="setPrerequisite(index, 'targetId', $event)" /></details>
+                    <div class="requirement-link-options"><gg-requirement-picker [game]="game()" [entries]="entries()" [value]="gate.targetId || ''" (valueChange)="setPrerequisite(index, 'targetId', $event)" /></div>
                 </div>
             }
-            <button type="button" (click)="addPrerequisite()">+ Add prerequisite</button>
         }
+        <button type="button" (click)="addPrerequisite()">+ Add requirement</button>
         <p class="guide-help">Only record verified access conditions here. Keep advice, rewards and spoilers in Notes. Empty source data does not mean there are no prerequisites.</p>
     }
     @if (!worldQuest() || !row() || context().requirements?.length) {
@@ -73,7 +73,7 @@
             </select></label>
             <label>Description<textarea rows="1" placeholder="e.g. Reach Adventure Rank 25" [ngModelOptions]="standalone" [(ngModel)]="requirement.text"></textarea></label>
             <button type="button" class="requirement-remove" (click)="context().requirements!.splice(index, 1)" aria-label="Remove requirement">Remove</button>
-            <details class="requirement-link-options" [open]="!!requirement.targetId"><summary>Link content (optional)</summary><gg-requirement-picker [game]="game()" [entries]="entries()" [value]="requirement.targetId || ''" (valueChange)="requirement.targetId = $event" /></details>
+            <div class="requirement-link-options"><gg-requirement-picker [game]="game()" [entries]="entries()" [value]="requirement.targetId || ''" (valueChange)="requirement.targetId = $event" /></div>
         </div>
     }
     @if (!worldQuest() || !row()) { <button type="button" (click)="addRequirement()">+ Add requirement</button> }

@@ -190,7 +190,7 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                         (group.contentUrl === globalThis.undefined || (typeof group.contentUrl === 'string' && (!group.contentUrl || !!httpUrl(group.contentUrl)))) &&
                         (group.groupType === globalThis.undefined || ['quest', 'content'].includes(group.groupType)) &&
                         (group.groupType !== 'content' || group.mainQuest === globalThis.undefined) &&
-                        (group.worldQuestMode === globalThis.undefined || ['region', 'questChain'].includes(group.worldQuestMode)) &&
+                        (group.worldQuestMode === globalThis.undefined || ['region', 'questChain', 'collectionChecklist'].includes(group.worldQuestMode)) &&
                         (group.objectiveIds === globalThis.undefined || (Array.isArray(patch.rows) && Array.isArray(group.objectiveIds) && group.objectiveIds.length <= 1000 && new Set(group.objectiveIds).size === group.objectiveIds.length && group.objectiveIds.every(id => patch.rows.some(row => row && row.id === id && (!row.rowType || row.rowType === 'quest'))))) &&
                         (group.mainQuest === globalThis.undefined || (validStoryTableRow(group.mainQuest) && (!group.mainQuest.rowType || group.mainQuest.rowType === 'quest') && (!group.mainQuest.groupId || group.mainQuest.groupId === group.id))) &&
                         (group.defaultPatch === globalThis.undefined || typeof group.defaultPatch === 'string') &&

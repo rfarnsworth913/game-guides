@@ -51,6 +51,7 @@
     }
 
     .guide-row-done .guide-row-title > a, .guide-row-done .guide-row-title > strong { color: var(--guide-muted); }
+    .guide-row-context { margin: 4px 0 0; font-size: 12px; line-height: 1.4; }
     .patch-row-description { font-size: 12px; color: var(--guide-muted); margin-top: 4px; line-height: 1.5; }
     .patch-row-description .notes-markdown > :first-child { margin-top: 0; }
     .patch-row-description .notes-markdown > :last-child { margin-bottom: 0; }

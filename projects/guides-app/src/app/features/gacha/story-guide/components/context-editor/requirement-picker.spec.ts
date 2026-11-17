@@ -89,14 +89,19 @@ describe('Requirement title search', () => {
         expect(context.requirements?.[0].text).toBe('Original gate');
         expect(data).toEqual(catalog); expect(context.cycleId).toBe(before.cycleId);
     });
-    it('links structured world quest prerequisites and renders links at existing quest anchors', () => {
+    it('looks up quests directly from a new world quest requirement and renders the existing quest anchor', async () => {
         const links = storyRequirementLinks(entries(), 'genshin');
         const link = links.find(item => item.id === 'quest:guide:first')!;
         expect(link.url).toBe('/games/genshin/story?section=chapter#story-row-guide-first');
         const fixture = TestBed.createComponent(StoryContextEditor);
-        const context: StoryContext = { prerequisites: [{ type: StoryRequirementType.Prerequisite, text: 'Complete the previous quest' }] };
+        const context: StoryContext = {};
         fixture.componentRef.setInput('context', context); fixture.componentRef.setInput('worldQuest', true); fixture.componentRef.setInput('row', true); fixture.componentRef.setInput('entries', entries()); fixture.componentRef.setInput('game', 'genshin'); fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;
+        [...root.querySelectorAll('button')].find(button => button.textContent?.trim() === '+ Add requirement')!.click();
+        fixture.detectChanges(); await fixture.whenStable();
+        expect(root.querySelector('details.requirement-link-options')).toBeNull();
+        const description = root.querySelector<HTMLTextAreaElement>('.guide-requirement-editor textarea')!;
+        description.value = 'Complete the previous quest'; description.dispatchEvent(new Event('input')); fixture.detectChanges();
         search(root.querySelector<HTMLInputElement>('input[role="combobox"]')!, 'gardener'); fixture.detectChanges();
         root.querySelector<HTMLButtonElement>('[role="option"]')!.click(); fixture.detectChanges();
         expect(context.prerequisites?.[0].targetId).toBe(link.id);
@@ -105,6 +110,9 @@ describe('Requirement title search', () => {
         reader.componentRef.setInput('entry', entry); reader.componentRef.setInput('data', data); reader.componentRef.setInput('relatedEntries', entries()); reader.detectChanges();
         const rendered = (reader.nativeElement as HTMLElement).querySelector('#story-row-guide-second .guide-objective-requirements a');
         expect(rendered?.textContent).toBe(link.name); expect(rendered?.getAttribute('href')).toBe(link.url);
+        root.querySelector<HTMLButtonElement>('[aria-label="Remove linked requirement"]')!.click(); fixture.detectChanges();
+        expect(context.prerequisites?.[0].targetId).toBe('');
+        expect(context.prerequisites?.[0].text).toBe('Complete the previous quest');
     });
     it('shows row subtype and requirements inline, keeps availability and dates on the parent, and preserves hidden row data', async () => {
         const fixture = TestBed.createComponent(StoryContextEditor);
@@ -143,7 +151,8 @@ describe('Requirement title search', () => {
         description.value = 'Reach Adventure Rank 25'; description.dispatchEvent(new Event('input')); fixture.detectChanges();
         expect(context.requirements?.[0]).toEqual({ type: StoryRequirementType.Prerequisite, text: 'Reach Adventure Rank 25' });
         expect(validStoryContext(context)).toBe(true);
-        expect(root.querySelector<HTMLDetailsElement>('.requirement-link-options')?.open).toBe(false);
+        expect(root.querySelector('details.requirement-link-options')).toBeNull();
+        expect(root.querySelector('.requirement-link-options input[role="combobox"]')).not.toBeNull();
         expect(root.querySelector('h4')?.textContent).toBe('Requirements');
         root.querySelector<HTMLButtonElement>('[aria-label="Remove requirement"]')!.click(); fixture.detectChanges();
         expect(context.requirements).toEqual([]);

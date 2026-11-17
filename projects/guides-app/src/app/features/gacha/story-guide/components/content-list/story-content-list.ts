@@ -11,14 +11,14 @@ import { storyContentName } from "../../../../../../../../common/quests/story-co
 import { NgTemplateOutlet } from '@angular/common';
 import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "../../../../../../../../common/quests/world-quest";
 import type { WorldQuestSection } from "../../../../../../../../lib/types/world-quest.type";
-import { WORLD_QUEST_SUBTYPES } from "../../../../../../../../lib/constants/world-quest.constants";
+import { WORLD_QUEST_SUBTYPES, WORLD_QUEST_GROUP_TYPES } from "../../../../../../../../lib/constants/world-quest.constants";
 import { PatchBadge } from "../../../shared/components/patch-badge/patch-badge";
 
 @Component({
     selector: 'gg-story-content-list',
     imports: [MarkdownPipe, NgTemplateOutlet, PatchBadge],
     templateUrl: "./story-content-list.html",
-    styleUrls: ['./patch-reading.scss', './patch-media.scss', './primary-quest-reading.scss'],
+    styleUrls: ['./patch-reading.scss', './patch-media.scss', './primary-quest-reading.scss', './world-quest-reading.scss'],
 })
 export class StoryContentList {
     readonly entry = input.required<Entry>();
@@ -34,9 +34,9 @@ export class StoryContentList {
     readonly primaryQuest = computed(() => this.entry().category === 'main-story');
     readonly characterProfile = computed(() => this.entry().category === 'character-information');
     readonly worldQuest = computed(() => this.entry().category === 'world-quests');
+    readonly worldGroupName = (mode: string) => WORLD_QUEST_GROUP_TYPES.find(type => type.id === mode)?.label ?? 'Area Exploration';
     readonly worldGroups = computed(() => worldQuestGroups(this.data()));
-    readonly visibleWorldGroups = computed(() => this.worldGroups().filter(group => !this.incompleteOnly() || this.countDone(group.rows) < this.count(group.rows)));
-    readonly prerequisites = worldQuestPrerequisites;
+    readonly visibleWorldGroups = computed(() => this.worldGroups().filter(group => group.sections.some(section => this.visibleSection(section))));
     readonly httpUrl = httpUrl;
     readonly done = (row: StoryTableRow) => storyRowDone(this.entry(), row);
     readonly canTrack = (row: StoryTableRow) => storyCompletionKey(this.entry(), row) !== null;
@@ -75,10 +75,12 @@ export class StoryContentList {
         return this.mediaWords.test(group.title) || !!rows.length && rows.every(row => !!row.thumbnailUrl || !!row.duration || ['youtube', 'bilibili', 'video'].includes(this.mediaProvider(row)?.kind ?? ''));
     }
     groupIcon(group: ReturnType<typeof patchGroups>[number]): string {
-        return /\b(music|eps?|songs?|soundtracks?|ost)\b/i.test(group.title) ? 'music' : this.mediaGroup(group) ? 'play' : 'document';
+        return /\b(music|eps?|songs?|soundtracks?|ost)\b/i.test(group.title) ? 'music' : this.mediaGroup(group) ? 'play' : this.eventTemplate() ? 'event' : 'document';
     }
     mediaRow(row: StoryTableRow): boolean {
-        return this.patchOverview() && (!!row.thumbnailUrl || !!row.duration || ['youtube', 'bilibili', 'video'].includes(this.mediaProvider(row)?.kind ?? '') || this.groups().some(group => this.mediaGroup(group) && group.rows.some(item => item.id === row.id)));
+        if (row.rowType === 'heading' || row.rowType === 'note') {return false;}
+        return ['youtube', 'bilibili', 'video'].includes(this.mediaProvider(row)?.kind ?? '') ||
+            this.patchOverview() && (!!row.thumbnailUrl || !!row.duration || this.groups().some(group => this.mediaGroup(group) && group.rows.some(item => item.id === row.id)));
     }
     label(row?: StoryTableRow): string {
         const mode = storyTrackingMode(this.entry(), row);
@@ -106,13 +108,18 @@ export class StoryContentList {
         return this.incompleteOnly() ? rows.filter(row => row.rowType === 'heading' || row.rowType === 'note' || !this.done(row)) : rows;
     }
     visibleSection(section: WorldQuestSection): boolean {
-        return !this.incompleteOnly() || worldQuestObjectives(section.rows).some(row => !this.done(row));
+        return (!this.incompleteOnly() || worldQuestObjectives(section.rows).some(row => !this.done(row))) &&
+            section.rows.some(row => row.rowType === 'note' ? !!(row.notes.trim() || row.notesRight?.trim()) : row.rowType !== 'heading' || !!row.content.trim());
     }
     subtype(value?: string): string {
         return value ? WORLD_QUEST_SUBTYPES.get(value) ?? value : '';
     }
     worldNotes(row: StoryTableRow) {
-        return this.contextNotes(row.context);
+        return this.contextNotes(row.context).filter(item => item.text.trim());
+    }
+    hasWorldNotes(row: StoryTableRow): boolean {return !!(row.notes.trim() || row.notesRight?.trim() || this.worldNotes(row).length);}
+    visiblePrerequisites(context?: StoryContext) {
+        return (worldQuestPrerequisites(context) ?? []).filter(item => item.text.trim() || this.requirementTarget(item.targetId));
     }
     contextNotes(context?: StoryContext) {
         return context?.requirements?.filter(item => !['prerequisite', 'unlock', 'time-gate'].includes(item.type)) ?? [];
@@ -127,6 +134,9 @@ export class StoryContentList {
     countDone(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(this.done).length; }
     groupProgress(id: string): { total: number; completed: number; percent: number } {
         const rows = patchGroups(this.data()).find(group => group.id === id)?.rows ?? [];
+        return this.progressForRows(rows);
+    }
+    progressForRows(rows: StoryTableRow[]): { total: number; completed: number; percent: number } {
         const total = this.count(rows);
         const completed = this.countDone(rows);
         return { total, completed, percent: total ? Math.round(completed / total * 100) : 0 };

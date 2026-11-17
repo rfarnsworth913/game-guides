@@ -68,6 +68,7 @@ await test('world quest organization, memberships and explicit prerequisites rou
     const enriched = structuredClone(guide);
     const data = enriched.worldQuests!;
     data.groups!.push({ id: 'chain-view', title: 'Quest chain', worldQuestMode: 'questChain', objectiveIds: ['old-row-id'] });
+    data.groups!.push({ id: 'collection-view', title: 'Collection', worldQuestMode: 'collectionChecklist', objectiveIds: ['old-row-id'] });
     data.groups![0].worldQuestMode = 'region';
     data.rows[1].context = { chapter: 'Chapter one', subtype: 'hiddenExploration', prerequisites: [
         { type: StoryRequirementType.Prerequisite, text: 'Verified prerequisite', targetId: 'another-quest' },

@@ -1,6 +1,6 @@
 <div class="requirement-search">
-    <label>Link requirement (optional)
-        <input #searchInput type="search" role="combobox" autocomplete="off" placeholder="Search quest or content titles..." [value]="query()" [attr.aria-expanded]="open()" [attr.aria-controls]="listId" aria-autocomplete="list" [attr.aria-activedescendant]="open() && matches().length ? listId + '-' + active() : null" (focus)="open.set(true)" (input)="search($event)" (keydown)="keydown($event)" />
+    <label>Link existing quest or content (optional)
+        <input #searchInput type="search" role="combobox" autocomplete="off" placeholder="Search by quest or content title..." [value]="query()" [attr.aria-expanded]="open()" [attr.aria-controls]="listId" aria-autocomplete="list" [attr.aria-activedescendant]="open() && matches().length ? listId + '-' + active() : null" (focus)="open.set(true)" (input)="search($event)" (keydown)="keydown($event)" />
     </label>
     @if (value()) {
         <div class="requirement-selected"><span>{{ selected()?.name || 'Previously linked content (unavailable)' }}</span><button type="button" (click)="clear()" aria-label="Remove linked requirement">Remove link</button></div>

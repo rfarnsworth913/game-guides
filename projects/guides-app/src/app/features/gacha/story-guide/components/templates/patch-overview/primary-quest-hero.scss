@@ -1,4 +1,5 @@
-.main-story-template[data-story-topic='main-story'] {
+.main-story-template[data-story-topic='main-story'],
+.main-story-template[data-story-topic='events'] {
     .patch-hero {
         display: flex;
         align-items: flex-end;

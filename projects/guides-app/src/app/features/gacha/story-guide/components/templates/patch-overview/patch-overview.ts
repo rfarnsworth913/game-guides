@@ -18,14 +18,16 @@ import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode }
 import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from "../../../../../../../../../common/quests/story-template";
 import type { StoryTableRow } from "../../../../../../../../../lib/types/story-template.type";
 import { characterStoryProfile } from '../../../../../../../../../common/characters/character-story';
+import { WORLD_QUEST_GROUP_TYPES } from '../../../../../../../../../lib/constants/world-quest.constants';
 
 @Component({
     selector: 'gg-patch-overview',
     imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, StorySubtypeEditor, MarkdownPipe, PatchBadge],
     templateUrl: "./patch-overview.html",
-    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./primary-quest-hero.scss", "./character-profile.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss"],
+    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./primary-quest-hero.scss", "./event-reading.scss", "./character-profile.scss", "./world-quest-title.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss"],
 })
 export class PatchOverviewTemplate {
+    readonly worldGroupTypes = WORLD_QUEST_GROUP_TYPES;
     private readonly injector = inject(Injector);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     readonly entry = input.required<Entry>();

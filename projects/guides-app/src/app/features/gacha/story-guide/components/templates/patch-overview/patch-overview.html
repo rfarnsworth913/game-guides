@@ -80,6 +80,15 @@
             <p>Icons are optional. Characters can be saved without them.</p>
         </fieldset>
     }
+    @if (entry().category === 'world-quests') {
+        <fieldset class="world-header-image-editor">
+            <legend>Header Background</legend>
+            <p class="guide-help">Optional background for the compact header. Recommended size: 1200 × 240.</p>
+            <gg-game-image-picker [game]="entry().game" label="Header Background" [banner]="true"
+                [(value)]="data().imageUrl" [(description)]="data().imageAlt"
+                [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl" />
+        </fieldset>
+    }
     @if (!groupedTemplate()) {
     <fieldset class="patch-image-editor">
         <legend>{{ storyBanner() ? storyTemplateName() + ' Banner' : 'Patch Overview Banner' }}</legend>
@@ -119,7 +128,7 @@
     }
     }
     @if (entry().category !== 'patch-overview') {
-        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'character-information'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
+        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'character-information', 'world-quests'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
     }
             </div>
     <fieldset class="patch-group-editor" aria-label="Content group details" [hidden]="editorSelection() === null || editorSelection() === ''">
@@ -131,8 +140,8 @@
                     [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.content ?? group.title" (ngModelChange)="isQuestGroup(group) ? setMainQuestTitle(group, $event) : group.title = $event" [placeholder]="isQuestGroup(group) ? 'e.g. Everwinter Without Mercy' : 'e.g. Related Cutscenes'" /></label>
                 <label class="group-default-patch">Default Patch<input [ngModelOptions]="standalone" [(ngModel)]="group.defaultPatch" placeholder="e.g. 1.1" [attr.list]="patchListId" /></label>
                 @if (entry().category === 'world-quests') {
-                    <label>Organize by<select [ngModelOptions]="standalone" [ngModel]="group.worldQuestMode || 'region'" (ngModelChange)="group.worldQuestMode = $event">
-                        <option value="region">Region / area</option><option value="questChain">Quest chain</option>
+                    <label>Group Type<select [ngModelOptions]="standalone" [ngModel]="group.worldQuestMode || 'region'" (ngModelChange)="group.worldQuestMode = $event">
+                        @for (type of worldGroupTypes; track type.id) { <option [value]="type.id">{{ type.label }}</option> }
                     </select></label>
                 }
             </div>
@@ -287,8 +296,22 @@
                 }
             }
         }
+        @if (entry().category === 'world-quests') {
+            <header class="world-quest-title" [class.has-background]="imageUrl(data().imageUrl) && failedImage() !== imageUrl(data().imageUrl)">
+                @if (imageUrl(data().imageUrl); as background) {
+                    @if (failedImage() !== background) { <img class="world-quest-background" [src]="background" alt="" width="1200" height="240" loading="lazy" referrerpolicy="no-referrer" [style.object-position]="(data().imagePositionX ?? 50) + '% ' + (data().imagePositionY ?? 50) + '%'" (error)="failedImage.set(background)" /> }
+                }
+                <span class="patch-game-name">{{ gameName() }}</span>
+                <div><h3>{{ entry().name }}</h3>@if (data().patchVersion; as version) { <gg-patch-badge [version]="version" /> }</div>
+                @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
+                @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
+            </header>
+            @if (imageUrl(data().imageUrl) && (data().sourceName || data().sourceUrl)) {
+                <div class="patch-source">Source: @if (httpUrl(data().sourceUrl); as source) { <a [href]="source" target="_blank" rel="noopener noreferrer">{{ data().sourceName || 'Image source' }}</a> } @else { {{ data().sourceName }} }</div>
+            }
+        }
         @if (!groupedTemplate()) {
-        <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate">
+        <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate" [class.without-artwork]="!imageUrl(data().imageUrl) || failedImage() === imageUrl(data().imageUrl)">
             @if (imageUrl(data().imageUrl); as imageUrl) {
                 @if (failedImage() !== imageUrl) {
                     <img
@@ -352,7 +375,7 @@
                 </dl>
                 @if (eventHasDetails()) {
                     <details class="guide-event-participation">
-                        <summary>Participation requirements and event details</summary>
+                        <summary><svg width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>Participation requirements and event details</summary>
                         @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
                         @for (gate of eventGates(); track $index) {
                             <p class="guide-requirement"><strong>{{ gate.type }}:</strong> {{ gate.text }}

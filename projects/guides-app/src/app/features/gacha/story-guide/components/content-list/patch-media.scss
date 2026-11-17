@@ -1,8 +1,14 @@
-.patch-reading-view {
+.guide-reading-view {
+    .guide-content-row.patch-media-row { display: flex; }
     .patch-media-provider { flex: 0 1 120px; display: flex; align-items: center; gap: 8px; font-size: 12px; overflow-wrap: anywhere; color: var(--guide-muted); }
     .patch-media-provider > span { display: grid; place-items: center; width: 23px; height: 18px; flex: 0 0 23px; border-radius: 5px; background: var(--guide-nested); color: var(--guide-text); font-size: 10px; }
     .youtube > span { background: #ed1626; color: white; }
     .bilibili > span { background: #1784a5; color: white; }
+    @media (max-width: 700px) {
+        .guide-content-row.patch-media-row { flex-wrap: wrap; }
+        .patch-media-row .guide-row-body { flex-basis: calc(100% - 34px); }
+        .patch-media-provider { margin-inline-start: 34px; flex-basis: auto; }
+    }
 }
 
 .patch-reading-view {
@@ -29,8 +35,6 @@
         .guide-section-heading.patch-group-heading { gap: 10px; padding: 10px 12px; h4 { font-size: 16px; } }
         .guide-content-row { padding: 12px 14px; gap: 10px; flex-wrap: wrap; }
         .guide-content-row .guide-row-title { font-size: 13px; }
-        .patch-media-row .guide-row-body { flex-basis: calc(100% - 34px); }
-        .patch-media-provider { margin-inline-start: 34px; flex-basis: auto; }
     }
 }
 

@@ -28,8 +28,11 @@ describe('Event banner, metadata bar and content groups', () => {
         const bar = root.querySelector('.guide-event-info')!;
         expect(bar.nextElementSibling?.tagName).toBe('GG-STORY-CONTENT-LIST');
         expect(root.querySelector('.guide-event-overview')).toBeNull();
+        expect(root.querySelector('.guide-reading-view')?.classList.contains('patch-reading-view')).toBe(true);
+        expect(root.querySelector('.patch-group-heading .guide-group-progress small')?.textContent).toBe('33%');
+        expect(root.querySelector('.patch-group-heading .patch-type-icon')).not.toBeNull();
         expect(root.querySelector('.guide-row-heading h5')?.textContent?.trim()).toBe('Challenge Stages');
-        expect(root.querySelector('.guide-linked-heading > span')?.textContent).toBe('1 / 3');
+        expect(root.querySelector('.patch-group-heading .guide-group-progress strong')?.textContent).toBe('1 / 3');
         expect(root.querySelectorAll('gg-story-content-list .guide-patch-badge')).toHaveLength(3);
         expect(root.querySelector('.guide-event-info .guide-patch-badge')?.textContent).toBe('Patch 1.0');
         expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
@@ -39,8 +42,8 @@ describe('Event banner, metadata bar and content groups', () => {
     });
     it('separates group links, collapse controls and ID-based completion', () => {
         const { fixture, root, save, entry } = setup();
-        const link = root.querySelector<HTMLAnchorElement>('.guide-linked-heading h4 a')!;
-        const button = root.querySelector<HTMLButtonElement>('.guide-linked-heading button')!;
+        const link = root.querySelector<HTMLAnchorElement>('.patch-group-heading h4 a')!;
+        const button = root.querySelector<HTMLButtonElement>('.patch-group-heading button')!;
         expect(link.href).toBe('https://example.com/event');
         expect(link.target).toBe('_blank');
         expect(link.rel).toBe('noopener noreferrer');
@@ -70,7 +73,7 @@ describe('Event banner, metadata bar and content groups', () => {
         fixture.componentRef.setInput('incompleteOnly', true);
         fixture.detectChanges();
         expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
-        expect(root.querySelector('.guide-linked-heading > span')?.textContent).toBe('1 / 3');
+        expect(root.querySelector('.patch-group-heading .guide-group-progress strong')?.textContent).toBe('1 / 3');
         expect([...root.querySelectorAll('.guide-event-facts dd')].at(-1)?.textContent).toBe('1 / 3');
         expect(data.rows.map(row => row.id)).toEqual(['stages', 'stage-0', 'stage-1', 'stage-2']);
     });

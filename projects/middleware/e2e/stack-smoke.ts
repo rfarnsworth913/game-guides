@@ -352,7 +352,6 @@ try {
         if (!button) throw new Error('Add requirement control is missing.');
         button.click();
     });
-    await editor.click(`${guideContext} .requirement-link-options summary`);
     await editor.waitForSelector(`${guideContext} gg-requirement-picker input`, { visible: true });
     await editor.type(`${guideContext} gg-requirement-picker input`, 'objective');
     await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Objective'), {}, `${guideContext} [role=listbox]`);
@@ -371,7 +370,7 @@ try {
         input.value = 'Reach Adventure Rank 25'; input.dispatchEvent(new Event('input', { bubbles: true }));
         input.scrollIntoView({ block: 'center' });
     });
-    assert.equal(await editor.$eval(`${guideContext} .guide-requirement-editor:last-of-type .requirement-link-options`, element => (element as HTMLDetailsElement).open), false);
+    assert.equal(await editor.$(`${guideContext} .guide-requirement-editor:last-of-type details.requirement-link-options`), null);
     await editor.screenshot({ path: join(artifacts, 'section-editor-requirements.png') });
     await editor.click(`${workspace} .editor-overview-link:not(.editor-template-details-link)`);
     await editor.$eval('gg-story [role=dialog] input[name=title]', element => {
@@ -460,7 +459,12 @@ try {
     const sampleTemplate = (title: string) => ({ ...emptyPatchOverview(), rows: [{ id: 'sample-objective', content: title, contentType: '', patch: '7.0', notes: '' }] });
     const navigationEntries: CatalogEntry[] = [
         ...beforeNavigation.entries.map(entry => entry.kind === 'story-category' ? { ...entry, sectionImageUrl: image.url } : entry),
-        { ...baseEntry, id: 'nav-world', kind: 'story', name: 'An Ark That Used to Be a Soul', category: 'world-quests', storySection: 'e2e-section', order: 2, worldQuests: sampleTemplate('In the Dwelling of Life') },
+        { ...baseEntry, id: 'nav-world', kind: 'story', name: 'An Ark That Used to Be a Soul', category: 'world-quests', storySection: 'e2e-section', order: 2, worldQuests: { ...sampleTemplate('In the Dwelling of Life'), patchVersion: '7.0', summary: 'Explore this region and follow the quest chain.', groups: [
+            { id: 'region', title: 'The Hub', worldQuestMode: 'region' }, { id: 'chain', title: 'Quest chain', worldQuestMode: 'questChain', objectiveIds: ['sample-objective'] },
+        ], rows: [
+            { id: 'world-heading', groupId: 'region', rowType: 'heading', content: 'Investigation', contentType: '', contentUrl: 'https://example.invalid/investigation', patch: '', notes: '' },
+            { ...sampleTemplate('In the Dwelling of Life').rows[0], groupId: 'region', notes: 'Additional **exploration** guidance.', context: { prerequisites: [] } },
+        ] } },
         { ...baseEntry, id: 'nav-character', kind: 'story', name: 'Fischl', category: 'character-information', storySection: 'e2e-section', order: 3, characterInformation: { ...sampleTemplate('Character Profile'), imageUrl: image.url, characterName: 'Fischl', damageType: 'Electro', faction: "Adventurers' Guild", patchVersion: '1.0', summary: 'A character profile with existing content rows.', sourceName: 'Fixture artwork', sourceUrl: 'https://example.invalid/art' } },
         { ...baseEntry, id: 'nav-side', kind: 'story', name: 'Wraith’s Nocturne', category: 'side-stories', storySection: 'e2e-section', order: 4, sideStories: sampleTemplate('Story Quest') },
         { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: sampleTemplate('Event Objective') },
@@ -533,11 +537,20 @@ try {
     await guest.setViewport({ width: 1440, height: 1000 });
     const profile = 'gg-story .patch-overview-dashboard[data-story-topic="character-information"]';
     await guest.setViewport({ width: 1920, height: 1080 });
+    const world = '#story-template-nav-world';
+    assert.equal(await guest.$(`${world} .patch-hero`), null);
+    assert.equal(await guest.$eval(`${world} .world-quest-title`, element => getComputedStyle(element).display), 'block');
+    await guest.$eval(world, element => element.scrollIntoView({ block: 'center' }));
+    assert.equal(await guest.$eval(`${world} .guide-group-progress`, element => getComputedStyle(element).flexDirection), 'row');
+    await (await guest.$(world))!.screenshot({ path: join(artifacts, 'world-quest-reading-desktop.png') });
     await guest.$eval(profile, element => element.scrollIntoView({ block: 'center' }));
     assert.equal(await guest.$eval(`${profile} .character-profile-art > img`, element => getComputedStyle(element).display), 'block');
     assert.equal(await guest.$$eval(`${profile} .guide-content-row`, rows => rows.length), 1);
     await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-desktop.png') });
     await guest.setViewport({ width: 390, height: 844 });
+    assert.equal(await guest.$eval(world, element => element.scrollWidth <= element.clientWidth), true);
+    assert.equal(await guest.$eval(`${world} .world-quest-title`, element => element.scrollHeight <= element.clientHeight), true);
+    await (await guest.$(world))!.screenshot({ path: join(artifacts, 'world-quest-reading-mobile.png') });
     assert.equal(await guest.$eval(`${profile} .character-profile-art > img`, element => getComputedStyle(element).display), 'none');
     assert.equal(await guest.$eval(profile, element => element.scrollWidth <= element.clientWidth), true);
     await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-mobile.png') });

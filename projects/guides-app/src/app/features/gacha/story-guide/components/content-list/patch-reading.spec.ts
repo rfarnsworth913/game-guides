@@ -79,7 +79,22 @@ describe('Patch overview reading layout', () => {
         expect(component.mediaProvider({ ...data.rows[1], contentUrl: 'https://youtube.com.evil.example/video' })?.kind).toBe('website');
         expect(component.mediaProvider({ ...data.rows[1], contentUrl: 'javascript' + ':alert(1)' })).toBeNull();
     });
-    it('leaves other template layouts unchanged', () => {
+    it.each(['main-story', 'side-stories', 'world-quests', 'character-information', 'lore', 'events', 'endgame-activity'])('shows recognized video providers in %s without adding previews or treating ordinary links as videos', category => {
+        const { fixture, entry, root, data, component } = setup();
+        fixture.componentRef.setInput('entry', { ...entry, category, mainStory: data, sideStories: data, worldQuests: data, characterInformation: data, lore: data, eventStory: data });
+        fixture.detectChanges();
+        const video = root.querySelector('#story-row-patch-trailer')!;
+        expect(video.querySelector('.patch-media-provider.youtube')?.textContent).toContain('YouTube');
+        expect(video.querySelector('.patch-media-provider.youtube svg')).not.toBeNull();
+        expect(getComputedStyle(video.querySelector('.patch-media-provider.youtube > span')!).backgroundColor).toBe('rgb(237, 22, 38)');
+        expect(root.querySelector('.patch-media-provider.bilibili')?.textContent).toContain('Bilibili');
+        expect(video.querySelector('img')).toBeNull();
+        expect(video.querySelector('.guide-row-title a')?.getAttribute('href')).toBe('https://youtu.be/abc');
+        expect(component.mediaRow({ ...data.rows[0], contentUrl: 'https://example.com/wiki' })).toBe(false);
+        expect(component.mediaRow({ ...data.rows[0], contentUrl: 'https://youtube.com.evil.example/video' })).toBe(false);
+        expect(component.mediaRow({ ...data.rows[0], rowType: 'heading', contentUrl: 'https://youtu.be/abc' })).toBe(false);
+    });
+    it('leaves other template section layouts unchanged', () => {
         const { fixture, entry, root } = setup();
         fixture.componentRef.setInput('entry', { ...entry, category: 'lore', lore: entry.patchOverview });
         fixture.detectChanges();
