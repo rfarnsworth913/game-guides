@@ -72,6 +72,7 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
                 validPatchOverview(e.worldQuests) &&
                 validPatchOverview(e.lore) &&
                 validPatchOverview(e.characterInformation) &&
+                (e.characterId === globalThis.undefined || (e.kind === 'story' && e.category === 'character-information' && typeof e.characterId === 'string' && !!e.characterId)) &&
                 validRowCompletion(e.storyRowCompletion) &&
                 (e.characterDefinition === globalThis.undefined || (e.kind === 'characters' && Number.isSafeInteger(e.rarity) && e.rarity >= 1 && e.rarity <= 20 && validCharacterDefinition(e.characterDefinition))) &&
                 (e.characterCollection === globalThis.undefined || (e.kind === 'characters' && validCharacterCollection(e.characterCollection))) &&
@@ -142,7 +143,8 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.endDate !== globalThis.undefined ? { endDate: entry.endDate } : {}),
         ...(entry.eventType !== globalThis.undefined ? { eventType: entry.eventType } : {}),
         ...(entry.characterDefinition !== globalThis.undefined ? { characterDefinition: entry.characterDefinition } : {}),
-        ...(entry.characterInformation !== globalThis.undefined ? { characterInformation: entry.characterInformation } : {}),
+        ...(entry.characterInformation !== globalThis.undefined && !(entry.kind === 'story' && entry.characterId) ? { characterInformation: entry.characterInformation } : {}),
+        ...(entry.characterId !== globalThis.undefined ? { characterId: entry.characterId } : {}),
         ...(entry.lore !== globalThis.undefined ? { lore: entry.lore } : {}),
         ...(entry.worldQuests !== globalThis.undefined ? { worldQuests: entry.worldQuests } : {}),
         ...(entry.eventStory !== globalThis.undefined ? { eventStory: entry.eventStory } : {}),
@@ -195,6 +197,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'worldQuests',
         'lore',
         'characterInformation',
+        'characterId',
         'characterDefinition',
     ]);
     if (
@@ -221,6 +224,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
             (e.kind !== 'story' ||
                 e.storySection === globalThis.undefined ||
                 ids.get(e.storySection)?.kind === 'story-category') &&
+            (!e.characterId || (ids.get(e.characterId)?.kind === 'characters' && ids.get(e.characterId)?.game === e.game && !e.characterInformation)) &&
             e.members.every((id) => ids.get(id)?.kind === 'characters') &&
             (e.characterDefinition?.recipes ?? []).every(recipe => recipe.materials.every(cost => ids.get(cost.item)?.kind === 'inventory')) &&
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),

@@ -62,7 +62,7 @@
         >
             <option value="">All rarities</option>
             @for (value of rarities(); track value) {
-                <option [value]="value">{{ value }} star</option>
+                <option [value]="value">{{ value ? value + ' star' : 'Rarity not set' }}</option>
             }
         </select>
         <select
@@ -90,7 +90,7 @@
                     } @else {
                         <span aria-hidden="true">{{ entry.name.slice(0, 1) }}</span>
                     }
-                    <span class="character-rarity">{{ entry.rarity }} &#9733;</span>
+                    <span class="character-rarity">{{ entry.rarity ? entry.rarity + ' ★' : 'Rarity not set' }}</span>
                 </div>
                 <div class="character-card-copy">
                     <strong>{{ entry.name }}</strong>
@@ -173,7 +173,7 @@
                         <span
                             ><strong id="character-detail-title">{{ entry.name }}</strong>
                             <small
-                                >{{ entry.rarity }} &#9733;
+                                >{{ entry.rarity ? entry.rarity + ' ★' : 'Rarity not set' }}
                                 @if (definition(entry).damageType) {
                                     &middot; {{ definition(entry).damageType }}
                                 }

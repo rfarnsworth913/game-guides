@@ -1,5 +1,7 @@
 # Character management v1
 
+Character story-guide profiles now belong to the shared character catalog as well. Story placements reference them by `characterId`; see [Shared character records and migration](shared-story-characters.md) for editing, tracking and backup behavior.
+
 ## First use
 
 The character modal is now a development planner. It puts current and target levels, ascension, upgradeable skills, and configured progression tracks first, with guides and personal notes in a sidebar. Fixed-level skills and passives, empty equipment sections, and repeated reference descriptions are omitted from the main planner. Select the character name or portrait to view preserved shared reference information.

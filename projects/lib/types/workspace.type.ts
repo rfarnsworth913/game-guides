@@ -28,6 +28,8 @@ export type Entry = {
     worldQuests?: PatchOverview;
     lore?: PatchOverview;
     characterInformation?: PatchOverview;
+    /** Story placement referencing a shared character in this game's catalog. */
+    characterId?: string;
     storyRowCompletion?: Record<string, boolean>;
     storySection?: string;
     icon?: string;

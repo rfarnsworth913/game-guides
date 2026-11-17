@@ -467,6 +467,7 @@ export class Story {
         this.setTopic(this.editor, this.editor.category);
     }
     setTopic(entry: Entry, topic: string): void {
+        if (entry.characterId && topic !== 'character-information') {delete entry.characterId; delete entry.characterInformation;}
         entry.category = topic;
         if (topic === 'character-information') {
             entry.characterInformation ??= emptyPatchOverview();

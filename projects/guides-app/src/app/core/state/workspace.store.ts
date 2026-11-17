@@ -13,6 +13,7 @@ import type { PlayerState, Entry, GameSnapshot } from "../../../../../lib/types/
 
 import { GAMES } from "../../../../../lib/constants/workspace.constants";
 import { validEntries, parseBackup, toCatalog, fromCatalog, validCatalog } from "../../../../../common/workspace/workspace";
+import { resolveCharacterReferences, editCharacterStory, migrateStoryCharacters, characterStoryProfile } from '../../../../../common/characters/character-story';
 import { defaultGameOverview, validGameOverview } from '@common/workspace/game-overview';
 import type { GameOverview } from '@lib/types/game-overview.type';
 export type { Entry, Kind } from "../../../../../lib/types/workspace.type";
@@ -112,7 +113,7 @@ export class WorkspaceStore {
         this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
             [...this.snapshots.values()].flatMap((game) =>
-                game.entries.map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
+                resolveCharacterReferences(game.entries).map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
             ),
         );
     }
@@ -496,7 +497,23 @@ export class WorkspaceStore {
         finally { this.saving.set(false); }
     }
     async save(entry: Entry): Promise<boolean> {
-        return this.replace([...this.entries().filter((e) => e.id !== entry.id), entry]);
+        if (entry.kind === 'characters' && entry.characterInformation && entry.characterDefinition) {entry = editCharacterStory(entry, characterStoryProfile(entry));}
+        let entries = [...this.entries().filter((e) => e.id !== entry.id), entry];
+        if (entry.kind === 'story' && entry.category === 'character-information') {
+            if (entry.characterId && entry.characterInformation) {
+                const previous = this.entries().find(item => item.id === entry.id);
+                if (previous?.characterId !== entry.characterId || JSON.stringify(previous.characterInformation) !== JSON.stringify(entry.characterInformation)) {
+                    entries = entries.map(item => item.kind === 'characters' && item.game === entry.game && item.id === entry.characterId ? editCharacterStory(item, entry.characterInformation!) : item);
+                }
+            } else if (!entry.characterId) {
+                try {
+                    const migrated = migrateStoryCharacters(entries.map(toCatalog));
+                    const drafts = new Map(entries.map(item => [item.id, item]));
+                    entries = resolveCharacterReferences(migrated.entries).map(item => fromCatalog(item, drafts.get(item.id) ?? this.player[this.playerKey(item)]));
+                } catch (error) {this.error.set(error instanceof Error ? error.message : 'Could not create the shared character.'); return false;}
+            }
+        }
+        return this.replace(entries);
     }
     async resetStoryProgress(game: string): Promise<boolean> {
         return this.replace(this.entries().map((entry) =>
@@ -506,6 +523,7 @@ export class WorkspaceStore {
         ));
     }
     async remove(id: string): Promise<boolean> {
+        if (this.entries().some(entry => entry.characterId === id)) {this.error.set('This character is referenced by a story guide. Remove or change its guide references first.'); return false;}
         return this.replace(
             this.entries()
                 .filter(

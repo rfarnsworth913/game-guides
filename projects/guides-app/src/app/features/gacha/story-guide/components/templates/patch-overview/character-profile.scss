@@ -2,11 +2,11 @@
 .patch-overview-dashboard[data-story-topic='character-information'] {
     gap: 24px;
     align-items: start;
-    .character-info-header { display: flex; gap: 24px; align-items: flex-start; padding: 12px 0; min-width: 0; }
-    .character-info-header h3 { font-size: clamp(26px, 3vw, 38px); line-height: 1.15; margin: 0 0 12px; }
-    .character-info-subtitle { font-size: 14px; line-height: 1.5; gap: 8px 12px; }
-    .character-profile-summary { margin-top: 12px; font-size: 14px; line-height: 1.6; color: var(--guide-muted, var(--color-text-secondary)); > :first-child { margin-top: 0; } > :last-child { margin-bottom: 0; } }
-    .character-introduced { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--guide-muted, var(--color-text-secondary)); > svg { flex: 0 0 16px; } }
+    .character-info-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; row-gap: 0; align-items: center; padding: 12px 0; min-width: 0; }
+    .character-info-header h3 { grid-column: 1; grid-row: 1; font-size: clamp(26px, 3vw, 38px); line-height: 1.15; margin: 0; }
+    .character-info-subtitle { grid-column: 1 / -1; margin-top: 6px; font-size: 14px; line-height: 1.5; gap: 8px 12px; }
+    .character-profile-summary { grid-column: 1 / -1; margin-top: 8px; font-size: 14px; line-height: 1.6; color: var(--guide-muted, var(--color-text-secondary)); > :first-child { margin-top: 0; } > :last-child { margin-bottom: 0; } }
+    .character-info-header > .character-introduced { grid-column: 2; grid-row: 1; justify-self: end; display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; color: var(--guide-muted, var(--color-text-secondary)); > svg { flex: 0 0 16px; } }
     .character-profile-art { min-width: 0; > img { display: none; } }
     .character-profile-art .patch-source { text-align: start; padding: 0; }
     > gg-story-content-list { min-width: 0; }
@@ -23,7 +23,7 @@
 @container (max-width: 540px) {
     .patch-overview-dashboard[data-story-topic='character-information'] {
         gap: 16px;
-        .character-info-header { gap: 14px; }
+        .character-info-header { column-gap: 14px; }
         .character-info-header h3 { font-size: 26px; }
         .character-info-subtitle { font-size: 13px; }
     }

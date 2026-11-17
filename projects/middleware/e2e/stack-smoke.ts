@@ -16,6 +16,7 @@ import type { CatalogEntry } from '../../lib/types/workspace.type';
 import { emptyPatchOverview } from '../../common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
 import { defaultGameOverview } from '../../common/workspace/game-overview';
+import { migrateStoryCharacters } from '../../common/characters/character-story';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.
 const databaseName = `game_guides_e2e_${randomUUID().replaceAll('-', '')}`;
@@ -465,7 +466,8 @@ try {
         { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: sampleTemplate('Event Objective') },
         { ...baseEntry, id: 'nav-patch', kind: 'story', name: 'Patch 7.1 Overview', category: 'patch-overview', storySection: 'e2e-section', order: 6, patchOverview: sampleTemplate('Patch Notes') },
     ];
-    assert.equal((await update(editorToken, beforeNavigation.revision, navigationEntries)).status, 200);
+    const sharedCharacterEntries = migrateStoryCharacters(navigationEntries, () => 'shared-fischl').entries;
+    assert.equal((await update(editorToken, beforeNavigation.revision, sharedCharacterEntries)).status, 200);
     await guest.reload({ waitUntil: 'networkidle0' });
     assert.equal(await guest.$eval('.region-artwork', target => target.getAttribute('src')), image.url);
     assert.equal(await guest.$$eval('.outline-chapter-heading a', links => links.length), 2);
@@ -529,7 +531,6 @@ try {
         const input = target as HTMLInputElement; input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await guest.setViewport({ width: 1440, height: 1000 });
-    const afterNavigation = await repository.read('genshin');
     const profile = 'gg-story .patch-overview-dashboard[data-story-topic="character-information"]';
     await guest.setViewport({ width: 1920, height: 1080 });
     await guest.$eval(profile, element => element.scrollIntoView({ block: 'center' }));
@@ -541,6 +542,32 @@ try {
     assert.equal(await guest.$eval(profile, element => element.scrollWidth <= element.clientWidth), true);
     await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-mobile.png') });
     await guest.setViewport({ width: 1440, height: 1000 });
+    await editor.reload({ waitUntil: 'networkidle0' });
+    if (await editor.$('.story-mode-toggle[aria-checked="false"]')) {await editor.click('.story-mode-toggle[aria-checked="false"]');}
+    await editor.waitForSelector('[aria-label="Edit Fischl"]');
+    await editor.click('[aria-label="Edit Fischl"]');
+    await editor.waitForSelector('gg-story [role=dialog] .editor-template-details-link');
+    await editor.click('gg-story [role=dialog] .editor-template-details-link');
+    await editor.$eval('gg-story [role=dialog] .section-editor-template-details', element => {
+        const label = [...element.querySelectorAll('label')].find(label => label.textContent?.trim().startsWith('Character Name'))!;
+        const input = label.querySelector('input')!; input.value = 'Fischl Updated'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const sharedSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await clickButton(editor, 'Save changes'); assert.equal((await sharedSave).status(), 200);
+    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    const sharedSnapshot = await repository.read('genshin');
+    assert.equal(sharedSnapshot.entries.find(entry => entry.id === 'shared-fischl')?.name, 'Fischl Updated');
+    assert.equal(sharedSnapshot.entries.find(entry => entry.id === 'nav-character')?.characterInformation, globalThis.undefined);
+    assert.equal(sharedSnapshot.entries.find(entry => entry.id === 'nav-character')?.characterId, 'shared-fischl');
+    const characterCheckbox = `${profile} .guide-row-tracking input`;
+    await player.reload({ waitUntil: 'networkidle0' });
+    const sharedProgress = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await player.click(characterCheckbox); assert.equal((await sharedProgress).status(), 200);
+    await player.reload({ waitUntil: 'networkidle0' });
+    assert.equal(await player.$eval(characterCheckbox, input => (input as HTMLInputElement).checked), true);
+    assert.equal(await player.$eval(`${profile} .character-info-header h3`, element => element.textContent), 'Fischl Updated');
+    console.log('PASS shared character guide reference edits the catalog and preserves account completion after reload.');
+    const afterNavigation = await repository.read('genshin');
     assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);
     console.log('PASS story navigation hierarchy, guide ordering, scroll highlighting and responsive layout.');
 
@@ -549,7 +576,11 @@ try {
     const conflicts = await Promise.all([update(editorToken, current.revision, current.entries), update(editorToken, current.revision, current.entries)]);
     assert.deepEqual(conflicts.map(response => response.status).sort(), [200, 409]);
     const state = await (await api('/api/me/progress', editorToken)).json();
-    const progressConflicts = await Promise.all([0, 1].map(() => api('/api/me/progress', editorToken, 'PATCH', { revision: state.revision, changes: state.state })));
+    // Retain historical progress for removed fixture content, but only replay current records,
+    // matching the application's delta writes rather than resubmitting retired content.
+    const currentIds = new Set(current.entries.map(entry => entry.id));
+    const currentState = Object.fromEntries(Object.entries(state.state as Record<string, unknown>).filter(([key]) => key.startsWith('genshin/') && currentIds.has(key.slice('genshin/'.length))));
+    const progressConflicts = await Promise.all([0, 1].map(() => api('/api/me/progress', editorToken, 'PATCH', { revision: state.revision, changes: currentState })));
     assert.deepEqual(progressConflicts.map(response => response.status).sort(), [200, 409]);
     console.log('PASS concurrent catalog and account progress writes reject stale revisions.');
 

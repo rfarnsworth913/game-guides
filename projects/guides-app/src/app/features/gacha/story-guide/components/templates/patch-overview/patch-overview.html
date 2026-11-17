@@ -51,6 +51,11 @@
     @if (entry().category === 'character-information') {
         <fieldset>
             <legend>Character Full Art</legend>
+            <label>Shared Character<select [ngModelOptions]="standalone" [ngModel]="entry().characterId || ''" (ngModelChange)="selectCharacter($event)">
+                <option value="" [disabled]="!!entry().characterId">Create a character from this section on save</option>
+                @for (character of availableCharacters(); track character.id) { <option [value]="character.id">{{ character.name }}</option> }
+            </select></label>
+            <p class="guide-help">Character details and content groups are shared with the character catalog and planner. Changes here update that character everywhere; guide order and completion remain separate.</p>
             <gg-game-image-picker [game]="entry().game" label="Character image" [(value)]="data().imageUrl" />
             <label>Character Name<input [ngModelOptions]="standalone" [(ngModel)]="data().characterName" /></label>
             <label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" placeholder="e.g. 1.0" /></label>
@@ -244,7 +249,6 @@
     <div class="patch-overview-dashboard story-search-target" [attr.data-story-entry]="entry().id" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.patch-overview-layout]="entry().category === 'patch-overview'" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()">
         @if (entry().category === 'character-information') {
             <div class="character-info-header">
-                <div>
                     <h3>{{ data().characterName || entry().name }}</h3>
                     <div class="character-info-subtitle">
                         @if (data().damageType) {
@@ -270,8 +274,7 @@
                         }
                     </div>
                     @if (data().summary) { <div class="character-profile-summary notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
-                    @if (data().patchVersion; as version) { <div class="character-introduced"><svg width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 3h-7L2 14l8 8L21 11V4Z"/><circle cx="17" cy="7" r="1"/></svg><span>Introduced in</span><gg-patch-badge [version]="version" /></div> }
-                </div>
+                @if (data().patchVersion; as version) { <div class="character-introduced"><svg width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 3h-7L2 14l8 8L21 11V4Z"/><circle cx="17" cy="7" r="1"/></svg><span>Introduced in</span><gg-patch-badge [version]="version" /></div> }
             </div>
             @if (imageUrl(data().imageUrl); as artwork) {
                 @if (failedImage() !== artwork) {

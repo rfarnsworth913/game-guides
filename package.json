@@ -8,6 +8,7 @@
     "lint": "npm run lint:ci",
     "lint:ci": "eslint projects/lib projects/common projects/middleware/src projects/middleware/scripts projects/data-parser/src projects/guides-app/src",
     "middleware:check": "tsc -p projects/middleware/tsconfig.json",
+    "middleware:characters": "tsx projects/middleware/scripts/migrations/character-story-migration.ts",
     "middleware:lint": "eslint projects/middleware/src projects/middleware/scripts",
     "middleware:main-quests": "tsx projects/middleware/scripts/migrations/main-quest-migration.ts",
     "middleware:migrate": "tsx projects/middleware/scripts/migrate.ts",

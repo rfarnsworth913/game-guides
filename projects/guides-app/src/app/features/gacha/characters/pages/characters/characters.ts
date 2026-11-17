@@ -43,21 +43,21 @@ export class Characters {
                 [
                     e.name,
                     e.characterDefinition?.weaponType,
-                    e.characterDefinition?.damageType,
+                    this.definition(e).damageType,
                     ...(e.characterDefinition?.roles ?? []),
                 ]
                     .join(' ')
                     .toLowerCase()
                     .includes(this.search().trim().toLowerCase()) &&
                 (!this.rarity() || e.rarity === Number(this.rarity())) &&
-                (!this.damageType() || e.characterDefinition?.damageType === this.damageType()),
+                (!this.damageType() || this.definition(e).damageType === this.damageType()),
         ),
     );
     readonly damageTypes = computed(() =>
         [
             ...new Set(
                 this.catalog()
-                    .map((e) => e.characterDefinition?.damageType)
+                    .map((e) => this.definition(e).damageType)
                     .filter((v): v is string => !!v),
             ),
         ].sort(),
@@ -133,7 +133,7 @@ export class Characters {
         }
     }
     definition(entry: Entry): CharacterDefinition {
-        return entry.characterDefinition ?? emptyCharacterDefinition();
+        return entry.characterDefinition ?? { ...emptyCharacterDefinition(), damageType: entry.characterInformation?.damageType ?? '' };
     }
     materialPlan(entry: Entry) {
         const result = characterCosts(entry.characterDefinition, this.collection ?? emptyCharacterCollection());
@@ -233,7 +233,7 @@ export class Characters {
                   quantity: 0,
                   target: 0,
               };
-        this.definitionEditor.characterDefinition ??= emptyCharacterDefinition();
+        this.definitionEditor.characterDefinition ??= this.definition(this.definitionEditor);
         const data = this.definitionEditor.characterDefinition;
         data.skills.forEach((skill, index) => {
             skill.id ??= `skill-${index}`;

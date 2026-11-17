@@ -17,6 +17,7 @@ import type { StoryContext } from "../../../../../../../../../lib/types/story-co
 import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from "../../../../../../../../../common/quests/story-guide";
 import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from "../../../../../../../../../common/quests/story-template";
 import type { StoryTableRow } from "../../../../../../../../../lib/types/story-template.type";
+import { characterStoryProfile } from '../../../../../../../../../common/characters/character-story';
 
 @Component({
     selector: 'gg-patch-overview',
@@ -39,6 +40,15 @@ export class PatchOverviewTemplate {
     readonly patchListId = 'editor-patch-versions-' + crypto.randomUUID();
     readonly incompleteOnly = input(false);
     readonly store = inject(WorkspaceStore);
+    readonly availableCharacters = computed(() => (this.store.entries?.() ?? []).filter(item => item.kind === 'characters' && item.game === this.entry().game).sort((a, b) => a.name.localeCompare(b.name)));
+    selectCharacter(id: string): void {
+        const character = this.availableCharacters().find(item => item.id === id);
+        if (!character) {return;}
+        this.entry().characterId = id;
+        const profile = this.data();
+        for (const key of Object.keys(profile)) {Reflect.deleteProperty(profile, key);}
+        Object.assign(profile, characterStoryProfile(character));
+    }
     readonly completionError = signal('');
     readonly groupedTemplate = computed(() => ['world-quests', 'lore', 'character-information'].includes(this.entry().category));
     readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events', 'endgame-activity'].includes(this.entry().category));
