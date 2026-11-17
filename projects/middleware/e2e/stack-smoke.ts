@@ -403,6 +403,12 @@ try {
     await guest.waitForFunction(() => document.querySelector('gg-story')?.textContent?.includes('E2E Edited Quest'));
     await editor.reload({ waitUntil: 'networkidle0' });
     await checked(editor, true);
+    await editor.$eval('gg-story .main-story-template .patch-hero', element => element.scrollIntoView({ block: 'start' }));
+    await editor.screenshot({ path: join(artifacts, 'primary-quest-reading-desktop.png') });
+    await editor.setViewport({ width: 390, height: 844 });
+    assert.equal(await editor.$eval('gg-story .main-story-template', element => element.scrollWidth <= element.clientWidth), true, 'Primary quest banner and cards must fit on mobile.');
+    await editor.screenshot({ path: join(artifacts, 'primary-quest-reading-mobile.png') });
+    await editor.setViewport({ width: 1440, height: 1000 });
     assert.equal((await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.imageUrl, image.url);
     const savedContext = (await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.context;
     assert.equal(savedContext?.requirements?.[0].targetId, 'quest:e2e-quest:e2e-row');

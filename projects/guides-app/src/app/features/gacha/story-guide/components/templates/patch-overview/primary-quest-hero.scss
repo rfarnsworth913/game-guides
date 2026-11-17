@@ -1,0 +1,26 @@
+.main-story-template[data-story-topic='main-story'] {
+    .patch-hero {
+        display: flex;
+        align-items: flex-end;
+        aspect-ratio: 3.6 / 1;
+        min-height: 300px;
+        max-height: none;
+        border-radius: 14px;
+        border-color: var(--guide-border, var(--color-border));
+        &::after { background: linear-gradient(90deg, rgba(3, 13, 21, .9), rgba(3, 13, 21, .45) 45%, rgba(3, 13, 21, .08) 85%), linear-gradient(0deg, rgba(3, 13, 21, .5), transparent 65%); }
+    }
+    .patch-hero-copy {
+        padding: 32px;
+        min-height: 0;
+        max-width: 90%;
+        .patch-game-name { font-size: 12px; letter-spacing: .2em; color: rgba(241, 245, 249, .8); }
+        h3 { font-size: clamp(30px, 3.4vw, 48px); line-height: 1.12; margin: 14px 0 8px; }
+        p { font-size: 18px; color: rgba(241, 245, 249, .8); }
+    }
+    .quest-banner-patch { margin-top: 16px; align-self: flex-start; }
+    @media (max-width: 700px) {
+        .patch-hero { aspect-ratio: auto; min-height: 280px; }
+        .patch-hero-copy { padding: 24px 20px; max-width: 100%; }
+        .patch-hero-copy p { font-size: 16px; }
+    }
+}

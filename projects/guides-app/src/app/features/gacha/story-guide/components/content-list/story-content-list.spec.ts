@@ -92,8 +92,8 @@ describe('Unified story reading view', () => {
         expect(root.querySelectorAll('input[type="checkbox"]').length).toBe(2);
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');
         expect(root.querySelector('.guide-main-quest-progress small')?.textContent).toBe('50%');
-        expect(root.querySelector('.guide-main-quest-title p > span')?.textContent).toBe('Archon Quest');
-        expect(root.querySelector('.guide-main-quest-title .guide-patch-badge')?.textContent).toBe('Patch 1.0');
+        expect(root.querySelector('.guide-main-quest-title p')).toBeNull();
+        expect(root.querySelector('.guide-main-quest-title .guide-patch-badge')).toBeNull();
         fixture.componentRef.setInput('incompleteOnly', true);
         fixture.detectChanges();
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');

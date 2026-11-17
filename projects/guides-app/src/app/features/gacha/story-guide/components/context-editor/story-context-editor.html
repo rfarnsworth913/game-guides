@@ -5,6 +5,7 @@
 }
 <ng-template #fields>
     @if (!row()) {
+    @if (showAvailabilityFields()) {
     <div class="patch-fields">
         <label>Availability<select [ngModelOptions]="standalone" [(ngModel)]="context().availability">
             <option [ngValue]="undefined">Not specified</option>
@@ -13,6 +14,7 @@
         <label>Start date<input type="date" [ngModelOptions]="standalone" [(ngModel)]="context().startDate" /></label>
         <label>End date<input type="date" [ngModelOptions]="standalone" [(ngModel)]="context().endDate" /></label>
     </div>
+    }
     } @else if (showSubtype()) {
         <gg-story-subtype-editor [context]="context()" [worldQuest]="worldQuest()" />
     }

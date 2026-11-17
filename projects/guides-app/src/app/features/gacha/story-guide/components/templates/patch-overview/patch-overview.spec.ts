@@ -34,7 +34,7 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('editing', false);
         fixture.detectChanges();
         expect(root.querySelector('.guide-main-quest-heading')).toBeNull();
-        expect(root.querySelector('.guide-section-heading h4')?.textContent).toBe(group.title);
+        expect(root.querySelector('.guide-section-heading h4')?.textContent?.trim()).toBe(group.title);
         expect(root.querySelector('.guide-row-title a')?.getAttribute('href')).toBe('https://example.com/cutscene');
         component.promoteMainQuest(data.rows[0]);
         expect(group.mainQuest).toBeUndefined();

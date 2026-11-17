@@ -113,7 +113,7 @@
     }
     }
     @if (entry().category !== 'patch-overview') {
-        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" />
+        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="entry().category !== 'main-story'" />
     }
             </div>
     <fieldset class="patch-group-editor" aria-label="Content group details" [hidden]="editorSelection() === null || editorSelection() === ''">
@@ -294,11 +294,12 @@
                 }
             }
             <div class="patch-hero-copy">
-                <span class="patch-game-name">{{ storyBanner() ? (data().region || gameName()) : gameName() }}</span>
+                <span class="patch-game-name">{{ entry().category === 'main-story' ? gameName() : storyBanner() ? (data().region || gameName()) : gameName() }}</span>
                 <h3>{{ entry().name }}</h3>
                 @if (storyBanner()) {
                     <p>{{ storyTemplateName() }}</p>
                     @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
+                    @if (entry().category === 'main-story' && (data().patchVersion || data().rows[0]?.patch); as version) { <gg-patch-badge class="quest-banner-patch" [version]="version" /> }
                 } @else { <div class="patch-hero-meta">@if (data().patchVersion || data().rows[0]?.patch; as version) { <span class="patch-version">Patch {{ version }}</span><span class="patch-meta-divider" aria-hidden="true"></span> }<span>Patch Overview</span></div><span class="patch-hero-rule" aria-hidden="true"></span> }
             </div>
             @if (!storyBanner() && data().releaseDate) {

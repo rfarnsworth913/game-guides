@@ -1,4 +1,4 @@
-<div class="guide-reading-view" [class.patch-reading-view]="patchOverview()" [class.guide-world-quests]="worldQuest()" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
+<div class="guide-reading-view" [class.patch-reading-view]="patchOverview() || primaryQuest()" [class.primary-quest-reading]="primaryQuest()" [class.guide-world-quests]="worldQuest()" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
     @if (worldQuest()) {
         <ng-container *ngTemplateOutlet="worldGroupsView" />
 
@@ -11,7 +11,7 @@
 
 <ng-template #contentGroup let-group>
         <section class="guide-content-section" [class.patch-media-group]="patchOverview() && mediaGroup(group)" [id]="'patch-group-' + entry().id + '-' + (group.id || 'overview')">
-            @if (patchOverview()) {
+            @if (patchOverview() || (primaryQuest() && !group.mainQuest)) {
                 <header class="guide-section-heading patch-group-heading">
                     <ng-container *ngTemplateOutlet="patchIcon; context: { $implicit: groupIcon(group) }" />
                     <h4>@if (httpUrl(group.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ group.title }}</a> } @else { {{ group.title }} }</h4>
@@ -22,12 +22,13 @@
                 </header>
             } @else if (questTemplate() && group.mainQuest; as mainQuest) {
             <header class="guide-section-heading guide-main-quest-heading story-search-target" [id]="anchor(mainQuest)" [attr.data-story-row]="mainQuest.id" tabindex="-1">
+                @if (primaryQuest()) { <svg class="quest-heading-icon" width="24" height="24" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5C8 2 4 3 2 4v16c3-2 7-2 10 0 3-2 7-2 10 0V4c-3-1-7-2-10 1Zm0 0v15" /></svg> }
                 <button type="button" [attr.aria-label]="'Toggle ' + (mainQuest.content || group.title)" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-group-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
                     <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
                 </button>
                 <div class="guide-main-quest-title">
                     <h4>@if (httpUrl(mainQuest.contentUrl || mainQuest.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ mainQuest.content || group.title }}</a> } @else { {{ mainQuest.content || group.title }} }</h4>
-                    <p><span>{{ mainQuestName() }}</span>@if (mainQuest.patch || group.defaultPatch || sharedPatch(); as version) { <gg-patch-badge [version]="version" /> }</p>
+                    @if (!primaryQuest()) { <p><span>{{ mainQuestName() }}</span>@if (mainQuest.patch || group.defaultPatch || sharedPatch(); as version) { <gg-patch-badge [version]="version" /> }</p> }
                 </div>
                 @let progress = groupProgress(group.id);
                 <div class="guide-main-quest-progress" aria-label="Quest completion">

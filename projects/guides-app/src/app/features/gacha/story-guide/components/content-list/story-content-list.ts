@@ -18,7 +18,7 @@ import { PatchBadge } from "../../../shared/components/patch-badge/patch-badge";
     selector: 'gg-story-content-list',
     imports: [MarkdownPipe, NgTemplateOutlet, PatchBadge],
     templateUrl: "./story-content-list.html",
-    styleUrls: ['./patch-reading.scss', './patch-media.scss'],
+    styleUrls: ['./patch-reading.scss', './patch-media.scss', './primary-quest-reading.scss'],
 })
 export class StoryContentList {
     readonly entry = input.required<Entry>();
@@ -31,6 +31,7 @@ export class StoryContentList {
     readonly collapsedSections = signal<string[]>([]);
     readonly expandedNotes = signal<string[]>([]);
     readonly patchOverview = computed(() => this.entry().category === 'patch-overview');
+    readonly primaryQuest = computed(() => this.entry().category === 'main-story');
     readonly worldQuest = computed(() => this.entry().category === 'world-quests');
     readonly worldGroups = computed(() => worldQuestGroups(this.data()));
     readonly visibleWorldGroups = computed(() => this.worldGroups().filter(group => !this.incompleteOnly() || this.countDone(group.rows) < this.count(group.rows)));
