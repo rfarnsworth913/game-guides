@@ -1,0 +1,14 @@
+.guide-reading-view .guide-content-row .guide-row-main > .guide-activity-subtype {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 2px 0 0;
+    padding: 3px 8px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--guide-nested);
+    color: var(--guide-muted);
+    font-size: 11px;
+    line-height: 1.2;
+}

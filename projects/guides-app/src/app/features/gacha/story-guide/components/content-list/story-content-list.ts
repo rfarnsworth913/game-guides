@@ -18,7 +18,7 @@ import { PatchBadge } from "../../../shared/components/patch-badge/patch-badge";
     selector: 'gg-story-content-list',
     imports: [MarkdownPipe, NgTemplateOutlet, PatchBadge],
     templateUrl: "./story-content-list.html",
-    styleUrls: ['./patch-reading.scss', './patch-media.scss', './primary-quest-reading.scss', './world-quest-reading.scss'],
+    styleUrls: ['./patch-reading.scss', './patch-media.scss', './primary-quest-reading.scss', './world-quest-reading.scss', './activity-subtype.scss'],
 })
 export class StoryContentList {
     readonly entry = input.required<Entry>();
@@ -143,7 +143,7 @@ export class StoryContentList {
     }
     anchor(row: StoryTableRow): string { return `story-row-${this.entry().id}-${row.id}`; }
     contextText(context?: StoryContext): string {
-        return [context?.region, context?.area, context?.chain, context?.subtype, context?.difficulty].filter(Boolean).join(' · ');
+        return [context?.region, context?.area, context?.chain, context?.difficulty].filter(Boolean).join(' · ');
     }
     related(ids?: string[]): Entry[] {
         return this.relatedEntries().filter(entry => entry.game === this.entry().game && ids?.includes(entry.id));

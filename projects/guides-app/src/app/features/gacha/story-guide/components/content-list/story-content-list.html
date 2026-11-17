@@ -95,7 +95,7 @@
                     @else { <strong>{{ row.content || 'Untitled content' }}</strong> }
                     @if (row.context?.difficulty) { <span class="guide-meta-badge">{{ row.context.difficulty }}</span> }
                 </div>
-                @if (worldQuest() && row.context?.subtype) { <span class="guide-meta-badge guide-world-subtype">{{ subtype(row.context.subtype) }}</span> }
+                @if (row.context?.subtype?.trim()) { <span class="guide-meta-badge guide-activity-subtype">{{ subtype(row.context.subtype) }}</span> }
                 @if (!worldQuest() && contextText(row.context)) { <p class="guide-row-context">{{ contextText(row.context) }}</p> }
                 @if (row.context?.availability) { <span class="guide-meta-badge">{{ row.context.availability }}</span> }
                 @if (!canTrack(row)) { <p class="guide-warning">An editor must set a cycle ID before current-cycle progress can be tracked.</p> }
@@ -123,13 +123,16 @@
                 @for (requirement of row.context?.requirements; track $index) {
                     @if (['missable', 'unlock', 'time-gate'].includes(requirement.type)) { <p class="guide-warning"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
                 }
-                @if (patchOverview() && (row.notes || row.notesRight)) {
-                    <div class="patch-row-description" [class.guide-split-notes]="row.notesRight !== undefined"><div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div>@if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }</div>
+                @if ((patchOverview() || eventTemplate()) && (row.notes.trim() || row.notesRight?.trim())) {
+                    <div class="patch-row-description" [class.guide-split-notes]="!!row.notes.trim() && !!row.notesRight?.trim()">
+                        @if (row.notes.trim()) { <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div> }
+                        @if (row.notesRight?.trim()) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
+                    </div>
                 }
-                @if ((!patchOverview() && (row.notes || row.notesRight)) || row.context?.requirements?.length || row.context?.relatedContentIds?.length) {
+                @if ((!patchOverview() && !eventTemplate() && (row.notes || row.notesRight)) || row.context?.requirements?.length || row.context?.relatedContentIds?.length) {
                     <details class="guide-row-details">
                         <summary>{{ reference() ? 'Reference details' : 'Notes & requirements' }}</summary>
-                        <div [hidden]="patchOverview()" [class.guide-split-notes]="row.notesRight !== undefined">
+                        <div [hidden]="patchOverview() || eventTemplate()" [class.guide-split-notes]="row.notesRight !== undefined">
                             <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div>
                             @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
                         </div>

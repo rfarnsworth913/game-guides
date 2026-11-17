@@ -113,10 +113,10 @@ describe('World Quest hierarchy', () => {
         expect(new Set(headers.map(header => header.querySelector('.patch-type-icon')?.innerHTML)).size).toBe(3);
         const objective = root.querySelector('#story-row-guide-second')!;
         const title = objective.querySelector('.guide-row-title')!;
-        const subtype = objective.querySelector('.guide-world-subtype')!;
+        const subtype = objective.querySelector('.guide-activity-subtype')!;
         expect(title.nextElementSibling).toBe(subtype); expect(subtype.textContent).toBe('Daily Gated');
         expect(getComputedStyle(subtype).display).toBe('block');
-        expect(root.querySelector('#story-row-guide-third .guide-world-subtype')).toBeNull();
+        expect(root.querySelector('#story-row-guide-third .guide-activity-subtype')).toBeNull();
         expect(root.querySelector('#patch-group-guide-collection .guide-group-progress strong')?.textContent).toBe('0 / 1');
         expect(validPatchOverview(changed)).toBe(true);
         expect(validPatchOverview({ ...changed, groups: [{ id: 'invalid', title: 'Invalid', worldQuestMode: 'unknown' }] })).toBe(false);

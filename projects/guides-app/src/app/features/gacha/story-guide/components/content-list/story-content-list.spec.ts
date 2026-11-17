@@ -22,6 +22,19 @@ describe('Unified story reading view', () => {
         fixture.detectChanges();
         return { fixture, data, entry, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
+    it.each(['patch-overview', 'main-story', 'side-stories', 'character-information', 'world-quests', 'lore', 'events', 'endgame-activity'])('renders the shared mission subtype badge in %s without duplicate context text', category => {
+        const { fixture, data, root } = setup(category);
+        const updated = structuredClone(data);
+        updated.rows[1].context = { subtype: 'Important Mission' };
+        fixture.componentRef.setInput('data', updated);
+        fixture.detectChanges();
+        const row = root.querySelector('#story-row-existing-done')!;
+        const badge = row.querySelector('.guide-activity-subtype')!;
+        expect(badge.textContent).toBe('Important Mission');
+        expect(badge.previousElementSibling?.classList.contains('guide-row-title')).toBe(true);
+        expect(row.querySelector('.guide-row-context')).toBeNull();
+        expect(root.querySelector('#story-row-existing-next .guide-activity-subtype')).toBeNull();
+    });
     it('preserves row anchors, Markdown, split notes and sub-quest hierarchy without giving headings checkboxes', () => {
         const { fixture, data, root } = setup();
         expect(root.querySelectorAll('input[type="checkbox"]').length).toBe(2);

@@ -37,7 +37,12 @@ describe('Event banner, metadata bar and content groups', () => {
         expect(root.querySelector('.guide-event-info .guide-patch-badge')?.textContent).toBe('Patch 1.0');
         expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
         expect(root.querySelector('#story-row-event-guide-stages input')).toBeNull();
-        expect(root.querySelector('#story-row-event-guide-stage-1 .guide-row-details .notes-markdown')?.textContent).toContain('Challenge stage 2');
+        const stage = root.querySelector('#story-row-event-guide-stage-1')!;
+        expect(stage.querySelector('.guide-row-title')?.textContent).toBe('Melting Point of Flesh');
+        expect(stage.querySelector('.patch-row-description .notes-markdown')?.textContent).toContain('Challenge stage 2');
+        expect(stage.querySelector('.guide-row-details')).toBeNull();
+        expect(stage.firstElementChild?.classList.contains('guide-row-tracking')).toBe(true);
+        expect(stage.lastElementChild?.tagName).toBe('GG-PATCH-BADGE');
         expect(root.querySelector('.guide-event-stage-heading')).toBeNull();
     });
     it('separates group links, collapse controls and ID-based completion', () => {

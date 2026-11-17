@@ -14,19 +14,22 @@
 .patch-reading-view {
     .guide-content-row {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 18px;
         padding: 14px 18px;
         border-top: 1px solid var(--guide-border);
         &:first-child { border-top: 0; }
         &:hover, &:focus-within { background: color-mix(in srgb, var(--guide-nested) 50%, var(--guide-card)); }
-        .guide-row-tracking { padding: 0; flex: 0 0 24px; }
+        .guide-row-tracking { padding: 0; margin: 0; flex: 0 0 24px; align-self: flex-start; }
         input[type='checkbox'] { width: 21px; height: 21px; margin: 0; accent-color: var(--guide-complete, #46b78b); cursor: pointer; }
         .guide-row-body { flex: 1; min-width: 0; }
         .guide-row-title { font-size: 14px; font-weight: 600; line-height: 1.5; }
         .guide-row-title a { color: var(--guide-text); text-decoration: none; }
         .guide-row-title a:hover { text-decoration: underline; text-underline-offset: 4px; }
     }
+    // Patch badges must not restore the legacy 18px checkbox grid.
+    .guide-content-row:has(> gg-patch-badge) { display: flex; }
+    .guide-content-row > gg-patch-badge { flex: 0 0 auto; margin-inline-start: auto; align-self: flex-start; }
 }
 
 .patch-reading-view {
