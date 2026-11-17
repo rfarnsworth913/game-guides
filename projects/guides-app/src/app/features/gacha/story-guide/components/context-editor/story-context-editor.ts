@@ -21,6 +21,7 @@ export class StoryContextEditor {
     readonly inline = input(false);
     readonly showSubtype = input(true);
     readonly showAvailabilityFields = input(true);
+    readonly showRequirements = input(true);
     readonly panels = input(false);
     readonly requirementsExpanded = signal(false);
     readonly relatedExpanded = signal(false);

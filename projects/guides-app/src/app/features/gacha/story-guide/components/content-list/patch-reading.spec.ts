@@ -50,6 +50,10 @@ describe('Patch overview reading layout', () => {
         fixture.detectChanges();
         expect(input.checked).toBe(true);
         expect(component.groupProgress('notes')).toEqual({ completed: 1, total: 1, percent: 100 });
+        const tracker = root.querySelector('#patch-group-patch-notes .guide-group-progress')!;
+        expect(tracker.querySelector('strong')?.textContent).toBe('1 / 1');
+        expect(tracker.querySelector('small')?.textContent).toBe('100%');
+        expect(getComputedStyle(tracker).flexDirection).toBe('row');
         fixture.componentRef.setInput('incompleteOnly', true);
         fixture.detectChanges();
         expect(root.querySelector('#story-row-patch-trailer')).toBeNull();

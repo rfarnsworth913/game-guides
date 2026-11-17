@@ -10,14 +10,8 @@
         > button { order: 4; width: 36px; flex-basis: 36px; min-height: 36px; padding: 6px; border-radius: 8px; }
         > button:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
         .quest-heading-icon { width: 24px; height: 24px; flex: 0 0 24px; }
-        .guide-main-quest-progress { flex-direction: row; gap: 6px; align-items: baseline; }
-        .guide-main-quest-progress strong { font-size: 14px; }
-        .guide-main-quest-progress small { font-size: 12px; }
-        .guide-main-quest-progress small::before { content: '\00b7'; margin-inline-end: 6px; }
     }
     @media (max-width: 700px) {
         .guide-section-heading.guide-main-quest-heading { gap: 8px; padding: 10px 12px; }
-        .guide-section-heading .guide-main-quest-progress { flex-direction: column; gap: 2px; align-items: flex-end; }
-        .guide-section-heading .guide-main-quest-progress small::before { content: none; }
     }
 }

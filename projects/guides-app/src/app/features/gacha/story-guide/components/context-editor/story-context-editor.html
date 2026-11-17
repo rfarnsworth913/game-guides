@@ -19,12 +19,14 @@
         <gg-story-subtype-editor [context]="context()" [worldQuest]="worldQuest()" />
     }
     @if (panels()) {
+        @if (showRequirements()) {
         <section class="context-panel">
             <button type="button" class="context-panel-toggle" [attr.aria-expanded]="requirementsExpanded()" [attr.aria-controls]="panelId + '-requirements'" (click)="requirementsExpanded.update(toggleExpanded)">
                 <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 10 5-10 5L2 8Zm-10 10 10 5 10-5M2 18l10 5 10-5" /></svg><strong>Requirements</strong><span class="context-panel-count">{{ requirementCount() }}</span><svg class="context-panel-chevron" [class.expanded]="requirementsExpanded()" width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
             </button>
             <div class="context-panel-body" [class.expanded]="requirementsExpanded()" [id]="panelId + '-requirements'" [attr.aria-hidden]="!requirementsExpanded()" [attr.inert]="!requirementsExpanded() ? '' : null"><div class="context-panel-clip"><div class="context-panel-content"><ng-container *ngTemplateOutlet="requirementsFields" /></div></div></div>
         </section>
+        }
         <section class="context-panel">
             <button type="button" class="context-panel-toggle" [attr.aria-expanded]="relatedExpanded()" [attr.aria-controls]="panelId + '-related'" (click)="relatedExpanded.update(toggleExpanded)">
                 <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 15 6-6M8 12l-2 2a3 3 0 0 0 4 4l2-2m0-8 2-2a3 3 0 0 1 4 4l-2 2" /></svg><strong>Related Content</strong><span class="context-panel-count">{{ (context().relatedContentIds?.length ?? 0) + ' linked' }}</span><svg class="context-panel-chevron" [class.expanded]="relatedExpanded()" width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
@@ -32,7 +34,8 @@
             <div class="context-panel-body" [class.expanded]="relatedExpanded()" [id]="panelId + '-related'" [attr.aria-hidden]="!relatedExpanded()" [attr.inert]="!relatedExpanded() ? '' : null"><div class="context-panel-clip"><div class="context-panel-content"><ng-container *ngTemplateOutlet="relatedFields" /></div></div></div>
         </section>
     } @else {
-        <h4>Requirements</h4><ng-container *ngTemplateOutlet="requirementsFields" /><ng-container *ngTemplateOutlet="relatedFields" />
+        @if (showRequirements()) { <h4>Requirements</h4><ng-container *ngTemplateOutlet="requirementsFields" /> }
+        <ng-container *ngTemplateOutlet="relatedFields" />
     }
 </ng-template>
 <ng-template #requirementsFields>

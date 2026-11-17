@@ -32,6 +32,7 @@ export class StoryContentList {
     readonly expandedNotes = signal<string[]>([]);
     readonly patchOverview = computed(() => this.entry().category === 'patch-overview');
     readonly primaryQuest = computed(() => this.entry().category === 'main-story');
+    readonly characterProfile = computed(() => this.entry().category === 'character-information');
     readonly worldQuest = computed(() => this.entry().category === 'world-quests');
     readonly worldGroups = computed(() => worldQuestGroups(this.data()));
     readonly visibleWorldGroups = computed(() => this.worldGroups().filter(group => !this.incompleteOnly() || this.countDone(group.rows) < this.count(group.rows)));

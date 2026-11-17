@@ -92,6 +92,7 @@ describe('Unified story reading view', () => {
         expect(root.querySelectorAll('input[type="checkbox"]').length).toBe(2);
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');
         expect(root.querySelector('.guide-main-quest-progress small')?.textContent).toBe('50%');
+        expect(getComputedStyle(root.querySelector('.guide-main-quest-progress')!).flexDirection).toBe('row');
         expect(root.querySelector('.guide-main-quest-title p')).toBeNull();
         expect(root.querySelector('.guide-main-quest-title .guide-patch-badge')).toBeNull();
         fixture.componentRef.setInput('incompleteOnly', true);

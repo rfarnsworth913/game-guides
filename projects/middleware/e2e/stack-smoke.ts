@@ -460,7 +460,7 @@ try {
     const navigationEntries: CatalogEntry[] = [
         ...beforeNavigation.entries.map(entry => entry.kind === 'story-category' ? { ...entry, sectionImageUrl: image.url } : entry),
         { ...baseEntry, id: 'nav-world', kind: 'story', name: 'An Ark That Used to Be a Soul', category: 'world-quests', storySection: 'e2e-section', order: 2, worldQuests: sampleTemplate('In the Dwelling of Life') },
-        { ...baseEntry, id: 'nav-character', kind: 'story', name: 'Fischl', category: 'character-information', storySection: 'e2e-section', order: 3, characterInformation: sampleTemplate('Character Profile') },
+        { ...baseEntry, id: 'nav-character', kind: 'story', name: 'Fischl', category: 'character-information', storySection: 'e2e-section', order: 3, characterInformation: { ...sampleTemplate('Character Profile'), imageUrl: image.url, characterName: 'Fischl', damageType: 'Electro', faction: "Adventurers' Guild", patchVersion: '1.0', summary: 'A character profile with existing content rows.', sourceName: 'Fixture artwork', sourceUrl: 'https://example.invalid/art' } },
         { ...baseEntry, id: 'nav-side', kind: 'story', name: 'Wraith’s Nocturne', category: 'side-stories', storySection: 'e2e-section', order: 4, sideStories: sampleTemplate('Story Quest') },
         { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: sampleTemplate('Event Objective') },
         { ...baseEntry, id: 'nav-patch', kind: 'story', name: 'Patch 7.1 Overview', category: 'patch-overview', storySection: 'e2e-section', order: 6, patchOverview: sampleTemplate('Patch Notes') },
@@ -530,6 +530,17 @@ try {
     });
     await guest.setViewport({ width: 1440, height: 1000 });
     const afterNavigation = await repository.read('genshin');
+    const profile = 'gg-story .patch-overview-dashboard[data-story-topic="character-information"]';
+    await guest.setViewport({ width: 1920, height: 1080 });
+    await guest.$eval(profile, element => element.scrollIntoView({ block: 'center' }));
+    assert.equal(await guest.$eval(`${profile} .character-profile-art > img`, element => getComputedStyle(element).display), 'block');
+    assert.equal(await guest.$$eval(`${profile} .guide-content-row`, rows => rows.length), 1);
+    await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-desktop.png') });
+    await guest.setViewport({ width: 390, height: 844 });
+    assert.equal(await guest.$eval(`${profile} .character-profile-art > img`, element => getComputedStyle(element).display), 'none');
+    assert.equal(await guest.$eval(profile, element => element.scrollWidth <= element.clientWidth), true);
+    await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-mobile.png') });
+    await guest.setViewport({ width: 1440, height: 1000 });
     assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);
     console.log('PASS story navigation hierarchy, guide ordering, scroll highlighting and responsive layout.');
 

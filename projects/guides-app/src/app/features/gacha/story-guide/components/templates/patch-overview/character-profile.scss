@@ -1,0 +1,30 @@
+:host:has(.patch-overview-dashboard[data-story-topic='character-information']) { container-type: inline-size; }
+.patch-overview-dashboard[data-story-topic='character-information'] {
+    gap: 24px;
+    align-items: start;
+    .character-info-header { display: flex; gap: 24px; align-items: flex-start; padding: 12px 0; min-width: 0; }
+    .character-info-header h3 { font-size: clamp(26px, 3vw, 38px); line-height: 1.15; margin: 0 0 12px; }
+    .character-info-subtitle { font-size: 14px; line-height: 1.5; gap: 8px 12px; }
+    .character-profile-summary { margin-top: 12px; font-size: 14px; line-height: 1.6; color: var(--guide-muted, var(--color-text-secondary)); > :first-child { margin-top: 0; } > :last-child { margin-bottom: 0; } }
+    .character-introduced { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--guide-muted, var(--color-text-secondary)); > svg { flex: 0 0 16px; } }
+    .character-profile-art { min-width: 0; > img { display: none; } }
+    .character-profile-art .patch-source { text-align: start; padding: 0; }
+    > gg-story-content-list { min-width: 0; }
+}
+@container (min-width: 900px) {
+    .patch-overview-dashboard[data-story-topic='character-information']:has(.character-profile-art) {
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 30%);
+        column-gap: 28px;
+        .character-info-header, > gg-story-content-list, .guide-completion-error { grid-column: 1; }
+        .character-profile-art { grid-column: 2; grid-row: 1 / span 3; > img { display: block; width: 100%; max-height: 660px; object-fit: contain; object-position: center top; } }
+        .character-profile-art .patch-source { text-align: right; margin-top: 12px; }
+    }
+}
+@container (max-width: 540px) {
+    .patch-overview-dashboard[data-story-topic='character-information'] {
+        gap: 16px;
+        .character-info-header { gap: 14px; }
+        .character-info-header h3 { font-size: 26px; }
+        .character-info-subtitle { font-size: 13px; }
+    }
+}

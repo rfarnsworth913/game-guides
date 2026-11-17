@@ -22,7 +22,7 @@ import type { StoryTableRow } from "../../../../../../../../../lib/types/story-t
     selector: 'gg-patch-overview',
     imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, StorySubtypeEditor, MarkdownPipe, PatchBadge],
     templateUrl: "./patch-overview.html",
-    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./primary-quest-hero.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss"],
+    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./primary-quest-hero.scss", "./character-profile.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss"],
 })
 export class PatchOverviewTemplate {
     private readonly injector = inject(Injector);

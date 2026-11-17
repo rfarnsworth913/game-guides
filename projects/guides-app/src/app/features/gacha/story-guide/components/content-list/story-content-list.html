@@ -1,4 +1,4 @@
-<div class="guide-reading-view" [class.patch-reading-view]="patchOverview() || primaryQuest()" [class.primary-quest-reading]="primaryQuest()" [class.guide-world-quests]="worldQuest()" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
+<div class="guide-reading-view" [class.patch-reading-view]="patchOverview() || primaryQuest() || characterProfile()" [class.primary-quest-reading]="primaryQuest()" [class.guide-world-quests]="worldQuest()" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
     @if (worldQuest()) {
         <ng-container *ngTemplateOutlet="worldGroupsView" />
 
@@ -11,11 +11,11 @@
 
 <ng-template #contentGroup let-group>
         <section class="guide-content-section" [class.patch-media-group]="patchOverview() && mediaGroup(group)" [id]="'patch-group-' + entry().id + '-' + (group.id || 'overview')">
-            @if (patchOverview() || (primaryQuest() && !group.mainQuest)) {
+            @if (patchOverview() || characterProfile() || (primaryQuest() && !group.mainQuest)) {
                 <header class="guide-section-heading patch-group-heading">
                     <ng-container *ngTemplateOutlet="patchIcon; context: { $implicit: groupIcon(group) }" />
                     <h4>@if (httpUrl(group.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ group.title }}</a> } @else { {{ group.title }} }</h4>
-                    <span class="patch-group-count">{{ groupProgress(group.id).completed }} / {{ groupProgress(group.id).total }}</span>
+                    <span class="patch-group-count guide-group-progress" aria-label="Group completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: groupProgress(group.id) }" /></span>
                     <button type="button" [attr.aria-label]="'Toggle ' + group.title" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-group-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
                         <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
                     </button>
@@ -31,10 +31,7 @@
                     @if (!primaryQuest()) { <p><span>{{ mainQuestName() }}</span>@if (mainQuest.patch || group.defaultPatch || sharedPatch(); as version) { <gg-patch-badge [version]="version" /> }</p> }
                 </div>
                 @let progress = groupProgress(group.id);
-                <div class="guide-main-quest-progress" aria-label="Quest completion">
-                    <strong>{{ progress.completed }} / {{ progress.total }}</strong>
-                    <small>{{ progress.percent }}%</small>
-                </div>
+                <div class="guide-main-quest-progress guide-group-progress" aria-label="Quest completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: progress }" /></div>
             </header>
             } @else if (httpUrl(group.contentUrl || ''); as groupUrl) {
             <header class="guide-section-heading guide-linked-heading">
@@ -76,6 +73,7 @@
             </div>
         </section>
 </ng-template>
+<ng-template #completionCount let-progress><strong>{{ progress.completed }} / {{ progress.total }}</strong><small>{{ progress.percent }}%</small></ng-template>
 <ng-template #patchIcon let-kind>
     <svg class="patch-type-icon" width="28" height="28" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
         @if (kind === 'music') { <path d="M9 18V5l11-2v13M9 8l11-2" /><ellipse cx="6" cy="18" rx="3" ry="2" /><ellipse cx="17" cy="16" rx="3" ry="2" /> }
