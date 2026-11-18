@@ -40,6 +40,10 @@ const version: Version = { title: "5.6", releaseDate: "2026-02-01", url: "https:
 
 /** Checks that appends preserve live database records and reject concurrent duplicate titles. */
 function expectAppend (topic: string, records: Array<Record<string, unknown>>): void {
+    const identity = (variable: string) => topic === 'events' ? [
+        { $ifNull: [`${variable}.title`, `${variable}.name`] },
+        ...['startDate', 'endDate'].map(field => ({ $convert: { input: `${variable}.${field}`, to: 'date', onError: null, onNull: null } })),
+    ] : `${variable}.title`;
     expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, [{
         $set: {
             [topic]: {
@@ -51,9 +55,9 @@ function expectAppend (topic: string, records: Array<Record<string, unknown>>): 
                             as: "record",
                             cond: {
                                 $not: [{
-                                    $in: ["$$record.title", {
+                                    $in: [identity('$$record'), {
                                         $map: {
-                                            input: { $ifNull: [`$${topic}`, []] }, as: "existing", in: "$$existing.title",
+                                            input: { $ifNull: [`$${topic}`, []] }, as: "existing", in: identity('$$existing'),
                                         }
                                     }]
                                 }]
@@ -146,9 +150,9 @@ describe("DataService manages database connections and stored game data", () => 
     describe("Expired events are removed while retained events are preserved", () => {
         it("removes expired events, preserves order, and evaluates each event once", async () => {
             expect.hasAssertions();
-            const expired = createEvent("Expired", "2026-01-15T00:00:00Z");
-            const active = createEvent("Active");
-            const later = createEvent("Later", "2026-03-01T00:00:00Z");
+            const expired = { ...createEvent("Expired", "2026-01-15T00:00:00Z"), eventType: EventType.Weekly };
+            const active = { ...createEvent("Active"), eventType: EventType.Daily };
+            const later = { ...createEvent("Later", "2026-03-01T00:00:00Z"), eventType: EventType.Monthly };
             const events = [active, expired, later];
             mockFindOne.mockResolvedValueOnce(createRoot({ events }));
             const cutoff = new Date("2026-01-20T00:00:00Z");
@@ -158,7 +162,7 @@ describe("DataService manages database connections and stored game data", () => 
             expect(mockFindOne).toHaveBeenCalledWith({ name: documentName });
             expect(mockUpdateOne).toHaveBeenCalledTimes(1);
             expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, {
-                $pull: { events: { title: { $in: ["Expired"] }, kind: { $exists: false } } }, $inc: { _revision: 1 },
+                $pull: { events: { kind: { $exists: false }, $or: [expect.objectContaining({ title: "Expired", eventType: EventType.Weekly }) as unknown] } }, $inc: { _revision: 1 },
             });
             expect(predicate).toHaveBeenCalledTimes(3);
             expect(events).toStrictEqual([active, expired, later]);
@@ -167,10 +171,10 @@ describe("DataService manages database connections and stored game data", () => 
 
         it("removes all expired titles atomically", async () => {
             expect.hasAssertions();
-            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("Expired")] }));
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [{ ...createEvent("Expired"), eventType: EventType.Weekly }] }));
             await service.cleanupExpiredItems(documentName, "events", () => false);
             expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, {
-                $pull: { events: { title: { $in: ["Expired"] }, kind: { $exists: false } } }, $inc: { _revision: 1 },
+                $pull: { events: { kind: { $exists: false }, $or: [expect.objectContaining({ title: "Expired", eventType: EventType.Weekly }) as unknown] } }, $inc: { _revision: 1 },
             });
         });
 
@@ -188,7 +192,43 @@ describe("DataService manages database connections and stored game data", () => 
 
     });
 
+    it('retains expired non-repeating events and only removes the expired repeating period', async () => {
+        const historical = createEvent('Same title');
+        const expired = { ...historical, eventType: EventType.Monthly };
+        const renewed = { ...expired, startDate: '2026-02-01', endDate: '2026-03-01' };
+        mockFindOne.mockResolvedValueOnce(createRoot({ events: [historical, expired, renewed] }));
+        await service.cleanupExpiredItems(documentName, 'events', event => event === renewed);
+        expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, {
+            $pull: { events: { kind: { $exists: false }, $or: [{ title: expired.title, eventType: EventType.Monthly, startDate: expired.startDate, endDate: expired.endDate }] } },
+            $inc: { _revision: 1 },
+        });
+    });
+
+    it.each([EventType.Temporary, EventType.Banner, EventType.Web, EventType.Permanent, EventType.BattlePass, EventType.TCG])('retains %s event history even if the expiration predicate rejects it', async eventType => {
+        mockFindOne.mockResolvedValueOnce(createRoot({ events: [{ ...createEvent('History'), eventType }] }));
+        await service.cleanupExpiredItems(documentName, 'events', () => false);
+        expect(mockUpdateOne).not.toHaveBeenCalled();
+    });
+
     describe("New records are added by title while existing records are preserved", () => {
+        it('imports later event periods while retaining history and deduplicating equivalent date formats', async () => {
+            expect.hasAssertions();
+            const old = createEvent('Festival', '2026-02-01T00:00:00Z');
+            const next = { ...old, startDate: '2026-02-01', endDate: '2026-03-01' };
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [old] }));
+            await service.addRecords(documentName, 'events', [
+                { ...old, startDate: new Date(old.startDate!), endDate: new Date(old.endDate!) }, next, next,
+            ]);
+            expectAppend('events', [next]);
+        });
+
+        it('recognizes a canonical event name and period without creating a second parser record', async () => {
+            expect.hasAssertions();
+            const source = createEvent('Festival');
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [{ kind: 'events', id: 'shared-event', name: source.title, startDate: source.startDate, endDate: source.endDate }] }));
+            await service.addRecords(documentName, 'events', [source]);
+            expectAppend('events', []);
+        });
         it("preserves existing records and appends only unseen titles in input order", async () => {
             expect.hasAssertions();
             const existing = { title: "Existing", value: 1 };
@@ -320,7 +360,7 @@ describe("DataService manages database connections and stored game data", () => 
         it.each(operations)("$name propagates update errors", async ({ run }) => {
             expect.hasAssertions();
             const error = new Error("Update failed");
-            mockFindOne.mockResolvedValueOnce(createRoot({ events: [createEvent("Expired")] }));
+            mockFindOne.mockResolvedValueOnce(createRoot({ events: [{ ...createEvent("Expired"), eventType: EventType.Weekly }] }));
             mockUpdateOne.mockRejectedValueOnce(error);
             await expect(run()).rejects.toBe(error);
             expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
@@ -340,14 +380,14 @@ describe("DataService manages database connections and stored game data", () => 
     it("removes expired parser events while preserving manually authored events", async () => {
         expect.hasAssertions();
         mockFindOne.mockResolvedValueOnce(createRoot({
-            events: [createEvent("Expired"), { kind: "events", name: "Manual", title: "Expired" }],
+            events: [{ ...createEvent("Expired"), eventType: EventType.Weekly }, { kind: "events", name: "Manual", title: "Expired" }],
         }));
         const filter = vi.fn(() => false);
         await service.cleanupExpiredItems(documentName, "events", filter);
         expect(filter).toHaveBeenCalledTimes(1);
         expect(mockUpdateOne).toHaveBeenCalledWith(
             { name: documentName },
-            { $pull: { events: { title: { $in: ["Expired"] }, kind: { $exists: false } } }, $inc: { _revision: 1 } },
+            { $pull: { events: { kind: { $exists: false }, $or: [expect.objectContaining({ title: "Expired", eventType: EventType.Weekly }) as unknown] } }, $inc: { _revision: 1 } },
         );
     });
 });

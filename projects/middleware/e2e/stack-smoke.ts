@@ -17,6 +17,7 @@ import { emptyPatchOverview } from '../../common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
 import { defaultGameOverview } from '../../common/workspace/game-overview';
 import { migrateStoryCharacters } from '../../common/characters/character-story';
+import { migrateStoryEvents } from '../../common/events/event-story';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.
 const databaseName = `game_guides_e2e_${randomUUID().replaceAll('-', '')}`;
@@ -470,7 +471,7 @@ try {
         { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: sampleTemplate('Event Objective') },
         { ...baseEntry, id: 'nav-patch', kind: 'story', name: 'Patch 7.1 Overview', category: 'patch-overview', storySection: 'e2e-section', order: 6, patchOverview: sampleTemplate('Patch Notes') },
     ];
-    const sharedCharacterEntries = migrateStoryCharacters(navigationEntries, () => 'shared-fischl').entries;
+    const sharedCharacterEntries = migrateStoryEvents(migrateStoryCharacters(navigationEntries, () => 'shared-fischl').entries, () => 'shared-event').entries;
     assert.equal((await update(editorToken, beforeNavigation.revision, sharedCharacterEntries)).status, 200);
     await guest.reload({ waitUntil: 'networkidle0' });
     assert.equal(await guest.$eval('.region-artwork', target => target.getAttribute('src')), image.url);
@@ -580,6 +581,28 @@ try {
     assert.equal(await player.$eval(characterCheckbox, input => (input as HTMLInputElement).checked), true);
     assert.equal(await player.$eval(`${profile} .character-info-header h3`, element => element.textContent), 'Fischl Updated');
     console.log('PASS shared character guide reference edits the catalog and preserves account completion after reload.');
+    await editor.click('[aria-label="Edit Curious Use of Xiranite"]');
+    await editor.waitForSelector('gg-story [role=dialog] .editor-template-details-link');
+    await editor.click('gg-story [role=dialog] .editor-template-details-link');
+    await editor.$eval('gg-story [role=dialog] .section-editor-template-details', element => {
+        const label = [...element.querySelectorAll('label')].find(label => label.textContent?.trim().startsWith('Subtitle'))!;
+        const input = label.querySelector('input')!; input.value = 'Shared event details'; input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const eventSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await clickButton(editor, 'Save changes'); assert.equal((await eventSave).status(), 200);
+    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    const eventSnapshot = await repository.read('genshin');
+    assert.equal(eventSnapshot.entries.find(entry => entry.id === 'shared-event')?.eventStory?.subtitle, 'Shared event details');
+    assert.equal(eventSnapshot.entries.find(entry => entry.id === 'nav-event')?.eventId, 'shared-event');
+    assert.equal(eventSnapshot.entries.find(entry => entry.id === 'nav-event')?.eventStory, globalThis.undefined);
+    await player.reload({ waitUntil: 'networkidle0' });
+    const eventCheckbox = '#story-row-nav-event-sample-objective input';
+    const eventProgress = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await player.click(eventCheckbox); assert.equal((await eventProgress).status(), 200);
+    await player.reload({ waitUntil: 'networkidle0' });
+    assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), true);
+    assert.ok(await player.$eval('#story-template-nav-event', element => element.textContent?.includes('Shared event details')));
+    console.log('PASS shared event guide edits the event catalog and preserves account completion after reload.');
     const afterNavigation = await repository.read('genshin');
     assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);
     console.log('PASS story navigation hierarchy, guide ordering, scroll highlighting and responsive layout.');

@@ -1,4 +1,5 @@
 import { storyContentName } from "../../../../../../../../../common/quests/story-content-types";
+import { eventStoryProfile } from "../../../../../../../../../common/events/event-story";
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, signal, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
@@ -43,6 +44,16 @@ export class PatchOverviewTemplate {
     readonly incompleteOnly = input(false);
     readonly store = inject(WorkspaceStore);
     readonly availableCharacters = computed(() => (this.store.entries?.() ?? []).filter(item => item.kind === 'characters' && item.game === this.entry().game).sort((a, b) => a.name.localeCompare(b.name)));
+    readonly availableEvents = computed(() => (this.store.entries?.() ?? []).filter(item => item.kind === 'events' && item.game === this.entry().game).sort((a, b) => a.name.localeCompare(b.name)));
+    selectEvent(id: string): void {
+        const event = this.availableEvents().find(item => item.id === id);
+        if (!event) {return;}
+        this.entry().eventId = id;
+        this.entry().name = event.name;
+        const profile = this.data();
+        for (const key of Object.keys(profile)) {Reflect.deleteProperty(profile, key);}
+        Object.assign(profile, eventStoryProfile(event));
+    }
     selectCharacter(id: string): void {
         const character = this.availableCharacters().find(item => item.id === id);
         if (!character) {return;}

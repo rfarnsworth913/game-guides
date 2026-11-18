@@ -177,7 +177,7 @@ export function mergeEntries(input: Document, entries: CatalogEntry[]): GameArra
             ...(document[field] ?? []).filter(
                 (entry: Document) => !(entry['kind'] === field && typeof entry['id'] === 'string'),
             ),
-            ...(arrays[field] as CatalogEntry[]).filter((entry: CatalogEntry) => !parsedIds.has(entry.id)),
+            ...(arrays[field] as CatalogEntry[]).filter((entry: CatalogEntry) => !parsedIds.has(entry.id) || !!entry.eventStory),
         ];
     }
     return arrays;

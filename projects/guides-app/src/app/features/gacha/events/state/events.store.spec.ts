@@ -3,6 +3,7 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { WorkspaceStore, GAMES } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
 import type { CatalogEntry, PlayerState } from "../../../../../../../lib/types/workspace.type";
+import { emptyPatchOverview } from "../../../../../../../common/quests/story-template";
 
 const event: CatalogEntry = { id: 'parsed-event-test', game: 'genshin', kind: 'events', name: 'Daily Commissions',
     notes: '', category: 'daily', eventType: 'daily', startDate: '2026-10-29', endDate: '2026-10-29',
@@ -12,11 +13,12 @@ describe('Event completion persistence', () => {
     const accounts = new Map<string, Record<string, PlayerState>>();
     const storage = new Map<string, string>();
     const methods: string[] = [];
+    let catalog: CatalogEntry[] = [event];
     async function request(account: string, path: string, init?: RequestInit): Promise<Response> {
         methods.push(init?.method ?? 'GET');
         let data: unknown;
         if (path === '/api/games') {
-            data = { games: GAMES.map(game => ({ id: game.id, name: game.name, revision: 0, entries: game.id === 'genshin' ? [event] : [] })) };
+            data = { games: GAMES.map(game => ({ id: game.id, name: game.name, revision: 0, entries: game.id === 'genshin' ? catalog : [] })) };
         } else if (path === '/api/me/progress') {
             if (init?.method === 'PATCH') {
                 const body = JSON.parse(init.body as string) as { changes: Record<string, PlayerState> };
@@ -32,10 +34,24 @@ describe('Event completion persistence', () => {
     }
     beforeEach(() => {
         accounts.clear(); storage.clear(); methods.length = 0;
+        catalog = [event];
         vi.stubGlobal('localStorage', { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) });
         vi.stubGlobal('fetch', (path: string, init?: RequestInit) => request('guest', path, init));
     });
     afterEach(() => vi.unstubAllGlobals());
+    it('resolves shared event rows and saves guide completion without attempting a catalog write', async () => {
+        const shared = { ...event, notes: 'Shared description', eventStory: { ...emptyPatchOverview(), rows: [{ id: 'quest', content: 'Event quest', contentType: '', patch: '1.0', notes: '' }] } };
+        catalog = [shared, { ...event, id: 'placement', kind: 'story', category: 'events', eventId: event.id }];
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
+        expect(await alice.initialize()).toBe(true);
+        const placement = alice.entries().find(entry => entry.id === 'placement')!;
+        expect(placement.eventStory?.summary).toBe('Shared description');
+        expect(await alice.save({ ...placement, storyRowCompletion: { quest: true } })).toBe(true);
+        expect(await alice.save({ ...alice.entries().find(entry => entry.id === event.id)!, completed: true })).toBe(true);
+        expect(methods).not.toContain('PUT');
+        expect(accounts.get('alice')?.['genshin/placement'].storyRowCompletion).toEqual({ quest: true });
+        expect(accounts.get('alice')?.[`genshin/${event.id}`].completed).toBe(true);
+    });
     it('saves and reloads personal completion without editing catalog data or another account', async () => {
         const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
         expect(await alice.initialize()).toBe(true);

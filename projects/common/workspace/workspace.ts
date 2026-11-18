@@ -73,6 +73,7 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
                 validPatchOverview(e.lore) &&
                 validPatchOverview(e.characterInformation) &&
                 (e.characterId === globalThis.undefined || (e.kind === 'story' && e.category === 'character-information' && typeof e.characterId === 'string' && !!e.characterId)) &&
+                (e.eventId === globalThis.undefined || (e.kind === 'story' && e.category === 'events' && typeof e.eventId === 'string' && !!e.eventId)) &&
                 validRowCompletion(e.storyRowCompletion) &&
                 (e.characterDefinition === globalThis.undefined || (e.kind === 'characters' && Number.isSafeInteger(e.rarity) && e.rarity >= 1 && e.rarity <= 20 && validCharacterDefinition(e.characterDefinition))) &&
                 (e.characterCollection === globalThis.undefined || (e.kind === 'characters' && validCharacterCollection(e.characterCollection))) &&
@@ -145,9 +146,10 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.characterDefinition !== globalThis.undefined ? { characterDefinition: entry.characterDefinition } : {}),
         ...(entry.characterInformation !== globalThis.undefined && !(entry.kind === 'story' && entry.characterId) ? { characterInformation: entry.characterInformation } : {}),
         ...(entry.characterId !== globalThis.undefined ? { characterId: entry.characterId } : {}),
+        ...(entry.eventId !== globalThis.undefined ? { eventId: entry.eventId } : {}),
         ...(entry.lore !== globalThis.undefined ? { lore: entry.lore } : {}),
         ...(entry.worldQuests !== globalThis.undefined ? { worldQuests: entry.worldQuests } : {}),
-        ...(entry.eventStory !== globalThis.undefined ? { eventStory: entry.eventStory } : {}),
+        ...(entry.eventStory !== globalThis.undefined && !(entry.kind === 'story' && entry.eventId) ? { eventStory: entry.eventStory } : {}),
         ...(entry.sideStories !== globalThis.undefined ? { sideStories: entry.sideStories } : {}),
         ...(entry.mainStory !== globalThis.undefined ? { mainStory: entry.mainStory } : {}),
         ...(entry.patchOverview !== globalThis.undefined ? { patchOverview: entry.patchOverview } : {}),
@@ -198,6 +200,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'lore',
         'characterInformation',
         'characterId',
+        'eventId',
         'characterDefinition',
     ]);
     if (
@@ -225,6 +228,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
                 e.storySection === globalThis.undefined ||
                 ids.get(e.storySection)?.kind === 'story-category') &&
             (!e.characterId || (ids.get(e.characterId)?.kind === 'characters' && ids.get(e.characterId)?.game === e.game && !e.characterInformation)) &&
+            (!e.eventId || (ids.get(e.eventId)?.kind === 'events' && ids.get(e.eventId)?.game === e.game && !e.eventStory)) &&
             e.members.every((id) => ids.get(id)?.kind === 'characters') &&
             (e.characterDefinition?.recipes ?? []).every(recipe => recipe.materials.every(cost => ids.get(cost.item)?.kind === 'inventory')) &&
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),

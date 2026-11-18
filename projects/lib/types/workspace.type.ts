@@ -30,6 +30,8 @@ export type Entry = {
     characterInformation?: PatchOverview;
     /** Story placement referencing a shared character in this game's catalog. */
     characterId?: string;
+    /** Story placement referencing a shared event definition in this game's catalog. */
+    eventId?: string;
     storyRowCompletion?: Record<string, boolean>;
     storySection?: string;
     icon?: string;

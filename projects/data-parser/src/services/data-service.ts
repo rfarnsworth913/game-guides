@@ -3,6 +3,22 @@ import * as mongoDB from "mongodb";
 
 import type { Event, RootDocument, Version } from '@shared-lib/types';
 import { Logger } from "./logger";
+import { EventType } from '@shared-lib/enums';
+
+// Retain limited-time history. Only explicit reset-based activities can expire out of storage.
+const repeatingTypes = [EventType.Daily, EventType.Weekly, EventType.WeeklyLinked, EventType.Monthly, EventType.EndGame];
+const mongoEventIdentity = (variable: string) => [
+    { $ifNull: [`${variable}.title`, `${variable}.name`] },
+    ...['startDate', 'endDate'].map(field => ({ $convert: { input: `${variable}.${field}`, to: 'date', onError: null, onNull: null } })),
+];
+function eventIdentity(record: { title: string }): string {
+    const fields = record as { title?: string; name?: string; startDate?: string | Date | null; endDate?: string | Date | null };
+    const date = (value?: string | Date | null) => {
+        const time = value ? new Date(value).getTime() : NaN;
+        return Number.isFinite(time) ? new Date(time).toISOString() : null;
+    };
+    return JSON.stringify([fields.title ?? fields.name, date(fields.startDate), date(fields.endDate)]);
+}
 
 
 export class DataService {
@@ -122,14 +138,14 @@ export class DataService {
 
             // Extract topic data ---------------------------------------------
             const items: Array<Event> = (document[topic] as Array<Event>) ?? [];
-            const removedItems = items.filter(item => !("kind" in item) && !filterFn(item));
+            const removedItems = items.filter(item => !("kind" in item) && repeatingTypes.includes(item.eventType) && !filterFn(item));
 
             // Update database if any items were removed ----------------------
             if (removedItems.length > 0) {
                 await collection.updateOne(
                     { name: documentName },
                     {
-                        $pull: { [topic]: { title: { $in: removedItems.map(item => item.title) }, kind: { $exists: false } } } as mongoDB.PullOperator<mongoDB.Document>,
+                        $pull: { [topic]: { kind: { $exists: false }, $or: removedItems.map(item => ({ title: item.title, eventType: item.eventType, startDate: item.startDate, endDate: item.endDate })) } } as mongoDB.PullOperator<mongoDB.Document>,
                         $inc: { _revision: 1 },
                     }
                 );
@@ -170,14 +186,12 @@ export class DataService {
             // Add only new records to the sub-document -----------------------
             const existingRecords: Array<T> = rootDocument[subDocumentName] as Array<T>;
             const newRecords: Array<T> = [];
-            const knownTitles = new Set(existingRecords.map(record => record.title));
+            const identity = (record: T) => subDocumentName === 'events' ? eventIdentity(record) : record.title;
+            const knownRecords = new Set(existingRecords.map(identity));
 
             records.forEach((record: T) => {
-                const exists = existingRecords.some(
-                    (existing: T) => existing.title === record.title
-                );
-
-                if (!exists && !newRecords.some(item => item.title === record.title)) {
+                if (!knownRecords.has(identity(record))) {
+                    knownRecords.add(identity(record));
                     newRecords.push(record);
                     Logger.info(`Added new record: ${record.title}`);
                 }
@@ -196,8 +210,8 @@ export class DataService {
                                     return shared;
                                 }) },
                                 as: "record",
-                                cond: { $not: [{ $in: ["$$record.title", { $map: {
-                                    input: { $ifNull: [`$${subDocumentName}`, []] }, as: "existing", in: "$$existing.title",
+                                cond: { $not: [{ $in: [subDocumentName === 'events' ? mongoEventIdentity('$$record') : "$$record.title", { $map: {
+                                    input: { $ifNull: [`$${subDocumentName}`, []] }, as: "existing", in: subDocumentName === 'events' ? mongoEventIdentity('$$existing') : "$$existing.title",
                                 } }] }] },
                             } },
                         ] },

@@ -56,9 +56,10 @@ export class Events {
     timing(entry: Entry) { return eventTiming(entry, this.now()); }
     url(entry: Entry): string | null { return entry.wikiUrl && guideUrl(entry.wikiUrl) ? entry.wikiUrl : null; }
     image(entry: Entry): string | null {
-        if (!entry.icon || this.failedImages().has(entry.id)) {return null;}
-        if (/^\/?(icons|images|assets)\/[\w/.,% -]+$/i.test(entry.icon)) {return '/' + entry.icon.replace(/^\//, '');}
-        return guideUrl(entry.icon) ? entry.icon : null;
+        const image = entry.icon || entry.eventStory?.imageUrl;
+        if (!image || this.failedImages().has(entry.id)) {return null;}
+        if (/^\/?(icons|images|assets)\/[\w/.,% -]+$/i.test(image)) {return '/' + image.replace(/^\//, '');}
+        return guideUrl(image) ? image : null;
     }
     imageFailed(id: string): void { this.failedImages.update(ids => new Set([...ids, id])); }
     dateRange(entry: Entry): string {

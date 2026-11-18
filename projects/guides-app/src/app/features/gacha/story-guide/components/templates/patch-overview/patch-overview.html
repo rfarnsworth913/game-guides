@@ -42,6 +42,11 @@
             <div class="section-editor-template-details" [hidden]="!templateDetailsOpen()">
     @if (eventTemplate()) {
         <fieldset><legend>Event Details</legend>
+            <label>Shared Event<select [ngModelOptions]="standalone" [ngModel]="entry().eventId || ''" (ngModelChange)="selectEvent($event)">
+                <option value="" [disabled]="!!entry().eventId">Create an event from this section on save</option>
+                @for (event of availableEvents(); track event.id) { <option [value]="event.id">{{ event.name }}@if (event.startDate) { ({{ event.startDate | date: 'MMM d, y' }}) }</option> }
+            </select></label>
+            <p class="guide-help">Event details and content groups are shared with the event catalog. Guide order and player completion remain separate.</p>
             <div class="patch-fields">
                 <label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" placeholder="e.g. 1.0" /></label>
                 <label>Subtitle<input [ngModelOptions]="standalone" [(ngModel)]="data().subtitle" placeholder="Event overview and progression" /></label>

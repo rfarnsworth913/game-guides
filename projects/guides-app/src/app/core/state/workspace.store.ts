@@ -14,6 +14,7 @@ import type { PlayerState, Entry, GameSnapshot } from "../../../../../lib/types/
 import { GAMES } from "../../../../../lib/constants/workspace.constants";
 import { validEntries, parseBackup, toCatalog, fromCatalog, validCatalog } from "../../../../../common/workspace/workspace";
 import { resolveCharacterReferences, editCharacterStory, migrateStoryCharacters, characterStoryProfile } from '../../../../../common/characters/character-story';
+import { resolveEventReferences, editEventStory, migrateStoryEvents } from '../../../../../common/events/event-story';
 import { defaultGameOverview, validGameOverview } from '@common/workspace/game-overview';
 import type { GameOverview } from '@lib/types/game-overview.type';
 export type { Entry, Kind } from "../../../../../lib/types/workspace.type";
@@ -113,7 +114,7 @@ export class WorkspaceStore {
         this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
             [...this.snapshots.values()].flatMap((game) =>
-                resolveCharacterReferences(game.entries).map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
+                resolveEventReferences(resolveCharacterReferences(game.entries)).map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
             ),
         );
     }
@@ -513,7 +514,21 @@ export class WorkspaceStore {
                 } catch (error) {this.error.set(error instanceof Error ? error.message : 'Could not create the shared character.'); return false;}
             }
         }
-        return this.replace(entries);
+        if (entry.kind === 'story' && entry.category === 'events') {
+            if (entry.eventId && entry.eventStory) {
+                const previous = this.entries().find(item => item.id === entry.id);
+                if (previous?.eventId !== entry.eventId || previous.name !== entry.name || JSON.stringify(previous.eventStory) !== JSON.stringify(entry.eventStory)) {
+                    entries = entries.map(item => item.kind === 'events' && item.game === entry.game && item.id === entry.eventId ? editEventStory(item, entry.eventStory!, entry.name) : item);
+                }
+            } else if (!entry.eventId) {
+                try {
+                    const migrated = migrateStoryEvents(entries.map(toCatalog));
+                    const drafts = new Map(entries.map(item => [item.id, item]));
+                    entries = resolveEventReferences(resolveCharacterReferences(migrated.entries)).map(item => fromCatalog(item, drafts.get(item.id) ?? this.player[this.playerKey(item)]));
+                } catch (error) {this.error.set(error instanceof Error ? error.message : 'Could not create the shared event.'); return false;}
+            }
+        }
+        return this.replace(resolveEventReferences(entries));
     }
     async resetStoryProgress(game: string): Promise<boolean> {
         return this.replace(this.entries().map((entry) =>
@@ -523,6 +538,7 @@ export class WorkspaceStore {
         ));
     }
     async remove(id: string): Promise<boolean> {
+        if (this.entries().some(entry => entry.eventId === id)) {this.error.set('This event is referenced by a story guide. Remove or change its guide references first.'); return false;}
         if (this.entries().some(entry => entry.characterId === id)) {this.error.set('This character is referenced by a story guide. Remove or change its guide references first.'); return false;}
         return this.replace(
             this.entries()

@@ -3,6 +3,7 @@ import { validateCharacterProgress } from '../characters/characters.service';
 import { validateTeamProgress } from '../teams/teams.service';
 import { validateStoryProgress } from '../documents/stories/story-progress.service';
 import { resolveCharacterReferences } from '../../../../common/characters/character-story';
+import { resolveEventReferences } from '../../../../common/events/event-story';
 import type { CatalogRepository, AccountProgressRepository } from '../../app/app.types';
 import { ApiError } from '../../core/errors/app-error';
 import { validProgressState } from '../../../../common/player/player-progress';
@@ -27,7 +28,7 @@ export class ProgressService {
             const id = key.slice(slash + 1);
             if (!catalogs.has(game)) {
                 const snapshot = await repository.read(game);
-                catalogs.set(game, new Map(resolveCharacterReferences(snapshot.entries).map((entry) => [entry.id, entry])));
+                catalogs.set(game, new Map(resolveEventReferences(resolveCharacterReferences(snapshot.entries)).map((entry) => [entry.id, entry])));
                 gameRules.set(game, snapshot.characterRules);
             }
             if (id === TEAM_PROGRESS_ID) {
