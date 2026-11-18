@@ -60,7 +60,7 @@ export class Workspace {
     ];
     readonly page = computed(() => this.params()?.get('page') ?? 'dashboard');
     readonly title = computed(() =>
-        this.page() === 'dashboard' && this.context()
+        this.page() === 'events' && !this.context() ? 'Events Calendar' : this.page() === 'dashboard' && this.context()
             ? 'Overview'
             : this.nav.find((n) => n.id === this.page())?.label ?? 'Settings',
     );
@@ -130,7 +130,7 @@ export class Workspace {
         return this.store.entries().find((e) => e.id === id)?.name ?? 'Unknown';
     }
     open(kind: string, entry?: Entry): void {
-        if (!this.context()) {
+        if (!this.context() && entry?.kind !== 'events') {
             this.navigate(entry ? `/games/${entry.game}/${kind}` : '/games');
             return;
         }

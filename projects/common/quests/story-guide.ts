@@ -33,7 +33,8 @@ export function validStoryContext(value: unknown): value is StoryContext | undef
         (context.requirementsOperator === globalThis.undefined || ['allOf', 'anyOf'].includes(context.requirementsOperator));
 }
 
-export function storyTemplateFor(entry: Pick<Entry, 'category' | 'patchOverview' | 'mainStory' | 'sideStories' | 'eventStory' | 'worldQuests' | 'lore' | 'characterInformation'>) {
+export function storyTemplateFor(entry: Pick<Entry, 'category' | 'patchOverview' | 'mainStory' | 'sideStories' | 'eventStory' | 'worldQuests' | 'lore' | 'characterInformation'> & { kind?: Entry['kind'] }) {
+    if (entry.kind === 'events') {return entry.eventStory;}
     return entry.category === 'patch-overview' ? entry.patchOverview
         : entry.category === 'main-story' ? entry.mainStory
         : ['events', 'endgame-activity'].includes(entry.category) ? entry.eventStory

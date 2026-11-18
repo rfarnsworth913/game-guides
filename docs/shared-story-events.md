@@ -4,7 +4,9 @@ Events now use one shared definition in each game's event catalog. Calendars and
 
 The event owns its name, description, dates, event type, artwork and attribution, introduced patch, requirements, content groups, and rows. Artwork is stored in `eventStory`; event lists and dashboards use it when the event has no separate icon. Dates are stored on the event and projected into the template context for reading and editing.
 
-Guide placement IDs, navigation groups, ordering, and row IDs are retained. Calendar completion and guide row completion remain separate player-owned state, like character collections and character guide completion. Linking an event does not mark its objectives complete or overwrite anyone's progress.
+Guide placement IDs, navigation groups, ordering, and row IDs are retained. Calendar, list, dashboard, and linked guide completion use the canonical event ID in player-owned progress. Checking an event completes its required objectives; unchecking clears those objectives. Optional objectives and historical cycle keys stay unchanged. Bulk actions with multiple required objectives require confirmation. Events with no objectives retain a simple completion flag.
+
+Legacy placement progress is a read-only fallback until the account next saves that event. An existing canonical row map takes precedence, including explicit unchecked values. Legacy keys are retained rather than deleted. Completion uses the existing account progress endpoint and revisions, with optimistic calendar feedback and rollback on failure. Guest progress remains in browser storage; guest imports also recognize legacy placements. Linking or editing shared content does not alter the shared catalog's completion state.
 
 ## Editing
 

@@ -49,7 +49,8 @@ describe('Event completion persistence', () => {
         expect(await alice.save({ ...placement, storyRowCompletion: { quest: true } })).toBe(true);
         expect(await alice.save({ ...alice.entries().find(entry => entry.id === event.id)!, completed: true })).toBe(true);
         expect(methods).not.toContain('PUT');
-        expect(accounts.get('alice')?.['genshin/placement'].storyRowCompletion).toEqual({ quest: true });
+        expect(accounts.get('alice')?.['genshin/placement']).toBeUndefined();
+        expect(accounts.get('alice')?.[`genshin/${event.id}`].storyRowCompletion).toEqual({ quest: true });
         expect(accounts.get('alice')?.[`genshin/${event.id}`].completed).toBe(true);
     });
     it('saves and reloads personal completion without editing catalog data or another account', async () => {
@@ -64,6 +65,44 @@ describe('Event completion persistence', () => {
         expect(bob.entries()[0].completed).toBe(false);
         expect(methods).not.toContain('PUT');
         expect(methods).toContain('PATCH');
+    });
+    it('merges legacy guide progress once, shares objective state across views and preserves optional objectives', async () => {
+        const row = { content: 'Objective', contentType: '', patch: '', notes: '' };
+        const shared = { ...event, eventStory: { ...emptyPatchOverview(), rows: [{ ...row, id: 'first' }, { ...row, id: 'second' }, { ...row, id: 'bonus', optional: true }] } };
+        catalog = [shared, { ...event, id: 'placement', kind: 'story', category: 'events', eventId: event.id }];
+        accounts.set('alice', { 'genshin/placement': { completed: false, quantity: 0, target: 0, storyRowCompletion: { first: true, bonus: true } } });
+        const create = async (account = 'alice') => {
+            const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth(account) }] }), () => new WorkspaceStore());
+            await store.initialize(); return store;
+        };
+        const alice = await create();
+        expect(alice.entries().find(entry => entry.kind === 'events')?.storyRowCompletion).toEqual({ first: true, bonus: true });
+        expect(await alice.save({ ...alice.entries().find(entry => entry.kind === 'events')!, completed: true })).toBe(true);
+        expect(alice.entries().find(entry => entry.id === 'placement')?.completed).toBe(true);
+        const restored = await create();
+        expect(restored.entries().find(entry => entry.kind === 'events')?.completed).toBe(true);
+        const guide = restored.entries().find(entry => entry.id === 'placement')!;
+        expect(await restored.save({ ...guide, storyRowCompletion: { ...guide.storyRowCompletion, first: false } })).toBe(true);
+        expect(restored.entries().find(entry => entry.kind === 'events')?.completed).toBe(false);
+        const refreshed = await create();
+        expect(refreshed.entries().find(entry => entry.kind === 'events')?.storyRowCompletion).toEqual({ first: false, second: true, bonus: true });
+        expect(await refreshed.save({ ...refreshed.entries().find(entry => entry.kind === 'events')!, completed: true })).toBe(true);
+        expect(await refreshed.save({ ...refreshed.entries().find(entry => entry.kind === 'events')!, completed: false })).toBe(true);
+        expect(accounts.get('alice')?.[`genshin/${event.id}`].storyRowCompletion).toEqual({ first: false, second: false, bonus: true });
+        expect(accounts.get('alice')?.['genshin/placement'].storyRowCompletion?.['first']).toBe(true);
+        expect((await create('bob')).entries().every(entry => !entry.completed)).toBe(true);
+        expect(methods).not.toContain('PUT');
+    });
+    it('imports legacy guest event objectives under the canonical ID without duplicating placement progress', async () => {
+        const shared = { ...event, eventStory: { ...emptyPatchOverview(), rows: [{ id: 'quest', content: 'Quest', contentType: '', patch: '', notes: '' }] } };
+        catalog = [shared, { ...event, id: 'placement', kind: 'story', category: 'events', eventId: event.id }];
+        storage.set('gg-player-v1', JSON.stringify({ version: 1, state: { 'genshin/placement': { completed: true, quantity: 0, target: 0, storyRowCompletion: { quest: true } } } }));
+        const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore());
+        await alice.initialize();
+        expect(await alice.importGuestProgress()).toBe(true);
+        expect(accounts.get('alice')?.[`genshin/${event.id}`].storyRowCompletion).toEqual({ quest: true });
+        expect(accounts.get('alice')?.['genshin/placement']).toBeUndefined();
+        expect(alice.entries().every(entry => entry.completed)).toBe(true);
     });
     it('saves guest completion in the existing browser progress record', async () => {
         const guest = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore()); await guest.initialize();

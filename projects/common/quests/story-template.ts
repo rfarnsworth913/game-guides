@@ -25,6 +25,7 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                         'context',
                         'id',
                         'subQuest',
+                        'optional',
                         'rowType',
                         'contentType',
                         'content',
@@ -41,6 +42,7 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                 (row.rowType === globalThis.undefined || ['quest', 'heading', 'note'].includes(row.rowType)) &&
                 typeof row.id === 'string' &&
                 (row.subQuest === globalThis.undefined || typeof row.subQuest === 'boolean') &&
+                (row.optional === globalThis.undefined || typeof row.optional === 'boolean') &&
                 !!row.id &&
                 [row.contentType, row.content, row.patch, row.notes].every(
                     (item) => typeof item === 'string',

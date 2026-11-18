@@ -29,7 +29,10 @@
         .guide-objective-requirements svg { margin-top: calc((1.5em - 14px) / 2); }
         .guide-requirement-copy { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; }
         .guide-requirement-copy > strong, .guide-requirement-copy > a { margin: 0; }
-        .guide-requirement-copy > ul { flex-basis: 100%; margin-top: 4px; }
+        .guide-requirement-copy > ul { flex-basis: 100%; margin: 2px 0 0; padding-inline-start: 18px; }
+        .guide-requirement-copy li { margin: 0; padding: 0; }
+        .guide-requirement-copy li > a { margin-inline-start: 0; }
+        .guide-requirement-copy li > span + a { margin-inline-start: 4px; }
     }
     .guide-row-main > .guide-objective-notes { margin-top: 4px; }
     @media (max-width: 700px) {

@@ -137,6 +137,7 @@ describe('Workspace sidebar game selection', () => {
 
     it('supports global pages and all catalog entries without inventing games or links', async () => {
         const { fixture, component, root } = await setup(null);
+        expect(root.querySelector('a[href="/events"]')?.textContent).toContain('Events Calendar');
         expect(root.textContent).toContain('Choose a game');
         component.openSelector();
         fixture.detectChanges();

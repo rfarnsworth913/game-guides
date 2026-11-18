@@ -127,8 +127,8 @@ export class StoryContentList {
         const first = this.worldGroups().find(group => group.rows.some(item => item.id === row.id));
         return first?.id === groupId ? this.anchor(row) : `${this.anchor(row)}-membership-${groupId}`;
     }
-    count(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).length; }
-    countDone(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(this.done).length; }
+    count(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(row => !this.eventTemplate() || !row.optional).length; }
+    countDone(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(row => (!this.eventTemplate() || !row.optional) && this.done(row)).length; }
     groupProgress(id: string): { total: number; completed: number; percent: number } {
         const rows = patchGroups(this.data()).find(group => group.id === id)?.rows ?? [];
         return this.progressForRows(rows);

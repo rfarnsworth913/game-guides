@@ -59,7 +59,6 @@ export const routes: Routes = [
         "achievements",
         "characters",
         "inventory",
-        "events",
         "farming",
         "plans",
         "story",

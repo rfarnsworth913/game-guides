@@ -3,7 +3,7 @@ import { TestBed } from "@angular/core/testing";
 import { ActivatedRoute, provideRouter } from "@angular/router";
 import { RouterTestingHarness } from "@angular/router/testing";
 
-import { gameWorkspaceMatcher } from "./app.routes";
+import { gameWorkspaceMatcher, routes } from "./app.routes";
 
 
 @Component({
@@ -36,5 +36,15 @@ describe("Application Routing", () => {
         expect(await harness.navigateByUrl("/games/zzz/story", WorkspaceFixture)).toBe(initial);
         expect(route.snapshot.paramMap.get("game")).toBe("zzz");
         expect(route.snapshot.paramMap.get("section")).toBeNull();
+    });
+    it('opens the global events calendar without redirecting to the game collection', async () => {
+        TestBed.configureTestingModule({ providers: [provideRouter(routes.map(route => route.loadComponent ? { ...route, loadComponent: globalThis.undefined, component: WorkspaceFixture } : route))] });
+        const harness = await RouterTestingHarness.create();
+        await harness.navigateByUrl('/events', WorkspaceFixture);
+        const route = harness.routeDebugElement!.injector.get(ActivatedRoute);
+        expect(route.snapshot.paramMap.get('page')).toBe('events');
+        expect(route.snapshot.paramMap.get('game')).toBeNull();
+        await harness.navigateByUrl('/games/genshin/events', WorkspaceFixture);
+        expect(harness.routeDebugElement!.injector.get(ActivatedRoute).snapshot.paramMap.get('game')).toBe('genshin');
     });
 });

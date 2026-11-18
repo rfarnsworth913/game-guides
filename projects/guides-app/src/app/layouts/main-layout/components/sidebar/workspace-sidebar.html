@@ -7,6 +7,9 @@
             <span class="nav-icon" aria-hidden="true">{{ link.icon }}</span>{{ link.label }}
         </a>
     }
+    <a routerLink="/events" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="onNavigate()">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2" /></svg></span>Events Calendar
+    </a>
     <hr class="nav-divider" />
     @if (mode() === 'workspace') {
         <button #gameSelector type="button" class="active-game-selector" [attr.aria-label]="activeGame() ? 'Switch game: ' + activeGame()!.name : 'Choose a game'" (click)="openSelector()">

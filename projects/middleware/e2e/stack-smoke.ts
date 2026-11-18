@@ -488,7 +488,7 @@ try {
     assert.equal(await guest.$eval('.outline-book', target => target.getBoundingClientRect().width), 18);
     assert.equal(await guest.$eval('.outline-type-icon', target => target.getBoundingClientRect().width), 24);
     await guest.$$eval('link[rel=stylesheet]', links => links.forEach(link => { (link as HTMLLinkElement).disabled = false; }));
-    await guest.click('.outline-toggle');
+    await guest.$eval('.outline-toggle', button => (button as HTMLButtonElement).click());
     await guest.waitForFunction(() => document.querySelectorAll('.outline-children.expanded').length === 1);
     assert.deepEqual(await guest.$$eval('.outline-secondary', links => links.map(link => link.getAttribute('href'))), ['#story-content-nav-world', '#story-content-nav-character', '#story-content-nav-side', '#story-content-nav-event']);
     assert.deepEqual(await guest.$$eval('.outline-secondary .outline-type-icon', icons => icons.map(icon => icon.getAttribute('data-story-topic'))), ['world-quests', 'character-information', 'side-stories', 'events']);
@@ -602,7 +602,18 @@ try {
     await player.reload({ waitUntil: 'networkidle0' });
     assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), true);
     assert.ok(await player.$eval('#story-template-nav-event', element => element.textContent?.includes('Shared event details')));
-    console.log('PASS shared event guide edits the event catalog and preserves account completion after reload.');
+    await player.goto(origin + '/events', { waitUntil: 'networkidle0' });
+    // This fixture has no dates, so it is available in the backlog rather than the grid.
+    await player.$eval('.events-backlog-button', button => (button as HTMLButtonElement).click());
+    const sharedCheckbox = '.event-backlog input[aria-label="Mark Curious Use of Xiranite incomplete"]';
+    await player.waitForSelector(sharedCheckbox);
+    assert.equal(await player.$eval(sharedCheckbox, input => (input as HTMLInputElement).checked), true);
+    const sharedEventProgress = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await player.click(sharedCheckbox); assert.equal((await sharedEventProgress).status(), 200);
+    await player.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle0' });
+    await player.waitForSelector(eventCheckbox);
+    assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), false);
+    console.log('PASS shared event guide and calendar synchronize account completion in both directions after reload.');
     const afterNavigation = await repository.read('genshin');
     assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);
     console.log('PASS story navigation hierarchy, guide ordering, scroll highlighting and responsive layout.');
@@ -619,6 +630,86 @@ try {
     const progressConflicts = await Promise.all([0, 1].map(() => api('/api/me/progress', editorToken, 'PATCH', { revision: state.revision, changes: currentState })));
     assert.deepEqual(progressConflicts.map(response => response.status).sort(), [200, 409]);
     console.log('PASS concurrent catalog and account progress writes reject stale revisions.');
+
+    const beforeBalance = await repository.read('genshin');
+    const balanceStart = new Date(), balanceEnd = new Date(balanceStart.getFullYear(), balanceStart.getMonth(), balanceStart.getDate() + 2);
+    const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const balanceFixtures: CatalogEntry[] = Array.from({ length: 6 }, (_, index) => ({ ...baseEntry, id: `balance-event-${index}`, game: 'genshin', kind: 'events', category: 'temporary', eventType: 'temporary', name: `Balanced event ${index}`, startDate: localDate(balanceStart), endDate: localDate(balanceEnd) }));
+    const backlogFixture: CatalogEntry = { ...baseEntry, id: 'balance-backlog', game: 'genshin', kind: 'events', category: 'temporary', eventType: 'temporary', name: 'Unscheduled objective event', eventStory: { ...emptyPatchOverview(), rows: [
+        { id: 'required-one', content: 'First objective', contentType: '', patch: '', notes: '' },
+        { id: 'required-two', content: 'Second objective', contentType: '', patch: '', notes: '' },
+        { id: 'optional', content: 'Optional objective', contentType: '', patch: '', notes: '', optional: true },
+    ] } };
+    assert.equal((await update(editorToken, beforeBalance.revision, [...beforeBalance.entries, ...balanceFixtures, backlogFixture])).status, 200);
+    await editor.goto(origin + '/events', { waitUntil: 'networkidle0' });
+    await editor.waitForSelector('gg-events .event-calendar');
+    assert.equal(new URL(editor.url()).pathname, '/events');
+    assert.equal(await editor.$eval('h1', element => element.textContent?.trim()), 'Events Calendar');
+    assert.equal(await editor.$$eval('.event-calendar td', cells => cells.length), 42);
+    await editor.$eval('.event-summary-stats', element => { ([...element.querySelectorAll('button')].find(button => button.textContent?.includes('Tasks per day')) as HTMLButtonElement).click(); });
+    await editor.$eval('gg-events .events-scheduling-settings', element => {
+        const label = [...element.querySelectorAll('label')].find(label => label.textContent?.trim() === 'Balance events')!;
+        label.querySelector('input')!.click();
+    });
+    await editor.waitForSelector('[aria-label="Balanced event plan"]');
+    assert.ok(await editor.$eval('.event-summary-stats', element => [...element.children].some(child => child.textContent?.includes('Tasks per day') && child.querySelector('strong')?.textContent === '2')));
+    const placements = () => editor.$$eval('.calendar-event', elements => elements.map(element => ({ title: element.querySelector('a')?.textContent, day: element.closest('td')!.querySelector('time')!.getAttribute('datetime') })));
+    const planned = await placements();
+    assert.equal(planned.length, 6);
+    const balanceProgress = editor.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await editor.click('.calendar-event input'); assert.equal((await balanceProgress).status(), 200);
+    assert.deepEqual(await placements(), planned);
+    await editor.click('.event-day-button');
+    await editor.waitForSelector('.event-day-dialog');
+    await editor.click('[aria-label="Close day details"]:not(.event-panel-backdrop)');
+    await editor.screenshot({ path: join(artifacts, 'balanced-events-desktop.png'), fullPage: true });
+    await editor.click('.events-backlog-button');
+    await editor.waitForSelector('.event-backlog');
+    const pinDate = localDate(new Date(balanceStart.getFullYear(), balanceStart.getMonth(), balanceStart.getDate() + 3));
+    await editor.$eval('.event-pin-controls input', (input, day) => { (input as HTMLInputElement).value = day; input.dispatchEvent(new Event('input', { bubbles: true })); }, pinDate);
+    await editor.screenshot({ path: join(artifacts, 'event-backlog-desktop.png') });
+    await clickButton(editor, 'Pin date', '.event-backlog');
+    await editor.click('.event-backlog [aria-label="Close backlog"]');
+    await editor.waitForSelector('.calendar-event input[aria-label="Mark Unscheduled objective event complete"]');
+    const bulkCheckbox = '.calendar-event input[aria-label="Mark Unscheduled objective event complete"]';
+    await editor.click(bulkCheckbox);
+    await editor.waitForSelector('.event-confirm-dialog');
+    const bulkProgress = editor.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await clickButton(editor, 'Complete objectives', '.event-confirm-dialog');
+    assert.equal((await bulkProgress).status(), 200);
+    const bulkState = await (await api('/api/me/progress', editorToken)).json() as { state: Record<string, { completed: boolean; storyRowCompletion: Record<string, boolean> }> };
+    assert.equal(bulkState.state['genshin/balance-backlog'].completed, true);
+    assert.deepEqual(bulkState.state['genshin/balance-backlog'].storyRowCompletion, { 'required-one': true, 'required-two': true });
+    const afterBulk = await placements();
+    assert.equal(afterBulk.find(item => item.title === 'Unscheduled objective event')?.day, pinDate);
+    await editor.reload({ waitUntil: 'networkidle0' });
+    await clickButton(editor, 'Rebalance', 'gg-events');
+    assert.equal((await placements()).find(item => item.title === 'Unscheduled objective event')?.day, pinDate);
+    await editor.setViewport({ width: 390, height: 844 });
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await editor.screenshot({ path: join(artifacts, 'balanced-events-mobile.png'), fullPage: true });
+    await editor.setViewport({ width: 1440, height: 1000 });
+    await clickButton(editor, 'List', 'gg-events');
+    await editor.waitForSelector('.event-list-group[data-group="active"]');
+    assert.ok(await editor.$('.event-list-group[data-group="completed"]'));
+    await editor.$eval('.event-summary-stats', element => { ([...element.querySelectorAll('button')].find(button => button.textContent?.includes('Review completed events')) as HTMLButtonElement).click(); });
+    await editor.waitForSelector('.event-list-group[data-group="completed"][open]');
+    assert.equal(await editor.$$('.event-list-group[data-group="active"]').then(groups => groups.length), 0);
+    assert.equal(await editor.$$eval('.event-list-group[data-group="completed"] .event-completion input', inputs => inputs.every(input => (input as HTMLInputElement).checked)), true);
+    await editor.screenshot({ path: join(artifacts, 'event-groups-completed-desktop.png'), fullPage: true });
+    await clickButton(editor, 'Show all events', 'gg-events');
+    await clickButton(editor, 'Calendar', 'gg-events');
+    await editor.select('[aria-label="Filter events by game"]', 'hsr');
+    assert.equal(await editor.$eval('[aria-label="Filter events by game"]', element => (element as HTMLSelectElement).value), 'hsr');
+    assert.ok(await editor.$('gg-workspace-sidebar a[href="/events"].active'));
+    await editor.setViewport({ width: 390, height: 844 });
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await editor.screenshot({ path: join(artifacts, 'global-events-mobile.png'), fullPage: true });
+    await editor.setViewport({ width: 1440, height: 1000 });
+    const afterBalance = await repository.read('genshin');
+    assert.equal((await update(editorToken, afterBalance.revision, beforeBalance.entries)).status, 200);
+    console.log('PASS balanced calendar keeps assignments stable, preserves manual pins after reload, and confirms required-objective completion without changing optional objectives.');
+    console.log('PASS global events calendar route, game filter, sidebar access and mobile layout.');
 
     // Verify every extracted page can load its own deferred bundle through existing URLs.
     for (const [route, selector] of [

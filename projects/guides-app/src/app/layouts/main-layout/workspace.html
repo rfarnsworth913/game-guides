@@ -95,13 +95,15 @@
                         {{
                             page() === 'dashboard'
                                 ? 'A little progress, across every world.'
+                                : page() === 'events' && !context()
+                                  ? 'Your event schedule across all your games.'
                                 : 'Keep your next objective in sight.'
                         }}
                     </p>
                 </div>
                 <div class="heading-action">
                     @if (
-                        ['inventory', 'plans', 'events'].includes(
+                        !!context() && ['inventory', 'plans', 'events'].includes(
                             page()
                         )
                     ) {
@@ -142,7 +144,7 @@
             } @else if (page() === 'teams') {
                 @if (context(); as game) { @defer (on immediate) { <gg-teams [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'events') {
-                @if (context(); as game) { @defer (on immediate) { <gg-events [game]="game.id" (edit)="open('events', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading...</p> } }
+                @defer (on immediate) { <gg-events [game]="context()?.id ?? ''" (edit)="open('events', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading events...</p> }
             } @else if (page() === 'achievements') {
                 @if (context(); as game) {
                     @defer (on immediate) { <gg-achievements [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> }

@@ -5,6 +5,7 @@ export type StoryTableRow = {
     context?: StoryContext;
     id: string;
     subQuest?: boolean;
+    optional?: boolean;
     rowType?: 'quest' | 'heading' | 'note';
     groupId?: string;
     contentUrl?: string;

@@ -93,6 +93,7 @@
                     @if (httpUrl(row.contentUrl || row.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content || url }}</a> }
                     @else { <strong>{{ row.content || 'Untitled content' }}</strong> }
                     @if (row.context?.difficulty) { <span class="guide-meta-badge">{{ row.context.difficulty }}</span> }
+                    @if (eventTemplate() && row.optional) { <span class="guide-meta-badge">Optional</span> }
                 </div>
                 @if (row.context?.subtype?.trim()) { <span class="guide-meta-badge guide-activity-subtype">{{ subtype(row.context.subtype) }}</span> }
                 @if (!worldQuest() && contextText(row.context)) { <p class="guide-row-context">{{ contextText(row.context) }}</p> }
@@ -163,7 +164,7 @@
                                         <span> {{ row.context?.requirementsOperator === 'anyOf' ? 'Meet any of the following:' : 'Meet all of the following:' }}</span>
                                         <ul>
                                             @for (gate of gates; track $index) {
-                                                <li>{{ gate.text }} @if (requirementTarget(gate.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</li>
+                                                <li>@if (gate.text.trim()) { <span>{{ gate.text }}</span> }@if (requirementTarget(gate.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</li>
                                             }
                                         </ul>
                                     }

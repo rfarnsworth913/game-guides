@@ -90,7 +90,7 @@ export class PatchOverviewTemplate {
         return availability === StoryAvailability.Limited ? 'Limited-time' : availability === StoryAvailability.Permanent ? 'Permanent' : availability === StoryAvailability.Recurring ? 'Recurring' : availability === StoryAvailability.Retired ? 'Retired' : 'Not specified';
     });
     readonly eventProgress = computed(() => {
-        const rows = this.data().rows.filter(row => !row.rowType || row.rowType === 'quest');
+        const rows = this.data().rows.filter(row => (!row.rowType || row.rowType === 'quest') && !row.optional);
         return { total: rows.length, completed: rows.filter(this.done).length };
     });
     readonly eventGates = computed(() => worldQuestPrerequisites(this.data().context));

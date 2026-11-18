@@ -34,7 +34,7 @@
     </section>
     @if (supports('events')) {
     <section class="dashboard-panel events-panel" id="dashboard-events">
-        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['events']" /></svg>Events <small>{{ events().length }}</small></h2>@if (context()) { <a [routerLink]="sectionLink('events')">View events &#8594;</a> }</header>
+        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['events']" /></svg>Events <small>{{ events().length }}</small></h2><a [routerLink]="context() ? sectionLink('events') : '/events'">View events &#8594;</a></header>
         <p class="panel-description">Active events ending soonest appear first.</p>
         <div class="event-filter-bar">
         <div class="dashboard-tabs" aria-label="Event status">
@@ -95,7 +95,7 @@
         <header><h2>Quick Actions</h2></header>
         <div class="quick-actions">
             @if (resumeGuide(); as guide) { <a [routerLink]="'/games/' + guide.id + '/story'" [queryParams]="guide.section ? { section: guide.section.id } : {}" [fragment]="guide.fragment"><strong>Continue Story &#8594;</strong><small>{{ guide.lastLocation || (guide.resume ? guide.resume.name : '') }}</small></a> }
-            @if (supports('events')) {<a href="#dashboard-events" (click)="$event.preventDefault(); openEvents()"><strong>All Events &#8594;</strong><small>Check your event schedule</small></a>}
+            @if (supports('events')) {<a [routerLink]="context() ? sectionLink('events') : '/events'"><strong>All Events &#8594;</strong><small>Check your event schedule</small></a>}
             @if (supports('plans')) {<a [routerLink]="sectionLink('plans')"><strong>Manage Plans &#8594;</strong><small>Update farming and goals</small></a>}
             @if (supports('story')) {<a [routerLink]="sectionLink('story')"><strong>Browse Guides &#8594;</strong><small>Quests, characters, and lore</small></a>}
             @if (!supports('events') && !supports('plans') && !supports('story')) {<a routerLink="/games"><strong>Browse Games &#8594;</strong><small>Explore your game collection</small></a>}

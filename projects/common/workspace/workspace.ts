@@ -108,11 +108,12 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
 
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
     const template = storyTemplateFor(entry);
-    const quests = template?.rows.filter((row) => !row.rowType || row.rowType === 'quest');
+    const sharedEvent = entry.kind === 'events' || (entry.kind === 'story' && !!entry.eventId);
+    const quests = template?.rows.filter((row) => (!row.rowType || row.rowType === 'quest') && (!sharedEvent || !row.optional));
     return {
         ...entry,
         completed:
-            isStoryDivider(entry) ? false : entry.kind === 'story' && template
+            isStoryDivider(entry) ? false : sharedEvent && !quests?.length ? player?.completed ?? false : (entry.kind === 'story' || sharedEvent) && template
                 ? quests!.length > 0 &&
                   quests!.every(
                       (row) => storyRowDone({ ...entry, ...player } as Entry, row),

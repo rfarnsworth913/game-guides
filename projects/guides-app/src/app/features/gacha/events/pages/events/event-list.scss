@@ -1,0 +1,34 @@
+.event-groups { display: grid; gap: 14px; }
+.event-list-group { border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.event-list-group > summary { display: flex; align-items: center; gap: 10px; padding: 13px 14px; cursor: pointer; list-style: none; background: var(--color-bg-secondary); border-radius: 9px; }
+.event-list-group > summary::-webkit-details-marker, .event-admin-actions > summary::-webkit-details-marker { display: none; }
+.event-list-group > summary svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .2s ease; flex-shrink: 0; }
+.event-list-group[open] > summary { border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; }
+.event-list-group[open] > summary svg { transform: rotate(90deg); }
+.event-list-group h2 { margin: 0; font-size: 14px; }
+.event-group-count { margin-left: auto; font-size: 12px; color: var(--muted); }
+.event-list-group .event-list { gap: 0; padding: 4px; }
+.event-list-group .event-row { border-bottom: 1px solid var(--line); border-radius: 0; }
+.event-list-group .event-row:last-child { border-bottom: 0; }
+.event-title strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; }
+.event-deadline small { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); }
+.event-admin-actions { position: relative; flex-shrink: 0; }
+.event-admin-actions > summary { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; list-style: none; font-size: 20px; line-height: 1; }
+.event-admin-actions > summary:hover { background: var(--color-bg-tertiary); }
+.event-actions-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: grid; min-width: 120px; padding: 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
+.event-actions-menu button { text-align: left; border: 0; padding: 8px 10px; }
+.event-actions-menu .event-delete-action { color: var(--color-danger, #f18a98); }
+.event-summary-filter { display: flex; align-items: center; gap: 12px; margin: 8px 0 12px; font-size: 12px; color: var(--muted); }
+.event-summary-filter button { padding: 4px 8px; }
+.event-settings-heading { display: flex; align-items: center; justify-content: space-between; flex-basis: 100%; }
+.event-settings-heading h2 { font-size: 14px; margin: 0; }
+.event-settings-heading button { padding: 3px 9px; font-size: 18px; }
+.event-pinned-list { display: grid; gap: 6px; width: 100%; list-style: none; padding: 0; margin: 0; }
+.event-pinned-list li { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; }
+.event-pinned-list time { color: var(--muted); margin-left: auto; }
+.event-focus-tooltip { display: none; position: absolute; z-index: 30; left: 0; top: 100%; min-width: 220px; max-width: min(320px, 80vw); white-space: pre-line; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--color-text-primary); font-size: 12px; line-height: 1.5; box-shadow: 0 6px 20px rgba(0, 0, 0, .3); pointer-events: none; }
+.calendar-event { position: relative; }
+.calendar-event:focus-within .event-focus-tooltip { display: block; }
+.event-calendar td:nth-child(n+5) .event-focus-tooltip { left: auto; right: 0; }
+:is(button, a, input, select, summary):focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .event-list-group > summary svg { transition: none; } }

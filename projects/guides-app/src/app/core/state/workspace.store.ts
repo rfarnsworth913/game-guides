@@ -15,6 +15,7 @@ import { GAMES } from "../../../../../lib/constants/workspace.constants";
 import { validEntries, parseBackup, toCatalog, fromCatalog, validCatalog } from "../../../../../common/workspace/workspace";
 import { resolveCharacterReferences, editCharacterStory, migrateStoryCharacters, characterStoryProfile } from '../../../../../common/characters/character-story';
 import { resolveEventReferences, editEventStory, migrateStoryEvents } from '../../../../../common/events/event-story';
+import { sharedEventState, setEventCompletion } from '../../../../../common/events/event-progress';
 import { defaultGameOverview, validGameOverview } from '@common/workspace/game-overview';
 import type { GameOverview } from '@lib/types/game-overview.type';
 export type { Entry, Kind } from "../../../../../lib/types/workspace.type";
@@ -40,8 +41,8 @@ export class WorkspaceStore {
     private snapshots = new Map<string, GameSnapshot>();
     private loadingPromise: Promise<boolean> | null = null;
     private player: Record<string, PlayerState> = {};
-    private playerKey(entry: { game: string; id: string }): string {
-        return `${entry.game}/${entry.id}`;
+    private playerKey(entry: { game: string; id: string; eventId?: string }): string {
+        return `${entry.game}/${entry.eventId ?? entry.id}`;
     }
     private async request(path: string, body?: unknown, method = body ? 'PUT' : 'GET'): Promise<unknown> {
         const init: RequestInit = {
@@ -113,9 +114,12 @@ export class WorkspaceStore {
         this.teams.set(Object.fromEntries(this.games().map(game => [game.id, structuredClone(this.player[`${game.id}/${TEAM_PROGRESS_ID}`]?.teams ?? [])])));
         this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
-            [...this.snapshots.values()].flatMap((game) =>
-                resolveEventReferences(resolveCharacterReferences(game.entries)).map((entry) => fromCatalog(entry, this.player[this.playerKey(entry)])),
-            ),
+            [...this.snapshots.values()].flatMap((game) => {
+                const entries = resolveEventReferences(resolveCharacterReferences(game.entries));
+                const events = new Map(entries.filter(entry => entry.kind === 'events').map(event => [event.id, sharedEventState(event, this.player[this.playerKey(event)],
+                    entries.filter(entry => entry.eventId === event.id).flatMap(entry => this.player[`${entry.game}/${entry.id}`] ? [this.player[`${entry.game}/${entry.id}`]] : []))]));
+                return entries.map(entry => fromCatalog(entry, events.get(entry.eventId ?? (entry.kind === 'events' ? entry.id : '')) ?? this.player[this.playerKey(entry)]));
+            }),
         );
     }
     async gameRegistry(): Promise<GameOverview[]> {
@@ -460,9 +464,14 @@ export class WorkspaceStore {
         if (!raw) {return {};}
         const data = JSON.parse(raw) as { version?: unknown; state?: unknown };
         if (data.version !== 1 || !validProgressState(data['state'], null)) {throw new Error('Invalid guest progress. Export a backup before continuing.');}
+        const guestState = data['state'];
         const result: ProgressSnapshot['state'] = {};
         for (const entry of this.entries()) {
-            const key = this.playerKey(entry); const guest = data['state'][key];
+            if (entry.eventId) {continue;}
+            const key = this.playerKey(entry);
+            const legacy = entry.kind === 'events' ? this.entries().filter(placement => placement.game === entry.game && placement.eventId === entry.id)
+                .flatMap(placement => guestState[`${entry.game}/${placement.id}`] ? [guestState[`${entry.game}/${placement.id}`]] : []) : [];
+            const guest = entry.kind === 'events' && (guestState[key] || legacy.length) ? sharedEventState(entry, guestState[key], legacy) : guestState[key];
             if (!guest) {continue;}
             const account = this.player[key];
             // Include historical cycle keys and old row IDs; importing must not erase earlier tracking.
@@ -500,6 +509,16 @@ export class WorkspaceStore {
     async save(entry: Entry): Promise<boolean> {
         if (entry.kind === 'characters' && entry.characterInformation && entry.characterDefinition) {entry = editCharacterStory(entry, characterStoryProfile(entry));}
         let entries = [...this.entries().filter((e) => e.id !== entry.id), entry];
+        const sharedEvent = entry.kind === 'events' ? entry : entry.eventId ? this.entries().find(item => item.kind === 'events' && item.id === entry.eventId && item.game === entry.game) : null;
+        if (sharedEvent) {
+            const previous = this.entries().find(item => item.id === entry.id);
+            let state: PlayerState = { completed: entry.completed, quantity: entry.quantity, target: entry.target, ...(entry.storyRowCompletion ? { storyRowCompletion: entry.storyRowCompletion } : {}) };
+            if (entry.kind === 'events' && previous && entry.completed !== previous.completed) {
+                try {state = setEventCompletion(sharedEvent, entry.completed, state);} catch (error) {this.error.set(error instanceof Error ? error.message : 'Invalid event progress.'); return false;}
+            }
+            state = sharedEventState(sharedEvent, state);
+            entries = entries.map(item => item.game === sharedEvent.game && (item.id === sharedEvent.id || item.eventId === sharedEvent.id) ? { ...item, ...state } : item);
+        }
         if (entry.kind === 'story' && entry.category === 'character-information') {
             if (entry.characterId && entry.characterInformation) {
                 const previous = this.entries().find(item => item.id === entry.id);
@@ -532,7 +551,7 @@ export class WorkspaceStore {
     }
     async resetStoryProgress(game: string): Promise<boolean> {
         return this.replace(this.entries().map((entry) =>
-            entry.game === game && (entry.kind === 'story' || entry.kind === 'story-category')
+            entry.game === game && (entry.kind === 'story' || entry.kind === 'story-category' || (entry.kind === 'events' && !!entry.eventStory))
                 ? { ...entry, completed: false, storyRowCompletion: {} }
                 : entry,
         ));
