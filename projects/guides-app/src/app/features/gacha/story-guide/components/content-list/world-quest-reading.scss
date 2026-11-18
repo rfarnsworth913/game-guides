@@ -1,4 +1,5 @@
-.patch-reading-view.guide-world-quests {
+.patch-reading-view.guide-world-quests,
+.patch-reading-view.primary-quest-reading {
     .guide-section-heading.world-group-heading {
         border-inline-start: 3px solid var(--story-topic-accent);
         background: linear-gradient(115deg, color-mix(in srgb, var(--story-topic-accent) 10%, var(--guide-nested)), var(--guide-card));

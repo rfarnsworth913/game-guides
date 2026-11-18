@@ -4,14 +4,14 @@ import { WorkspaceStore, type Entry } from '../../../../../../core/state/workspa
 import { emptyPatchOverview } from '../../../../../../../../../common/quests/story-template';
 
 describe('Primary quest reading layout', () => {
-    it('preserves artwork attribution, linked quest headings and completion within the shared card layout', () => {
+    it.each(['main-story', 'side-stories'])('preserves artwork attribution, linked quest headings and completion within the shared %s layout', category => {
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save, saving: () => false, loading: () => false } }] });
         const data = { ...emptyPatchOverview(), patchVersion: '1.0', region: 'Old region label',
             imageUrl: 'https://example.com/art.webp', sourceName: 'Official artwork', sourceUrl: 'https://example.com/source',
             groups: [{ id: 'quest', title: 'Prologue', mainQuest: { id: 'parent', content: 'Prologue', contentUrl: 'https://example.com/prologue', contentType: '', patch: '1.0', notes: '' } }],
             rows: ['Cold Start', 'Awakening'].map((content, index) => ({ id: `row-${index}`, groupId: 'quest', content, contentUrl: `https://example.com/quest-${index}`, contentType: '', patch: '1.0', notes: '' })) };
-        const entry: Entry = { id: 'prologue', game: 'endfield', kind: 'story', category: 'main-story', name: 'Prologue', notes: '', rarity: 1, members: [], requirements: [], order: 0, day: '', completed: false, quantity: 0, target: 0, mainStory: data, storyRowCompletion: { 'row-0': true } };
+        const entry: Entry = { id: 'prologue', game: 'endfield', kind: 'story', category, name: 'Prologue', notes: '', rarity: 1, members: [], requirements: [], order: 0, day: '', completed: false, quantity: 0, target: 0, ...(category === 'main-story' ? { mainStory: data } : { sideStories: data }), storyRowCompletion: { 'row-0': true } };
         const before = structuredClone(data);
         const fixture = TestBed.createComponent(PatchOverviewTemplate);
         fixture.componentRef.setInput('entry', entry); fixture.detectChanges();
@@ -19,6 +19,7 @@ describe('Primary quest reading layout', () => {
         expect(root.querySelector('.patch-game-name')?.textContent).toContain('Arknights');
         expect(root.querySelector('.patch-game-name')?.textContent).not.toContain('Old region label');
         expect(root.querySelector('.patch-hero h3')?.textContent).toBe('Prologue');
+        expect(root.querySelector('.patch-hero-copy p')?.textContent).toBe(category === 'side-stories' ? 'Operator Mission' : 'Main Mission');
         expect(root.querySelector('.quest-banner-patch')?.textContent).toContain('1.0');
         expect(root.querySelector('.patch-banner')?.getAttribute('src')).toBe(data.imageUrl);
         expect(root.querySelector('.patch-source a')?.getAttribute('href')).toBe(data.sourceUrl);

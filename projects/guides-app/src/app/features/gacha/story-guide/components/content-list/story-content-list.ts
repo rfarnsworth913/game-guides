@@ -7,7 +7,6 @@ import type { PatchOverview, StoryTableRow } from "../../../../../../../../lib/t
 import { storyCompletionKey, storyRowDone, storyTrackingMode } from "../../../../../../../../common/quests/story-guide";
 import type { StoryContext } from "../../../../../../../../lib/types/story-context.type";
 import { StoryTrackingMode } from "../../../../../../../../lib/enums/story-tracking.enum";
-import { storyContentName } from "../../../../../../../../common/quests/story-content-types";
 import { NgTemplateOutlet } from '@angular/common';
 import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "../../../../../../../../common/quests/world-quest";
 import type { WorldQuestSection } from "../../../../../../../../lib/types/world-quest.type";
@@ -31,7 +30,6 @@ export class StoryContentList {
     readonly collapsedSections = signal<string[]>([]);
     readonly expandedNotes = signal<string[]>([]);
     readonly patchOverview = computed(() => this.entry().category === 'patch-overview');
-    readonly primaryQuest = computed(() => this.entry().category === 'main-story');
     readonly characterProfile = computed(() => this.entry().category === 'character-information');
     readonly worldQuest = computed(() => this.entry().category === 'world-quests');
     readonly worldGroupName = (mode: string) => WORLD_QUEST_GROUP_TYPES.find(type => type.id === mode)?.label ?? 'Area Exploration';
@@ -46,7 +44,6 @@ export class StoryContentList {
     readonly activity = computed(() => this.entry().category === 'endgame-activity');
     readonly eventTemplate = computed(() => this.entry().category === 'events');
     readonly questTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
-    readonly mainQuestName = computed(() => storyContentName(this.entry().game, this.entry().category === 'side-stories' ? 'side-stories' : 'main-story'));
     readonly sharedPatch = computed(() => {
         if (this.data().patchVersion) {return this.data().patchVersion!;}
         const versions = [...new Set(this.rows().map(row => row.patch).filter(Boolean))];

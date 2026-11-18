@@ -333,12 +333,12 @@
                 }
             }
             <div class="patch-hero-copy">
-                <span class="patch-game-name">{{ entry().category === 'main-story' ? gameName() : storyBanner() ? (data().region || gameName()) : gameName() }}</span>
+                <span class="patch-game-name">{{ ['main-story', 'side-stories'].includes(entry().category) ? gameName() : storyBanner() ? (data().region || gameName()) : gameName() }}</span>
                 <h3>{{ entry().name }}</h3>
                 @if (storyBanner()) {
                     <p>{{ storyTemplateName() }}</p>
                     @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
-                    @if (entry().category === 'main-story' && (data().patchVersion || data().rows[0]?.patch); as version) { <gg-patch-badge class="quest-banner-patch" [version]="version" /> }
+                    @if (['main-story', 'side-stories'].includes(entry().category) && (data().patchVersion || data().rows[0]?.patch); as version) { <gg-patch-badge class="quest-banner-patch" [version]="version" /> }
                 } @else { <div class="patch-hero-meta">@if (data().patchVersion || data().rows[0]?.patch; as version) { <span class="patch-version">Patch {{ version }}</span><span class="patch-meta-divider" aria-hidden="true"></span> }<span>Patch Overview</span></div><span class="patch-hero-rule" aria-hidden="true"></span> }
             </div>
             @if (!storyBanner() && data().releaseDate) {

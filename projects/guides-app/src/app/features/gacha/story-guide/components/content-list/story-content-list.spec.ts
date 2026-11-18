@@ -3,7 +3,7 @@ import { StoryContentList } from "./story-content-list";
 import { Entry } from "../../../../../core/state/workspace.store";
 import { emptyPatchOverview } from "../../../../../../../../common/quests/story-template";
 import type { PatchOverview } from "../../../../../../../../lib/types/story-template.type";
-import { StoryTrackingMode } from "../../../../../../../../lib/enums/story-tracking.enum";
+import { StoryTrackingMode, StoryRequirementType } from "../../../../../../../../lib/enums/story-tracking.enum";
 import { storyProgress } from "../../utils/story-progress";
 
 describe('Unified story reading view', () => {
@@ -34,6 +34,29 @@ describe('Unified story reading view', () => {
         expect(badge.previousElementSibling?.classList.contains('guide-row-title')).toBe(true);
         expect(row.querySelector('.guide-row-context')).toBeNull();
         expect(root.querySelector('#story-row-existing-next .guide-activity-subtype')).toBeNull();
+    });
+    it.each(['main-story', 'side-stories'])('shows %s requirements beside the title and keeps notes separately collapsible', category => {
+        const { fixture, data, entry, root } = setup(category);
+        const updated = structuredClone(data);
+        updated.rows[1].context = { requirements: [{ type: StoryRequirementType.Prerequisite, text: 'Complete the prologue', targetId: 'required-quest' }] };
+        updated.rows[2].context = { prerequisites: [] };
+        fixture.componentRef.setInput('data', updated);
+        fixture.componentRef.setInput('relatedEntries', [{ ...entry, id: 'required-quest', name: 'Cradle of Ages' }]);
+        fixture.detectChanges();
+        const row = root.querySelector('#story-row-existing-done')!;
+        const requirements = row.querySelector('.guide-row-with-requirements > .guide-objective-details')!;
+        expect(requirements.textContent).toContain('Requirements:');
+        expect(requirements.textContent).toContain('Complete the prologue');
+        expect(requirements.querySelector('a')?.textContent).toBe('Cradle of Ages');
+        expect(requirements.closest('details')).toBeNull();
+        expect(row.querySelector('details.guide-row-details')).toBeNull();
+        const notes = row.querySelector<HTMLButtonElement>('.guide-notes-toggle')!;
+        expect(notes.textContent?.trim()).toBe('Notes');
+        expect(notes.getAttribute('aria-expanded')).toBe('false');
+        notes.click(); fixture.detectChanges();
+        expect(notes.getAttribute('aria-expanded')).toBe('true');
+        expect(row.querySelector('.guide-notes-content')?.textContent).not.toContain('Complete the prologue');
+        expect(root.querySelector('#story-row-existing-next .guide-objective-details')).toBeNull();
     });
     it('preserves row anchors, Markdown, split notes and sub-quest hierarchy without giving headings checkboxes', () => {
         const { fixture, data, root } = setup();
@@ -115,15 +138,16 @@ describe('Unified story reading view', () => {
         fixture.detectChanges();
         expect(root.querySelector('.guide-section-content')?.hasAttribute('inert')).toBe(true);
     });
-    it.each([['genshin', 'Story Quest'], ['endfield', 'Operator Mission'], ['zzz', 'Agent Story']])('renders %s character quests with the narrative header and correct terminology', (game, name) => {
+    it.each(['genshin', 'endfield', 'zzz'])('renders %s character quests with the shared quest card layout', game => {
         const { fixture, data, entry, root } = setup('side-stories');
         const parent = { id: 'character-quest', contentType: '', content: 'Character chapter', contentUrl: 'https://example.com/character-story', patch: '1.0', notes: '' };
         const story = { ...data, groups: [{ id: 'area', title: parent.content, mainQuest: parent }] };
         fixture.componentRef.setInput('data', story);
         fixture.componentRef.setInput('entry', { ...entry, game, sideStories: story });
         fixture.detectChanges();
-        expect(root.querySelector('.guide-main-quest-title p > span')?.textContent).toBe(name);
-        expect(root.querySelector('.guide-main-quest-title .guide-patch-badge')?.textContent).toBe('Patch 1.0');
+        expect(root.querySelector('.primary-quest-reading.patch-reading-view')).not.toBeNull();
+        expect(root.querySelector('.guide-main-quest-title p')).toBeNull();
+        expect(root.querySelector('.guide-main-quest-heading .quest-heading-icon')).not.toBeNull();
         expect(root.querySelector('.guide-main-quest-heading h4 a')?.getAttribute('href')).toBe(parent.contentUrl);
         expect(root.querySelector('.guide-main-quest-progress strong')?.textContent).toBe('1 / 2');
         expect(root.querySelector('.guide-main-quest-progress small')?.textContent).toBe('50%');
