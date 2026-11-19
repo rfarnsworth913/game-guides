@@ -76,7 +76,7 @@
                     }}<button (click)="notice.set('')" aria-label="Dismiss notification">×</button>
                 </div>
             }
-            @if (page() !== 'story' || !context()) {
+            @if (!['story', 'characters'].includes(page()) || !context()) {
             <div class="page-heading">
                 <div>
                     <div class="eyebrow">

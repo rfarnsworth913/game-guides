@@ -6,6 +6,7 @@ import { storyImageUrl } from "../../../../../../common/quests/story-template";
 
 import type { GameImage, ImageCategory } from "../../../../../../lib/types/game-image.type";
 import { friendlyImageName } from "../../../../../../common/images/game-images";
+import { imageRecommendations } from "../../../../../../lib/constants/image-recommendations.constants";
 
 @Component({
     selector: 'gg-game-image-picker',
@@ -20,6 +21,10 @@ export class GameImagePicker {
     readonly value = model('');
     readonly banner = input(false);
     readonly compact = input(false);
+    readonly imagePurpose = input<keyof typeof imageRecommendations>();
+    readonly recommendedDimensions = computed(() => imageRecommendations[
+        this.imagePurpose() ?? (this.compact() ? 'icon' : this.banner() ? 'banner' : 'square')
+    ]);
     readonly selectionOnly = input(false);
     readonly deferUploads = input(false);
     readonly libraryAvailable = input(true);

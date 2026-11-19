@@ -4,6 +4,7 @@ import { validCharacterCollection, validCharacterDefinition, validCharacterRules
 import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
 import { GAMES } from '../../lib/constants/workspace.constants';
 import { validGameId } from './game-overview';
+import {validEquipmentDefinition, validEquipmentInstances} from '../characters/character-equipment';
 
 /** Give legacy guide steps a stable parent without changing their player progress keys. */
 export function migrateStory(entries: Entry[]): Entry[] {
@@ -77,6 +78,8 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
                 validRowCompletion(e.storyRowCompletion) &&
                 (e.characterDefinition === globalThis.undefined || (e.kind === 'characters' && Number.isSafeInteger(e.rarity) && e.rarity >= 1 && e.rarity <= 20 && validCharacterDefinition(e.characterDefinition))) &&
                 (e.characterCollection === globalThis.undefined || (e.kind === 'characters' && validCharacterCollection(e.characterCollection))) &&
+                (e.equipmentDefinition === globalThis.undefined || (e.kind === 'inventory' && validEquipmentDefinition(e.equipmentDefinition))) &&
+                (e.equipmentInstances === globalThis.undefined || (e.kind === 'inventory' && validEquipmentInstances(e.equipmentInstances))) &&
                 [
                     e.icon,
                     e.sectionImageUrl,
@@ -123,6 +126,7 @@ export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
         target: player?.target ?? 90,
         ...(player?.storyRowCompletion ? { storyRowCompletion: player.storyRowCompletion } : {}),
         ...(player?.characterCollection ? { characterCollection: player.characterCollection } : {}),
+        ...(player?.equipmentInstances ? {equipmentInstances:player.equipmentInstances} : {}),
     };
 }
 /** Whitelist catalog fields to keep player state and arbitrary imported properties out of shared content. */
@@ -145,6 +149,7 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.endDate !== globalThis.undefined ? { endDate: entry.endDate } : {}),
         ...(entry.eventType !== globalThis.undefined ? { eventType: entry.eventType } : {}),
         ...(entry.characterDefinition !== globalThis.undefined ? { characterDefinition: entry.characterDefinition } : {}),
+        ...(entry.equipmentDefinition !== globalThis.undefined ? {equipmentDefinition:entry.equipmentDefinition} : {}),
         ...(entry.characterInformation !== globalThis.undefined && !(entry.kind === 'story' && entry.characterId) ? { characterInformation: entry.characterInformation } : {}),
         ...(entry.characterId !== globalThis.undefined ? { characterId: entry.characterId } : {}),
         ...(entry.eventId !== globalThis.undefined ? { eventId: entry.eventId } : {}),
@@ -203,6 +208,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'characterId',
         'eventId',
         'characterDefinition',
+        'equipmentDefinition',
     ]);
     if (
         !value.every(
@@ -232,6 +238,9 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
             (!e.eventId || (ids.get(e.eventId)?.kind === 'events' && ids.get(e.eventId)?.game === e.game && !e.eventStory)) &&
             e.members.every((id) => ids.get(id)?.kind === 'characters') &&
             (e.characterDefinition?.recipes ?? []).every(recipe => recipe.materials.every(cost => ids.get(cost.item)?.kind === 'inventory')) &&
+            (e.characterDefinition?.resources ?? []).every(resource => resource.sourceType !== 'internal' || (ids.get(resource.contentId!)?.kind === 'story' && ids.get(resource.contentId!)?.game === e.game)) &&
+            (e.characterDefinition?.progressionOverrides ?? []).every(track => (track.upgradeCosts ?? []).every(cost => cost.materials.every(material => ids.get(material.itemId)?.kind === 'inventory'))) &&
+            (e.equipmentDefinition?.progressionTracks ?? []).every(track => (track.upgradeCosts ?? []).every(cost => cost.materials.every(material => ids.get(material.itemId)?.kind === 'inventory'))) &&
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),
     );
 }

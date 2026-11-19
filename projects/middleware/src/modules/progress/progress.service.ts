@@ -10,6 +10,7 @@ import type { CatalogRepository, AccountProgressRepository } from '../../app/app
 import { ApiError } from '../../core/errors/app-error';
 import { validProgressState } from '../../../../common/player/player-progress';
 import { TEAM_PROGRESS_ID } from '../../../../lib/constants/team.constants';
+import {equipmentAccountIssues} from '../../../../common/characters/character-equipment';
 export class ProgressService {
     constructor(private readonly repository: CatalogRepository, private readonly progress: AccountProgressRepository) { }
     async patch(userId: string, body: unknown) {
@@ -57,9 +58,13 @@ export class ProgressService {
                 continue;
             }
             validateInventoryProgress(entry, state);
-            validateCharacterProgress(entry, state, gameRules.get(game));
+            validateCharacterProgress(entry, state, gameRules.get(game), previous.state[key]);
             validateStoryProgress(entry, state, previous.state[key]?.storyRowCompletion ?? {});
             changes[key] = state;
+        }
+        for (const [game, catalog] of catalogs) {
+            const issues = equipmentAccountIssues([...catalog.values()], {...previous.state,...changes}, gameRules.get(game));
+            if (issues.length) {throw new ApiError(400, issues.join(' '));}
         }
         return progress.patch(userId, Number(body.revision), changes);
     }

@@ -1,0 +1,19 @@
+@let card = character();
+<article class="character-card-shell">
+    <button type="button" class="character-card" [disabled]="disabled()" (click)="open.emit(card.entry)" [attr.aria-label]="'View ' + card.name">
+        <span class="character-portrait">
+            @if (image(); as image) { <img [src]="image" [alt]="card.name + ' headshot'" width="92" height="92" loading="lazy" decoding="async" (load)="imageLoaded($event)" (error)="imageFailed()" /> }
+            @else { <span class="character-avatar-fallback" aria-hidden="true">{{ card.name.slice(0, 1) }}</span> }
+        </span>
+        <span class="character-card-copy">
+            <span class="character-card-title"><strong>{{ card.name }}</strong><span class="character-rarity">{{ card.rarityLabel }}</span></span>
+            <span class="character-classification">@for (attribute of card.attributes; track attribute.id) { <span [title]="attribute.label + ': ' + attribute.value">{{ attribute.value }}</span>@if (!$last) { <span aria-hidden="true">&middot;</span> } }</span>
+            <span class="character-levels">@if (card.owned && card.currentLevel !== undefined) { <span>Lv. {{ card.currentLevel }}</span> }@if (card.targetLevel !== undefined) { <span>Target {{ card.targetLevel }}</span> }</span>
+            @if (card.owned && card.progressionPercent !== undefined) { <span class="character-progress" role="progressbar" [attr.aria-label]="card.name + ' level target'" [attr.aria-valuenow]="card.progressionPercent" aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="card.progressionPercent"></span></span> }
+        </span>
+    </button>
+    <div class="character-card-actions">
+        <button type="button" class="character-ownership" [class.owned]="card.owned" [attr.aria-label]="(card.owned ? 'Remove ' : 'Add ') + card.name + (card.owned ? ' from collection' : ' to collection')" [attr.aria-pressed]="card.owned" [disabled]="disabled() || (!canAdd() && !card.owned)" (click)="ownership.emit(card.entry)"><span aria-hidden="true">{{ card.owned ? '✓' : '○' }}</span> {{ card.owned ? 'Owned' : card.planned ? 'Planned · Not owned' : 'Not owned' }}</button>
+        <button type="button" class="character-favorite" [class.active]="card.favorite" [attr.aria-pressed]="card.favorite" [attr.aria-label]="(card.favorite ? 'Unfavorite ' : 'Favorite ') + card.name" [disabled]="disabled()" (click)="favorite.emit(card.entry)">{{ card.favorite ? '★' : '☆' }}</button>
+    </div>
+</article>

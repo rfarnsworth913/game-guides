@@ -18,6 +18,8 @@ import { AUTH0_PUBLIC } from './auth0-config';
 import { defaultGameOverview } from '../../common/workspace/game-overview';
 import { migrateStoryCharacters } from '../../common/characters/character-story';
 import { migrateStoryEvents } from '../../common/events/event-story';
+import { emptyCharacterCollection, emptyCharacterDefinition } from '../../common/characters/characters';
+import type { CharacterRules } from '../../lib/types/character.type';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.
 const databaseName = `game_guides_e2e_${randomUUID().replaceAll('-', '')}`;
@@ -500,6 +502,13 @@ try {
         window.scrollBy({ top: bounds.top + bounds.height / 2 - (top + (innerHeight - top) / 2), behavior: 'instant' });
     });
     await guest.waitForSelector('.outline-secondary[href="#story-content-nav-world"][aria-current=location]');
+    await guest.bringToFront();
+    // Centering a short section can leave part of the expanded header visible.
+    // Verify the compact toolbar only after explicitly moving that header offscreen.
+    await guest.evaluate(() => {
+        const bottom = document.querySelector('.story-header-expanded')!.getBoundingClientRect().bottom;
+        if (bottom >= 0) {window.scrollBy({top:bottom + 80,behavior:'instant'});}
+    });
     await guest.waitForSelector('.compact-story-toolbar.visible');
     const toolbarHeight = await guest.$eval('.compact-story-toolbar', target => target.getBoundingClientRect().height);
     assert.ok(toolbarHeight >= 60 && toolbarHeight <= 80);
@@ -728,6 +737,159 @@ try {
         await editor.waitForSelector(selector!);
     }
     console.log('PASS global and game feature pages load through their existing routes.');
+
+    const beforeInventory = await repository.read('genshin');
+    const inventoryRules: CharacterRules = { levelCap: 100, rarities: [5], weaponTypes: ['Sword'], damageTypes: ['Physical'], roles: [], equipmentSlots: [], progressionTracks: [] };
+    const inventoryCharacters: CatalogEntry[] = Array.from({ length: 30 }, (_, index) => ({ ...baseEntry, id: `inventory-character-${index}`, kind: 'characters', name: `Inventory Character ${String(index + 1).padStart(2, '0')}`, rarity: 5,
+        characterDefinition: { ...emptyCharacterDefinition(), weaponType: 'Sword', damageType: 'Physical', headshot: image.url, skills:[{id:'attack',name:'Configured attack',description:'Synthetic progression fixture',maxLevel:5}],guides:[{title:'Fixture build guide',url:'https://example.com/build-guide'}] } }));
+    await repository.write('genshin', [...beforeInventory.entries, ...inventoryCharacters], beforeInventory.revision, inventoryRules);
+    await player.goto(origin + '/games/genshin/characters', { waitUntil: 'networkidle0' });
+    await player.waitForSelector('gg-characters h1'); assert.equal(await player.$('gg-characters .character-manage'), null);
+    await player.$$eval('.collection-tabs button', buttons => (buttons[1] as HTMLButtonElement).click());
+    await player.waitForSelector('gg-character-card .character-ownership');
+    await player.waitForFunction(() => document.querySelectorAll('gg-character-card').length === 24);
+    assert.equal(await player.$$('gg-character-card').then(cards => cards.length), 24);
+    const addCharacter = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await player.click('[aria-label="Add Inventory Character 01 to collection"]'); assert.equal((await addCharacter).status(), 200);
+    assert.equal(await player.$('gg-characters [role="dialog"]'), null);
+    const inventoryProgress = await (await api('/api/me/progress', playerToken)).json() as { revision: number; state: Record<string, unknown> };
+    assert.equal((await api('/api/me/progress', playerToken, 'PATCH', { revision: inventoryProgress.revision, changes: { 'genshin/inventory-character-0': { completed: false, quantity: 0, target: 0, characterCollection: { ...emptyCharacterCollection(), level: 60, target: { level: 100, gear: {}, progression: {} } } } } })).status, 200);
+    await player.reload({ waitUntil: 'networkidle0' }); await player.waitForSelector('gg-character-card');
+    assert.ok(await player.$eval('gg-character-card', card => card.textContent?.includes('Lv. 60') && card.textContent.includes('Target 100')));
+    await player.click('gg-character-card .character-card');
+    await player.waitForSelector('gg-character-details .details-layout');
+    assert.equal(await player.$eval('gg-character-details',dialog => {
+        const planner = dialog.querySelector('.details-planner')!.getBoundingClientRect(), resources = dialog.querySelector('.details-sidebar')!.getBoundingClientRect(), modal = dialog.querySelector('.modal')!.getBoundingClientRect();
+        return resources.left >= planner.right - 1 && resources.right <= modal.right + 1 && resources.top >= modal.top;
+    }),true,'Character resources must occupy the right dialog column, not inherit the application navigation position.');
+    await player.$eval('gg-character-details [aria-label="Target Character level"]',field => {const input = field as HTMLInputElement;input.value = '80';input.dispatchEvent(new Event('input',{bubbles:true}));});
+    await player.$eval('gg-character-details .resource-group',group => {(group as HTMLDetailsElement).open = true;});
+    await clickButton(player,'Skills','gg-character-details');
+    await player.waitForSelector('gg-character-details .details-skill');
+    await clickButton(player,'Level & Promotion','gg-character-details');
+    await player.waitForSelector('gg-character-details [aria-label="Target Character level"]');
+    assert.equal(await player.$eval('gg-character-details [aria-label="Target Character level"]',field => (field as HTMLInputElement).value),'80');
+    assert.equal(await player.$eval('gg-character-details .resource-group',group => (group as HTMLDetailsElement).open),true);
+    await clickButton(player,'Mark Goal Complete','gg-character-details');
+    await player.waitForFunction(() => document.querySelector('gg-character-details')?.textContent?.includes('Reopen Goal'));
+    await player.click('gg-character-details .details-favorite');
+    await player.screenshot({path:join(artifacts,'character-details-desktop.png')});
+    await player.setViewport({width:390,height:844});
+    assert.equal(await player.$eval('gg-character-details .modal',modal => modal.scrollWidth <= modal.clientWidth + 1),true);
+    await player.screenshot({path:join(artifacts,'character-details-mobile.png')});
+    const saveDetails = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await clickButton(player,'Save development plan','gg-character-details');assert.equal((await saveDetails).status(),200);
+    await player.waitForFunction(() => document.querySelector('gg-character-details .details-footer')?.textContent?.includes('Saved progression'));
+    await clickButton(player,'Close','gg-character-details');await player.waitForSelector('gg-character-details',{hidden:true});
+    await player.reload({waitUntil:'networkidle0'});await player.waitForSelector('gg-character-card');
+    await player.click('gg-character-card .character-card');await player.waitForSelector('gg-character-details .details-layout');
+    assert.equal(await player.$eval('gg-character-details [aria-label="Current Character level"]',field => (field as HTMLInputElement).value),'60');
+    assert.equal(await player.$eval('gg-character-details [aria-label="Target Character level"]',field => (field as HTMLInputElement).value),'80');
+    assert.equal(await player.$eval('gg-character-details .details-favorite',button => button.getAttribute('aria-pressed')),'true');
+    assert.ok(await player.$eval('gg-character-details',dialog => dialog.textContent?.includes('Reopen Goal')));
+    await clickButton(player,'Close','gg-character-details');await player.waitForSelector('gg-character-details',{hidden:true});
+    await player.setViewport({width:1440,height:1000});
+    console.log('PASS configurable character details: tabs and resources preserve drafts, goal completion stays separate from current level, favorites and targets survive reload, mobile layout fits.');
+    await player.$$eval('.collection-tabs button', buttons => (buttons[1] as HTMLButtonElement).click());
+    await player.waitForFunction(() => document.querySelectorAll('gg-character-card').length === 24);
+    await player.screenshot({ path: join(artifacts, 'character-inventory-desktop.png'), fullPage: true });
+    await player.click('.character-view-toggle button:last-child');
+    await player.waitForSelector('.character-list');
+    await player.screenshot({ path: join(artifacts, 'character-inventory-list.png') });
+    await player.click('.character-view-toggle button:first-child');
+    await player.waitForSelector('.character-grid:not(.character-list)');
+    await player.$eval('[aria-label="Characters per page"]', select => { const field = select as HTMLSelectElement; field.value = [...field.options].find(option => option.textContent === '12')!.value; field.dispatchEvent(new Event('change', { bubbles: true })); });
+    await player.waitForFunction(() => document.querySelectorAll('gg-character-card').length === 12);
+    await player.click('[aria-label="Next character page"]');
+    await player.waitForFunction(() => document.querySelector('.character-pagination')?.textContent?.replace(/\s/g, '').includes('Showing13–24of30characters'));
+    await player.setViewport({ width: 390, height: 900 });
+    await player.evaluate(() => window.scrollTo(0, 0));
+    assert.equal(await player.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.equal(await player.$$eval('gg-character-card .character-portrait img', images => images.every(image => { const box = image.getBoundingClientRect(); return Math.abs(box.width - box.height) < 1; })), true);
+    await player.screenshot({ path: join(artifacts, 'character-inventory-mobile.png') });
+    await player.setViewport({ width: 1440, height: 1000 });
+    await editor.goto(origin + '/games/genshin/characters', { waitUntil: 'networkidle0' });
+    await editor.waitForSelector('.character-manage');
+    assert.equal(await editor.$$('gg-character-card').then(cards => cards.length), 0, 'Character ownership is isolated per account');
+    await editor.click('.character-manage summary');
+    await clickButton(editor, 'Game rules', 'gg-characters');
+    await editor.waitForSelector('gg-game-rules-editor .section-editor-workspace');
+    await editor.waitForFunction(() => document.querySelector('gg-game-rules-editor h3')?.textContent === 'General');
+    await editor.bringToFront();
+    await editor.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+    await editor.type('gg-game-rules-editor textarea', 'Browser-tested shared rules');
+    await editor.keyboard.press('Tab');
+    await clickButton(editor, 'Attributes', 'gg-game-rules-editor');
+    await editor.waitForFunction(() => document.querySelector('gg-game-rules-editor h3')?.textContent === 'Attributes');
+    await clickButton(editor, '+ Add Attribute', 'gg-game-rules-editor');
+    await editor.waitForSelector('gg-game-rules-editor .rules-row');
+    await editor.click('gg-game-rules-editor .rules-row summary');
+    await editor.screenshot({path: join(artifacts, 'character-rules-desktop.png')});
+    await editor.setViewport({width: 390, height: 844});
+    assert.equal(await editor.$eval('gg-game-rules-editor .modal', modal => modal.scrollWidth <= modal.clientWidth + 1), true);
+    await editor.screenshot({path: join(artifacts, 'character-rules-mobile.png')});
+    await clickButton(editor, 'Cancel', 'gg-game-rules-editor');
+    await editor.waitForSelector('gg-game-rules-editor .discard-prompt');
+    await clickButton(editor, 'Discard changes', 'gg-game-rules-editor');
+    await editor.waitForSelector('gg-game-rules-editor', {hidden: true});
+    assert.equal((await repository.read('genshin')).characterRules?.attributes, globalThis.undefined, 'Cancelled rules remain local');
+    await editor.setViewport({width: 1440, height: 1000});
+    await editor.click('.character-manage summary');
+    await clickButton(editor, 'Game rules', 'gg-characters');
+    await editor.waitForSelector('gg-game-rules-editor textarea');
+    await editor.bringToFront();
+    await editor.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+    await editor.type('gg-game-rules-editor textarea', 'Browser-tested shared rules');
+    await editor.keyboard.press('Tab');
+    await editor.waitForFunction(() => (document.querySelector('gg-game-rules-editor textarea') as HTMLTextAreaElement)?.value === 'Browser-tested shared rules');
+    await clickButton(editor, 'Save Rules', 'gg-game-rules-editor');
+    await editor.waitForSelector('gg-game-rules-editor', {hidden: true});
+    assert.equal((await repository.read('genshin')).characterRules?.description, 'Browser-tested shared rules');
+    await editor.reload({waitUntil: 'networkidle0'});
+    await editor.click('.character-manage summary'); await clickButton(editor, 'Game rules', 'gg-characters');
+    await editor.waitForSelector('gg-game-rules-editor textarea');
+    assert.equal(await editor.$eval('gg-game-rules-editor textarea', field => (field as HTMLTextAreaElement).value), 'Browser-tested shared rules');
+    await clickButton(editor, 'Cancel', 'gg-game-rules-editor');
+    await editor.waitForSelector('gg-game-rules-editor', {hidden: true});
+    console.log('PASS shared game rules editor: Story Guide shell, inline attributes, responsive layout, dirty cancellation and persisted rules after reload.');
+    const beforeEquipment = await repository.read('genshin');
+    const equipmentRules:CharacterRules = {...beforeEquipment.characterRules!,equipmentSlots:[{id:'weapon',label:'Weapon',system:'weapon',allowedTypes:['sword'],limit:1}]};
+    const equipmentCatalog:CatalogEntry[] = [
+        {...baseEntry,id:'e2e-ore',kind:'inventory',name:'Fixture ore'},
+        {...baseEntry,id:'e2e-sword',kind:'inventory',name:'Fixture sword',equipmentDefinition:{typeId:'sword',weaponType:'Sword',progressionTracks:[{id:'level',label:'Weapon level',type:'level',minValue:1,maxValue:2,displayOrder:0,upgradeCosts:[{fromValue:1,toValue:2,materials:[{itemId:'e2e-ore',quantity:7}]}]}]}},
+    ];
+    await repository.write('genshin',[...beforeEquipment.entries,...equipmentCatalog],beforeEquipment.revision,equipmentRules);
+    const beforeCopies = await (await api('/api/me/progress',playerToken)).json() as {revision:number};
+    assert.equal((await api('/api/me/progress',playerToken,'PATCH',{revision:beforeCopies.revision,changes:{'genshin/e2e-ore':{completed:false,quantity:3,target:0},'genshin/e2e-sword':{completed:false,quantity:1,target:0}}})).status,200);
+    await player.goto(origin + '/games/genshin/characters',{waitUntil:'networkidle0'});await player.waitForSelector('gg-character-card');
+    await player.click('gg-character-card .character-card');await player.waitForSelector('gg-character-details .details-tabs');
+    await clickButton(player,'Weapon','gg-character-details');await player.waitForSelector('.details-equipment-selector select');
+    await player.select('.details-equipment-selector select','new:e2e-sword');
+    await player.waitForSelector('gg-character-details [aria-label="Target Weapon level"]');
+    await player.$eval('gg-character-details [aria-label="Target Weapon level"]',field => {const input = field as HTMLInputElement;input.value = '2';input.dispatchEvent(new Event('input',{bubbles:true}));});
+    await player.waitForFunction(() => document.querySelector('gg-character-details .details-material-grid')?.textContent?.includes('Fixture ore'));
+    const saveEquipment = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await clickButton(player,'Save development plan','gg-character-details');assert.equal((await saveEquipment).status(),200);
+    await player.waitForFunction(() => document.querySelector('gg-character-details .details-footer')?.textContent?.includes('Saved progression'));
+    await player.reload({waitUntil:'networkidle0'});await player.waitForSelector('gg-character-card');await player.click('gg-character-card .character-card');
+    await player.waitForSelector('gg-character-details .details-tabs');await clickButton(player,'Weapon','gg-character-details');await player.waitForSelector('gg-character-details [aria-label="Target Weapon level"]');
+    assert.equal(await player.$eval('gg-character-details [aria-label="Current Weapon level"]',field => (field as HTMLInputElement).value),'1');
+    assert.equal(await player.$eval('gg-character-details [aria-label="Target Weapon level"]',field => (field as HTMLInputElement).value),'2');
+    await player.screenshot({path:join(artifacts,'character-details-equipment.png')});
+    await player.select('.details-equipment-selector select','');
+    const unequip = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
+    await clickButton(player,'Save development plan','gg-character-details');assert.equal((await unequip).status(),200);
+    const copies = await (await api('/api/me/progress',playerToken)).json() as {state:Record<string,{equipmentInstances?:{target?:{level:number}}[]}>};
+    assert.equal(copies.state['genshin/e2e-sword'].equipmentInstances?.length,1);assert.equal(copies.state['genshin/e2e-sword'].equipmentInstances?.[0].target?.level,2);
+    console.log('PASS owned equipment copies: atomic assignment/progression persistence, configured material costs, reload restoration and unequip without deleting the inventory copy.');
+    const afterInventory = await repository.read('genshin');
+    // This is the disposable test database: restore its fixture rules before removing test-only slots.
+    // Production writes still require migration for destructive rules changes.
+    await collection.updateOne({name:'Genshin Impact'},{$set:{characterRules:beforeInventory.characterRules ?? inventoryRules}});
+    await repository.write('genshin', beforeInventory.entries, afterInventory.revision, beforeInventory.characterRules);
+    if (!beforeInventory.characterRules) {await collection.updateOne({ name: 'Genshin Impact' }, { $unset: { characterRules: '' } });}
+    await editor.goto(origin + '/games/genshin/achievements', { waitUntil: 'networkidle0' });
+    console.log('PASS reusable character inventory: catalog ownership, account persistence/isolation, current and target levels, grid/list, pagination, square images and mobile layout.');
 
     const previousRoute = editor.url();
     await editor.click('gg-workspace-sidebar .active-game-selector');

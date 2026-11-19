@@ -1,16 +1,18 @@
 @if (compact()) {
     <button type="button" class="compact-icon-button" [class.has-icon]="value()"
         [attr.aria-label]="'Choose ' + label()" [attr.aria-controls]="iconMenuId"
-        [title]="label() + ' (optional)'" (click)="showIconMenu($event)">
+        [title]="label() + ' (optional). Recommended: ' + recommendedDimensions()" (click)="showIconMenu($event)">
         @if (previewUrl(); as url) {
             @if (failedPreview() !== url) { <img [src]="url" alt="" (error)="failedPreview.set(url)" /> }
             @else { <span aria-hidden="true">?</span> }
         } @else if (value()) { <span aria-hidden="true">{{ value() }}</span> }
         @else { <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="16" height="16" rx="2" /><path d="m4 17 5-5 4 4 3-3 3 3M18 1v8M14 5h8" /><circle cx="8" cy="9" r="1" /></svg> }
     </button>
+    <small class="compact-dimensions" [title]="'Recommended: ' + recommendedDimensions()" [attr.aria-label]="'Recommended: ' + recommendedDimensions()">{{ recommendedDimensions().split(' px')[0] }}</small>
     <div #iconMenu [id]="iconMenuId" popover="auto" class="compact-icon-menu"
         (keydown.escape)="$event.stopPropagation()" (keydown.enter)="preventLibrarySubmit($event)">
         <strong>{{ label() }}</strong>
+        <p class="image-help">Recommended: {{ recommendedDimensions() }}</p>
         <button type="button" [disabled]="!libraryAvailable()" (click)="browse()">Browse Game Library</button>
         <button type="button" [disabled]="uploading()" (click)="iconUpload.click()">Upload Icon</button>
         <input #iconUpload type="file" class="image-file-input" accept=".png,.jpg,.jpeg,.webp,.gif" (change)="upload($event)" />
@@ -22,13 +24,15 @@
     </div>
 } @else {
 <div class="image-picker">
+    <div class="image-preview-area">
     @if (previewUrl(); as url) {
         @if (failedPreview() !== url) {
-            <img class="image-preview" [class.banner-preview]="banner()" [src]="url" [alt]="description() || label() + ' preview'"
+            <img class="image-preview" [class.banner-preview]="banner()" [class.square-preview]="imagePurpose() === 'square'" [class.portrait-preview]="imagePurpose() === 'fullArt'" [class.character-banner-preview]="imagePurpose() === 'characterBanner'" [src]="url" [alt]="description() || label() + ' preview'"
                 [style.object-position]="positionX() + '% ' + positionY() + '%'"
                 (load)="recordSize($event, url)" (error)="failedPreview.set(url)" />
         } @else { <p>Image preview unavailable.</p> }
     } @else { <div class="image-empty">No image selected</div> }
+    </div>
     <div class="image-control-row">
         <p class="current-image">@if (value() || pendingFile()) { {{ pendingFile() ? 'Selected' : 'Current' }} {{ banner() ? 'banner' : 'image' }} &middot; {{ currentName() }} } @else { Select an image }</p>
         <div class="image-actions">
@@ -49,7 +53,7 @@
             }
         </div>
     </div>
-    <div class="image-upload-hints"><p class="image-help image-formats">PNG, JPEG, WebP, GIF &middot; Max 10 MB</p></div>
+    <div class="image-upload-hints"><p class="image-help image-dimensions">Recommended: {{ recommendedDimensions() }}</p><p class="image-help image-formats">PNG, JPEG, WebP, GIF &middot; Max 10 MB</p></div>
     @if (deferUploads()) { <p class="image-help">Images upload when you save. @if (!libraryAvailable()) { The library becomes available after the game is created. }</p> }
     @if (deferUploads() && selectionOnly()) {
         <details class="image-advanced"><summary>Use Image URL</summary><label>{{ label() }} URL (optional)<input type="text" [ngModelOptions]="{standalone:true}" [ngModel]="value()" (ngModelChange)="setImageUrl($event)" placeholder="https://..." /></label></details>
@@ -82,7 +86,7 @@
     (keydown.enter)="preventLibrarySubmit($event)"
     (keydown.escape)="$event.stopPropagation()" (keydown.tab)="$event.stopPropagation()" aria-label="Game Image Library">
     @if (open()) {
-        <div class="library-heading"><div><h3>Game Image Library</h3><p>Select an existing image for {{ label().toLowerCase() }}.</p></div>
+        <div class="library-heading"><div><h3>Game Image Library</h3><p>Select an existing image for {{ label().toLowerCase() }}.</p><p class="image-help">Recommended: {{ recommendedDimensions() }}. Other sizes are supported.</p></div>
             <button type="button" aria-label="Close image library" (click)="cancelLibrary()">&#215;</button></div>
         <div class="library-filters">
             <label>Search<input type="search" [ngModelOptions]="{standalone:true}" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Name, character, region, or tags" /></label>
@@ -99,7 +103,7 @@
                         @if (pending()?.url === image.url) { <span class="selected-check" aria-hidden="true">&#10003;</span> }
                     </div>
                     <strong>{{ displayName(image) }}</strong><small>{{ kind(image) || 'Image' }} &middot; {{ image.name.split('.').pop()?.toUpperCase() }}</small>
-                    @if (banner() && matchesBanner(image)) { <small class="ratio-match">Matches 3:1 banner ratio</small> }
+                    @if (banner() && (!imagePurpose() || imagePurpose() === 'banner') && matchesBanner(image)) { <small class="ratio-match">Matches 3:1 banner ratio</small> }
                 </button>
             } @empty { @if (!loading()) { <p>No images match. Upload an image or change the filters.</p> } }
         </div>

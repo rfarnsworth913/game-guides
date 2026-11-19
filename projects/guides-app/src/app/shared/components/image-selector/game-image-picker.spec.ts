@@ -10,6 +10,33 @@ describe('GameImagePicker', () => {
         fixture.componentRef.setInput('label', 'Header image');
         return fixture;
     }
+    it('shows recommendations for square images, banners and full artwork beside the picker and in its library', () => {
+        const fixture = picker();
+        const root = fixture.nativeElement as HTMLElement;
+        fixture.detectChanges();
+        expect(root.querySelector('.image-dimensions')?.textContent).toContain('512 × 512 px');
+        fixture.componentRef.setInput('banner', true);
+        fixture.detectChanges();
+        expect(root.querySelector('.image-dimensions')?.textContent).toContain('1200 × 400 px');
+        fixture.componentRef.setInput('imagePurpose', 'fullArt');
+        fixture.componentInstance.open.set(true);
+        fixture.detectChanges();
+        expect(root.querySelector('.image-dimensions')?.textContent).toContain('1200 × 1600 px');
+        expect(root.querySelector('.library-heading')?.textContent).toContain('1200 × 1600 px');
+        expect(root.querySelector('.library-heading')?.textContent).toContain('Other sizes are supported');
+        fixture.componentRef.setInput('imagePurpose', 'header');
+        fixture.detectChanges();
+        expect(root.querySelector('.image-dimensions')?.textContent).toContain('1200 × 240 px');
+    });
+    it('keeps icon dimensions visible beside the compact button and in its selection popover', () => {
+        const fixture = picker();
+        fixture.componentRef.setInput('compact', true);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('.compact-dimensions')?.textContent).toContain('256 × 256');
+        expect(root.querySelector('.compact-dimensions')?.getAttribute('aria-label')).toContain('Recommended: 256 × 256 px');
+        expect(root.querySelector('.compact-icon-menu')?.textContent).toContain('Recommended: 256 × 256 px');
+    });
     it('selects and removes navigation images without exposing image metadata or manual URL controls', () => {
         const fetchMock = vi.fn();
         vi.stubGlobal('fetch', fetchMock);

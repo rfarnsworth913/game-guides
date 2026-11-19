@@ -6,6 +6,7 @@ import { decodeEntries, mergeEntries, migrateDocument } from "../documents/game-
 import { normalizeStory } from "../documents/stories/story-document";
 import type { CharacterRules } from "../../../../lib/types/character.type";
 import { characterDefinitionFits, validCharacterRules } from "../../../../common/characters/characters";
+import { characterRulesCompatibility } from '../../../../common/characters/character-rules';
 import type { GameOverview } from '../../../../lib/types/game-overview.type';
 import { defaultGameOverview, gameOverviewErrors, normalizeGameColor, validGameId, validGameOverview } from '../../../../common/workspace/game-overview';
 
@@ -142,12 +143,22 @@ export class GameRepository {
         if (overview.archived) {throw new ApiError(404, 'This game has been removed.');}
         const rules: unknown = characterRules ?? document['characterRules'];
         if (rules !== globalThis.undefined && !validCharacterRules(rules)) {throw new ApiError(400, 'Invalid character rules.');}
+        if (rules && validCharacterRules(document['characterRules'])) {
+            const issues = characterRulesCompatibility(document['characterRules'], rules);
+            if (issues.length) {throw new ApiError(400, issues.join(' '));}
+        }
         const farmingSources = validCharacterRules(rules) ? rules.farming?.sources ?? [] : [];
         if (farmingSources.some(source => source.materialIds.some(id => !entries.some(entry => entry.id === id && entry.kind === 'inventory')))) {
             throw new ApiError(400, 'Farming sources must reference materials in this game’s inventory catalog.');
         }
         if (rules && entries.some(entry => entry.characterDefinition && !characterDefinitionFits(entry.characterDefinition, entry.rarity, rules))) {
             throw new ApiError(400, 'Character definitions do not match the game\'s rarity, weapon, damage, or role options. Update the options or definitions together.');
+        }
+        const invalidProfiles = rules?.progressionProfiles?.some(profile => profile.gameId !== id ||
+            profile.tracks.some(track => (track.upgradeCosts ?? []).some(cost =>
+                cost.materials.some(material => !entries.some(entry => entry.id === material.itemId && entry.kind === 'inventory')))));
+        if (invalidProfiles) {
+            throw new ApiError(400, 'Progression profiles must belong to this game and reference its inventory materials.');
         }
         const fields = { ...mergeEntries(document, entries), ...(rules ? { characterRules: rules } : {}), _revision: revision + 1 };
         this.checkSize({ ...document, ...fields });

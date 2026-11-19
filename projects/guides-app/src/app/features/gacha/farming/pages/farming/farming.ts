@@ -9,6 +9,7 @@ import type { FarmingGroup, FarmingMaterial } from "../../../../../../../../lib/
 import { farmingGroups, farmingRequirements, hasCharacterGoal, serverDay, sourceAvailability } from "../../../../../../../../common/farming/farming";
 import type { FarmingSource } from "../../../../../../../../lib/types/farming-config.type";
 import { storyImageUrl } from "../../../../../../../../common/quests/story-template";
+import {hasEquipmentGoal} from '@common/characters/character-equipment';
 import {
     defaultFarmingPreferences,
     FarmingPreferences,
@@ -59,7 +60,7 @@ export class Farming {
                 (entry) =>
                     entry.game === this.game() &&
                     entry.kind === 'characters' &&
-                    entry.characterCollection?.owned,
+                    (entry.characterCollection?.owned || entry.characterCollection?.target),
             )
             .sort((a, b) => a.name.localeCompare(b.name)),
     );
@@ -80,7 +81,7 @@ export class Farming {
     readonly selectedCharacters = computed(() =>
         this.characters().filter((entry) =>
             this.prefs().selected === null
-                ? hasCharacterGoal(entry.characterCollection) ||
+                ? this.hasGoal(entry) ||
                   (this.prefs().mode === 'plans' && this.manualMembers().has(entry.id))
                 : this.prefs().selected!.includes(entry.id),
         ),
@@ -89,7 +90,7 @@ export class Farming {
         this.characters().filter(
             (entry) =>
                 this.prefs().includeOther ||
-                hasCharacterGoal(entry.characterCollection) ||
+                this.hasGoal(entry) ||
                 this.selectedCharacters().some((character) => character.id === entry.id) ||
                 (this.prefs().mode === 'plans' && this.manualMembers().has(entry.id)),
         ),
@@ -101,8 +102,10 @@ export class Farming {
             this.selectedCharacters().map((entry) => entry.id),
             this.prefs().mode,
             this.prefs().includeUnassigned,
+            this.store.characterRules()[this.game()],
         ),
     );
+    hasGoal(entry:Entry):boolean {return hasCharacterGoal(entry.characterCollection) || hasEquipmentGoal(entry,this.store.entries());}
     readonly server = computed(() => {
         const servers = this.config().servers;
         if (servers.length === 1) {return servers[0];}

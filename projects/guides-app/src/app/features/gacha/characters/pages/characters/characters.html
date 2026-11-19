@@ -1,663 +1,61 @@
-<section class="character-workspace">
-    <div class="character-toolbar">
-        <div class="collection-tabs" aria-label="Character view">
-            <button
-                type="button"
-                [class.active]="tab() === 'collection'"
-                [attr.aria-pressed]="tab() === 'collection'"
-                (click)="tab.set('collection')"
-            >
-                My collection <span>{{ owned().length }}</span>
-            </button>
-            <button
-                type="button"
-                [class.active]="tab() === 'catalog'"
-                [attr.aria-pressed]="tab() === 'catalog'"
-                (click)="tab.set('catalog')"
-            >
-                Character catalog <span>{{ catalog().length }}</span>
-            </button>
-        </div>
-        <div class="character-actions">
-            @if (store.canEdit()) {
-                <button type="button" [disabled]="busy()" (click)="editRules()">Game rules</button>
-                <button type="button" [disabled]="busy()" (click)="editDefinition()">
-                    + Catalog character
-                </button>
-            }
-            <button type="button" class="primary" (click)="tab.set('catalog')" [disabled]="busy()">
-                + Add to collection
-            </button>
-        </div>
-    </div>
-    <p class="collection-help">
-        {{
-            store.auth?.user()
-                ? 'Your collection and builds sync to your account.'
-                : 'Your collection and builds are saved on this browser. Sign in to sync across devices.'
-        }}
-        Character information is shared by everyone.
-    </p>
-    @if (message()) {
-        <p class="collection-message" role="status">{{ message() }}</p>
-    }
-    @if (!rules()) {
-        <div class="rules-notice">
-            Game progression rules have not been configured. Browse characters now; an editor must
-            set the level cap and equipment slots before builds can be saved.
-        </div>
-    }
-    <div class="character-filters">
-        <input
-            type="search"
-            aria-label="Search characters"
-            placeholder="Search name, role, weapon or damage type"
-            [ngModel]="search()"
-            (ngModelChange)="search.set($event)"
-        />
-        <select
-            aria-label="Filter character rarity"
-            [ngModel]="rarity()"
-            (ngModelChange)="rarity.set($event)"
-        >
-            <option value="">All rarities</option>
-            @for (value of rarities(); track value) {
-                <option [value]="value">{{ value ? value + ' star' : 'Rarity not set' }}</option>
-            }
-        </select>
-        <select
-            aria-label="Filter character damage type"
-            [ngModel]="damageType()"
-            (ngModelChange)="damageType.set($event)"
-        >
-            <option value="">All damage types</option>
-            @for (value of damageTypes(); track value) {
-                <option [value]="value">{{ value }}</option>
-            }
-        </select>
-    </div>
-    <div class="character-grid">
-        @for (entry of visible(); track entry.id) {
-            <button
-                type="button"
-                class="character-card"
-                (click)="details(entry)"
-                [attr.aria-label]="'View ' + entry.name"
-            >
-                <div class="character-portrait">
-                    @if (entry.icon && validImage(entry.icon)) {
-                        <img [src]="entry.icon" alt="" loading="lazy" />
-                    } @else {
-                        <span aria-hidden="true">{{ entry.name.slice(0, 1) }}</span>
-                    }
-                    <span class="character-rarity">{{ entry.rarity ? entry.rarity + ' ★' : 'Rarity not set' }}</span>
-                </div>
-                <div class="character-card-copy">
-                    <strong>{{ entry.name }}</strong>
-                    @if (definition(entry).damageType || definition(entry).weaponType) {
-                        <small
-                            >{{ definition(entry).damageType }}
-                            @if (definition(entry).damageType && definition(entry).weaponType) {
-                                &middot;
-                            }
-                            {{ definition(entry).weaponType }}</small
-                        >
-                    }
-
-                    @if (entry.characterCollection?.owned) {
-                        <span class="collection-owned"
-                            >In collection &middot; Level
-                            {{ entry.characterCollection!.level }}
-                            @if (entry.characterCollection!.target; as target) {
-                                &#8594; {{ target.level }} &middot; Development plan
-                            }
-                        </span>
-                    } @else {
-                        <span class="collection-unowned"
-                            >View character &amp; add to collection</span
-                        >
-                    }
-                </div>
-            </button>
-        } @empty {
-            <div class="panel empty character-empty">
-                <h2>
-                    {{
-                        search() || rarity() || damageType()
-                            ? 'No matching characters'
-                            : tab() === 'collection'
-                              ? 'Start your character collection'
-                              : 'No catalog characters yet'
-                    }}
-                </h2>
-                <p>
-                    {{
-                        tab() === 'collection'
-                            ? 'Choose characters from the shared catalog and track your own build.'
-                            : 'An editor can add character definitions for everyone in this game.'
-                    }}
-                </p>
-                @if (tab() === 'collection') {
-                    <button type="button" class="secondary" (click)="tab.set('catalog')">
-                        Browse character catalog
-                    </button>
-                }
-            </div>
+<section class="character-workspace" [style.--character-accent]="accent()">
+    <header class="character-page-header">
+        <div><div class="eyebrow">{{ gameName() }}</div><h1>Characters</h1><p>Manage your collection and character progression.</p></div>
+        @if (store.canEdit()) {
+            <details #manage class="character-manage" (keydown.escape)="manage.open = false; manageSummary.focus(); $event.stopPropagation()">
+                <summary #manageSummary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.7 2.2-2 .9-2.1-.5-1.5 2.6 1.4 1.7-.2 2.2L2 13.5l1.5 2.6 2.2-.3 1.8 1.3.5 2.2h3l.9-2 2.1-.7 2 .9 2.1-2.1-.9-2 .7-2.1 2-.9v-3l-2.2-.5-1.3-1.8.3-2.2L16.1 2l-1.4 1.9-2.2.2L10.8 3Z"/><circle cx="11" cy="11" r="3"/></svg>Manage<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+                <div class="character-manage-menu"><button type="button" [disabled]="busy()" (click)="manage.open = false; editRules()">Game rules</button><button type="button" [disabled]="busy()" (click)="manage.open = false; editDefinition()">Add catalog character</button></div>
+            </details>
         }
+    </header>
+    <div class="character-statistics" aria-label="Character statistics">
+        <span class="character-owned-stat"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2Z"/></svg><strong>{{ ownedCount() }}</strong> Owned</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C8 2 4 3 2 4v15c4-2 7-1 10 1 3-2 6-3 10-1V4c-2-1-6-2-10 1Zm0 0v15"/></svg><strong>{{ catalog().length }}</strong> Characters</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4v8H3Zm7-5h4v13h-4Zm7-5h4v18h-4Z"/></svg><strong>{{ maxLevelCount() }}</strong> Max Level</span>
     </div>
+    <div class="character-toolbar">
+        <div class="collection-tabs" aria-label="Character view"><button type="button" [class.active]="tab() === 'collection'" [attr.aria-pressed]="tab() === 'collection'" (click)="tab.set('collection')">My Collection <span>({{ collectionCards().length }})</span></button><button type="button" [class.active]="tab() === 'catalog'" [attr.aria-pressed]="tab() === 'catalog'" (click)="tab.set('catalog')">Character Catalog <span>({{ catalog().length }})</span></button></div>
+        @if (tab() === 'collection') { <button type="button" class="primary character-add" [disabled]="busy()" (click)="tab.set('catalog')">+ Add Character</button> }
+    </div>
+    <p class="collection-help">{{ store.auth?.user() ? 'Your collection syncs to your account.' : 'Saved in this browser. Sign in to sync across devices.' }}</p>
+    <p class="collection-message" role="status" aria-live="polite">{{ message() }}</p>
+    @if (error && !selected() && !definitionEditor && !rulesEditor) { <p class="alert" role="alert">{{ error }}</p> }
+    @if (!rules()) { <div class="rules-notice">Game progression rules have not been configured. Browse the catalog now; an editor must configure the game rules before progression can be saved.</div> }
+    <div class="character-browse-toolbar">
+        <div class="character-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></svg><input type="search" aria-label="Search characters" placeholder="Search characters..." [ngModel]="search()" (ngModelChange)="search.set($event)" /></div>
+        <button type="button" [attr.aria-expanded]="filtersOpen()" aria-controls="character-filter-panel" (click)="filtersOpen.set(!filtersOpen())"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18M3 12h18M3 19h18M8 2v6m8 1v6M8 16v6"/></svg>Filters @if (activeFilterCount()) { <span class="character-filter-count">{{ activeFilterCount() }}</span> }</button>
+        <select aria-label="Sort characters" [ngModel]="sort()" (ngModelChange)="sort.set($event)"><option value="name-asc">Name (A&ndash;Z)</option><option value="name-desc">Name (Z&ndash;A)</option><option value="rarity-desc">Rarity (High&ndash;Low)</option><option value="rarity-asc">Rarity (Low&ndash;High)</option><option value="level-desc">Level (High&ndash;Low)</option><option value="favorites">Favorites First</option></select>
+        <div class="character-view-toggle" aria-label="Character layout"><button type="button" aria-label="Grid view" title="Grid view" [class.active]="viewMode() === 'grid'" [attr.aria-pressed]="viewMode() === 'grid'" (click)="viewMode.set('grid')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h6v6H3Zm12 0h6v6h-6ZM3 15h6v6H3Zm12 0h6v6h-6Z"/></svg></button><button type="button" aria-label="List view" title="List view" [class.active]="viewMode() === 'list'" [attr.aria-pressed]="viewMode() === 'list'" (click)="viewMode.set('list')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h13M8 12h13M8 19h13M3 5h.01M3 12h.01M3 19h.01"/></svg></button></div>
+    </div>
+    <section id="character-filter-panel" class="character-filter-panel" aria-label="Character filters" [hidden]="!filtersOpen()">
+        <label>Ownership<select aria-label="Filter character ownership" [ngModel]="ownershipFilter()" (ngModelChange)="ownershipFilter.set($event)"><option value="all">All characters</option><option value="owned">Owned</option><option value="unowned">Not owned</option></select></label>
+        <label>Rarity<select aria-label="Filter character rarity" [ngModel]="rarity()" (ngModelChange)="rarity.set($event)"><option value="">All rarities</option>@for (value of rarities(); track value) { <option [value]="value">{{ rules()?.rarityLabels?.[value] ?? (value ? value + ' star' : 'Rarity not set') }}</option> }</select></label>
+        @for (attribute of filterDefinitions(); track attribute.id) { <label>{{ attribute.label }}<select [attr.aria-label]="'Filter character ' + attribute.label" [ngModel]="attributeFilters()[attribute.id] ?? ''" (ngModelChange)="setAttributeFilter(attribute.id, $event)"><option value="">All {{ attribute.label.toLowerCase() }}</option>@for (value of attribute.values; track value) { <option [value]="value">{{ value }}</option> }</select></label> }
+        <label>Progression<select aria-label="Filter character progression" [ngModel]="progressionFilter()" (ngModelChange)="progressionFilter.set($event)"><option value="all">All progression</option><option value="unfinished">Unfinished goals</option><option value="reached">Targets reached</option><option value="planned">Planned characters</option></select></label>
+        <label class="character-filter-check"><input type="checkbox" [ngModel]="favoritesOnly()" (ngModelChange)="favoritesOnly.set($event)" />Favorites only</label><button type="button" (click)="clearFilters()">Clear Filters</button>
+    </section>
+    <div class="character-grid" [class.character-list]="viewMode() === 'list'" aria-label="Character results">
+        @for (card of pageCards(); track card.characterId) { <gg-character-card [character]="card" [list]="viewMode() === 'list'" [disabled]="busy()" [canAdd]="!!rules()" (open)="details($event)" (ownership)="toggleOwnership($event)" (favorite)="toggleFavorite($event)" /> }
+        @empty { <div class="panel empty character-empty"><h2>{{ search() || activeFilterCount() ? 'No matching characters' : tab() === 'collection' ? 'Start your character collection' : 'No catalog characters yet' }}</h2><p>{{ search() || activeFilterCount() ? 'Try another search or clear the filters.' : tab() === 'collection' ? 'Choose a character from the shared catalog to track ownership and progression.' : 'An editor can add character definitions for this game.' }}</p>@if (tab() === 'collection') { <button type="button" (click)="tab.set('catalog')">Browse character catalog</button> }</div> }
+    </div>
+    <nav class="character-pagination" aria-label="Character pagination"><span role="status">Showing {{ resultStart() }}&ndash;{{ resultEnd() }} of {{ filteredCards().length }} characters</span><div class="character-page-controls"><button type="button" aria-label="Previous character page" [disabled]="currentPage() === 1" (click)="page.set(currentPage() - 1)">&#8249;</button>@for (number of pageNumbers(); track number) { <button type="button" [attr.aria-current]="currentPage() === number ? 'page' : null" (click)="page.set(number)">{{ number }}</button> }<button type="button" aria-label="Next character page" [disabled]="currentPage() === pageCount()" (click)="page.set(currentPage() + 1)">&#8250;</button></div><label>Per page<select aria-label="Characters per page" [ngModel]="pageSize()" (ngModelChange)="pageSize.set(+$event)"><option [ngValue]="12">12</option><option [ngValue]="24">24</option><option [ngValue]="48">48</option><option [ngValue]="0">All</option></select></label></nav>
 </section>
 
 @if (selected(); as entry) {
-    @if (collection; as build) {
-        <div class="modal-backdrop">
-            <section
-                class="modal character-modal character-planner"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="character-detail-title"
-                ggDialogFocus
-                (keydown.escape)="closeDetails()"
-            >
-                <div class="character-detail-heading">
-                    <button
-                        type="button"
-                        class="character-reference-button"
-                        (click)="showReference = !showReference"
-                        [attr.aria-expanded]="showReference"
-                        aria-controls="character-reference"
-                        [attr.aria-label]="'Character information for ' + entry.name"
-                    >
-                        @if (entry.icon && validImage(entry.icon)) {
-                            <img [src]="entry.icon" alt="" />
-                        }
-                        <span
-                            ><strong id="character-detail-title">{{ entry.name }}</strong>
-                            <small
-                                >{{ entry.rarity ? entry.rarity + ' ★' : 'Rarity not set' }}
-                                @if (definition(entry).damageType) {
-                                    &middot; {{ definition(entry).damageType }}
-                                }
-                                @if (definition(entry).weaponType) {
-                                    &middot; {{ definition(entry).weaponType }}
-                                }
-                            </small>
-                            <small>Character development plan &middot; View information</small>
-                        </span>
-                    </button>
-                    <label class="planner-owned"
-                        ><input type="checkbox" [(ngModel)]="build.owned" [disabled]="busy()" />
-                        Owned</label
-                    >
-                    <button
-                        type="button"
-                        (click)="closeDetails()"
-                        [disabled]="busy()"
-                        aria-label="Close character planner"
-                    >
-                        &#215;
-                    </button>
-                </div>
-                @if (error) {
-                    <p class="alert" role="alert">{{ error }}</p>
-                }
-                @if (message()) {
-                    <p class="collection-message" role="status">{{ message() }}</p>
-                }
-                @if (showReference) {
-                    <section
-                        id="character-reference"
-                        class="planner-reference"
-                        aria-label="Character information"
-                    >
-                        <div class="section-title">
-                            <h3>Character information</h3>
-                            @if (store.canEdit()) {
-                                <button
-                                    type="button"
-                                    (click)="editDefinition(entry)"
-                                    [disabled]="busy()"
-                                >
-                                    Edit shared info
-                                </button>
-                            }
-                        </div>
-                        @if (definition(entry).roles.length) {
-                            <p>{{ definition(entry).roles.join(' / ') }}</p>
-                        }
-                        @if (entry.notes) {
-                            <p class="character-description">{{ entry.notes }}</p>
-                        }
-                        @for (skill of definition(entry).skills; track $index) {
-                            <article class="character-skill">
-                                <strong>{{ skill.name }}</strong>
-                                <p>{{ skill.description }}</p>
-                            </article>
-                        }
-                        @for (skill of definition(entry).passiveSkills; track $index) {
-                            <article class="character-skill">
-                                <strong>{{ skill.name }}</strong>
-                                <p>{{ skill.description }}</p>
-                            </article>
-                        }
-                    </section>
-                }
-                <div class="character-detail-grid">
-                    <div class="planner-main">
-                        @if (rules(); as gameRules) {
-                            <section aria-labelledby="progression-title">
-                                <div class="section-title">
-                                    <h3 id="progression-title">Progression goals</h3>
-                                    <small>Current &#8594; Target</small>
-                                </div>
-                                <div class="planner-pair">
-                                    <label
-                                        >Current level<input
-                                            type="number"
-                                            [min]="levelMinimum()"
-                                            [max]="characterLevelCap()"
-                                            [(ngModel)]="build.level"
-                                            [disabled]="busy()"
-                                    /></label>
-                                    <label
-                                        >Target level<input
-                                            type="number"
-                                            [min]="levelMinimum(true)"
-                                            [max]="characterLevelCap(true)"
-                                            [ngModel]="targetProgress()!.level"
-                                            (ngModelChange)="setTargetLevel($event)"
-                                            [disabled]="busy()"
-                                    /></label>
-                                </div>
-                                @if (gameRules.ascensionRanks?.length) {
-                                    <div class="planner-pair">
-                                        <label
-                                            >Current ascension rank<select
-                                                [ngModel]="build.ascensionRank ?? 0"
-                                                (ngModelChange)="build.ascensionRank = $event"
-                                                [disabled]="busy()"
-                                            >
-                                                @for (
-                                                    rank of gameRules.ascensionRanks;
-                                                    track $index
-                                                ) {
-                                                    <option [ngValue]="$index">
-                                                        Rank {{ $index }} (level
-                                                        {{ rank.levelCap }})
-                                                    </option>
-                                                }
-                                            </select></label
-                                        >
-                                        <label
-                                            >Target ascension rank<select
-                                                [ngModel]="targetProgress()!.ascensionRank ?? 0"
-                                                (ngModelChange)="setTargetRank($event)"
-                                                [disabled]="busy()"
-                                            >
-                                                @for (
-                                                    rank of gameRules.ascensionRanks;
-                                                    track $index
-                                                ) {
-                                                    <option
-                                                        [ngValue]="$index"
-                                                        [disabled]="
-                                                            $index < (build.ascensionRank ?? 0)
-                                                        "
-                                                    >
-                                                        Rank {{ $index }} (level
-                                                        {{ rank.levelCap }})
-                                                    </option>
-                                                }
-                                            </select></label
-                                        >
-                                    </div>
-                                }
-                                @for (track of gameRules.progressionTracks; track track.id) {
-                                    <div class="planner-pair">
-                                        <label
-                                            >Current {{ track.label
-                                            }}<input
-                                                type="number"
-                                                min="0"
-                                                [max]="track.max"
-                                                [ngModel]="build.progression[track.id] ?? 0"
-                                                (ngModelChange)="
-                                                    build.progression[track.id] = $event
-                                                "
-                                                [disabled]="busy()"
-                                        /></label>
-                                        <label
-                                            >Target {{ track.label
-                                            }}<input
-                                                type="number"
-                                                [min]="build.progression[track.id] ?? 0"
-                                                [max]="track.max"
-                                                [ngModel]="
-                                                    targetProgress()!.progression[track.id] ?? 0
-                                                "
-                                                (ngModelChange)="setTargetTrack(track.id, $event)"
-                                                [disabled]="busy()"
-                                        /></label>
-                                    </div>
-                                }
-                            </section>
-                            @if (plannerSkills().length) {
-                                <section
-                                    class="planner-section"
-                                    aria-labelledby="skill-levels-title"
-                                >
-                                    <h3 id="skill-levels-title">Skill levels</h3>
-                                    <div class="planner-skills">
-                                        @for (skill of plannerSkills(); track skill.key) {
-                                            <div class="planner-skill">
-                                                <h4>{{ skill.name }}</h4>
-                                                <label
-                                                    >Current<input
-                                                        type="number"
-                                                        min="1"
-                                                        [max]="skillLevelCap(skill)"
-                                                        [ngModel]="
-                                                            build.skillLevels?.[skill.key] ?? 1
-                                                        "
-                                                        (ngModelChange)="
-                                                            setSkillLevel(skill.key, $event)
-                                                        "
-                                                        [disabled]="busy()"
-                                                /></label>
-                                                <label
-                                                    >Target<input
-                                                        type="number"
-                                                        [min]="build.skillLevels?.[skill.key] ?? 1"
-                                                        [max]="skillLevelCap(skill, true)"
-                                                        [ngModel]="
-                                                            targetProgress()!.skillLevels?.[
-                                                                skill.key
-                                                            ] ?? 1
-                                                        "
-                                                        (ngModelChange)="
-                                                            setSkillLevel(skill.key, $event, true)
-                                                        "
-                                                        [disabled]="busy()"
-                                                /></label>
-                                            </div>
-                                        }
-                                    </div>
-                                </section>
-                            }
-                            @if (gameRules.equipmentSlots.length) {
-                                <details class="planner-section planner-equipment">
-                                    <summary>Weapons &amp; equipment</summary>
-                                    <p class="collection-help">
-                                        Track equipped and planned items. Use one item per line
-                                        within each slot's limit.
-                                    </p>
-                                    @for (slot of gameRules.equipmentSlots; track slot.id) {
-                                        <div class="planner-pair">
-                                            <label
-                                                >Current {{ slot.label
-                                                }}<textarea
-                                                    rows="2"
-                                                    [ngModel]="gearText(slot.id)"
-                                                    (ngModelChange)="setGear(slot.id, $event)"
-                                                    [disabled]="busy()"
-                                                ></textarea
-                                                ><small>Up to {{ slot.limit }} items</small></label
-                                            >
-                                            <label
-                                                >Target {{ slot.label
-                                                }}<textarea
-                                                    rows="2"
-                                                    [ngModel]="gearText(slot.id, true)"
-                                                    (ngModelChange)="setGear(slot.id, $event, true)"
-                                                    [disabled]="busy()"
-                                                ></textarea
-                                                ><small>Up to {{ slot.limit }} items</small></label
-                                            >
-                                        </div>
-                                    }
-                                </details>
-                            }
-                            @if (
-                                orphanGear().length ||
-                                orphanTracks().length ||
-                                orphanSkills().length
-                            ) {
-                                <details class="planner-section">
-                                    <summary>Previously saved values</summary>
-                                    @for (key of orphanSkills(); track key) {
-                                        <p class="rules-notice">
-                                            Removed skill: level
-                                            {{
-                                                build.skillLevels?.[key] ??
-                                                    build.target?.skillLevels?.[key]
-                                            }}
-                                            <button type="button" (click)="clearOrphanSkill(key)">
-                                                Clear obsolete skill
-                                            </button>
-                                        </p>
-                                    }
-                                    @for (id of orphanGear(); track id) {
-                                        <p class="rules-notice">
-                                            Removed slot:
-                                            {{ gearText(id) || gearText(id, true) }}
-                                            <button type="button" (click)="clearOrphanGear(id)">
-                                                Clear obsolete slot
-                                            </button>
-                                        </p>
-                                    }
-                                    @for (id of orphanTracks(); track id) {
-                                        <p class="rules-notice">
-                                            Removed progression:
-                                            {{
-                                                build.progression[id] ??
-                                                    build.target?.progression?.[id]
-                                            }}
-                                            <button type="button" (click)="clearOrphanTrack(id)">
-                                                Clear obsolete track
-                                            </button>
-                                        </p>
-                                    }
-                                </details>
-                            }
-                            <section
-                                class="planner-section planner-materials"
-                                aria-labelledby="materials-title"
-                            >
-                                @let plan = materialPlan(entry);
-                                <div class="section-title"><h3 id="materials-title">Required materials</h3><span class="planner-badge">{{ plan.issues.length ? 'Unavailable / partial' : 'Verified recipes' }}</span></div>
-                                @for (issue of plan.issues; track $index) { <p>{{ issue }}</p> }
-                                <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:10px">
-                                    @for (row of plan.materials; track row.item.id) { <gg-farming-material [material]="row" [interactive]="false" /> }
-                                </div>
-                                @if (!plan.materials.length && !plan.issues.length) { <p>No additional materials are needed for the saved goals.</p> }
-                                <p><a [href]="'/games/' + game() + '/farming'">Open farming planner ?</a></p>
-                            </section>
-                        } @else {
-                            <p class="rules-notice">
-                                An editor must configure this game's progression rules before you
-                                can save a plan.
-                            </p>
-                        }
-                    </div>
-                    <aside class="planner-sidebar" aria-label="Guides and personal notes">
-                        <h3>Guides &amp; resources</h3>
-                        @if (definition(entry).guides.length) {
-                            <ul class="character-guide-links">
-                                @for (guide of definition(entry).guides; track $index) {
-                                    <li>
-                                        <a
-                                            [href]="guide.url"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            >{{ guide.title }} &#8599;</a
-                                        ><small>Shared resource</small>
-                                    </li>
-                                }
-                            </ul>
-                        } @else {
-                            <p class="collection-help">No shared resources linked yet.</p>
-                        }
-                        @if (store.canEdit()) {
-                            <button
-                                type="button"
-                                (click)="editDefinition(entry)"
-                                [disabled]="busy()"
-                            >
-                                Edit shared resources
-                            </button>
-                        }
-                        <ul class="character-guide-links">
-                            @for (guide of build.personalGuides ?? []; track $index) {
-                                @if (validGuide(guide.url)) {
-                                    <li>
-                                        <a
-                                            [href]="guide.url"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            >{{ guide.title }} &#8599;</a
-                                        ><small>Personal resource</small>
-                                    </li>
-                                }
-                            }
-                        </ul>
-                        <details class="planner-section">
-                            <summary>
-                                Personal resources
-                                @if (build.personalGuides?.length) {
-                                    ({{ build.personalGuides!.length }})
-                                }
-                            </summary>
-                            @for (guide of build.personalGuides ?? []; track $index) {
-                                <div class="planner-resource-editor">
-                                    <label
-                                        >Title<input
-                                            [(ngModel)]="guide.title"
-                                            maxlength="160"
-                                            [disabled]="busy()"
-                                    /></label>
-                                    <label
-                                        >URL<input
-                                            type="url"
-                                            [(ngModel)]="guide.url"
-                                            placeholder="https://"
-                                            [disabled]="busy()"
-                                    /></label>
-                                    <div class="planner-link-actions">
-                                        <button
-                                            type="button"
-                                            (click)="movePersonalGuide($index, -1)"
-                                            [disabled]="$first || busy()"
-                                            aria-label="Move resource up"
-                                        >
-                                            &#8593;
-                                        </button>
-                                        <button
-                                            type="button"
-                                            (click)="movePersonalGuide($index, 1)"
-                                            [disabled]="$last || busy()"
-                                            aria-label="Move resource down"
-                                        >
-                                            &#8595;
-                                        </button>
-                                        <button
-                                            type="button"
-                                            (click)="build.personalGuides!.splice($index, 1)"
-                                            [disabled]="busy()"
-                                        >
-                                            Remove
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                            <button
-                                type="button"
-                                (click)="addPersonalGuide()"
-                                [disabled]="busy() || (build.personalGuides?.length ?? 0) >= 30"
-                            >
-                                + Personal resource
-                            </button>
-                        </details>
-                        <details class="planner-section">
-                            <summary>Personal notes</summary>
-                            <label
-                                >Only visible to you<textarea
-                                    rows="5"
-                                    [(ngModel)]="build.notes"
-                                    maxlength="5000"
-                                    placeholder="Build priorities, farming reminders, team ideas?"
-                                    [disabled]="busy()"
-                                ></textarea>
-                            </label>
-                        </details>
-                    </aside>
-                </div>
-                <footer class="character-modal-footer planner-footer">
-                    <span class="collection-help" role="status">{{
-                        hasUnsavedChanges()
-                            ? 'Unsaved changes'
-                            : entry.characterCollection
-                              ? 'Saved progression'
-                              : 'No saved development plan'
-                    }}</span>
-                    <button
-                        type="button"
-                        class="primary"
-                        (click)="saveCollection()"
-                        [disabled]="busy() || !rules()"
-                    >
-                        {{ busy() ? 'Saving?' : 'Save development plan' }}
-                    </button>
-                    @if (entry.characterCollection?.owned) {
-                        @if (confirmingRemoval) {
-                            <section class="character-remove-confirm" aria-label="Confirm removal">
-                                <p>
-                                    This clears your saved progression and goals. The shared
-                                    character stays in the catalog.
-                                </p>
-                                <button
-                                    type="button"
-                                    (click)="removeCollection()"
-                                    [disabled]="busy()"
-                                >
-                                    Remove from collection
-                                </button>
-                                <button
-                                    type="button"
-                                    (click)="confirmingRemoval = false"
-                                    [disabled]="busy()"
-                                >
-                                    Cancel
-                                </button>
-                            </section>
-                        } @else {
-                            <button
-                                type="button"
-                                class="character-remove"
-                                (click)="confirmingRemoval = true"
-                                [disabled]="busy()"
-                            >
-                                Remove from my collection
-                            </button>
-                        }
-                    }
-                </footer>
-            </section>
-        </div>
-    }
+    <gg-character-details [entry]="entry" [gameName]="gameName()" [entries]="store.entries()" [rules]="rules()" [accent]="accent()" [canEdit]="store.canEdit()" (closed)="closeDetails()" (editCatalog)="editDefinition(entry)" />
 }
 
 @if (definitionEditor; as entry) {
     @if (entry.characterDefinition; as data) {
         <div class="modal-backdrop">
             <section
-                class="modal character-modal"
+                class="modal character-modal shared-character-editor"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="character-definition-title"
                 ggDialogFocus
                 (keydown.escape)="!busy() && (definitionEditor = null)"
             >
-                <div class="section-title">
-                    <h2 id="character-definition-title">Shared character information</h2>
+                <header class="character-editor-header">
+                    <div><h2 id="character-definition-title">Shared Character Editor</h2><p>{{ gameName() }} &middot; Shared character information</p></div>
                     <button
                         type="button"
                         (click)="definitionEditor = null"
@@ -666,14 +64,24 @@
                     >
                         &#215;
                     </button>
-                </div>
-                <p class="collection-help">
-                    These details are shared by everyone. Level and equipped items belong in Your
-                    build.
-                </p>
-                @if (error) {
-                    <p class="alert" role="alert">{{ error }}</p>
-                }
+                </header>
+                <div class="character-editor-workspace">
+                    <nav class="character-editor-sidebar" aria-label="Shared character editor sections">
+                        <div class="character-editor-preview">
+                            @if (validImage(data.headshot || entry.icon || ''); as image) { <img [src]="image" alt="" /> }
+                            <div><strong>{{ entry.name || 'New character' }}</strong><small>{{ gameName() }}</small></div>
+                        </div>
+                        @for (item of editorSections; track item.id) {
+                            <button type="button" [class.selected]="editorSection().id === item.id" [attr.aria-current]="editorSection().id === item.id ? 'page' : null" [disabled]="busy()" (click)="selectEditorSection(item)">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path [attr.d]="item.icon" /></svg><span>{{ item.label }}</span>
+                            </button>
+                        }
+                        <p class="collection-help">Shared by everyone. Personal levels and equipment are managed in Your build.</p>
+                    </nav>
+                    <div class="character-editor-main">
+                        <div class="character-editor-panel-heading"><h3>{{ editorSection().label }}</h3><p>{{ editorSection().description }}</p></div>
+                        <fieldset class="character-editor-fields" [disabled]="busy()">
+                        <div [hidden]="editorSection().id !== 'overview'">
                 <div class="character-form-grid">
                     <label
                         >Character name<input
@@ -688,25 +96,15 @@
                             [(ngModel)]="entry.rarity"
                             required
                     /></label>
-                    <label
-                        >Weapon type<input
-                            [(ngModel)]="data.weaponType"
-                            list="character-weapon-types" /></label
-                    ><label
-                        >Damage type<input
-                            [(ngModel)]="data.damageType"
-                            list="character-damage-types"
-                    /></label>
+                    <label>Weapon Type<select [(ngModel)]="data.weaponType" aria-label="Weapon Type">
+                        <option value="">Not set</option>
+                        @for (value of characterTypeOptions('weaponTypes', data.weaponType); track value) { <option [value]="value">{{ value }}</option> }
+                    </select></label>
+                    <label>Damage Type<select [(ngModel)]="data.damageType" aria-label="Damage Type">
+                        <option value="">Not set</option>
+                        @for (value of characterTypeOptions('damageTypes', data.damageType); track value) { <option [value]="value">{{ value }}</option> }
+                    </select></label>
                 </div>
-                <datalist id="character-weapon-types">
-                    @for (value of rules()?.weaponTypes ?? []; track value) {
-                        <option [value]="value"></option>
-                    }</datalist
-                ><datalist id="character-damage-types">
-                    @for (value of rules()?.damageTypes ?? []; track value) {
-                        <option [value]="value"></option>
-                    }
-                </datalist>
                 <label
                     >Roles<input
                         [ngModelOptions]="{ updateOn: 'blur' }"
@@ -715,12 +113,27 @@
                         placeholder="DPS, Support"
                 /></label>
                 <label>Description<textarea rows="3" [(ngModel)]="entry.notes"></textarea></label>
-                <gg-game-image-picker
-                    [game]="game()"
-                    label="Character portrait"
-                    [value]="entry.icon ?? ''"
-                    (valueChange)="entry.icon = $event"
-                />
+                        </div>
+                        <div [hidden]="editorSection().id !== 'attributes'">
+                <gg-character-catalog-fields section="attributes" [definition]="data" [rules]="rules()" [game]="game()" [entries]="store.entries()" />
+                        </div>
+                        <div [hidden]="editorSection().id !== 'images'">
+                            <div class="character-image-grid">
+                                <section class="character-image-card" aria-labelledby="character-icon-title">
+                                    <header><div><h4 id="character-icon-title">Character Icon</h4><p>Square headshot for the character dialog and inventory cards.</p></div><span class="image-state" [class.is-set]="data.headshot || entry.icon">{{ data.headshot || entry.icon ? 'Set' : 'Not set' }}</span></header>
+                                    <gg-game-image-picker [game]="game()" label="Character Icon" imagePurpose="square" [selectionOnly]="true" [value]="data.headshot || entry.icon || ''" (valueChange)="setHeadshot($event)" />
+                                </section>
+                                <section class="character-image-card" aria-labelledby="character-splash-title">
+                                    <header><div><h4 id="character-splash-title">Splash Art</h4><p>Full artwork beside story guides and the default character header background. Transparency supported.</p></div><span class="image-state" [class.is-set]="entry.characterInformation?.imageUrl">{{ entry.characterInformation?.imageUrl ? 'Set' : 'Not set' }}</span></header>
+                                    <gg-game-image-picker [game]="game()" label="Splash Art" imagePurpose="fullArt" [selectionOnly]="true" [value]="entry.characterInformation?.imageUrl ?? ''" (valueChange)="setSplashArt($event)" />
+                                </section>
+                                <section class="character-image-card character-banner-card" aria-labelledby="character-banner-title">
+                                    <header><div><h4 id="character-banner-title">Character Banner</h4><p>Optional wide background for the character dialog header. Overrides splash art when set.</p></div><span class="image-state" [class.is-set]="data.banner">{{ data.banner ? 'Set' : 'Using splash art' }}</span></header>
+                                    <gg-game-image-picker [game]="game()" label="Character Banner" imagePurpose="characterBanner" [banner]="true" [selectionOnly]="true" [value]="data.banner ?? ''" (valueChange)="setCharacterBanner($event)" />
+                                </section>
+                            </div>
+                        </div>
+                        <div [hidden]="editorSection().id !== 'skills'">
                 <fieldset>
                     <legend>Skills</legend>
                     @for (skill of data.skills; track $index) {
@@ -748,6 +161,8 @@
                     }
                     <button type="button" (click)="addSkill(data.skills)">+ Add skill</button>
                 </fieldset>
+                        </div>
+                        <div [hidden]="editorSection().id !== 'passives'">
                 <fieldset>
                     <legend>Passive skills</legend>
                     @for (skill of data.passiveSkills; track $index) {
@@ -777,6 +192,9 @@
                         + Add passive skill
                     </button>
                 </fieldset>
+                        </div>
+                        <div [hidden]="editorSection().id !== 'resources'">
+                <gg-character-catalog-fields section="resources" [definition]="data" [rules]="rules()" [game]="game()" [entries]="store.entries()" />
                 <fieldset>
                     <legend>Guides &amp; strategies</legend>
                     @for (guide of data.guides; track $index) {
@@ -796,7 +214,12 @@
                         + Add guide link
                     </button>
                 </fieldset>
-                <div class="character-modal-footer">
+                        </div>
+                        </fieldset>
+                    </div>
+                </div>
+                @if (error) { <p class="alert character-editor-error" role="alert">{{ error }}</p> }
+                <footer class="character-modal-footer character-editor-footer">
                     <button
                         type="button"
                         class="primary"
@@ -807,207 +230,12 @@
                     ><button type="button" (click)="definitionEditor = null" [disabled]="busy()">
                         Cancel
                     </button>
-                </div>
+                </footer>
             </section>
         </div>
     }
 }
 
 @if (rulesEditor; as draft) {
-    <div class="modal-backdrop">
-        <section
-            class="modal character-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="character-rules-title"
-            ggDialogFocus
-            (keydown.escape)="!busy() && (rulesEditor = null)"
-        >
-            <div class="section-title">
-                <h2 id="character-rules-title">Game character rules</h2>
-                <button
-                    type="button"
-                    (click)="rulesEditor = null"
-                    [disabled]="busy()"
-                    aria-label="Close game rules"
-                >
-                    &#215;
-                </button>
-            </div>
-            <p class="collection-help">
-                One shared reference for every character in this game. Verify the initial values
-                before saving. Equipment and progression IDs stay stable when you rename their
-                labels.
-            </p>
-            @if (error) {
-                <p class="alert" role="alert">{{ error }}</p>
-            }
-            <div class="character-form-grid">
-                <label
-                    >Maximum team size<input
-                        type="number"
-                        min="1"
-                        max="12"
-                        [ngModel]="draft.teamSize ?? 4"
-                        (ngModelChange)="draft.teamSize = $event"
-                /></label>
-                <label
-                    >Maximum character level<input
-                        type="number"
-                        min="1"
-                        max="1000"
-                        [(ngModel)]="draft.levelCap" /></label
-                ><label
-                    >Available rarities<input
-                        [ngModelOptions]="{ updateOn: 'blur' }"
-                        [ngModel]="draft.rarities.join(', ')"
-                        (ngModelChange)="draft.rarities = rarityValues($event)"
-                        placeholder="4, 5"
-                /></label>
-            </div>
-            <label
-                >Weapon types<input
-                    [ngModelOptions]="{ updateOn: 'blur' }"
-                    [ngModel]="draft.weaponTypes.join(', ')"
-                    (ngModelChange)="draft.weaponTypes = csv($event)"
-                    placeholder="Comma-separated weapon types"
-            /></label>
-            <label
-                >Damage types<input
-                    [ngModelOptions]="{ updateOn: 'blur' }"
-                    [ngModel]="draft.damageTypes.join(', ')"
-                    (ngModelChange)="draft.damageTypes = csv($event)"
-                    placeholder="Comma-separated damage types"
-            /></label>
-            <label
-                >Roles<input
-                    [ngModelOptions]="{ updateOn: 'blur' }"
-                    [ngModel]="draft.roles.join(', ')"
-                    (ngModelChange)="draft.roles = csv($event)"
-                    placeholder="DPS, Support"
-            /></label>
-            <fieldset>
-                <legend>Enhancement categories</legend>
-                <label
-                    >Categories<input
-                        [ngModelOptions]="{ updateOn: 'blur' }"
-                        [ngModel]="(draft.enhancementCategories ?? []).join(', ')"
-                        (ngModelChange)="draft.enhancementCategories = csv($event)"
-                        placeholder="Weapon, Artifact"
-                /></label>
-                <p class="collection-help">
-                    Separate categories with commas, then assign them to equipment slots below.
-                </p>
-            </fieldset>
-            <fieldset>
-                <legend>Equipment slots</legend>
-                <p class="collection-help">
-                    Define the slots this game uses, such as a weapon, artifact pieces, or echo
-                    slots.
-                </p>
-                @for (slot of draft.equipmentSlots; track slot.id) {
-                    <div class="character-editor-row">
-                        <label>Slot name<input [(ngModel)]="slot.label" /></label
-                        ><label
-                            >Enhancement category<select
-                                [ngModel]="slot.category ?? ''"
-                                (ngModelChange)="slot.category = $event"
-                            >
-                                <option value="">Uncategorized</option>
-                                @if (
-                                    slot.category &&
-                                    !(draft.enhancementCategories ?? []).includes(slot.category)
-                                ) {
-                                    <option [value]="slot.category">
-                                        {{ slot.category }} (removed)
-                                    </option>
-                                }
-                                @for (
-                                    category of draft.enhancementCategories ?? [];
-                                    track category
-                                ) {
-                                    <option [value]="category">{{ category }}</option>
-                                }
-                            </select></label
-                        ><label
-                            >Item limit<input
-                                type="number"
-                                min="1"
-                                max="20"
-                                [(ngModel)]="slot.limit" /></label
-                        ><button type="button" (click)="draft.equipmentSlots.splice($index, 1)">
-                            Remove slot
-                        </button>
-                    </div>
-                }
-                <button type="button" (click)="addSlot()">+ Equipment slot</button>
-            </fieldset>
-            <fieldset>
-                <legend>Ascension ranks</legend>
-                <p class="collection-help">
-                    Start with rank 0 (unascended). Each rank sets the character level and skill
-                    level caps it unlocks. Character level caps must increase, skill caps cannot
-                    decrease, and the final rank must reach the game's maximum character level.
-                    Leave empty for no ascension gates.
-                </p>
-                @for (rank of draft.ascensionRanks ?? []; track $index) {
-                    <div class="character-editor-row">
-                        <label
-                            >Rank {{ $index }} character level cap<input
-                                type="number"
-                                min="1"
-                                [max]="draft.levelCap"
-                                [(ngModel)]="rank.levelCap"
-                        /></label>
-                        <label
-                            >Skill level cap<input
-                                type="number"
-                                min="1"
-                                max="1000"
-                                [(ngModel)]="rank.skillLevelCap"
-                        /></label>
-                        @if ($last) {
-                            <button type="button" (click)="draft.ascensionRanks!.pop()">
-                                Remove rank
-                            </button>
-                        }
-                    </div>
-                }
-                <button type="button" (click)="addAscensionRank()">+ Ascension rank</button>
-            </fieldset>
-            <fieldset>
-                <legend>Progression tracks</legend>
-                <p class="collection-help">
-                    Add game-specific numeric progression such as ascension, constellation,
-                    resonance chain, or skill ranks.
-                </p>
-                @for (track of draft.progressionTracks; track track.id) {
-                    <div class="character-editor-row">
-                        <label>Track name<input [(ngModel)]="track.label" /></label
-                        ><label
-                            >Maximum rank<input
-                                type="number"
-                                min="0"
-                                max="1000"
-                                [(ngModel)]="track.max" /></label
-                        ><button type="button" (click)="draft.progressionTracks.splice($index, 1)">
-                            Remove track
-                        </button>
-                    </div>
-                }
-                <button type="button" (click)="addTrack()">+ Progression track</button>
-            </fieldset>
-            <p class="collection-help">
-                Changing limits or removing slots may require users to update existing builds. Saved
-                data is retained until they explicitly change it.
-            </p>
-            <div class="character-modal-footer">
-                <button type="button" class="primary" (click)="saveRules()" [disabled]="busy()">
-                    Save game rules</button
-                ><button type="button" (click)="rulesEditor = null" [disabled]="busy()">
-                    Cancel
-                </button>
-            </div>
-        </section>
-    </div>
+    <gg-game-rules-editor [draft]="draft" [game]="game()" [gameName]="gameName()" [original]="rules()" [entries]="store.entries()" [busy]="busy()" [error]="error" (save)="saveRules()" (dismissed)="rulesEditor = null" />
 }

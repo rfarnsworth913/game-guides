@@ -245,7 +245,7 @@
                             [value]="entry.icon ?? ''" (valueChange)="entry.icon = $event" />
                     </div>
                 </div>
-                    <gg-game-image-picker [game]="entry.game" label="Region Header Background" [selectionOnly]="true"
+                    <gg-game-image-picker [game]="entry.game" label="Region Header Background" imagePurpose="banner" [selectionOnly]="true"
                         [value]="entry.sectionImageUrl ?? ''" (valueChange)="entry.sectionImageUrl = $event" />
                 } @else {
                     <ng-template #overviewFields>

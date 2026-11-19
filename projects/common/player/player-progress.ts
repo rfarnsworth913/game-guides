@@ -5,6 +5,7 @@ import { validRowCompletion } from '../quests/story-template';
 import { validCharacterCollection } from '../characters/characters';
 import { TEAM_PROGRESS_ID } from '../../lib/constants/team.constants';
 import { validTeams } from './teams';
+import {validEquipmentInstances} from '../characters/character-equipment';
 export function safeId(id: string): boolean {
     return (
         id.length > 0 &&
@@ -21,9 +22,10 @@ export function validPlayerState(value: unknown): value is PlayerState {
     const state = value as PlayerState;
     return (
         Object.keys(state).every((key) =>
-            ['completed', 'quantity', 'target', 'storyRowCompletion', 'characterCollection', 'teams'].includes(key),
+            ['completed', 'quantity', 'target', 'storyRowCompletion', 'characterCollection', 'teams', 'equipmentInstances'].includes(key),
         ) &&
         typeof state.completed === 'boolean' &&
+        (state.equipmentInstances === globalThis.undefined || validEquipmentInstances(state.equipmentInstances)) &&
         (typeof state.teams === 'undefined' || validTeams(state.teams)) &&
         [state.quantity, state.target].every(
             (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1e9,
@@ -48,7 +50,7 @@ export function validProgressState(value: unknown, gameIds: readonly string[] | 
                 safeId(key.slice(slash + 1)) &&
                 validPlayerState(state) &&
                 (key.slice(slash + 1) === TEAM_PROGRESS_ID
-                    ? Array.isArray(state.teams) && !state.completed && state.quantity === 0 && state.target === 0 && !state.characterCollection && !state.storyRowCompletion
+                    ? Array.isArray(state.teams) && !state.completed && state.quantity === 0 && state.target === 0 && !state.characterCollection && !state.storyRowCompletion && !state.equipmentInstances
                     : typeof state.teams === 'undefined')
             );
         })

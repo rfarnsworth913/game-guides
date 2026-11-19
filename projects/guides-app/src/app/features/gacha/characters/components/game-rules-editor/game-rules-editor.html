@@ -1,0 +1,216 @@
+<div class="modal-backdrop">
+    <section class="modal story-guide-dialog patch-modal" role="dialog" aria-modal="true" aria-labelledby="rules-title" ggDialogFocus (keydown.escape)="close()">
+        <header class="story-dialog-header"><div><h2 id="rules-title">Character Game Rules</h2><p>{{ gameName() }} · Shared character configuration</p></div><button type="button" class="story-dialog-close" aria-label="Close game rules" [disabled]="busy()" (click)="close()">×</button></header>
+        <form (ngSubmit)="submit()">
+            <fieldset class="rules-body" [disabled]="busy()">
+                <div class="section-editor-workspace">
+                    <nav class="section-editor-sidebar" aria-label="Game rules sections">
+                        @for (item of tabs; track item) { <button type="button" class="editor-overview-link" [class.selected]="tab === item" [attr.aria-current]="tab === item ? 'page' : null" (click)="select(item)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path [attr.d]="tabIcons[item]" /></svg>{{ item }}</button> }
+                    </nav>
+                    <div class="section-editor-main">
+                        <div class="editor-panel-heading"><div><h3>{{ tab }}</h3><p>Shared rules for every character in {{ gameName() }}. Changes are saved together.</p></div></div>
+                        @switch (tab) {
+                            @case ('General') {
+                                <div class="rules-grid">
+                                    <label>Game identifier<input [value]="game()" readonly /></label><label>Game name<input [value]="gameName()" readonly /></label>
+                                    <label>Default progression profile<select [ngModel]="draft().defaultProgressionProfileId ?? ''" (ngModelChange)="setDefault($event)" [ngModelOptions]="{standalone: true}"><option value="">Existing game-wide rules</option>@for (profile of draft().progressionProfiles ?? []; track profile) { <option [value]="profile.id">{{ profile.id }}</option> }</select></label>
+                                    <label>Configuration version<input type="text" maxlength="64" [ngModel]="draft().configurationVersion" (ngModelChange)="setVersion($event)" [ngModelOptions]="{standalone: true}" placeholder="e.g. 1.6" /></label>
+                                    <label class="full">Configuration description<textarea rows="3" maxlength="5000" [(ngModel)]="draft().description" [ngModelOptions]="{standalone: true}"></textarea></label>
+                                </div>
+                                <p class="rules-help">Existing character and account identifiers are preserved. Breaking changes require a separate data migration.</p>
+                            }
+                            @case ('Attributes') {
+                                <div class="rules-toolbar"><h4>Character attributes</h4><button type="button" (click)="addAttribute()">+ Add Attribute</button></div>
+                                @for (attribute of draft().attributes ?? []; track attribute; let i = $index) {
+                                    <details class="rules-row" (dragover)="$event.preventDefault()" (drop)="drop($event, draft().attributes!, i)">
+                                        <summary><span class="rules-handle" draggable="true" (dragstart)="drag($event, draft().attributes!, i)" aria-hidden="true">⠿</span><span><strong>{{ attribute.label || 'New attribute' }}</strong><small>{{ attribute.type }} · {{ attribute.id }}</small></span></summary>
+                                        <div class="rules-fields rules-grid">
+                                            <label>Identifier<input [(ngModel)]="attribute.id" [readonly]="existingAttribute(attribute.id)" [ngModelOptions]="{standalone: true}" required /></label>
+                                            <label>Label<input [(ngModel)]="attribute.label" [ngModelOptions]="{standalone: true}" required maxlength="160" /></label>
+                                            <label>Data type<select [(ngModel)]="attribute.type" [ngModelOptions]="{standalone: true}">@for (type of types; track type) { <option [value]="type">{{ type === 'enum' ? 'Single-select' : type === 'string' ? 'Text' : type }}</option> }</select></label>
+                                            @if (attribute.type === 'enum' || attribute.type === 'multi-select') { <label>Allowed values (comma-separated)<input [ngModel]="(attribute.options ?? []).join(', ')" (ngModelChange)="attribute.options = csv($event)" [ngModelOptions]="{standalone: true}" /></label> }
+                                            <div class="rules-checks full"><label><input type="checkbox" [ngModel]="attribute.searchable !== false" (ngModelChange)="attribute.searchable = $event" [ngModelOptions]="{standalone: true}" />Searchable</label><label><input type="checkbox" [(ngModel)]="attribute.filterable" [ngModelOptions]="{standalone: true}" />Filterable</label><label><input type="checkbox" [(ngModel)]="attribute.visibleInHeader" [ngModelOptions]="{standalone: true}" />Show on card</label><label><input type="checkbox" [ngModel]="attribute.visibleInDetails !== false" (ngModelChange)="attribute.visibleInDetails = $event" [ngModelOptions]="{standalone: true}" />Show on details</label><label><input type="checkbox" [(ngModel)]="attribute.required" [ngModelOptions]="{standalone: true}" />Required</label></div>
+                                            <div class="rules-actions full"><button type="button" aria-label="Move attribute up" [disabled]="i === 0" (click)="move(draft().attributes!, i, -1)">↑</button><button type="button" aria-label="Move attribute down" [disabled]="i === draft().attributes!.length - 1" (click)="move(draft().attributes!, i, 1)">↓</button><button type="button" class="danger" (click)="draft().attributes!.splice(i, 1)">Remove Attribute</button></div>
+                                        </div>
+                                    </details>
+                                } @empty { <p class="rules-help">No additional attributes configured. The existing classification fields below remain available.</p> }
+                                <details class="rules-row"><summary>Existing classification fields</summary><div class="rules-fields rules-grid">
+                                    <label>Rarities (comma-separated)<input [ngModel]="draft().rarities.join(', ')" (ngModelChange)="draft().rarities = numbers($event)" [ngModelOptions]="{standalone: true}" /></label>
+                                    <label>Weapon types<input [ngModel]="draft().weaponTypes.join(', ')" (ngModelChange)="draft().weaponTypes = csv($event)" [ngModelOptions]="{standalone: true}" /></label>
+                                    <label>Damage types<input [ngModel]="draft().damageTypes.join(', ')" (ngModelChange)="draft().damageTypes = csv($event)" [ngModelOptions]="{standalone: true}" /></label>
+                                    <label>Roles<input [ngModel]="draft().roles.join(', ')" (ngModelChange)="draft().roles = csv($event)" [ngModelOptions]="{standalone: true}" /></label>
+                                </div></details>
+                            }
+                            @case ('Progression') {
+                                <div class="rules-toolbar"><h4>Progression profiles</h4><button type="button" (click)="addProfile()">+ Add Profile</button></div>
+                                @for (profile of draft().progressionProfiles ?? []; track profile; let p = $index) {
+                                    <section class="rules-profile"><div class="rules-grid"><label>Profile identifier<input [readonly]="existingProfile(profile.id)" [(ngModel)]="profile.id" [ngModelOptions]="{standalone: true}" required /></label><div class="rules-actions"><button type="button" (click)="addTrack(profile)">+ Add Track</button><button type="button" class="danger" (click)="draft().progressionProfiles!.splice(p, 1)">Remove Profile</button></div></div>
+                                        @for (track of profile.tracks; track track; let t = $index) {
+                                            <details class="rules-row" (dragover)="$event.preventDefault()" (drop)="drop($event, profile.tracks, t)"><summary><span draggable="true" class="rules-handle" (dragstart)="drag($event, profile.tracks, t)" aria-hidden="true">⠿</span><span><strong>{{ track.label || 'New track' }}</strong><small>{{ track.type }} · {{ track.type === 'unlock' ? 'Locked / unlocked' : (track.minValue ?? 0) + ' – ' + (track.maxValue ?? track.levels?.at(-1) ?? '?') }}</small></span></summary>
+                                                <div class="rules-fields rules-grid">
+                                                    <label>Identifier<input [readonly]="existingTrack(profile.id, track.id)" [(ngModel)]="track.id" [ngModelOptions]="{standalone: true}" required /></label><label>Label<input [(ngModel)]="track.label" [ngModelOptions]="{standalone: true}" required maxlength="160" /></label>
+                                                    <label>Progression type<select [ngModel]="track.type" (ngModelChange)="setType(track, $event)" [ngModelOptions]="{standalone: true}">@for (type of trackTypes; track type) { <option [value]="type">{{ type }}</option> }</select></label>
+                                                    <label>Ability identifier (optional)<input [(ngModel)]="track.abilityId" (blur)="cleanAbility(track)" [ngModelOptions]="{standalone: true}" /></label>
+                                                    @if (track.type !== 'unlock') {
+                                                        <label>Minimum<input type="number" min="0" [(ngModel)]="track.minValue" [ngModelOptions]="{standalone: true}" /></label><label>Maximum<input type="number" min="0" [(ngModel)]="track.maxValue" [ngModelOptions]="{standalone: true}" /></label>
+                                                        <label class="full">Discrete values (optional, comma-separated)<input [ngModel]="(track.levels ?? []).join(', ')" (ngModelChange)="setLevels(track, $event)" [ngModelOptions]="{standalone: true}" /></label>
+                                                    }
+                                                    <p class="rules-help full">Level and ascension tracks use the existing account fields. Other numeric tracks use track values; unlock tracks use independent node states.</p>
+                                                    <div class="rules-actions full"><button type="button" aria-label="Move track up" [disabled]="t === 0" (click)="move(profile.tracks, t, -1)">↑</button><button type="button" aria-label="Move track down" [disabled]="t === profile.tracks.length - 1" (click)="move(profile.tracks, t, 1)">↓</button><button type="button" class="danger" (click)="profile.tracks.splice(t, 1)">Remove Track</button></div>
+                                                </div>
+                                            </details>
+                                        }
+                                    </section>
+                                }
+                                <details class="rules-row"><summary>Existing game-wide progression and equipment</summary><div class="rules-fields"><div class="rules-grid"><label>Maximum team size<input type="number" min="1" max="12" [(ngModel)]="draft().teamSize" [ngModelOptions]="{standalone: true}" /></label><label>Maximum character level<input type="number" min="1" max="1000" [(ngModel)]="draft().levelCap" [ngModelOptions]="{standalone: true}" /></label></div>            <fieldset>
+                <legend>Enhancement categories</legend>
+                <label
+                    >Categories<input
+                        [ngModelOptions]="{ updateOn: 'blur', standalone: true }"
+                        [ngModel]="(draft().enhancementCategories ?? []).join(', ')"
+                        (ngModelChange)="draft().enhancementCategories = csv($event)"
+                        placeholder="Weapon, Artifact"
+                /></label>
+                <p class="collection-help">
+                    Separate categories with commas, then assign them to equipment slots below.
+                </p>
+            </fieldset>
+            <fieldset>
+                <legend>Equipment slots</legend>
+                <p class="collection-help">
+                    Define the slots this game uses, such as a weapon, artifact pieces, or echo
+                    slots.
+                </p>
+                @for (slot of draft().equipmentSlots; track slot.id) {
+                    <div class="character-editor-row">
+                        <label>System<select [ngModel]="slot.system ?? 'equipment'" (ngModelChange)="slot.system = $event" [ngModelOptions]="{standalone: true}"><option value="equipment">Equipment</option><option value="weapon">Weapon / equivalent</option></select></label><label>Allowed inventory types<input [ngModel]="(slot.allowedTypes ?? []).join(', ')" (ngModelChange)="slot.allowedTypes = csv($event)" [ngModelOptions]="{standalone: true}" placeholder="Optional type IDs, comma-separated" /></label><label>Slot name<input [(ngModel)]="slot.label" [ngModelOptions]="{standalone: true}" /></label
+                        ><label
+                            >Enhancement category<select aria-label="Equipment enhancement category"
+                                [ngModelOptions]="{standalone: true}" [ngModel]="slot.category ?? ''"
+                                (ngModelChange)="slot.category = $event"
+                            >
+                                <option value="">Uncategorized</option>
+                                @if (
+                                    slot.category &&
+                                    !(draft().enhancementCategories ?? []).includes(slot.category)
+                                ) {
+                                    <option [value]="slot.category">
+                                        {{ slot.category }} (removed)
+                                    </option>
+                                }
+                                @for (
+                                    category of draft().enhancementCategories ?? [];
+                                    track category
+                                ) {
+                                    <option [value]="category">{{ category }}</option>
+                                }
+                            </select></label
+                        ><label
+                            >Item limit<input
+                                type="number"
+                                min="1"
+                                max="20"
+                                [(ngModel)]="slot.limit" [ngModelOptions]="{standalone: true}" /></label
+                        ><button type="button" (click)="draft().equipmentSlots.splice($index, 1)">
+                            Remove slot
+                        </button>
+                    </div>
+                }
+                <button type="button" (click)="addSlot()">+ Equipment slot</button>
+            </fieldset>
+            <fieldset>
+                <legend>Ascension ranks</legend>
+                <p class="collection-help">
+                    Start with rank 0 (unascended). Each rank sets the character level and skill
+                    level caps it unlocks. Character level caps must increase, skill caps cannot
+                    decrease, and the final rank must reach the game's maximum character level.
+                    Leave empty for no ascension gates.
+                </p>
+                @for (rank of draft().ascensionRanks ?? []; track $index) {
+                    <div class="character-editor-row">
+                        <label
+                            >Rank {{ $index }} character level cap<input
+                                type="number"
+                                min="1"
+                                [max]="draft().levelCap"
+                                [(ngModel)]="rank.levelCap" [ngModelOptions]="{standalone: true}"
+                        /></label>
+                        <label
+                            >Skill level cap<input
+                                type="number"
+                                min="1"
+                                max="1000"
+                                [(ngModel)]="rank.skillLevelCap" [ngModelOptions]="{standalone: true}"
+                        /></label>
+                        @if ($last) {
+                            <button type="button" (click)="draft().ascensionRanks!.pop()">
+                                Remove rank
+                            </button>
+                        }
+                    </div>
+                }
+                <button type="button" (click)="addRank()">+ Ascension rank</button>
+            </fieldset>
+            <fieldset>
+                <legend>Progression tracks</legend>
+                <p class="collection-help">
+                    Add game-specific numeric progression such as ascension, constellation,
+                    resonance chain, or skill ranks.
+                </p>
+                @for (track of draft().progressionTracks; track track.id) {
+                    <div class="character-editor-row">
+                        <label>Track name<input [(ngModel)]="track.label" [ngModelOptions]="{standalone: true}" /></label
+                        ><label
+                            >Maximum rank<input
+                                type="number"
+                                min="0"
+                                max="1000"
+                                [(ngModel)]="track.max" [ngModelOptions]="{standalone: true}" /></label
+                        ><button type="button" (click)="draft().progressionTracks.splice($index, 1)">
+                            Remove track
+                        </button>
+                    </div>
+                }
+                <button type="button" (click)="addLegacyTrack()">+ Progression track</button>
+            </fieldset>
+</div></details>
+                            }
+                            @case ('Dependencies') {
+                                <p class="rules-help">A track above its minimum requires every prerequisite below. References must stay within the same profile; circular dependencies are rejected.</p>
+                                @for (profile of draft().progressionProfiles ?? []; track profile) {
+                                    <h4>{{ profile.id }}</h4>
+                                    @for (track of profile.tracks; track track) {
+                                        <details class="rules-row"><summary>{{ track.label || track.id }} · {{ track.dependencies?.length ?? 0 }} dependencies</summary><div class="rules-fields">
+                                            @for (dependency of track.dependencies ?? []; track $index; let d = $index) { <div class="rules-grid"><label>Required track<select [(ngModel)]="dependency.trackId" [ngModelOptions]="{standalone: true}"><option value="">Select track</option>@for (source of profile.tracks; track $index) { @if (source !== track) { <option [value]="source.id">{{ source.label || source.id }}</option> } }</select></label><label>Required value<input type="number" min="0" [(ngModel)]="dependency.requiredValue" [ngModelOptions]="{standalone: true}" /></label><button type="button" (click)="track.dependencies!.splice(d, 1)">Remove Dependency</button></div> }
+                                            <button type="button" (click)="addDependency(track)">+ Add Dependency</button>
+                                        </div></details>
+                                    }
+                                } @empty { <p>Add a progression profile first.</p> }
+                            }
+                            @case ('Upgrade Costs') {
+                                <p class="rules-help">Use existing inventory materials and positive whole quantities. Each transition must be unique and within its track's allowed values.</p>
+                                @for (profile of draft().progressionProfiles ?? []; track profile) { <h4>{{ profile.id }}</h4>@for (track of profile.tracks; track track) {
+                                    <details class="rules-row"><summary>{{ track.label || track.id }} · {{ track.upgradeCosts?.length ?? 0 }} transitions</summary><div class="rules-fields">
+                                        @for (cost of track.upgradeCosts ?? []; track $index; let c = $index) { <fieldset><legend>Upgrade transition</legend><div class="rules-grid"><label>From<input type="number" min="0" [(ngModel)]="cost.fromValue" [ngModelOptions]="{standalone: true}" /></label><label>To<input type="number" min="1" [(ngModel)]="cost.toValue" [ngModelOptions]="{standalone: true}" /></label></div>
+                                            @for (material of cost.materials; track $index; let m = $index) { <div class="rules-grid"><label>Inventory item<select [(ngModel)]="material.itemId" [ngModelOptions]="{standalone: true}"><option value="">Select material</option>@for (item of materials(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }</select></label><label>Quantity<input type="number" min="1" [(ngModel)]="material.quantity" [ngModelOptions]="{standalone: true}" /></label><button type="button" (click)="cost.materials.splice(m, 1)">Remove Material</button></div> }
+                                            <div class="rules-actions"><button type="button" (click)="cost.materials.push({itemId: '', quantity: 1})">+ Add Material</button><button type="button" class="danger" (click)="track.upgradeCosts!.splice(c, 1)">Remove Transition</button></div>
+                                        </fieldset> }
+                                        <button type="button" (click)="addCost(track)">+ Add Upgrade Cost</button>
+                                    </div></details>
+                                } } @empty { <p>Add a progression profile first.</p> }
+                            }
+                            @case ('Display Rules') {
+                                <p class="rules-help">Attributes use the shared card layout. Order them in Attributes; cards display the first two visible values. Details respect their own visibility setting.</p>
+                                @for (attribute of draft().attributes ?? []; track attribute) { <div class="rules-display"><strong>{{ attribute.label || attribute.id }}</strong><label><input type="checkbox" [(ngModel)]="attribute.visibleInHeader" [ngModelOptions]="{standalone: true}" />Card</label><label><input type="checkbox" [ngModel]="attribute.visibleInDetails !== false" (ngModelChange)="attribute.visibleInDetails = $event" [ngModelOptions]="{standalone: true}" />Details</label></div> }
+                                <p class="rules-help">Additional card indicators and detail-section defaults are not configurable in this first version.</p>
+                            }
+                        }
+                    </div>
+                </div>
+            </fieldset>
+            @if (validation.length || error()) { <div class="error" role="alert">@for (issue of validation; track $index) { <p>{{ issue }}</p> }@if (error()) { <p>{{ error() }}</p> }</div> }
+            @if (discard) { <div class="discard-prompt" role="alert"><span>Discard unsaved rules changes?</span><button type="button" (click)="discard = false">Keep editing</button><button type="button" (click)="dismissed.emit()">Discard changes</button></div> }
+            <footer class="modal-actions"><button type="submit" class="primary" [disabled]="busy()">Save Rules</button><button type="button" [disabled]="busy()" (click)="close()">Cancel</button></footer>
+        </form>
+    </section>
+</div>

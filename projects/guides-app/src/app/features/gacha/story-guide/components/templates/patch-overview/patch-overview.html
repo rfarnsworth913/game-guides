@@ -61,7 +61,7 @@
                 @for (character of availableCharacters(); track character.id) { <option [value]="character.id">{{ character.name }}</option> }
             </select></label>
             <p class="guide-help">Character details and content groups are shared with the character catalog and planner. Changes here update that character everywhere; guide order and completion remain separate.</p>
-            <gg-game-image-picker [game]="entry().game" label="Character image" [(value)]="data().imageUrl" />
+            <gg-game-image-picker [game]="entry().game" label="Character image" imagePurpose="fullArt" [(value)]="data().imageUrl" />
             <label>Character Name<input [ngModelOptions]="standalone" [(ngModel)]="data().characterName" /></label>
             <label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" placeholder="e.g. 1.0" /></label>
             <div class="patch-fields character-metadata-fields">
@@ -88,8 +88,8 @@
     @if (entry().category === 'world-quests') {
         <fieldset class="world-header-image-editor">
             <legend>Header Background</legend>
-            <p class="guide-help">Optional background for the compact header. Recommended size: 1200 × 240.</p>
-            <gg-game-image-picker [game]="entry().game" label="Header Background" [banner]="true"
+            <p class="guide-help">Optional background for the compact header.</p>
+            <gg-game-image-picker [game]="entry().game" label="Header Background" [banner]="true" imagePurpose="header"
                 [(value)]="data().imageUrl" [(description)]="data().imageAlt"
                 [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl" />
         </fieldset>
@@ -97,7 +97,6 @@
     @if (!groupedTemplate()) {
     <fieldset class="patch-image-editor">
         <legend>{{ storyBanner() ? storyTemplateName() + ' Banner' : 'Patch Overview Banner' }}</legend>
-        <p>Recommended size: 1200 &#215; 400 &middot; 3:1 aspect ratio</p>
         <gg-game-image-picker [game]="entry().game" label="Banner" [banner]="true"
             [(value)]="data().imageUrl" [(description)]="data().imageAlt"
             [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl"
@@ -133,7 +132,7 @@
     }
     }
     @if (entry().category !== 'patch-overview') {
-        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'character-information', 'world-quests'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
+        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'side-stories', 'character-information', 'world-quests'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
     }
             </div>
     <fieldset class="patch-group-editor" aria-label="Content group details" [hidden]="editorSelection() === null || editorSelection() === ''">

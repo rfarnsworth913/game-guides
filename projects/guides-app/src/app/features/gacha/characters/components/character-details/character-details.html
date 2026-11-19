@@ -1,0 +1,131 @@
+@let character = entry();
+<div class="modal-backdrop">
+    <section class="modal character-details-dialog" [style.--character-accent]="accent()" role="dialog" aria-modal="true" aria-labelledby="character-details-title" ggDialogFocus (keydown.escape)="close()">
+        <div class="details-header">
+            @if (headerArtwork(); as background) { <img class="details-header-art" [src]="background" alt="" aria-hidden="true" (error)="failHeaderArtwork()" /> }
+            <div class="details-header-shade" aria-hidden="true"></div>
+            <button type="button" class="details-close" aria-label="Close character details" [disabled]="busy()" (click)="close()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
+            <nav class="details-breadcrumb" aria-label="Character location"><span>{{gameTitle()}}</span><span aria-hidden="true">/</span><strong>Characters</strong></nav>
+            <div class="details-header-identity">
+                <div class="details-headshot">@if (card().headshotUrl && !headshotFailed) { <img [src]="card().headshotUrl" [alt]="character.name + ' headshot'" width="104" height="104" (error)="headshotFailed = true" /> } @else { <span aria-hidden="true">{{character.name.slice(0,1)}}</span> }</div>
+                <div class="details-identity">
+                    <h2 id="character-details-title">{{character.name}}</h2>
+                    @if (subtitle()) { <p class="details-subtitle">{{subtitle()}}</p> }
+                    <div class="details-classification">
+                        <span class="details-rarity" [attr.aria-label]="card().rarityLabel" [title]="card().rarityLabel">@for (star of rarityStars(); track star) { <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1Z" /></svg> }@if (rarityStars().length) { <span class="details-rarity-count" aria-hidden="true">({{character.rarity}})</span> } @else { {{card().rarityLabel}} }</span>
+                    @for (attribute of card().attributes; track attribute.id) {
+                        <span class="details-attribute" [title]="attribute.label">
+                            @if (classificationIcon(attribute.id); as icon) { <img [src]="icon" alt="" width="18" height="18" (error)="failedClassificationIcons.add(attribute.id)" /> }
+                            @else if (classificationSymbol(attribute.id); as symbol) { <span class="details-attribute-symbol" aria-hidden="true">{{symbol}}</span> }
+                            @else if (attribute.id === 'damageType') { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m12 3 2.5 5.5L20 6l-2.5 5.5L23 14l-6 1-1 6-4-4-4 4-1-6-6-1 5.5-2.5L4 6l5.5 2.5Z" /></svg> }
+                            @else if (attribute.id === 'weaponType') { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 3 7 0 0 7-11 9-5-5 9-11ZM5 12l7 7M8 17l-5 5M2 19l3 3M11 14l7-7" /></svg> }
+                            {{attribute.value}}
+                        </span>
+                    }
+
+                    </div>
+                </div>
+            </div>
+            <div class="details-header-actions" role="group" aria-label="Character actions">
+                <label class="details-owned" [class.is-owned]="build.owned"><input type="checkbox" [(ngModel)]="build.owned" [disabled]="busy()" />
+                    <svg width="22" height="22" viewBox="0 0 24 24" [attr.fill]="build.owned ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/>@if (build.owned) { <path class="ownership-tick" d="m7 12 3 3 7-7" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/> }</svg>
+                    <span>{{build.owned ? 'Owned' : build.target ? 'Planned' : 'Not Owned'}}</span>
+                </label>
+                <button type="button" class="details-favorite" [class.active]="build.favorite" [attr.aria-label]="(build.favorite ? 'Unfavorite ' : 'Favorite ') + character.name" [attr.aria-pressed]="!!build.favorite" [disabled]="busy()" (click)="build.favorite = !build.favorite"><svg width="20" height="20" viewBox="0 0 24 24" [attr.fill]="build.favorite ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" /></svg></button>
+                <details class="details-header-menu" #headerMenu (keydown.escape)="closeHeaderMenu($event)">
+                    <summary aria-label="More character actions"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></summary>
+                    <div class="details-header-menu-items"><button type="button" (click)="showReference = true; headerMenu.open = false">View character information</button>@if (canEdit()) { <button type="button" [disabled]="busy()" (click)="headerMenu.open = false; close(true)">Edit shared information</button> }@if (build.owned) { <button type="button" [disabled]="busy()" (click)="removePrompt = true; headerMenu.open = false">Remove from my collection</button> }</div>
+                </details>
+            </div>
+            @if (headerFacts().length) { <div class="details-header-facts" aria-label="Character facts">@for (fact of headerFacts(); track fact.id) { <div class="details-header-fact"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="fact.icon"/></svg><div><small>{{fact.label}}</small><strong>{{fact.value}}</strong></div></div> }</div> }
+        </div>
+        <div class="details-layout">
+            <div class="details-planner">
+                <div class="details-tabs" role="tablist" aria-label="Character progression" (keydown)="tabKey($event)">
+                    @for (item of tabs(); track item.id) { <button type="button" role="tab" [id]="'details-tab-' + item.id" [attr.aria-selected]="tab === item.id" [attr.tabindex]="tab === item.id ? 0 : -1" aria-controls="details-tab-panel" [class.active]="tab === item.id" (click)="tab = item.id">{{item.label}}</button> }
+                </div>
+                @if (!build.owned && tabs().length) { <p class="details-notice">Planning for an unowned character. Current progression stays unchanged until you mark the character owned.</p> }
+                <div id="details-tab-panel" role="tabpanel" [attr.aria-labelledby]="tab ? 'details-tab-' + tab : null">
+                    @if (tab === 'level' || tab === 'skills') {
+                        <div class="details-section-heading"><h3>{{tab === 'level' ? tabs()[0]?.label : 'Skill progression'}}</h3><span>{{percent()}}%</span></div>
+                        <div class="details-progress" role="progressbar" aria-label="Progression milestones toward goal" [attr.aria-valuenow]="percent()" aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="percent()"></span></div>
+                        <p class="details-help">{{tab === 'level' ? 'Level and milestone progress; experience weighting is unavailable unless explicitly configured.' : 'Progress across configured skill goals and unlocks.'}}</p>
+                        @for (track of tab === 'skills' ? skillTracks() : levelTracks(); track track.id) {
+                            @if (tab === 'skills') {
+                                <details class="details-skill"><summary>@if (skillIcon(track); as icon) { <img [src]="icon" alt="" width="20" height="20" /> }<strong>{{track.label}}</strong><small>{{value(track)}} → {{value(track,true)}}</small></summary><div class="details-skill-body">
+                                    @if (description(track)) { <p>{{description(track)}}</p> }
+                                    <gg-character-track-editor [track]="track" [tracks]="tracks()" [current]="build" [target]="target()" [currentCap]="cap(track)" [targetCap]="cap(track,true)" [owned]="build.owned" [disabled]="busy()" (valueChanged)="changeTrack(track,$event)" />
+                                    @let skillMaterials = skillCost(track);
+                                    @for (issue of skillMaterials.issues; track $index) { <p class="details-help">{{issue}}</p> }
+                                    @for (material of skillMaterials.materials; track material.id) { <p class="details-help">{{material.name}} ? Required {{material.required}}</p> }
+                                </div></details>
+                            } @else {
+                                <section class="details-track"><gg-character-track-editor [track]="track" [tracks]="tracks()" [current]="build" [target]="target()" [currentCap]="cap(track)" [targetCap]="cap(track,true)" [owned]="build.owned" [disabled]="busy()" (valueChanged)="changeTrack(track,$event)" /></section>
+                            }
+                        }
+                        @if (tab === 'level' && milestones().length) { <section class="details-milestones"><h4>Required promotion milestones</h4>@for (milestone of milestones(); track milestone.rank) { <span>Rank {{milestone.rank}} · Level cap {{milestone.levelCap}}</span> }</section> }
+                        <div class="details-goal-actions"><button type="button" [disabled]="busy() || !build.target" [attr.aria-pressed]="!!build.completedGoals?.[tab]" (click)="goalComplete()">{{build.completedGoals?.[tab] ? 'Reopen Goal' : 'Mark Goal Complete'}}</button><button type="button" [disabled]="busy() || !build.owned || !build.target" (click)="setCurrentToTarget()">Set Current to Target</button></div>
+                    }
+                    @if (tab === 'weapon' || tab === 'equipment') {
+                        <h3>{{tab === 'weapon' ? 'Equipped weapon' : 'Equipment slots'}}</h3>
+                        <p class="details-help">Choose an owned copy. Unequipping keeps its progression in your inventory. Copies equipped elsewhere must be unequipped first.</p>
+                        @for (slot of slots(tab === 'weapon'); track slot.id) {
+                            <section class="details-equipment-slot"><h4>{{slot.label}}</h4>
+                                @for (position of positions(slot); track position) {
+                                    @let currentId = build.gear[slot.id]?.[position] ?? '';
+                                    <label class="details-equipment-selector">{{slot.label}} {{slot.limit > 1 ? position + 1 : ''}}<select [ngModel]="currentId" (ngModelChange)="assign(slot,position,$event)" [disabled]="busy() || (!build.owned && !currentId)">
+                                        <option value="">Unequipped</option>
+                                        @if (currentId && !copy(currentId)) { <option [value]="currentId">{{currentId}} (saved legacy item)</option> }
+                                        @for (item of compatible(slot); track item.id) {
+                                            @for (instance of item.equipmentInstances ?? []; track instance.id) { <option [value]="instance.id" [disabled]="instance.id !== currentId && !!assignedTo(instance.id)">{{item.name}} · Copy {{$index + 1}}@if (instance.id !== currentId && assignedTo(instance.id)) { ({{assignedTo(instance.id)}}) }</option> }
+                                            @if ((item.equipmentInstances?.length ?? 0) < item.quantity) { <option [value]="'new:' + item.id">{{item.name}} · Track an owned copy</option> }
+                                        }
+                                    </select></label>
+                                    @if (copy(currentId); as selected) {
+                                        <div class="details-equipment-summary">@if (selected.item.icon) { <img [src]="selected.item.icon" alt="" width="48" height="48" loading="lazy" /> }<div><strong>{{selected.item.name}}</strong><small>Rarity {{selected.item.rarity}} · {{selected.item.equipmentDefinition?.typeId}}</small></div></div>
+                                        @for (stat of selected.item.equipmentDefinition?.stats ?? []; track $index) { <p class="details-help">{{stat.name}}: {{stat.value}}</p> }
+                                        @if (selected.instance.mainStat) { <p>Main stat: {{selected.instance.mainStat!.name}} {{selected.instance.mainStat!.value}}</p> }
+                                        @for (stat of selected.instance.substats ?? []; track $index) { <p class="details-help">{{stat.name}}: {{stat.value}}</p> }
+                                        @for (track of selected.item.equipmentDefinition?.progressionTracks ?? []; track track.id) { <div class="details-track"><gg-character-track-editor [track]="track" [tracks]="selected.item.equipmentDefinition?.progressionTracks ?? []" [current]="selected.instance.current" [target]="selected.instance.target ?? selected.instance.current" [disabled]="busy()" (valueChanged)="changeEquipment(selected,track,$event)" /></div> } @empty { <p class="details-notice">Upgrade rules and costs have not been configured for this item.</p> }
+                                        @if (selected.instance.target) { <button type="button" [disabled]="busy()" (click)="applyEquipmentTarget(selected)">Set Equipment Current to Target</button> }
+                                    }
+                                }
+                                @if (!compatible(slot).length) { <p class="details-help">No compatible owned inventory items are configured for this slot. Saved legacy gear is retained.</p> }
+                            </section>
+                        }
+                        @if (sets().length) { <section class="details-milestones"><h4>Active set bonuses</h4>@for (bonus of sets(); track $index) { <p>{{bonus.id}} · {{bonus.pieces}} pieces: {{bonus.description}}</p> }</section> }
+                        <div class="details-goal-actions"><button type="button" [disabled]="busy()" (click)="goalComplete()">{{build.completedGoals?.[tab] ? 'Reopen Goal' : 'Mark Goal Complete'}}</button></div>
+                    }
+                    @if (!tabs().length) { <p class="details-notice">{{rules() ? 'No applicable progression systems are configured for this character.' : 'An editor must configure game rules before progression can be planned.'}}</p> }
+                </div>
+                @if (tabs().length) {
+                    @let plan = materialPlan();
+                    <section class="planner-materials details-materials"><div class="details-section-heading"><h3>Required materials</h3><small>{{plan.issues.length ? 'Unavailable / partial' : 'Configured costs'}}</small></div>
+                        @for (issue of plan.issues; track $index) { <p class="details-help">{{issue}}</p> }
+                        <div class="details-material-grid">@for (material of plan.materials; track material.item.id) { <gg-farming-material [material]="material" [interactive]="false" /> }</div>
+                        @if (!plan.materials.length && !plan.issues.length) { <p class="details-help">No additional materials are needed for these goals.</p> }
+                        <a [routerLink]="['/games',character.game,'farming']">Open farming planner</a>
+                    </section>
+                }
+                <details class="details-personal"><summary>Personal notes</summary><label>Only visible to you<textarea rows="3" maxlength="5000" [(ngModel)]="build.notes" [disabled]="busy()"></textarea></label></details>
+                <details class="details-personal"><summary>Personal resources ({{build.personalGuides?.length ?? 0}})</summary>
+                    @for (guide of build.personalGuides ?? []; track $index) { <div class="details-personal-resource"><label>Title<input [(ngModel)]="guide.title" maxlength="160" [disabled]="busy()" /></label><label>URL<input type="url" [(ngModel)]="guide.url" [disabled]="busy()" /></label>@if (validGuide(guide.url)) { <a [href]="guide.url" target="_blank" rel="noopener noreferrer">{{guide.title || 'Open resource'}}</a> }<button type="button" (click)="build.personalGuides!.splice($index,1)" [disabled]="busy()">Remove</button></div> }
+                    <button type="button" (click)="addPersonalGuide()" [disabled]="busy() || (build.personalGuides?.length ?? 0) >= 30">+ Personal resource</button>
+                </details>
+            </div>
+            <div role="complementary" class="planner-sidebar details-sidebar" aria-label="Character artwork and resources">
+                @if (artwork()) { <figure class="details-artwork"><img [src]="artwork()" [alt]="character.name + ' artwork'" loading="lazy" (error)="failArtwork()" />@if (character.characterInformation?.sourceName) { <figcaption>Source: @if (validGuide(character.characterInformation!.sourceUrl)) { <a [href]="character.characterInformation!.sourceUrl" target="_blank" rel="noopener noreferrer">{{character.characterInformation!.sourceName}}</a> } @else { {{character.characterInformation!.sourceName}} }</figcaption> }</figure> } @else { <div class="details-artwork-fallback">{{character.name}}</div> }
+                <button type="button" class="character-reference-button" [attr.aria-expanded]="showReference" aria-controls="character-reference" (click)="showReference = !showReference">Character information</button>
+                @if (showReference) { <section id="character-reference" class="details-reference"><p>{{character.notes}}</p>@for (attribute of referenceAttributes(); track attribute.id) { <p>{{attribute.label}}: {{attribute.value}}</p> }@for (skill of definition().skills; track $index) { <h4>{{skill.name}}</h4><p>{{skill.description}}</p> }@for (skill of definition().passiveSkills; track $index) { <h4>{{skill.name}}</h4><p>{{skill.description}}</p> }</section> }
+                <gg-character-resources [entry]="character" [entries]="entries()" />
+                @for (guide of build.personalGuides ?? []; track $index) { @if (validGuide(guide.url)) { <p class="details-help"><a [href]="guide.url" target="_blank" rel="noopener noreferrer">{{guide.title}}</a> · Personal resource</p> } }
+                @if (canEdit()) { <button type="button" [disabled]="busy()" (click)="close(true)">Edit shared information &amp; resources</button> }
+            </div>
+        </div>
+        @if (error) { <div class="details-error" role="alert">{{error}}</div> }
+        @if (message) { <div class="details-message" role="status">{{message}}</div> }
+        @if (discard) { <div class="details-confirm" role="alert"><span>Discard unsaved character changes?</span><button type="button" (click)="discard = false; editAfterClose = false">Keep editing</button><button type="button" (click)="finishClose()">Discard changes</button></div> }
+        @if (removePrompt) { <div class="character-remove-confirm details-confirm"><span>Mark this character not owned? Saved progression and goals will be retained. The shared character stays in the catalog.</span><button type="button" (click)="build.owned = false; removePrompt = false">Mark not owned</button><button type="button" (click)="removePrompt = false">Cancel</button></div> }
+        <div class="details-footer"><span>{{dirty() ? 'Unsaved changes' : 'Saved progression'}}</span>@if (build.owned) { <button type="button" class="character-remove" (click)="removePrompt = true" [disabled]="busy()">Remove from my collection</button> }<button type="button" [disabled]="busy()" (click)="close()">Close</button><button type="button" class="primary" [disabled]="busy()" (click)="save()">Save development plan</button></div>
+    </section>
+</div>

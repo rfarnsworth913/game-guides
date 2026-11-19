@@ -1,0 +1,18 @@
+@use '../../../../../../styles/components/dropdown-control' as dropdown;
+.character-search { position: relative; flex: 1 1 220px; min-width: 0; }
+.character-search > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--color-text-primary); }
+.character-search input { width: 100%; min-height: 44px; padding: 10px 12px 10px 45px; font-size: 14px; border-color: var(--character-control-border); border-radius: 8px; background: var(--surface); }
+.character-browse-toolbar > button { display: flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 10px 15px; font-size: 14px; border-color: var(--character-control-border); background: var(--surface); }
+.character-browse-toolbar select, .character-filter-panel select, .character-pagination select { @include dropdown.control; }
+.character-browse-toolbar select, .character-pagination select { height: 44px; border-color: var(--character-control-border); border-radius: 8px; background-color: var(--character-raised-surface); font-size: 14px; }
+.character-view-toggle { border: 1px solid var(--character-control-border); padding: 0; border-radius: 8px; gap: 0; background: var(--surface); overflow: visible; }
+.character-view-toggle button { display: grid; place-items: center; width: 52px; min-height: 42px; padding: 9px 13px; border: 1px solid transparent; border-radius: 7px; }
+.character-view-toggle button.active { color: var(--character-accent); border-color: var(--character-accent); background: color-mix(in srgb, var(--character-accent) 6%, var(--surface)); }
+svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.character-manage summary svg:last-child { width: 16px; height: 16px; }
+.character-filter-count { display: inline-grid; place-items: center; min-width: 17px; margin-left: 5px; border-radius: 10px; background: var(--line); }
+.character-filter-panel { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; padding: 14px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.character-filter-panel[hidden] { display: none; }
+.character-filter-panel label { display: grid; gap: 6px; font-size: 11px; margin: 0; max-width: 100%; }
+.character-filter-panel .character-filter-check { display: flex; align-items: center; min-height: 40px; gap: 6px; }
+.character-filter-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--character-accent); }

@@ -2,6 +2,7 @@ import type { PatchOverview } from './story-template.type';
 import type { Team } from './team.type';
 import type { CharacterCollection, CharacterDefinition, CharacterRules } from './character.type';
 import type { GameOverview } from './game-overview.type';
+import type { EquipmentDefinition, EquipmentInstance } from './equipment.type';
 
 export type Kind =
     | 'inventory'
@@ -14,6 +15,8 @@ export type Kind =
     | 'achievement-category'
     | 'story-category';
 export type Entry = {
+    equipmentDefinition?: EquipmentDefinition;
+    equipmentInstances?: EquipmentInstance[];
     region?: string;
     maxStack?: number;
     startDate?: string;
@@ -57,6 +60,6 @@ export type Entry = {
     day: string;
 };
 /** Player-owned state is stored separately; these fields never enter the shared catalog. */
-export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection'> & { teams?: Team[] };
+export type PlayerState = Pick<Entry, 'completed' | 'quantity' | 'target' | 'storyRowCompletion' | 'characterCollection' | 'equipmentInstances'> & { teams?: Team[] };
 export type CatalogEntry = Omit<Entry, keyof PlayerState>;
 export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules; overview?: GameOverview };

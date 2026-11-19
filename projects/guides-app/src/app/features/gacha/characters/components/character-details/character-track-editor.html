@@ -1,0 +1,14 @@
+<div class="track-pair">
+            @for (target of [false,true]; track target) {
+                <label>{{ target ? 'Target' : 'Current' }} {{ track().label }}
+                    @if (track().type === 'unlock') {
+                        <select [attr.aria-label]="(target ? 'Target ' : 'Current ') + track().label" [ngModel]="value(target)" (ngModelChange)="valueChanged.emit({target,value:$event})" [disabled]="disabled() || (!target && !owned())"><option [ngValue]="0">Locked</option><option [ngValue]="1">Unlocked</option></select>
+                    } @else if (track().levels?.length) {
+                        <select [attr.aria-label]="(target ? 'Target ' : 'Current ') + track().label" [ngModel]="value(target)" (ngModelChange)="valueChanged.emit({target,value:$event})" [disabled]="disabled() || (!target && !owned())">@for (level of track().levels!; track level) { <option [ngValue]="level">{{level}}</option> }</select>
+                    } @else {
+                        <input [attr.aria-label]="(target ? 'Target ' : 'Current ') + track().label" type="number" [min]="target ? value(false) : minimum()" [max]="target ? targetCap() ?? maximum() : currentCap() ?? maximum()" [ngModel]="value(target)" (ngModelChange)="valueChanged.emit({target,value:$event})" [disabled]="disabled() || (!target && !owned())" />
+                    }
+                </label>
+            }
+        </div>
+        @if (track().dependencies?.length) { <p class="track-help">Requirements: @for (requirement of track().dependencies!; track requirement.trackId) { <span>{{ label(requirement.trackId) }} ≥ {{requirement.requiredValue}}@if (!$last) { · }</span> }</p> }
