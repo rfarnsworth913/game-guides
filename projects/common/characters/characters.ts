@@ -1,4 +1,5 @@
 import { validFarmingConfig, validRecipes } from '../farming/farming-config';
+import {validInventoryConfig} from '../inventory/inventory-config';
 import type { CharacterSkill, CharacterDefinition, CharacterRules, CharacterCollection } from '../../lib/types/character.type';
 import { validCharacterExtension, validCharacterAttributes, validProgressionProfiles } from './character-extension';
 import { characterExtensionFits, characterProgressIssues } from './character-progression';
@@ -83,12 +84,14 @@ export function validCharacterDefinition(value: unknown): value is CharacterDefi
     );
 }
 export function validCharacterRules(value: unknown): value is CharacterRules {
+    if (record(value) && value['inventory'] !== globalThis.undefined && !validInventoryConfig(value['inventory'])) {return false;}
     if (
         !record(value) ||
         !only(value, [
             'levelCap',
             'teamSize',
             'farming',
+            'inventory',
             'ascensionRanks',
             'rarities',
             'weaponTypes',

@@ -34,6 +34,7 @@ export class StoryGuideHeader {
     readonly regionKey = output<KeyboardEvent>();
     readonly editToggled = output<void>();
     readonly addRegion = output<void>();
+    readonly addSubsection = output<void>();
     readonly resetRequested = output<void>();
     readonly resultSelected = output<StorySearchResult>();
     readonly toolbarHeight = output<number>();

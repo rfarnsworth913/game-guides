@@ -64,7 +64,14 @@
         </div>
         <button type="button" class="compact-search-trigger" aria-label="Search and filters" [attr.aria-expanded]="mobileSearch()" aria-controls="compact-story-filters" (click)="mobileSearch.set(!mobileSearch())"><ng-container *ngTemplateOutlet="searchIcon" /></button>
         <div id="compact-story-filters" class="compact-filters"><ng-container *ngTemplateOutlet="filters; context: { compact: true }" /></div>
-        <ng-container *ngTemplateOutlet="editSwitch" />
+        @if (canEdit() && editing() && region()) {
+            <div class="compact-editor-actions">
+                <button type="button" class="primary compact-add-subsection" [disabled]="busy() || editorOpen()" (click)="addSubsection.emit()">+ Add Sub-Section</button>
+                <ng-container *ngTemplateOutlet="editSwitch" />
+            </div>
+        } @else {
+            <ng-container *ngTemplateOutlet="editSwitch" />
+        }
     </div>
 </div>
 

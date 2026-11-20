@@ -1,4 +1,7 @@
 import { AuthStore } from "../auth/auth.store";
+import type {CraftRequest} from '@lib/types/inventory.type';
+import {craftInventory as calculateCraft} from '@common/inventory/inventory-crafting';
+import {inventoryItems} from '@common/inventory/inventory-requirements';
 import type { Team } from "../../../../../lib/types/team.type";
 import { TEAM_PROGRESS_ID } from "../../../../../lib/constants/team.constants";
 import { teamSize, validTeams } from "../../../../../common/player/teams";
@@ -405,6 +408,24 @@ export class WorkspaceStore {
             return !!item && Number.isSafeInteger(quantity) && quantity >= 0 && quantity <= (item.maxStack ?? 1e9);
         })) { this.error.set('Enter whole quantities between zero and each item’s stack limit.'); return false; }
         return this.replace(this.entries().map(entry => entry.game === game && entry.kind === 'inventory' && Object.hasOwn(changes, entry.id) ? { ...entry, quantity: changes[entry.id] } : entry));
+    }
+    async craftInventory(game: string, request: CraftRequest): Promise<boolean> {
+        if (this.saving() || this.loading() || !this.initialized()) {return false;}
+        this.error.set('');
+        const rules = this.characterRules()[game];
+        try {
+            if (!rules?.inventory) {throw new Error('No crafting recipes configured.');}
+            if (!this.auth?.user()) {
+                const reserved = new Map(inventoryItems(this.entries(),game,rules).map(view => [view.item.id,view.required]));
+                return await this.saveInventoryQuantities(game,calculateCraft(this.entries(),game,rules.inventory,request,reserved));
+            }
+            this.saving.set(true);
+            const result = await this.request(`me/inventory/${game}/craft`,{...request,revision:this.progressRevision},'POST') as ProgressSnapshot;
+            if (!Number.isSafeInteger(result.revision) || !validProgressState(result.state,null)) {throw new Error('Invalid inventory response. Reload to verify your inventory before retrying.');}
+            this.player = result.state; this.progressRevision = result.revision; this.showSnapshots();
+            return true;
+        } catch (error) {this.error.set(error instanceof Error ? error.message : 'Crafting failed.'); return false;}
+        finally {this.saving.set(false);}
     }
     async saveTeam(game: string, team: Team): Promise<boolean> {
         return this.restoreTeams({ [game]: [team] });

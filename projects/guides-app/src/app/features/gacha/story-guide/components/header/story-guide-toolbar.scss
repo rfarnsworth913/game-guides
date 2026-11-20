@@ -10,6 +10,10 @@
 .compact-progress progress { height: 4px; grid-column: 1 / -1; grid-row: 3; }
 .compact-filters { flex: 1; min-width: 0; }
 .compact-search-trigger { display: none; }
+.compact-editor-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-shrink: 0; }
+.compact-add-subsection { margin: 0; padding: 9px 12px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 1050px) { .compact-story-toolbar:has(.compact-editor-actions) { flex-wrap: wrap; } }
+@media (max-width: 700px) { .compact-editor-actions { grid-column: 1 / -1; } .compact-story-toolbar:has(.compact-editor-actions) .compact-filters { grid-row: auto; } }
 .story-overview-toolbar { display: flex; align-items: center; gap: 18px; padding-top: 14px; }
 .story-overview-toolbar.compact { padding: 0; gap: 12px; }
 .story-search { position: relative; flex: 0 1 370px; min-width: 140px; margin: 0; max-width: none; }

@@ -1,4 +1,5 @@
 import type { FarmingConfig, UpgradeRecipe } from './farming-config.type';
+import type { InventoryConfig } from './inventory.type';
 import type { CharacterExtension, CharacterAttributeDefinition, CharacterProgressionProfile, CharacterNodeState } from './character-extension.type';
 
 export type CharacterSkill = { id?: string; name: string; description: string; maxLevel?: number };
@@ -14,6 +15,7 @@ export type CharacterDefinition = CharacterExtension & {
     guides: CharacterGuide[];
 };
 export type CharacterRules = {
+    inventory?: InventoryConfig;
     /** Game-style version label. Numbers remain readable for older saved rules. */
     configurationVersion?: string | number;
     description?: string;

@@ -1,4 +1,5 @@
 import { ApiError } from '../../core/errors/app-error';
+import {inventoryReferenceIssues} from '../../../../common/inventory/inventory-config';
 import { BSON, Collection, Document } from 'mongodb';
 import type { CatalogEntry, GameSnapshot } from "../../../../lib/types/workspace.type";
 import { GAMES } from "../../../../lib/constants/workspace.constants";
@@ -143,6 +144,8 @@ export class GameRepository {
         if (overview.archived) {throw new ApiError(404, 'This game has been removed.');}
         const rules: unknown = characterRules ?? document['characterRules'];
         if (rules !== globalThis.undefined && !validCharacterRules(rules)) {throw new ApiError(400, 'Invalid character rules.');}
+        const inventoryIssues = inventoryReferenceIssues(rules?.inventory,entries);
+        if (inventoryIssues.length) {throw new ApiError(400,inventoryIssues.join(' '));}
         if (rules && validCharacterRules(document['characterRules'])) {
             const issues = characterRulesCompatibility(document['characterRules'], rules);
             if (issues.length) {throw new ApiError(400, issues.join(' '));}

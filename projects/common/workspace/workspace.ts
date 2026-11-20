@@ -1,4 +1,5 @@
 import { validPatchOverview, validRowCompletion } from '../quests/story-template';
+import {validInventoryMetadata} from '../inventory/inventory-config';
 import { isStoryDivider, storyRowDone, storyTemplateFor } from '../quests/story-guide';
 import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '../characters/characters';
 import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
@@ -64,6 +65,7 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
                 typeof e.completed === 'boolean' &&
                 (e.region === globalThis.undefined || (e.kind === 'inventory' && typeof e.region === 'string' && e.region.length <= 160)) &&
                 (e.maxStack === globalThis.undefined || (e.kind === 'inventory' && Number.isSafeInteger(e.maxStack) && e.maxStack >= 1 && e.maxStack <= 1e9)) &&
+                (e.inventoryMetadata === globalThis.undefined || (e.kind === 'inventory' && validInventoryMetadata(e.inventoryMetadata))) &&
                 (e.kind !== 'inventory' || (Number.isSafeInteger(e.quantity) && e.quantity <= (e.maxStack ?? 1e9))) &&
                 [e.startDate, e.endDate, e.eventType].every((field) => typeof field === 'undefined' || (typeof field === 'string' && field.length <= 160)) &&
                 validPatchOverview(e.patchOverview) &&
@@ -145,6 +147,7 @@ export function toCatalog(entry: Entry): CatalogEntry {
         day: entry.day,
         ...(entry.region !== globalThis.undefined ? { region: entry.region } : {}),
         ...(entry.maxStack !== globalThis.undefined ? { maxStack: entry.maxStack } : {}),
+        ...(entry.inventoryMetadata !== globalThis.undefined ? { inventoryMetadata: entry.inventoryMetadata } : {}),
         ...(entry.startDate !== globalThis.undefined ? { startDate: entry.startDate } : {}),
         ...(entry.endDate !== globalThis.undefined ? { endDate: entry.endDate } : {}),
         ...(entry.eventType !== globalThis.undefined ? { eventType: entry.eventType } : {}),
@@ -187,6 +190,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'day',
         'region',
         'maxStack',
+        'inventoryMetadata',
         'startDate',
         'endDate',
         'eventType',

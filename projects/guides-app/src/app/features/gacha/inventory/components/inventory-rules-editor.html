@@ -1,0 +1,39 @@
+@if (section() !== 'recipes') {
+<section class="material-categories" aria-labelledby="material-categories-title">
+    <div class="rules-section-heading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3h8l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><div><h3 id="material-categories-title">Material Categories</h3><p>Define and order the material categories used in your inventory.</p></div></div>
+    <div class="rules-table">
+        <div class="rules-table-heading"><span>{{ config().categories.length }} {{ config().categories.length === 1 ? 'category' : 'categories' }}</span><button type="button" class="primary" (click)="addCategory()">+ Add Category</button></div>
+        <div class="category-columns" aria-hidden="true"><span></span><span>Icon</span><span>Category</span><span></span></div>
+        @for (category of config().categories; track category; let index=$index) {
+            <div class="category-entry" (dragover)="$event.preventDefault()" (drop)="dropCategory($event,index)">
+                <div class="category-row">
+                    <button type="button" class="drag-handle" draggable="true" (dragstart)="draggedCategory=index" (dragend)="draggedCategory=null" (keydown)="categoryKey($event,index)" [attr.aria-label]="'Reorder ' + (category.label || 'category')" title="Drag to reorder. Keyboard: Alt + Up / Down."><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="5" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="19" r="2"/><circle cx="15" cy="19" r="2"/></svg></button>
+                    <gg-game-image-picker [game]="game()" label="Category Icon" [compact]="true" [value]="category.icon || ''" (valueChange)="category.icon=$event" />
+                    <input class="category-name" aria-label="Category name" placeholder="Category name" [(ngModel)]="category.label" [ngModelOptions]="standalone" />
+                    <button type="button" class="remove-rule" [attr.aria-label]="'Remove category ' + (category.label || index + 1)" (click)="config().categories.splice(index,1)"><ng-container *ngTemplateOutlet="trash" /></button>
+                </div>
+                <details class="category-options"><summary>Category settings</summary><div class="inventory-rule-row"><label>Identifier<input [(ngModel)]="category.id" [ngModelOptions]="standalone" /></label><label>Parent category<select [ngModel]="category.parentCategoryId || ''" (ngModelChange)="setParent(index,$event)" [ngModelOptions]="standalone"><option value="">None</option>@for (parent of config().categories;track parent){@if(parent.id !== category.id){<option [value]="parent.id">{{ parent.label || parent.id }}</option>}}</select></label><label class="inventory-check"><input type="checkbox" [(ngModel)]="category.enabled" [ngModelOptions]="standalone" />Enabled</label></div></details>
+            </div>
+        } @empty { <p class="rules-empty">No categories yet. Add a category to organize your materials.</p> }
+    </div>
+    <p class="rules-help">Drag handles to reorder categories, or use Alt + Up / Down. Changes save with the game rules.</p>
+</section>
+<section class="rarity-section" aria-labelledby="rarity-title">
+    <div class="rules-section-heading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 2 10 6-10 6L2 8Zm-10 10 10 6 10-6M2 16l10 6 10-6"/></svg><div><h3 id="rarity-title">Rarity Icon Backgrounds</h3><p>Define the background colors used for inventory item rarity.</p></div><button type="button" (click)="config().rarities.push({rarity:1,color:'#64748b'})">+ Add Rarity Color</button></div>
+    <div class="rarity-grid">
+        @for (rarity of config().rarities;track rarity;let index=$index) {
+            <div class="rarity-card"><input type="color" aria-label="Rarity background color" [(ngModel)]="rarity.color" [ngModelOptions]="standalone" /><label><span>Rarity &#9733;</span><input type="number" min="1" max="20" [(ngModel)]="rarity.rarity" [ngModelOptions]="standalone" /></label><button type="button" class="remove-rule" [attr.aria-label]="'Remove rarity ' + rarity.rarity" (click)="config().rarities.splice(index,1)"><ng-container *ngTemplateOutlet="trash" /></button></div>
+        } @empty { <p class="rules-empty">No rarity colors configured.</p> }
+    </div>
+</section>
+}
+<ng-template #trash><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></svg></ng-template>
+@if (section() !== 'categories') {
+<h4>Crafting & Conversion Recipes</h4><p>Configure ingredients, currency costs and optional unlock content. Cycles and invalid quantities are rejected. Crafting consumes only unreserved stock.</p>
+@for (recipe of config().recipes;track recipe;let index=$index){<details><summary>{{recipe.id || 'New recipe'}}</summary><div><label>Recipe identifier<input [(ngModel)]="recipe.id" [ngModelOptions]="standalone" /></label><div class="inventory-rule-row"><label>Output material<select [(ngModel)]="recipe.outputItemId" [ngModelOptions]="standalone"><option value="">Select material</option>@for (item of materials();track item.id){<option [value]="item.id">{{item.name}}</option>}</select></label><label>Output quantity per craft<input type="number" min="1" [(ngModel)]="recipe.outputQuantity" [ngModelOptions]="standalone" /></label></div><h5>Ingredients</h5>
+@for (cost of recipe.ingredients;track cost;let c=$index){<div class="inventory-rule-row"><label>Material<select [(ngModel)]="cost.itemId" [ngModelOptions]="standalone"><option value="">Select material</option>@for(item of materials();track item.id){<option [value]="item.id">{{item.name}}</option>}</select></label><label>Quantity<input type="number" min="1" [(ngModel)]="cost.quantity" [ngModelOptions]="standalone" /></label></div><button type="button" (click)="recipe.ingredients.splice(c,1)">Remove ingredient</button>}
+<button type="button" (click)="recipe.ingredients.push({itemId:'',quantity:1})">+ Add Ingredient</button><h5>Currency costs</h5>
+@for(cost of recipe.currencyCosts ?? [];track cost;let c=$index){<div class="inventory-rule-row"><label>Currency material<select [(ngModel)]="cost.itemId" [ngModelOptions]="standalone"><option value="">Select currency</option>@for(item of materials();track item.id){<option [value]="item.id">{{item.name}}</option>}</select></label><label>Quantity<input type="number" min="1" [(ngModel)]="cost.quantity" [ngModelOptions]="standalone" /></label></div><button type="button" (click)="recipe.currencyCosts!.splice(c,1)">Remove cost</button>}
+<button type="button" (click)="(recipe.currencyCosts ??= []).push({itemId:'',quantity:1})">+ Add Currency Cost</button><label>Unlock content identifiers (comma-separated)<input [ngModel]="(recipe.unlockContentIds ?? []).join(', ')" (ngModelChange)="setUnlocks(recipe,$event)" [ngModelOptions]="standalone" /></label><label class="inventory-check"><input type="checkbox" [(ngModel)]="recipe.enabled" [ngModelOptions]="standalone" />Enabled</label><button type="button" (click)="config().recipes.splice(index,1)">Remove Recipe</button></div></details>}
+<button type="button" (click)="addRecipe()">+ Add Recipe</button>
+}

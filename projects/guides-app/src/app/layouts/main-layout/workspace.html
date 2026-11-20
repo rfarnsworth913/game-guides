@@ -76,7 +76,7 @@
                     }}<button (click)="notice.set('')" aria-label="Dismiss notification">×</button>
                 </div>
             }
-            @if (!['story', 'characters'].includes(page()) || !context()) {
+            @if (!['story', 'characters', 'inventory'].includes(page()) || !context()) {
             <div class="page-heading">
                 <div>
                     <div class="eyebrow">
@@ -140,7 +140,7 @@
             } @else if (page() === 'characters') {
                 @if (context(); as game) { @defer (on immediate) { <gg-characters [game]="game.id" [focusId]="settingsParams()?.get('character') ?? ''" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'inventory') {
-                @if (context(); as game) { @defer (on immediate) { <gg-inventory [game]="game.id" (edit)="open('inventory', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading...</p> } }
+                @if (context(); as game) { @defer (on immediate) { <gg-inventory [game]="game.id" (add)="open('inventory')" (edit)="open('inventory', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'teams') {
                 @if (context(); as game) { @defer (on immediate) { <gg-teams [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'events') {
@@ -206,15 +206,16 @@
                 >
                 @if (e.kind === 'inventory' || e.kind === 'characters') {
                     <div class="form-grid">
+                        @if (e.kind === 'characters') {
                         <label
-                            >{{ e.kind === 'inventory' ? 'Quantity owned' : 'Current level'
-                            }}<input
+                            >Current level<input
                                 name="quantity"
                                 type="number"
                                 min="0"
                                 required
-                                [(ngModel)]="e.quantity" /></label
-                        ><label
+                                [(ngModel)]="e.quantity" /></label>
+                        }
+                        <label
                             >Rarity<select name="rarity" [(ngModel)]="e.rarity">
                                 @for (r of [1, 2, 3, 4, 5, 6]; track r) {
                                     <option [ngValue]="r">{{ r }} stars</option>
@@ -249,6 +250,10 @@
                     /></label>
                 }
                 @if (e.kind === 'inventory') {
+                    <label>Aliases (comma-separated)<input name="inventoryAliases" [ngModel]="(e.inventoryMetadata?.aliases ?? []).join(', ')" (ngModelChange)="inventoryMetadataText('aliases',$event)" /></label>
+                    <label>Tags (comma-separated)<input name="inventoryTags" [ngModel]="(e.inventoryMetadata?.tags ?? []).join(', ')" (ngModelChange)="inventoryMetadataText('tags',$event)" /></label>
+                    <label>Category identifiers (comma-separated)<input name="inventoryCategories" [ngModel]="(e.inventoryMetadata?.categoryIds ?? []).join(', ')" (ngModelChange)="inventoryMetadataText('categoryIds',$event)" /></label>
+                    <label><input name="inventoryEnabled" type="checkbox" [ngModel]="e.inventoryMetadata?.enabled !== false" (ngModelChange)="setInventoryEnabled($event)" />Enabled in inventory</label>
                     <gg-game-image-picker [game]="e.game" label="Item artwork" [value]="e.icon ?? ''" (valueChange)="e.icon = $event" />
                     <label>Region (optional)<input name="region" [(ngModel)]="e.region" maxlength="160" /></label>
                     <label>Stack limit (optional)<input name="maxStack" type="number" min="1" max="1000000000" step="1" [ngModel]="e.maxStack" (ngModelChange)="setMaxStack($event)" /></label>

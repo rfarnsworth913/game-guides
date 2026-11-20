@@ -6,10 +6,12 @@ import type { Entry } from '@lib/types/workspace.type';
 import { validCharacterRules } from '@common/characters/characters';
 import { characterRulesCompatibility } from '@common/characters/character-rules';
 import { DialogFocusDirective } from '../../../../../shared/directives/dialog-focus/dialog-focus';
+import {InventoryRulesEditor} from '../../../inventory/components/inventory-rules-editor';
+import {inventoryReferenceIssues} from '@common/inventory/inventory-config';
 
 @Component({
     selector: 'gg-game-rules-editor',
-    imports: [FormsModule, DialogFocusDirective],
+    imports: [FormsModule, DialogFocusDirective, InventoryRulesEditor],
     templateUrl: './game-rules-editor.html',
     // These are the actual Story Guide editor styles, shared without changing its rendering.
     styleUrls: [
@@ -17,20 +19,24 @@ import { DialogFocusDirective } from '../../../../../shared/directives/dialog-fo
         '../../../story-guide/components/templates/patch-overview/section-editor.scss',
         '../../../story-guide/components/templates/patch-overview/section-editor-nav.scss',
         './game-rules-editor.scss',
+        './inventory-definition-dialog.scss',
     ],
 })
 export class GameRulesEditor implements OnInit {
     readonly draft = input.required<CharacterRules>();
     readonly game = input.required<string>();
     readonly gameName = input.required<string>();
+    readonly initialTab = input('General');
+    readonly inventorySection = input<'all' | 'categories' | 'recipes'>('all');
     readonly original = input<CharacterRules>();
     readonly entries = input<Entry[]>([]);
     readonly busy = input(false);
     readonly error = input('');
     readonly save = output<void>();
     readonly dismissed = output<void>();
-    readonly tabs = ['General', 'Attributes', 'Progression', 'Dependencies', 'Upgrade Costs', 'Display Rules'];
+    readonly tabs = ['General', 'Attributes', 'Progression', 'Dependencies', 'Upgrade Costs', 'Display Rules', 'Inventory'];
     readonly tabIcons: Record<string, string> = {
+        Inventory: 'M3 6h18v15H3zM3 6l3-4h12l3 4M9 11h6',
         General: 'M6 3h9l3 3v15H6z M9 10h6 M9 14h6 M9 18h4',
         Attributes: 'M4 6h16 M4 12h16 M4 18h16 M8 3v6 M16 9v6 M10 15v6',
         Progression: 'M4 20V10h4v10 M10 20V6h4v14 M16 20V3h4v17',
@@ -46,8 +52,14 @@ export class GameRulesEditor implements OnInit {
     private initial?: string;
     private dragged: { list: unknown[]; index: number } | null = null;
 
-    snapshot(): void { this.initial ??= JSON.stringify(this.draft()); }
+    private rulesSnapshot(rules: CharacterRules): string {
+        // Rendering the inventory editor initializes these empty lists, without a user edit.
+        return JSON.stringify({...rules, inventory: rules.inventory ?? {categories: [], rarities: [], recipes: []}});
+    }
+    snapshot(): void { this.initial ??= this.rulesSnapshot(this.draft()); }
     ngOnInit(): void {
+        if (this.tabs.includes(this.initialTab())) {this.tab=this.initialTab();}
+        if (this.inventorySection() !== 'all') {this.tab = 'Inventory';}
         this.draft().attributes?.sort((a, b) => a.displayOrder - b.displayOrder);
         this.draft().progressionProfiles?.forEach(profile => profile.tracks.sort((a, b) => a.displayOrder - b.displayOrder));
         this.snapshot();
@@ -57,7 +69,7 @@ export class GameRulesEditor implements OnInit {
     existingTrack(profile: string, id: string): boolean { return !!this.original()?.progressionProfiles?.find(value => value.id === profile)?.tracks.some(track => track.id === id); }
     close(): void {
         if (this.busy()) {return;}
-        if (JSON.stringify(this.draft()) !== (this.initial ?? JSON.stringify(this.original() ?? this.draft()))) {this.discard = true;}
+        if (this.rulesSnapshot(this.draft()) !== (this.initial ?? this.rulesSnapshot(this.original() ?? this.draft()))) {this.discard = true;}
         else {this.dismissed.emit();}
     }
     select(tab: string): void { this.snapshot(); this.tab = tab; }
@@ -108,6 +120,7 @@ export class GameRulesEditor implements OnInit {
         if (!validCharacterRules(rules)) {this.validation.push('Check identifiers, required labels, unique options, numeric bounds, default profile, dependencies and upgrade transitions.');}
         if (rules.progressionProfiles?.some(profile => profile.gameId !== this.game() || profile.tracks.some(track => track.upgradeCosts?.some(cost => cost.materials.some(material => !this.materials().some(entry => entry.id === material.itemId)))))) {this.validation.push('Upgrade materials must reference inventory items in this game.');}
         this.validation.push(...characterRulesCompatibility(this.original(), rules));
+        this.validation.push(...inventoryReferenceIssues(rules.inventory,this.entries().filter(entry => entry.game === this.game())));
         if (!this.validation.length) {this.save.emit();}
     }
 }

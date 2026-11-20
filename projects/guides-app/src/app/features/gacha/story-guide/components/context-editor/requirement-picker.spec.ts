@@ -64,6 +64,34 @@ describe('Requirement title search', () => {
         root.querySelector<HTMLButtonElement>('[aria-label="Remove linked requirement"]')!.click(); fixture.detectChanges();
         expect(component.value()).toBe('');
     });
+    it('finds and links main story quest headers with long persisted identifiers, then renders them as another quest prerequisite', () => {
+        const id='main-'+ 'a'.repeat(90), rowId='parent-'+ 'b'.repeat(80);
+        const main:Entry={...structuredClone(entry),id,category:'main-story',name:'Lost in the Marsh',worldQuests:globalThis.undefined,mainStory:{...emptyPatchOverview(),groups:[{id:'main-group',title:'Cradle of Ages',mainQuest:{id:rowId,content:'Cradle of Ages',contentType:'',patch:'1.0',notes:''}}],rows:[]}};
+        const before=structuredClone(main);
+        const {fixture,component,input,root}=setup();
+        fixture.componentRef.setInput('entries',[...entries(),main,{...main,id:'foreign',game:'hsr'}]);
+        search(input,'cradle ages');fixture.detectChanges();
+        const option=root.querySelector<HTMLButtonElement>('[role="option"]')!;
+        expect(option.textContent).toContain('Cradle of Ages');expect(option.textContent).toContain('Main story quest');
+        option.click();fixture.detectChanges();
+        const link=component.selected()!;
+        expect(link.id.length).toBeGreaterThan(100);
+        expect(link.url).toBe(`/games/genshin/story?section=chapter#story-row-${id}-${rowId}`);
+        const context:StoryContext={prerequisites:[{type:StoryRequirementType.Prerequisite,text:'Complete the main quest',targetId:link.id}]};
+        expect(validStoryContext(context)).toBe(true);
+        const reader=TestBed.createComponent(StoryContentList), data=structuredClone(entry.worldQuests!);
+        data.rows[0].context=context;
+        reader.componentRef.setInput('entry',entry);reader.componentRef.setInput('data',data);reader.componentRef.setInput('relatedEntries',[entry,main]);reader.detectChanges();
+        const rendered=(reader.nativeElement as HTMLElement).querySelector('#story-row-guide-first .guide-objective-requirements a');
+        expect(rendered?.textContent).toBe('Cradle of Ages');expect(rendered?.getAttribute('href')).toBe(link.url);
+        expect(main).toEqual(before);
+    });
+    it('uses the displayed group title when a main quest header has no separate content title', () => {
+        const main:Entry={...entry,category:'main-story',mainStory:{...emptyPatchOverview(),groups:[{id:'group',title:'Everwinter Without Mercy',mainQuest:{id:'parent',content:'',contentType:'',patch:'',notes:''}}],rows:[]}};
+        const link=storyRequirementLinks([main],'genshin').find(link=>link.id==='quest:guide:parent');
+        expect(link?.name).toBe('Everwinter Without Mercy');
+        expect(link?.url).toContain('#story-row-guide-parent');
+    });
     it('preserves existing and unavailable references when typing, blurring or finding no matches', () => {
         const { fixture, component, input, root } = setup('old-reference');
         expect(root.textContent).toContain('Previously linked content (unavailable)');

@@ -1,15 +1,16 @@
 <div class="modal-backdrop">
-    <section class="modal story-guide-dialog patch-modal" role="dialog" aria-modal="true" aria-labelledby="rules-title" ggDialogFocus (keydown.escape)="close()">
-        <header class="story-dialog-header"><div><h2 id="rules-title">Character Game Rules</h2><p>{{ gameName() }} · Shared character configuration</p></div><button type="button" class="story-dialog-close" aria-label="Close game rules" [disabled]="busy()" (click)="close()">×</button></header>
+    <section class="modal story-guide-dialog patch-modal" [class.inventory-definition-dialog]="inventorySection() !== 'all'" role="dialog" aria-modal="true" aria-labelledby="rules-title" ggDialogFocus (keydown.escape)="close()">
+        <header class="story-dialog-header"><div><h2 id="rules-title">{{ inventorySection() === 'categories' ? 'Material Categories' : inventorySection() === 'recipes' ? 'Crafting & Conversion Recipes' : 'Character Game Rules' }}</h2><p>{{ gameName() }} · {{ inventorySection() === 'all' ? 'Shared character configuration' : 'Shared inventory definitions' }}</p></div><button type="button" class="story-dialog-close" aria-label="Close game rules" [disabled]="busy()" (click)="close()">×</button></header>
         <form (ngSubmit)="submit()">
             <fieldset class="rules-body" [disabled]="busy()">
                 <div class="section-editor-workspace">
-                    <nav class="section-editor-sidebar" aria-label="Game rules sections">
+                    @if (inventorySection() === 'all') { <nav class="section-editor-sidebar" aria-label="Game rules sections">
                         @for (item of tabs; track item) { <button type="button" class="editor-overview-link" [class.selected]="tab === item" [attr.aria-current]="tab === item ? 'page' : null" (click)="select(item)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path [attr.d]="tabIcons[item]" /></svg>{{ item }}</button> }
-                    </nav>
+                    </nav> }
                     <div class="section-editor-main">
-                        <div class="editor-panel-heading"><div><h3>{{ tab }}</h3><p>Shared rules for every character in {{ gameName() }}. Changes are saved together.</p></div></div>
+                        @if (inventorySection() === 'all') { <div class="editor-panel-heading"><div><h3>{{ tab }}</h3><p>Shared rules for every character in {{ gameName() }}. Changes are saved together.</p></div></div> }
                         @switch (tab) {
+                            @case ('Inventory') { <gg-inventory-rules-editor [section]="inventorySection()" [rules]="draft()" [entries]="entries()" [game]="game()" /> }
                             @case ('General') {
                                 <div class="rules-grid">
                                     <label>Game identifier<input [value]="game()" readonly /></label><label>Game name<input [value]="gameName()" readonly /></label>
@@ -210,7 +211,7 @@
             </fieldset>
             @if (validation.length || error()) { <div class="error" role="alert">@for (issue of validation; track $index) { <p>{{ issue }}</p> }@if (error()) { <p>{{ error() }}</p> }</div> }
             @if (discard) { <div class="discard-prompt" role="alert"><span>Discard unsaved rules changes?</span><button type="button" (click)="discard = false">Keep editing</button><button type="button" (click)="dismissed.emit()">Discard changes</button></div> }
-            <footer class="modal-actions"><button type="submit" class="primary" [disabled]="busy()">Save Rules</button><button type="button" [disabled]="busy()" (click)="close()">Cancel</button></footer>
+            <footer class="modal-actions"><button type="submit" class="primary" [disabled]="busy()">{{ inventorySection() === 'all' ? 'Save Rules' : 'Save Changes' }}</button><button type="button" [disabled]="busy()" (click)="close()">Cancel</button></footer>
         </form>
     </section>
 </div>

@@ -3,16 +3,59 @@ import { GameRulesEditor } from './game-rules-editor';
 import type { CharacterRules } from '@lib/types/character.type';
 
 const rules: CharacterRules = {levelCap: 100, rarities: [5], weaponTypes: [], damageTypes: [], roles: [], equipmentSlots: [], progressionTracks: []};
-async function setup(original = rules) {
+async function setup(original = rules, inventorySection: 'all' | 'categories' | 'recipes' = 'all') {
     const fixture = TestBed.createComponent(GameRulesEditor);
     fixture.componentRef.setInput('game', 'genshin');
     fixture.componentRef.setInput('gameName', 'Genshin Impact');
     fixture.componentRef.setInput('draft', structuredClone(original));
     fixture.componentRef.setInput('original', original);
+    fixture.componentRef.setInput('inventorySection', inventorySection);
     fixture.detectChanges();
     return {fixture, editor: fixture.componentInstance, root: fixture.nativeElement as HTMLElement};
 }
 describe('Character game rules editor', () => {
+    it.each([
+        globalThis.undefined,
+        {categories: [], rarities: [], recipes: []},
+        {categories: [{id: 'currency', label: 'Currency', displayOrder: 0, enabled: true}], rarities: [{rarity: 5, color: '#ffcc00'}], recipes: []},
+    ])('closes unchanged material categories without a discard prompt (%j)', async inventory => {
+        const {fixture, editor, root} = await setup({...rules, inventory}, 'categories');
+        await fixture.whenStable();
+        const dismiss = vi.fn(); editor.dismissed.subscribe(dismiss);
+        root.querySelector<HTMLDetailsElement>('.category-options')?.setAttribute('open', '');
+        editor.close(); fixture.detectChanges(); await fixture.whenStable();
+        expect(dismiss).toHaveBeenCalledOnce();
+        expect(editor.discard).toBe(false);
+        expect(root.querySelector('.discard-prompt')).toBeNull();
+    });
+    it('opens a dedicated category-definition screen with local drafts and validation', async () => {
+        const original = {...rules, inventory: {categories: [], rarities: [], recipes: []}};
+        const {fixture, editor, root} = await setup(original, 'categories');
+        expect(root.querySelector('#rules-title')?.textContent).toBe('Material Categories');
+        expect(root.querySelector('.section-editor-sidebar')).toBeNull();
+        expect(root.querySelector('.material-categories')).not.toBeNull();
+        expect(root.querySelector('.rarity-section')).not.toBeNull();
+        expect(root.textContent).not.toContain('Recipe identifier');
+        const add = [...root.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === '+ Add Category')!;
+        add.click(); fixture.detectChanges(); await fixture.whenStable();
+        const save = vi.fn(); editor.save.subscribe(save);
+        editor.submit();
+        expect(save).not.toHaveBeenCalled();
+        expect(editor.validation.length).toBeGreaterThan(0);
+        editor.draft().inventory!.categories[0].label = 'Skill Materials';
+        editor.submit();
+        expect(save).toHaveBeenCalledOnce();
+        expect(original.inventory.categories).toHaveLength(0);
+        editor.close(); fixture.detectChanges(); await fixture.whenStable();
+        expect(root.textContent).toContain('Discard unsaved rules changes?');
+    });
+    it('keeps recipes on their own definition screen', async () => {
+        const {root} = await setup(rules, 'recipes');
+        expect(root.querySelector('#rules-title')?.textContent).toBe('Crafting & Conversion Recipes');
+        expect(root.querySelector('.material-categories')).toBeNull();
+        expect(root.querySelector('.rarity-section')).toBeNull();
+        expect(root.textContent).toContain('+ Add Recipe');
+    });
     it('accepts game-style version text without losing minor-version zeroes and allows clearing it', async () => {
         const {fixture, editor, root} = await setup({...rules, configurationVersion: 2});
         await fixture.whenStable();
@@ -34,7 +77,7 @@ describe('Character game rules editor', () => {
     it('opens General in the shared Story Guide shell and retains draft edits across tabs', async () => {
         const {fixture, editor, root} = await setup();
         expect(root.querySelector('.story-guide-dialog.patch-modal .section-editor-workspace')).not.toBeNull();
-        expect(root.querySelectorAll('.section-editor-sidebar button').length).toBe(6);
+        expect(root.querySelectorAll('.section-editor-sidebar button').length).toBe(7);
         expect(editor.tab).toBe('General');
         editor.draft().description = 'Shared rules';
         editor.select('Attributes'); editor.addAttribute();

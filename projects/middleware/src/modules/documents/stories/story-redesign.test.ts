@@ -5,6 +5,19 @@ import { fromCatalog, toCatalog, validCatalog } from "../../../../../common/work
 import { emptyPatchOverview, validPatchOverview } from "../../../../../common/quests/story-template";
 import { storyCompletionKey, storyRowDone, validStoryContext } from "../../../../../common/quests/story-guide";
 import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from "../../../../../lib/enums/story-tracking.enum";
+import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '../../../../../lib/constants/story-requirements.constants';
+
+await test('main quest requirement links accept composite identifiers without relaxing ordinary content identifier limits',()=>{
+    const targetId=`quest:${'a'.repeat(95)}:${'b'.repeat(90)}`;
+    const context={prerequisites:[{type:StoryRequirementType.Prerequisite,text:'Complete the main story quest',targetId}]};
+    assert.equal(validStoryContext(context),true);
+    assert.equal(validStoryContext({...context,relatedContentIds:['valid-id']}),true);
+    assert.equal(validStoryContext({...context,relatedContentIds:['a'.repeat(101)]}),false);
+    assert.equal(validStoryContext({prerequisites:[{...context.prerequisites[0],targetId:'a'.repeat(STORY_REQUIREMENT_TARGET_MAX_LENGTH+1)}]}),false);
+    for(const unsafe of ['__proto__','bad.$reference','bad\u0000reference']){assert.equal(validStoryContext({prerequisites:[{...context.prerequisites[0],targetId:unsafe}]}),false);}
+    const source={...emptyPatchOverview(),rows:[{id:'quest',content:'Another quest',contentType:'',patch:'',notes:'',context}]};
+    assert.equal(validPatchOverview(source),true);
+});
 import { decodeStory, encodeStory, mergeStory } from "./story-document";
 
 const section: Entry = { id: 'region', game: 'genshin', kind: 'story-category', name: 'Existing region',

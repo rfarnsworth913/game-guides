@@ -149,7 +149,7 @@
                     </select></label>
                 }
             </div>
-            @if (eventTemplate()) {
+            @if (eventTemplate() || (['character-information', 'side-stories'].includes(entry().category) && !isQuestGroup(group))) {
                 <label>Group Title Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="group.contentUrl" placeholder="https://..." /></label>
             }
             @if (entry().category === 'world-quests') {

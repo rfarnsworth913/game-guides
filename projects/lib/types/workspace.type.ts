@@ -3,6 +3,7 @@ import type { Team } from './team.type';
 import type { CharacterCollection, CharacterDefinition, CharacterRules } from './character.type';
 import type { GameOverview } from './game-overview.type';
 import type { EquipmentDefinition, EquipmentInstance } from './equipment.type';
+import type {InventoryMetadata} from './inventory.type';
 
 export type Kind =
     | 'inventory'
@@ -15,6 +16,7 @@ export type Kind =
     | 'achievement-category'
     | 'story-category';
 export type Entry = {
+    inventoryMetadata?: InventoryMetadata;
     equipmentDefinition?: EquipmentDefinition;
     equipmentInstances?: EquipmentInstance[];
     region?: string;

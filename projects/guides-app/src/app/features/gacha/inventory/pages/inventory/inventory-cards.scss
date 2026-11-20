@@ -1,0 +1,16 @@
+@use '../../../../../../styles/components/dropdown-control' as dropdown;
+.material-inventory .material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; padding: 14px; animation: inventory-reveal 180ms ease; }
+.material-inventory .material-card { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--color-bg-primary); min-width: 0; text-align: left; }
+.material-icon { width: 60px; height: 60px; flex: 0 0 60px; display: grid; place-items: center; border-radius: 8px; overflow: hidden; img { width: 100%; height: 100%; object-fit: contain; } }
+.material-copy { flex: 1; min-width: 0; display: grid; gap: 8px; font-size: 12px; > small { color: var(--muted); } }
+.material-name { border: 0; background: transparent; padding: 0; text-align: left; font-weight: 600; overflow-wrap: anywhere; font-size: 13px; }
+.material-owned { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; color: var(--muted); }
+.material-inventory .inventory-quick-edit { display: flex; gap: 4px; padding: 0; input { width: 80px; min-width: 0; height: 30px; padding: 4px; text-align: center; font-size: 12px; appearance: textfield; } button { padding: 2px 8px; height: 30px; } }
+.material-status { color: var(--muted); small { display: block; margin-top: 4px; } }
+.material-card[data-status='sufficient'] .material-status { color: var(--color-success, #53d4a2); }
+.material-card[data-status='partial'] .material-status { color: var(--color-warning, #e8bb6d); }
+.material-card[data-status='missing'] .material-status { color: var(--color-danger, #ee8995); }
+.material-catalog-actions { display: flex; gap: 8px; }
+.inventory-crafting select { @include dropdown.control; width: 100%; }
+@keyframes inventory-reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .material-inventory .material-grid { animation: none; } .material-group-heading svg { transition: none; } }

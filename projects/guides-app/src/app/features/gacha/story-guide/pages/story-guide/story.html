@@ -5,7 +5,7 @@
     [incompleteOnly]="incompleteOnly()" (incompleteOnlyChange)="incompleteOnly.set($event)"
     [statisticsExpanded]="showCategoryProgress()" (statisticsExpandedChange)="showCategoryProgress.set($event)"
     (regionSelected)="selectSection($event)" (regionKey)="navigateTabs($event)" (editToggled)="toggleEditMode()"
-    (addRegion)="open('story-category')" (resetRequested)="confirmReset = true" (toolbarHeight)="stickyHeight.set($event)">
+    (addRegion)="open('story-category')" (addSubsection)="open('story')" (resetRequested)="confirmReset = true" (toolbarHeight)="stickyHeight.set($event)">
     <div story-editor-actions class="story-actions">
         @if (active(); as section) {
             <button type="button" aria-label="Move section left" [disabled]="busy() || sections()[0].id === section.id" (click)="move(-1)">&#8592;</button>

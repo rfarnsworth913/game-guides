@@ -27,7 +27,7 @@
                     <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
                 </button>
                 <div class="guide-main-quest-title">
-                    <h4>@if (httpUrl(mainQuest.contentUrl || mainQuest.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ mainQuest.content || group.title }}</a> } @else { {{ mainQuest.content || group.title }} }</h4>
+                    <h4>@if (httpUrl(mainQuest.contentUrl || group.contentUrl || mainQuest.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ mainQuest.content || group.title }}</a> } @else { {{ mainQuest.content || group.title }} }</h4>
                 </div>
                 @let progress = groupProgress(group.id);
                 <div class="guide-main-quest-progress guide-group-progress" aria-label="Quest completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: progress }" /></div>
@@ -181,7 +181,7 @@
                 <header class="guide-section-heading patch-group-heading world-group-heading">
                     <svg class="patch-type-icon" width="24" height="24" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
                         @if (group.mode === 'questChain') { <path d="m9 15 6-6M8 12l-2 2a3 3 0 0 0 4 4l2-2m0-8 2-2a3 3 0 0 1 4 4l-2 2" /> }
-                        @else if (group.mode === 'collectionChecklist') { <path d="m12 3 10 5-10 5L2 8Zm-10 10 10 5 10-5M2 18l10 5 10-5" /> }
+                        @else if (group.mode === 'collectionChecklist') { <path d="M9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 3h6v4H9zM8 12h8M8 16h8" /> }
                         @else { <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.5" /> }
                     </svg>
                     <h4>@if (httpUrl(group.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ group.title }}</a> } @else { {{ group.title }} }<small>{{ worldGroupName(group.mode) }}</small></h4>

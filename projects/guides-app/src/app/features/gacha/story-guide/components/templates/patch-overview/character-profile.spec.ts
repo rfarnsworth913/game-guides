@@ -4,6 +4,25 @@ import { WorkspaceStore, type Entry } from '../../../../../../core/state/workspa
 import { emptyPatchOverview } from '../../../../../../../../../common/quests/story-template';
 
 describe('Character story profile', () => {
+    it.each(['character-information','side-stories'])('edits and renders a linked content-group title in %s without changing row tracking', async category => {
+        const save=vi.fn();
+        TestBed.configureTestingModule({providers:[{provide:WorkspaceStore,useValue:{save,saving:()=>false,loading:()=>false}}]});
+        const data={...emptyPatchOverview(),groups:[{id:'lore',title:'Official Lore',groupType:'content' as const,contentUrl:''}],rows:[{id:'profile',groupId:'lore',content:'Character Profile',contentType:'',patch:'',notes:''}]};
+        const entry:Entry={id:'character-story',game:'genshin',kind:'story',category,name:'Character story',notes:'',rarity:1,members:[],requirements:[],order:0,day:'',completed:false,quantity:0,target:0,...(category==='character-information'?{characterInformation:data}:{sideStories:data}),storyRowCompletion:{profile:true}};
+        const fixture=TestBed.createComponent(PatchOverviewTemplate);
+        fixture.componentRef.setInput('entry',entry);fixture.componentRef.setInput('editing',true);fixture.detectChanges();await fixture.whenStable();
+        const root=fixture.nativeElement as HTMLElement;
+        const label=[...root.querySelectorAll('label')].find(label=>label.textContent?.trim()==='Group Title Link')!;
+        const input=label.querySelector('input')!;
+        input.value='https://example.com/character-story';input.dispatchEvent(new Event('input'));fixture.detectChanges();
+        expect(data.groups[0].contentUrl).toBe('https://example.com/character-story');
+        fixture.componentRef.setInput('editing',false);fixture.detectChanges();
+        const link=root.querySelector<HTMLAnchorElement>('.patch-group-heading h4 a')!;
+        expect(link.textContent).toBe('Official Lore');expect(link.getAttribute('href')).toBe('https://example.com/character-story');
+        expect(link.target).toBe('_blank');expect(link.rel).toContain('noopener');
+        expect(root.querySelector<HTMLInputElement>('.guide-row-tracking input')?.checked).toBe(true);
+        expect(entry.storyRowCompletion).toEqual({profile:true});expect(save).not.toHaveBeenCalled();
+    });
     it('presents existing character metadata and artwork while retaining content rows, links and tracking', () => {
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save, saving: () => false, loading: () => false } }] });

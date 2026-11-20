@@ -155,6 +155,15 @@ export class Workspace {
                   day: 'Any day',
               };
     }
+    inventoryMetadataText(field:'aliases'|'tags'|'categoryIds', value:string):void {
+        if (!this.editor) {return;}
+        const metadata = this.editor.inventoryMetadata ??= {aliases:[],tags:[],categoryIds:[],enabled:true};
+        metadata[field] = [...new Set(value.split(',').map(value => value.trim()).filter(Boolean))];
+    }
+    setInventoryEnabled(enabled:boolean):void {
+        if (!this.editor) {return;}
+        (this.editor.inventoryMetadata ??= {aliases:[],tags:[],categoryIds:[],enabled:true}).enabled = enabled;
+    }
     options(kind: string): Entry[] {
         return this.store.entries().filter((e) => e.kind === kind && e.game === this.editor?.game);
     }

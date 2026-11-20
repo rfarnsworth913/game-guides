@@ -85,6 +85,32 @@ describe('Story guide header', () => {
         fixture.detectChanges();
         expect([...root.querySelectorAll<HTMLButtonElement>('.story-mode-toggle')].every(button => button.disabled)).toBe(true);
     });
+    it('opens subsection creation from the compact header only for editors in edit mode', async () => {
+        const { fixture, header, root } = await setup();
+        header.compact.set(true);
+        fixture.componentRef.setInput('canEdit', true);
+        fixture.detectChanges();
+        expect(root.querySelector('.compact-add-subsection')).toBeNull();
+        fixture.componentRef.setInput('editing', true);
+        fixture.detectChanges();
+        const add = vi.fn();
+        header.addSubsection.subscribe(add);
+        const button = root.querySelector<HTMLButtonElement>('.compact-add-subsection')!;
+        button.click();
+        expect(add).toHaveBeenCalledOnce();
+        fixture.componentRef.setInput('busy', true);
+        fixture.detectChanges();
+        expect(button.disabled).toBe(true);
+        fixture.componentRef.setInput('busy', false);
+        fixture.componentRef.setInput('editorOpen', true);
+        fixture.detectChanges();
+        expect(button.disabled).toBe(true);
+        button.click();
+        expect(add).toHaveBeenCalledOnce();
+        fixture.componentRef.setInput('canEdit', false);
+        fixture.detectChanges();
+        expect(root.querySelector('.compact-add-subsection')).toBeNull();
+    });
     it('opens compact progress details with live counts and closes on Escape, outside interaction or region change', async () => {
         const { fixture, header, root } = await setup();
         header.compact.set(true);
