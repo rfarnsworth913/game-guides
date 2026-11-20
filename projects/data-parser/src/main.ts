@@ -3,7 +3,7 @@ import path from "path";
 
 import type { DataFile } from "@shared-lib/types";
 
-import { Logger } from "./services";
+import { Logger, SchemaValidator } from "./services";
 import * as Parsers from "./parsers";
 
 
@@ -33,8 +33,15 @@ const dataSourceFolder = path.join(process.cwd(), "projects/data-parser/config")
     for (const file of files) {
         Logger.info("Processing file: ", file);
 
+        // Extract JSON content and validate it before processing
         const fileContent = fs.readFileSync(path.join(dataSourceFolder, file), "utf-8");
         const dataFile = JSON.parse(fileContent) as DataFile;
+
+        if (!SchemaValidator.validate(dataFile)) {
+            Logger.error("File does not match schema: ", file);
+            continue;
+        }
+
         const { id } = dataFile;
 
         try {
