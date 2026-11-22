@@ -1,11 +1,12 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 /* eslint-disable @typescript-eslint/require-await */
 import { createRequire } from "node:module";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-import { EventType } from "@shared-lib/enums";
-import type { DataFile, DataSource, Version } from "@shared-lib/types";
+import { EventType } from "@lib/enums";
+import type { DataFile, DataSource, Version } from "@lib/types";
 
-import { DataService, Logger } from "../services";
+import { DataService, Logger } from "../../services";
 import { GenshinImpactParser } from "./genshin-impact";
 
 

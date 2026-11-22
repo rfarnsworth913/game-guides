@@ -1,7 +1,7 @@
 import { Entry } from "../../../../core/state/workspace.store";
 import { storyProgress, storyTemplate } from "./story-progress";
 import { StoryPosition } from "../state/story-position.store";
-import { isStoryDivider, storyRowDone } from "../../../../../../../common/quests/story-guide";
+import { isStoryDivider, storyRowDone } from "@common/quests/story-guide";
 
 function ordered(a: Entry, b: Entry): number { return a.order - b.order || a.name.localeCompare(b.name); }
 

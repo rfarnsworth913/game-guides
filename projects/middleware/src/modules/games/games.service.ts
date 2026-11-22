@@ -1,9 +1,9 @@
 import type { CatalogRepository } from '../../app/app.types';
 import { ApiError } from '../../core/errors/app-error';
-import { validCatalog } from '../../../../common/workspace/workspace';
-import { validCharacterRules } from '../../../../common/characters/characters';
-import type { CharacterRules } from '../../../../lib/types/character.type';
-import {inventoryReferenceIssues} from '../../../../common/inventory/inventory-config';
+import { validCatalog } from '@common/workspace/workspace';
+import { validCharacterRules } from '@common/characters/characters';
+import type { CharacterRules } from '@lib/types/character.type';
+import {inventoryReferenceIssues} from '@common/inventory/inventory-config';
 export class GamesService {
     constructor(private readonly repository: CatalogRepository) { }
     async write(id: string, body: unknown) {

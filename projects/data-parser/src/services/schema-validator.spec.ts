@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { DataFile } from "@shared-lib/types";
+import type { DataFile } from "@lib/types";
 
 import { SchemaValidator } from "./schema-validator";
 
@@ -10,12 +10,18 @@ import { SchemaValidator } from "./schema-validator";
  * Supplies malformed JSON values that cannot be represented by the DataFile type.
  */
 function validateInput (value: unknown): boolean {
-    return SchemaValidator.validate(value as DataFile);
+    return SchemaValidator.validate(value);
 }
 
 
 // Unit Tests -----------------------------------------------------------------
 describe("Data Parser: Schema Validator", () => {
+
+    it("reports useful paths and validates stable game identifiers without changing configuration data", () => {
+        expect(SchemaValidator.errors({ id: "Display name", gameId: "", sourceList: [] })[0]).toContain("/gameId");
+        expect(SchemaValidator.errors({ id: "Display name", gameId: "genshin", sourceList: [] })).toEqual([]);
+        expect(SchemaValidator.errors({ id: "Display name", sourceList: [{ id: "Version" }] })[0]).toContain("/sourceList/0");
+    });
 
     it("accepts a complete configuration with multiple sources", () => {
         const config: DataFile = {

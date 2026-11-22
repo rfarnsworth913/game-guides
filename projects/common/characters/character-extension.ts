@@ -1,4 +1,4 @@
-import type { CharacterAttributeDefinition, CharacterProgressionProfile, CharacterResource, CharacterAbility, ProgressionTrackDefinition, CharacterExtension } from '../../lib/types/character-extension.type';
+import type { CharacterAttributeDefinition, CharacterProgressionProfile, CharacterResource, CharacterAbility, ProgressionTrackDefinition, CharacterExtension } from '@lib/types/character-extension.type';
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const only = (value: Record<string, unknown>, fields: string[]) => Object.keys(value).every(key => fields.includes(key));

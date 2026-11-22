@@ -1,5 +1,5 @@
-import type { StoryTableRow } from './story-template.type';
-import type { WorldQuestGroupType } from './world-quest.type';
+import type { StoryTableRow } from '@lib/types/story-template.type';
+import type { WorldQuestGroupType } from '@lib/types/world-quest.type';
 
 export type StoryGroup = {
     id: string;

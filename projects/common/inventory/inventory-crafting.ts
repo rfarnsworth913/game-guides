@@ -1,6 +1,6 @@
-import type {Entry} from '../../lib/types/workspace.type';
-import type {InventoryConfig, CraftRequest, InventoryRecipe} from '../../lib/types/inventory.type';
-import {validInventoryConfig} from './inventory-config';
+import type {Entry} from '@lib/types/workspace.type';
+import type {InventoryConfig, CraftRequest, InventoryRecipe} from '@lib/types/inventory.type';
+import {validInventoryConfig} from '@common/inventory/inventory-config';
 
 export function craftInventory(entries: Entry[], game: string, config: InventoryConfig, request: CraftRequest, reserved: Map<string, number> = new Map()): Record<string, number> {
     if (!validInventoryConfig(config) || !Number.isSafeInteger(request.quantity) || request.quantity < 1 || request.quantity > 1e9 || typeof request.chained !== 'boolean' || !request.recipeChoices || typeof request.recipeChoices !== 'object' || Array.isArray(request.recipeChoices) || Object.keys(request.recipeChoices).length > 1000 || Object.values(request.recipeChoices).some(value => typeof value !== 'string')) {throw new Error('Invalid recipe configuration or crafting quantity.');}

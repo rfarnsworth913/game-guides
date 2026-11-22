@@ -2,8 +2,8 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 
 import { WorkspaceStore, GAMES } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
-import type { CatalogEntry, PlayerState } from "../../../../../../../lib/types/workspace.type";
-import { emptyPatchOverview } from "../../../../../../../common/quests/story-template";
+import type { CatalogEntry, PlayerState } from "@lib/types/workspace.type";
+import { emptyPatchOverview } from "@common/quests/story-template";
 
 const event: CatalogEntry = { id: 'parsed-event-test', game: 'genshin', kind: 'events', name: 'Daily Commissions',
     notes: '', category: 'daily', eventType: 'daily', startDate: '2026-10-29', endDate: '2026-10-29',

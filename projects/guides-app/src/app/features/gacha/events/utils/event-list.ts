@@ -8,11 +8,11 @@ export function eventGroup(entry: Entry, now: number): EventGroupId {
 export function compareAvailableEvents(a: Entry, b: Entry, now: number): number {
     const rank = { Active: 0, Upcoming: 1, Undated: 2, Ended: 3 };
     const status = eventStatus(a, now), other = eventStatus(b, now);
-    const date = (entry: Entry) => status === 'Upcoming' ? eventDate(entry.startDate)?.getTime() ?? Infinity : eventDate(entry.endDate, true)?.getTime() ?? Infinity;
+    const date = (entry: Entry) => status === 'Upcoming' ? eventDate(entry.startDate, false, entry.eventSchedule)?.getTime() ?? Infinity : eventDate(entry.endDate, true, entry.eventSchedule)?.getTime() ?? Infinity;
     const dates = status === 'Ended' ? date(b) - date(a) : date(a) - date(b);
     return rank[status] - rank[other] || dates || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 }
 export function compareEventHistory(a: Entry, b: Entry): number {
-    const date = (entry: Entry) => eventDate(entry.endDate, true)?.getTime() ?? eventDate(entry.startDate)?.getTime() ?? 0;
+    const date = (entry: Entry) => eventDate(entry.endDate, true, entry.eventSchedule)?.getTime() ?? eventDate(entry.startDate, false, entry.eventSchedule)?.getTime() ?? 0;
     return date(b) - date(a) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
 }

@@ -1,4 +1,4 @@
-import type { Event, Version } from "@shared-lib/types";
+import type { Event, Version } from "@lib/types";
 
 export type Recurrence = {
     title: string;

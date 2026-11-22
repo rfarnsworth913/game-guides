@@ -1,19 +1,8 @@
 import { Entry } from "../../../../core/state/workspace.store";
 
-/** Date-only parser dates represent local calendar days; an end date includes that whole day. */
-export function eventDate(value: string | undefined, end = false): Date | null {
-    if (!value) {return null;}
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        const [year, month, day] = value.split('-').map(Number);
-        const date = new Date(year, month - 1, day);
-        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {return null;}
-        if (end) {date.setDate(date.getDate() + 1);}
-        return date;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}T/.test(value)) {return null;}
-    const date = new Date(value);
-    return Number.isFinite(date.getTime()) ? date : null;
-}
+import { eventBoundary } from '@common/events/event-dates';
+
+export const eventDate = eventBoundary;
 
 export type EventDateRange = 'all' | 'today' | 'week' | 'next-7-days' | 'month' | 'next-month' | 'year';
 
@@ -37,8 +26,8 @@ export function eventRange(range: EventDateRange, now: Date): { start: Date; end
 }
 
 export function occursBetween(entry: Entry, from: Date, until: Date): boolean {
-    const start = eventDate(entry.startDate);
-    const end = eventDate(entry.endDate, true);
+    const start = eventDate(entry.startDate, false, entry.eventSchedule);
+    const end = eventDate(entry.endDate, true, entry.eventSchedule);
     if (!start && !end) {return false;}
     if (start && end && end <= start) {return false;}
     if (start && end) {return start < until && end > from;}
@@ -57,9 +46,9 @@ export function monthDays(month: Date): Date[] {
 }
 
 export function eventType(entry: Entry): string { return entry.eventType || entry.category || 'other'; }
-export function eventStatus(entry: Pick<Entry, 'startDate' | 'endDate' | 'eventType'>, now: number): 'Active' | 'Upcoming' | 'Ended' | 'Undated' {
-    const start = eventDate(entry.startDate)?.getTime();
-    const end = eventDate(entry.endDate, true)?.getTime();
+export function eventStatus(entry: Pick<Entry, 'startDate' | 'endDate' | 'eventType' | 'eventSchedule'>, now: number): 'Active' | 'Upcoming' | 'Ended' | 'Undated' {
+    const start = eventDate(entry.startDate, false, entry.eventSchedule)?.getTime();
+    const end = eventDate(entry.endDate, true, entry.eventSchedule)?.getTime();
     if ((entry.startDate && start === globalThis.undefined) || (entry.endDate && end === globalThis.undefined) ||
         (typeof start === 'number' && typeof end === 'number' && end <= start)) {return 'Undated';}
     if (typeof end === 'number' && now >= end) {return 'Ended';}
@@ -72,8 +61,8 @@ export function eventTypeLabel(type: string): string {
 }
 
 export function eventTiming(entry: Entry, now: number): { label: string; urgent: boolean } {
-    const start = eventDate(entry.startDate)?.getTime();
-    const end = eventDate(entry.endDate, true)?.getTime();
+    const start = eventDate(entry.startDate, false, entry.eventSchedule)?.getTime();
+    const end = eventDate(entry.endDate, true, entry.eventSchedule)?.getTime();
     if (start && end && end <= start) {return { label: 'Dates unavailable', urgent: false };}
     if (end && now >= end) {return { label: 'Ended', urgent: false };}
     const upcoming = typeof start === 'number' && now < start;

@@ -1,7 +1,7 @@
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CharacterInformationTemplate } from "../../components/templates/character-information/character-information";
-import { storyContentTypes } from "../../../../../../../../common/quests/story-content-types";
+import { storyContentTypes } from "@common/quests/story-content-types";
 import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, Injector, input, signal, untracked, viewChild } from '@angular/core';
 import { of } from 'rxjs';
 import { StoryPositionStore } from "../../state/story-position.store";
@@ -15,11 +15,11 @@ import { StoryDividerTemplate } from "../../components/templates/divider/divider
 import { WorldQuestsTemplate } from "../../components/templates/world-quests/world-quests";
 import { LoreTemplate } from "../../components/templates/lore/lore";
 import { storyProgress } from "../../utils/story-progress";
-import { isStoryDivider } from "../../../../../../../../common/quests/story-guide";
-import { reworkMainQuestTemplate } from "../../../../../../../../common/quests/main-quest";
+import { isStoryDivider } from "@common/quests/story-guide";
+import { reworkMainQuestTemplate } from "@common/quests/main-quest";
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import { searchStoryGuides, StorySearchResult } from "../../utils/story-search";
-import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, preparePatchGroups, storyImageUrl } from "../../../../../../../../common/quests/story-template";
+import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, preparePatchGroups, storyImageUrl } from "@common/quests/story-template";
 
 @Component({
     selector: 'gg-story',

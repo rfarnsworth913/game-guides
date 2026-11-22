@@ -1,6 +1,7 @@
+import type { EventSchedule } from '@lib/types/event-schedule.type';
 import type * as mongoDB from "mongodb";
 
-import type { EventType } from "../enums/event-types.enum";
+import type { EventType } from "@lib/enums/event-types.enum";
 
 export type RootDocument = {
     _id: mongoDB.ObjectId;
@@ -16,6 +17,7 @@ export type Event = {
     icon?: string;
     eventType: EventType;
     completed?: boolean;
+    eventSchedule?: EventSchedule;
 };
 
 export type Version = {

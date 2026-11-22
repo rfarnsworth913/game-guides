@@ -2,11 +2,11 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 
 import { WorkspaceStore, GAMES, Entry } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
-import type { CharacterRules } from "../../../../../../../lib/types/character.type";
-import { emptyCharacterCollection, emptyCharacterDefinition } from "../../../../../../../common/characters/characters";
-import type { GameSnapshot, PlayerState } from "../../../../../../../lib/types/workspace.type";
-import { toCatalog, parseBackup } from "../../../../../../../common/workspace/workspace";
-import { emptyPatchOverview } from '../../../../../../../common/quests/story-template';
+import type { CharacterRules } from "@lib/types/character.type";
+import { emptyCharacterCollection, emptyCharacterDefinition } from "@common/characters/characters";
+import type { GameSnapshot, PlayerState } from "@lib/types/workspace.type";
+import { toCatalog, parseBackup } from "@common/workspace/workspace";
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 const rules: CharacterRules = {
     levelCap: 90,
@@ -102,8 +102,8 @@ describe('Character collection persistence', () => {
     it('edits one shared character through its guide reference and keeps private completion/builds independent', async () => {
         const game = snapshots.find(item => item.id === 'genshin')!;
         game.entries[0].characterInformation = { ...emptyPatchOverview(), rows: [{ id: 'profile-row', content: 'Profile', contentType: '', patch: '1.0', notes: 'Original' }] };
-        game.entries.push({ ...toCatalog(character), id: 'section', kind: 'story-category', name: 'Region', characterDefinition: globalThis.undefined },
-            { ...toCatalog(character), id: 'placement', kind: 'story', category: 'character-information', storySection: 'section', characterId: 'vesna', name: 'A guide placement', characterDefinition: globalThis.undefined });
+        game.entries.push(toCatalog({ ...character, id: 'section', kind: 'story-category', name: 'Region', characterDefinition: globalThis.undefined, characterInformation: globalThis.undefined }),
+            toCatalog({ ...character, id: 'placement', kind: 'story', category: 'character-information', storySection: 'section', characterId: 'vesna', name: 'A guide placement', characterDefinition: globalThis.undefined }));
         const editor = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('editor', true) }] }), () => new WorkspaceStore());
         await editor.initialize();
         await editor.saveCharacterCollection('vesna', { ...emptyCharacterCollection(), level: 30 });

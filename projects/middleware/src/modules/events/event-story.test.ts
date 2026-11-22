@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CatalogEntry } from '../../../../lib/types/workspace.type';
-import { emptyPatchOverview } from '../../../../common/quests/story-template';
-import { migrateStoryEvents, resolveEventReferences, editEventStory, eventStoryProfile } from '../../../../common/events/event-story';
-import { validCatalog, fromCatalog, toCatalog } from '../../../../common/workspace/workspace';
+import type { CatalogEntry } from '@lib/types/workspace.type';
+import { emptyPatchOverview } from '@common/quests/story-template';
+import { migrateStoryEvents, resolveEventReferences, editEventStory, eventStoryProfile } from '@common/events/event-story';
+import { validCatalog, fromCatalog, toCatalog } from '@common/workspace/workspace';
 import { encodeEntries, decodeEntries, mergeEntries } from '../documents/game-document';
 import { validateStoryProgress } from '../documents/stories/story-progress.service';
 import { migrateEventDocument } from './event-story-migration';

@@ -1,5 +1,5 @@
-import type { Entry } from '../../../../../../../lib/types/workspace.type';
-import { isStoryDivider, storyTemplateFor } from '../../../../../../../common/quests/story-guide';
+import type { Entry } from '@lib/types/workspace.type';
+import { isStoryDivider, storyTemplateFor } from '@common/quests/story-guide';
 import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '@lib/constants/story-requirements.constants';
 
 export type RequirementLink = { id: string; name: string; detail: string; url: string };

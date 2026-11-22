@@ -1,16 +1,16 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {characterDetailsTracks,characterTarget,requiredPromotion,setCharacterTrack} from '../../../../common/characters/character-details';
-import {characterMaterialCosts,progressionMaterialCosts} from '../../../../common/characters/character-materials';
-import {validEquipmentDefinition,validEquipmentInstances,equipmentAccountIssues} from '../../../../common/characters/character-equipment';
-import {emptyCharacterCollection,emptyCharacterDefinition,characterCollectionFits,validCharacterCollection} from '../../../../common/characters/characters';
-import {toCatalog,fromCatalog,validCatalog} from '../../../../common/workspace/workspace';
-import type {CharacterRules} from '../../../../lib/types/character.type';
-import type {Entry,PlayerState,CatalogEntry} from '../../../../lib/types/workspace.type';
-import type {EquipmentInstance} from '../../../../lib/types/equipment.type';
+import {characterDetailsTracks,characterTarget,requiredPromotion,setCharacterTrack} from '@common/characters/character-details';
+import {characterMaterialCosts,progressionMaterialCosts} from '@common/characters/character-materials';
+import {validEquipmentDefinition,validEquipmentInstances,equipmentAccountIssues} from '@common/characters/character-equipment';
+import {emptyCharacterCollection,emptyCharacterDefinition,characterCollectionFits,validCharacterCollection} from '@common/characters/characters';
+import {toCatalog,fromCatalog,validCatalog} from '@common/workspace/workspace';
+import type {CharacterRules} from '@lib/types/character.type';
+import type {Entry,PlayerState,CatalogEntry} from '@lib/types/workspace.type';
+import type {EquipmentInstance} from '@lib/types/equipment.type';
 import {ProgressService} from '../progress/progress.service';
 import type {CatalogRepository,AccountProgressRepository} from '../../app/app.types';
-import {farmingRequirements} from '../../../../common/farming/farming';
+import {farmingRequirements} from '@common/farming/farming';
 
 const rules:CharacterRules = {levelCap:80,rarities:[5],weaponTypes:[],damageTypes:[],roles:[],equipmentSlots:[{id:'weapon',label:'Weapon',system:'weapon',limit:1,allowedTypes:['sword']}],progressionTracks:[],ascensionRanks:[{levelCap:20,skillLevelCap:2},{levelCap:80,skillLevelCap:5}]};
 const character:Entry = {id:'hero',game:'endfield',kind:'characters',name:'Hero',rarity:5,notes:'',category:'',order:0,day:'',members:[],requirements:[],completed:false,quantity:0,target:0,characterDefinition:{...emptyCharacterDefinition(),weaponType:'Sword',skills:[{id:'attack',name:'Attack',description:'Skill',maxLevel:5}]}};

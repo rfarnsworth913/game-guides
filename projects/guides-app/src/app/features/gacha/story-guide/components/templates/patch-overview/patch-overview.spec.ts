@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from "./patch-overview";
 import { Entry, WorkspaceStore } from "../../../../../../core/state/workspace.store";
-import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "../../../../../../../../../common/quests/story-template";
-import { reworkMainQuestTemplate } from "../../../../../../../../../common/quests/main-quest";
+import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "@common/quests/story-template";
+import { reworkMainQuestTemplate } from "@common/quests/main-quest";
 
 describe('Patch Overview grouped row editor', () => {
     afterEach(() => vi.unstubAllGlobals());

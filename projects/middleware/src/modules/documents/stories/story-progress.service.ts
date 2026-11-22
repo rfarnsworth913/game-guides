@@ -1,7 +1,7 @@
-import type { CatalogEntry, PlayerState } from '../../../../../lib/types/workspace.type';
+import type { CatalogEntry, PlayerState } from '@lib/types/workspace.type';
 import { ApiError } from '../../../core/errors/app-error';
-import { fromCatalog } from '../../../../../common/workspace/workspace';
-import { storyCompletionKey } from '../../../../../common/quests/story-guide';
+import { fromCatalog } from '@common/workspace/workspace';
+import { storyCompletionKey } from '@common/quests/story-guide';
 export function validateStoryProgress(entry: CatalogEntry, state: PlayerState, history: Record<string, boolean>): void {
     const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
         .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');

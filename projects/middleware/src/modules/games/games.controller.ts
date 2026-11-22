@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { CatalogRepository } from '../../app/app.types';
-import { GAMES } from '../../../../lib/constants/workspace.constants';
+import { GAMES } from '@lib/constants/workspace.constants';
 import { jsonBody } from '../../core/http/request-body';
 import { respond } from '../../core/http/response';
 import { GamesService } from './games.service';

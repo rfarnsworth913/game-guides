@@ -3,7 +3,7 @@ import { WorkspaceStore } from '../../../../core/state/workspace.store';
 import { StoryPositionStore } from '../../../gacha/story-guide/state/story-position.store';
 import { storyDashboard } from '../../../gacha/story-guide/utils/story-dashboard';
 import { storyProgress } from '../../../gacha/story-guide/utils/story-progress';
-import { GAMES } from '../../../../../../../lib/constants/workspace.constants';
+import { GAMES } from '@lib/constants/workspace.constants';
 import { defaultGameOverview, gameSupports } from '@common/workspace/game-overview';
 import type { GameOverview } from '@lib/types/game-overview.type';
 

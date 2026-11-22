@@ -1,19 +1,18 @@
 import { Component, computed, effect, ElementRef, inject, input, signal, untracked } from '@angular/core';
-import { characterCosts } from "../../../../../../../../common/farming/farming";
+import { characterCosts } from "@common/farming/farming";
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
-import type { CharacterCollection, CharacterDefinition, CharacterRules, CharacterSkill, CharacterProgression } from "../../../../../../../../lib/types/character.type";
-import { emptyCharacterCollection, emptyCharacterDefinition, characterCollectionFits, characterDefinitionFits, validCharacterCollection, validCharacterDefinition, validCharacterRules, guideUrl } from "../../../../../../../../common/characters/characters";
-import { storyImageUrl } from "../../../../../../../../common/quests/story-template";
+import type { CharacterCollection, CharacterDefinition, CharacterRules, CharacterSkill, CharacterProgression } from "@lib/types/character.type";
+import { emptyCharacterCollection, emptyCharacterDefinition, characterCollectionFits, characterDefinitionFits, validCharacterCollection, validCharacterDefinition, validCharacterRules, guideUrl } from "@common/characters/characters";
+import { storyImageUrl, emptyPatchOverview } from "@common/quests/story-template";
 import { GameRulesEditor } from '../../components/game-rules-editor/game-rules-editor';
 import { CharacterCatalogFields } from '../../components/character-details/character-catalog-fields';
 import { CharacterDetails } from '../../components/character-details/character-details';
 import { CharacterCard } from '../../components/character-card/character-card';
 import { characterCard } from '../../utils/character-inventory';
 import { characterRulesCompatibility } from '@common/characters/character-rules';
-import { emptyPatchOverview } from '@common/quests/story-template';
 
 @Component({
     selector: 'gg-characters',

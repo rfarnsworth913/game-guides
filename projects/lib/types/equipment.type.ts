@@ -1,5 +1,5 @@
-import type { CharacterProgression } from './character.type';
-import type { ProgressionTrackDefinition } from './character-extension.type';
+import type { CharacterProgression } from '@lib/types/character.type';
+import type { ProgressionTrackDefinition } from '@lib/types/character-extension.type';
 
 export type EquipmentStat = { name: string; value: string };
 /** Shared inventory catalog metadata; player upgrades never change this definition. */

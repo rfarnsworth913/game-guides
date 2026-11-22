@@ -2,15 +2,15 @@ import { validateInventoryProgress } from '../inventory/inventory.service';
 import { validateCharacterProgress } from '../characters/characters.service';
 import { validateTeamProgress } from '../teams/teams.service';
 import { validateStoryProgress } from '../documents/stories/story-progress.service';
-import { resolveCharacterReferences } from '../../../../common/characters/character-story';
-import { resolveEventReferences } from '../../../../common/events/event-story';
-import { sharedEventState, setEventCompletion } from '../../../../common/events/event-progress';
-import type { PlayerState } from '../../../../lib/types/workspace.type';
+import { resolveCharacterReferences } from '@common/characters/character-story';
+import { resolveEventReferences } from '@common/events/event-story';
+import { sharedEventState, setEventCompletion } from '@common/events/event-progress';
+import type { PlayerState } from '@lib/types/workspace.type';
 import type { CatalogRepository, AccountProgressRepository } from '../../app/app.types';
 import { ApiError } from '../../core/errors/app-error';
-import { validProgressState } from '../../../../common/player/player-progress';
-import { TEAM_PROGRESS_ID } from '../../../../lib/constants/team.constants';
-import {equipmentAccountIssues} from '../../../../common/characters/character-equipment';
+import { validProgressState } from '@common/player/player-progress';
+import { TEAM_PROGRESS_ID } from '@lib/constants/team.constants';
+import {equipmentAccountIssues} from '@common/characters/character-equipment';
 export class ProgressService {
     constructor(private readonly repository: CatalogRepository, private readonly progress: AccountProgressRepository) { }
     async patch(userId: string, body: unknown) {

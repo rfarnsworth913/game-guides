@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { AddressInfo } from 'node:net';
 import { createApi } from "../../app/server";
 import { ApiError } from '../../core/errors/app-error';
-import { GAMES } from '../../../../lib/constants/workspace.constants';
+import { GAMES } from '@lib/constants/workspace.constants';
 
 await test('game image uploads persist, list per game, serve immediately and reject unsafe input', async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'guides-images-'));

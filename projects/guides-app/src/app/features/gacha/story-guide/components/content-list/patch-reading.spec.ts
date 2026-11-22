@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { StoryContentList } from './story-content-list';
-import { emptyPatchOverview } from '../../../../../../../../common/quests/story-template';
+import { emptyPatchOverview } from '@common/quests/story-template';
 import type { Entry } from '../../../../../core/state/workspace.store';
-import type { StoryTableRow } from '../../../../../../../../lib/types/story-template.type';
+import type { StoryTableRow } from '@lib/types/story-template.type';
 
 describe('Patch overview reading layout', () => {
     const row = (id: string, groupId: string, contentUrl = ''): StoryTableRow => ({ id, groupId, content: id, contentUrl, contentType: '', patch: '1.0', notes: '' });

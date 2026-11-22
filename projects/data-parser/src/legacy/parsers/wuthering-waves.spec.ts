@@ -1,10 +1,11 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { endOfISOWeek, endOfMonth, format, startOfISOWeek, startOfMonth, sub } from "date-fns";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
-import { DATE_FORMAT } from '@shared-lib/constants';
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource } from '@shared-lib/types';
-import { DataService } from "../services";
+import { DATE_FORMAT } from '@lib/constants';
+import { EventType } from '@lib/enums';
+import type { DataFile, DataSource } from '@lib/types';
+import { DataService } from "../../services";
 import { WutheringWavesParser } from "./wuthering-waves";
 
 

@@ -1,5 +1,5 @@
-import type { CatalogEntry } from '../../../../lib/types/workspace.type';
-import type { PatchOverview } from '../../../../lib/types/story-template.type';
+import type { CatalogEntry } from '@lib/types/workspace.type';
+import type { PatchOverview } from '@lib/types/story-template.type';
 
 /** Legacy database fields remain open so migrations preserve unrecognized data. */
 export type StoredAchievementRow = {

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as dotenv from "dotenv";
 import { type Document, MongoClient, ObjectId, type UpdateFilter } from "mongodb";
 
-import { EventType } from '@shared-lib/enums';
-import type { Event, RootDocument, Version } from '@shared-lib/types';
+import { EventType } from '@lib/enums';
+import type { Event, RootDocument, Version } from '@lib/types';
 import { DataService } from "./data-service";
 import { Logger } from "./logger";
 
@@ -128,18 +128,18 @@ describe("DataService manages database connections and stored game data", () => 
     });
 
     describe("Database connections use configured settings and handle lifecycle failures", () => {
-        it("loads configuration and connects automatically", () => {
+        it("loads configuration without starting a connection", () => {
             expect(dotenv.config).toHaveBeenCalledTimes(1);
             expect(MongoClient).toHaveBeenCalledWith("mongodb://localhost:27017");
             expect(mockMongoClient.db).toHaveBeenCalledWith("test-db");
-            expect(mockConnect).toHaveBeenCalledTimes(1);
+            expect(mockConnect).not.toHaveBeenCalled();
         });
 
         it("supports explicitly connecting and disconnecting", async () => {
             expect.hasAssertions();
             await expect(service.connect()).resolves.toBeUndefined();
             await expect(service.disconnect()).resolves.toBeUndefined();
-            expect(mockConnect).toHaveBeenCalledTimes(2);
+            expect(mockConnect).toHaveBeenCalledTimes(1);
             expect(mockClose).toHaveBeenCalledTimes(1);
         });
 
@@ -154,16 +154,7 @@ describe("DataService manages database connections and stored game data", () => 
             expect(Logger.error).toHaveBeenCalledWith(expect.any(String), error);
         });
 
-        it("handles and logs automatic connection failure", async () => {
-            expect.hasAssertions();
-            const error = new Error("Unavailable database");
-            mockConnect.mockRejectedValueOnce(error);
-            new DataService();
-            // Drain both connect's rejection and the constructor's catch callback.
-            await Promise.resolve();
-            await Promise.resolve();
-            expect(Logger.error).toHaveBeenCalledWith("Failed to connect to the database:", error);
-        });
+
     });
 
     describe("Expired events are removed while retained events are preserved", () => {

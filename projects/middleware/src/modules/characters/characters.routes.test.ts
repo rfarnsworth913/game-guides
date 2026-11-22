@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import type { Collection, Document } from 'mongodb';
-import type { CatalogEntry, GameSnapshot } from '../../../../lib/types/workspace.type';
-import type { CharacterRules } from '../../../../lib/types/character.type';
+import type { CatalogEntry, GameSnapshot } from '@lib/types/workspace.type';
+import type { CharacterRules } from '@lib/types/character.type';
 import { createApi } from '../../app/server';
-import { defaultGameOverview } from '../../../../common/workspace/game-overview';
-import { emptyCharacterDefinition } from '../../../../common/characters/characters';
+import { defaultGameOverview } from '@common/workspace/game-overview';
+import { emptyCharacterDefinition } from '@common/characters/characters';
 import { GameRepository } from '../games/games.repository';
 import { ApiError } from '../../core/errors/app-error';
 

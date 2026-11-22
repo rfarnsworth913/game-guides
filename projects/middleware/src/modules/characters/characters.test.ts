@@ -2,12 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AddressInfo } from 'node:net';
 import { Collection, Document } from 'mongodb';
-import type { CharacterRules } from "../../../../lib/types/character.type";
-import { emptyCharacterDefinition, emptyCharacterCollection, validCharacterRules, validCharacterCollection, validCharacterDefinition, characterCollectionFits } from "../../../../common/characters/characters";
-import type { CatalogEntry, GameSnapshot, PlayerState } from "../../../../lib/types/workspace.type";
-import { toCatalog, fromCatalog, validCatalog } from "../../../../common/workspace/workspace";
+import type { CharacterRules } from "@lib/types/character.type";
+import { emptyCharacterDefinition, emptyCharacterCollection, validCharacterRules, validCharacterCollection, validCharacterDefinition, characterCollectionFits } from "@common/characters/characters";
+import type { CatalogEntry, GameSnapshot, PlayerState } from "@lib/types/workspace.type";
+import { toCatalog, fromCatalog, validCatalog } from "@common/workspace/workspace";
 
-import { validProgressState } from "../../../../common/player/player-progress";
+import { validProgressState } from "@common/player/player-progress";
 import { ApiError } from '../../core/errors/app-error';
 import { GameRepository } from '../games/games.repository';
 import { createApi } from "../../app/server";

@@ -6,7 +6,7 @@ import { By } from '@angular/platform-browser';
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import { Story } from "./story";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
-import { emptyPatchOverview } from "../../../../../../../../common/quests/story-template";
+import { emptyPatchOverview } from "@common/quests/story-template";
 
 describe('Story incomplete filter', () => {
     afterEach(() => vi.unstubAllGlobals());

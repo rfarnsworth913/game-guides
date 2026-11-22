@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { ImageDetails } from '../../../../lib/types/game-image.type';
+import type { ImageDetails } from '@lib/types/game-image.type';
 import { ApiError } from '../../core/errors/app-error';
 import { IMAGE_FILENAME } from './images.schema';
 export const imageRoot = fileURLToPath(new URL('../../../../guides-app/src/assets/', import.meta.url));

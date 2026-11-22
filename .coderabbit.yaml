@@ -10,6 +10,15 @@ reviews:
       - "^dev$"
       - "^ai$"
   path_instructions:
+    - path: "projects/lib/**"
+      instructions: >-
+        Preserve stored IDs and wire compatibility. Keep catalog definitions and
+        personal player state separate. Use discriminated domain contracts and
+        enforce declaration-only dependency ownership.
+    - path: "tooling/**"
+      instructions: >-
+        Verify architectural restrictions cover both aliases and relative imports.
+        Required checks must fail on errors rather than suppressing failures.
     - path: "projects/guides-app/**"
       instructions: >-
         Check accessibility, Angular state handling, component boundaries,

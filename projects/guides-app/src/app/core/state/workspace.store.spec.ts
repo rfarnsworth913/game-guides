@@ -1,7 +1,7 @@
 import { AuthService } from '@auth0/auth0-angular';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { AuthStore } from "../auth/auth.store";
-import { toCatalog } from "../../../../../common/workspace/workspace";
+import { toCatalog } from "@common/workspace/workspace";
 import { Entry, WorkspaceStore, validEntries, parseBackup, GAMES } from "./workspace.store";
 
 const item = (id: string, kind: Entry['kind'] = 'inventory'): Entry => ({

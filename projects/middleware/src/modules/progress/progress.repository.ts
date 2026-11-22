@@ -1,6 +1,6 @@
 import { BSON, Collection } from 'mongodb';
-import type { ProgressSnapshot } from "../../../../lib/types/player-progress.type";
-import { validProgressState } from "../../../../common/player/player-progress";
+import type { ProgressSnapshot } from "@lib/types/player-progress.type";
+import { validProgressState } from "@common/player/player-progress";
 import { ApiError } from '../../core/errors/app-error';
 export type ProgressDocument = ProgressSnapshot & { _id: string };
 export class ProgressRepository {

@@ -1,4 +1,4 @@
-import type { Team } from '../../lib/types/team.type';
+import type { Team } from '@lib/types/team.type';
 
 export const teamSize = (rules?: { teamSize?: number }): number => rules?.teamSize ?? 4;
 export function validTeams(value: unknown): value is Team[] {

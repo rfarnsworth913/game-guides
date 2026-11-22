@@ -1,16 +1,16 @@
-import type { CatalogEntry } from '../../lib/types/workspace.type';
-import type { PatchOverview } from '../../lib/types/story-template.type';
-import { emptyPatchOverview } from '../quests/story-template';
+import type { CatalogEntry, LegacyCatalogEntry } from '@lib/types/workspace.type';
+import type { PatchOverview } from '@lib/types/story-template.type';
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 export const characterNameKey = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en');
 
 /** A fresh view, never a mutable alias of the shared catalog or another placement. */
-export function characterStoryProfile(character: CatalogEntry): PatchOverview {
+export function characterStoryProfile(character: LegacyCatalogEntry): PatchOverview {
     return { ...structuredClone(character.characterInformation ?? emptyPatchOverview()),
         characterName: character.name, summary: character.notes,
         damageType: character.characterDefinition?.damageType ?? character.characterInformation?.damageType ?? '' };
 }
-export function resolveCharacterReferences<T extends CatalogEntry>(entries: T[]): T[] {
+export function resolveCharacterReferences<T extends LegacyCatalogEntry>(entries: T[]): T[] {
     return entries.map(entry => {
         if (entry.kind !== 'story' || entry.category !== 'character-information' || !entry.characterId) {return entry;}
         const character = entries.find(item => item.id === entry.characterId && item.game === entry.game && item.kind === 'characters');
@@ -18,7 +18,7 @@ export function resolveCharacterReferences<T extends CatalogEntry>(entries: T[])
     });
 }
 /** Store profile presentation and lore once; the catalog name/description/damage type remain authoritative. */
-export function editCharacterStory<T extends CatalogEntry>(character: T, draft: PatchOverview): T {
+export function editCharacterStory<T extends LegacyCatalogEntry>(character: T, draft: PatchOverview): T {
     const profile = structuredClone(draft);
     const name = profile.characterName?.trim() || character.name;
     const notes = profile.summary ?? character.notes;

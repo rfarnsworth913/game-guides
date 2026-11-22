@@ -1,7 +1,7 @@
-import type { CharacterDefinition, CharacterProgression, CharacterCollection, CharacterRules } from '../../lib/types/character.type';
-import type { ProgressionTrackDefinition } from '../../lib/types/character-extension.type';
-import { characterProfileTracks, characterTrackValue } from './character-progression';
-import { trackMinimum, trackMaximum } from './character-extension';
+import type { CharacterDefinition, CharacterProgression, CharacterCollection, CharacterRules } from '@lib/types/character.type';
+import type { ProgressionTrackDefinition } from '@lib/types/character-extension.type';
+import { characterProfileTracks, characterTrackValue } from '@common/characters/character-progression';
+import { trackMinimum, trackMaximum } from '@common/characters/character-extension';
 
 /** Effective controls use existing profile overrides; legacy fields are projected, not migrated. */
 export function characterDetailsTracks(rules: CharacterRules, definition?: CharacterDefinition): ProgressionTrackDefinition[] {

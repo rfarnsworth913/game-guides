@@ -1,10 +1,10 @@
 import { Component, computed, DestroyRef, effect, ElementRef, inject, output, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DOCUMENT } from '@angular/common';
-import type { Entry } from '../../../../../../../../lib/types/workspace.type';
+import type { Entry } from '@lib/types/workspace.type';
 import { DashboardState } from '../../state/dashboard-state';
 import { eventDate, eventTiming, eventType, eventTypeLabel } from '../../../../gacha/events/utils/event-calendar';
-import { guideUrl } from '../../../../../../../../common/characters/characters';
+import { guideUrl } from '@common/characters/characters';
 
 const EVENT_FILTERS_KEY = 'gg-dashboard-event-filters-v1';
 
@@ -30,7 +30,7 @@ export class DashboardPage extends DashboardState {
     readonly eventTypeLabel = eventTypeLabel;
     readonly activeEvents = computed(() => this.events().filter(entry => this.eventStatus(entry) === 'Active'));
     readonly dueSoon = computed(() => this.activeEvents().filter(entry => {
-        const end = eventDate(entry.endDate, true)?.getTime();
+        const end = eventDate(entry.endDate, true, entry.eventSchedule)?.getTime();
         return typeof end === 'number' && end - this.now() <= 3 * 86400000;
     }).length);
     readonly filteredEvents = computed(() => this.events()
@@ -38,7 +38,7 @@ export class DashboardPage extends DashboardState {
         .filter(entry => !this.selectedEventTypes().length || this.selectedEventTypes().includes(eventType(entry)))
         .sort((a, b) => {
             const rank = (entry: Entry) => ({ Active: 0, Upcoming: 1, Undated: 2, Ended: 3 })[this.eventStatus(entry)];
-            const date = (entry: Entry) => eventDate(entry.endDate, true)?.getTime() ?? Infinity;
+            const date = (entry: Entry) => eventDate(entry.endDate, true, entry.eventSchedule)?.getTime() ?? Infinity;
             return rank(a) - rank(b) || (this.eventStatus(a) === 'Ended' ? date(b) - date(a) : date(a) - date(b)) || a.name.localeCompare(b.name);
         }));
     readonly resumeGuide = computed(() => [...this.dashboardStories()]
@@ -82,8 +82,8 @@ export class DashboardPage extends DashboardState {
         return { status: 'Active', types: [] };
     }
     eventStatus(entry: Entry): 'Active' | 'Upcoming' | 'Ended' | 'Undated' {
-        const start = eventDate(entry.startDate)?.getTime();
-        const end = eventDate(entry.endDate, true)?.getTime();
+        const start = eventDate(entry.startDate, false, entry.eventSchedule)?.getTime();
+        const end = eventDate(entry.endDate, true, entry.eventSchedule)?.getTime();
         if (typeof start === 'number' && typeof end === 'number' && end <= start) { return 'Undated'; }
         if (typeof end === 'number' && this.now() >= end) { return 'Ended'; }
         if (typeof start === 'number' && this.now() < start) { return 'Upcoming'; }

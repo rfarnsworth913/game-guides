@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import type { StoredStory } from '../documents/stored-document.types';
 import { decodeEntries } from '../documents/game-document';
-import { migrateStoryCharacters, characterNameKey } from '../../../../common/characters/character-story';
-import { validCatalog } from '../../../../common/workspace/workspace';
-import { GAMES } from '../../../../lib/constants/workspace.constants';
+import { migrateStoryCharacters, characterNameKey } from '@common/characters/character-story';
+import { validCatalog } from '@common/workspace/workspace';
+import { GAMES } from '@lib/constants/workspace.constants';
 
 /** Touch only character records and character guide placements, retaining unknown document metadata. */
 export function migrateCharacterDocument(document: Record<string, unknown>) {

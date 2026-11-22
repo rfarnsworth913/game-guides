@@ -1,8 +1,8 @@
-import { Entry } from '../../lib/types/workspace.type';
-import { characterCosts, hasCharacterGoal, farmingRequirements } from '../farming/farming';
-import type {CharacterRules} from '../../lib/types/character.type';
-import {progressionMaterialCosts} from '../characters/character-materials';
-import {hasEquipmentGoal} from '../characters/character-equipment';
+import { Entry } from '@lib/types/workspace.type';
+import { characterCosts, hasCharacterGoal, farmingRequirements } from '@common/farming/farming';
+import type {CharacterRules} from '@lib/types/character.type';
+import {progressionMaterialCosts} from '@common/characters/character-materials';
+import {hasEquipmentGoal} from '@common/characters/character-equipment';
 
 export function requirementStatus(owned: number, needed: number): 'not-required' | 'sufficient' | 'partial' | 'missing' {
     return needed <= 0 ? 'not-required' : owned >= needed ? 'sufficient' : owned > 0 ? 'partial' : 'missing';

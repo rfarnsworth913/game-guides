@@ -6,7 +6,7 @@ import { datesIn, extractEvents, extractFgoEvents, extractGf2Banners, extractNot
 import { GameSync } from "./game-sync";
 import { parseOptions } from "./runner";
 import type { Cell, SourcePage } from "./types";
-import type { DataFile } from "@shared-lib/types";
+import type { DataFile } from "@lib/types";
 
 const now = new Date("2026-11-21T18:00:00Z");
 const cell = (text: string, url = ""): Cell => ({ text, links: url ? [{ text, title: text, url }] : [] });

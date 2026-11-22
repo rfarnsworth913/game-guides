@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { DialogFocusDirective } from '../../../../../shared/directives/dialog-focus/dialog-focus';
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import { guideUrl } from "../../../../../../../../common/characters/characters";
+import { guideUrl } from "@common/characters/characters";
 import { eventDate, eventRange, eventStatus, eventTiming, eventType, eventTypeLabel, monthDays, occursBetween, occursOn, type EventDateRange } from "../../utils/event-calendar";
 import { gameSupports } from '@common/workspace/game-overview';
 import { balanceDay, balanceEvents, balanceKey, type BalancedEvents } from '../../utils/event-balance';
@@ -78,7 +78,7 @@ export class Events {
         (!this.selectedGame() || entry.game === this.selectedGame()) &&
         (this.status() === 'all' || (this.status() === 'active' ? eventStatus(entry, this.now()) === 'Active' : eventStatus(entry, this.now()) !== 'Ended')) &&
         entry.name.toLowerCase().includes(this.search().trim().toLowerCase()),
-    ).sort((a, b) => (eventDate(a.endDate, true)?.getTime() ?? Infinity) - (eventDate(b.endDate, true)?.getTime() ?? Infinity) || a.order - b.order || a.name.localeCompare(b.name)));
+    ).sort((a, b) => (eventDate(a.endDate, true, a.eventSchedule)?.getTime() ?? Infinity) - (eventDate(b.endDate, true, b.eventSchedule)?.getTime() ?? Infinity) || a.order - b.order || a.name.localeCompare(b.name)));
     readonly typeCandidates = computed(() => this.viewCandidates().filter(entry => this.inDisplayedRange(entry)));
     readonly scopedEvents = computed(() => this.viewCandidates().filter(entry => this.game()
         ? !this.type() || eventType(entry) === this.type()
@@ -116,14 +116,14 @@ export class Events {
         account: this.store.auth?.user()?.id ?? 'guest',
         pins: this.manualPins(), capacity: this.maxPerDay(),
         today: balanceDay(new Date(this.now())), scope: this.game(),
-        entries: this.entries().map(entry => ({ key: balanceKey(entry), start: entry.startDate, end: entry.endDate, expired: (eventDate(entry.endDate, true)?.getTime() ?? Infinity) <= this.now() })).sort((a, b) => a.key.localeCompare(b.key)),
+        entries: this.entries().map(entry => ({ key: balanceKey(entry), start: entry.startDate, end: entry.endDate, schedule: entry.eventSchedule, expired: (eventDate(entry.endDate, true, entry.eventSchedule)?.getTime() ?? Infinity) <= this.now() })).sort((a, b) => a.key.localeCompare(b.key)),
     }));
     readonly days = computed(() => monthDays(this.month()).map(date => ({ date,
         key: this.dayKey(date), currentMonth: date.getMonth() === this.month().getMonth(),
         today: this.dayKey(date) === this.dayKey(new Date(this.now())),
         events: this.periodBounds() && (date < this.periodBounds()!.start || date >= this.periodBounds()!.end) ? [] : this.filtered().filter(entry => this.balanceEnabled() ? this.balancePlan().assignments[balanceKey(entry)] === this.dayKey(date) : occursOn(entry, date)),
     })));
-    readonly unscheduled = computed(() => this.scopedEvents().filter(entry => !entry.completed && !this.balancePlan().assignments[balanceKey(entry)]));
+    readonly unscheduled = computed(() => this.scopedEvents().filter(entry => (this.showCompleted() || !entry.completed) && !this.balancePlan().assignments[balanceKey(entry)]));
     readonly plannedCount = computed(() => Object.keys(this.balancePlan().assignments).length);
     readonly scheduledCount = computed(() => this.visibleEvents().filter(entry => !!this.plannedDate(entry)).length);
     readonly remainingCount = computed(() => this.visibleEvents().filter(entry => !entry.completed && !!this.plannedDate(entry)).length);
@@ -134,7 +134,7 @@ export class Events {
     }));
     readonly dayEvents = computed(() => this.days().find(day => day.key === this.selectedDay())?.events ?? []);
     readonly pinnedEvents = computed(() => this.entries().filter(entry => !!this.manualPins()[balanceKey(entry)]));
-    readonly undated = computed(() => this.filtered().filter(entry => !eventDate(entry.startDate) && !eventDate(entry.endDate, true)));
+    readonly undated = computed(() => this.filtered().filter(entry => !eventDate(entry.startDate, false, entry.eventSchedule) && !eventDate(entry.endDate, true, entry.eventSchedule)));
     readonly weeks = computed(() => Array.from({ length: 6 }, (_, index) => this.days().slice(index * 7, index * 7 + 7)));
     readonly monthLabel = computed(() => this.month().toLocaleDateString([], { month: 'long', year: 'numeric' }));
     readonly busy = computed(() => this.inFlight() || this.store.saving() || this.store.loading() || !this.store.initialized());
@@ -221,7 +221,7 @@ export class Events {
         // An empty array means All in the existing filter contract; use a sentinel for None.
         this.selectedGroups.set(next.length === this.types().length ? [] : next.length ? next : ['__none__']);
     }
-    deadlineTime(entry: Entry): number {return (eventStatus(entry, this.now()) === 'Upcoming' ? eventDate(entry.startDate) : eventDate(entry.endDate, true))?.getTime() ?? Infinity;}
+    deadlineTime(entry: Entry): number {return (eventStatus(entry, this.now()) === 'Upcoming' ? eventDate(entry.startDate, false, entry.eventSchedule) : eventDate(entry.endDate, true, entry.eventSchedule))?.getTime() ?? Infinity;}
     deadlineLabel(entry: Entry): string {
         const label = this.availability(entry);
         return ['daily', 'weekly', 'weekly-linked', 'monthly'].includes(eventType(entry)) ? label.replace('Ends in', 'Resets in') : label;
@@ -244,8 +244,8 @@ export class Events {
     availability(entry: Entry): string {
         const status = eventStatus(entry, this.now());
         if (status === 'Undated') {return 'Unknown availability';}
-        if (status === 'Ended') {return 'Ended ' + (eventDate(entry.endDate)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? '');}
-        return eventDate(entry.endDate, true) ? this.timing(entry).label : status === 'Upcoming' ? this.timing(entry).label : 'No end date';
+        if (status === 'Ended') {return 'Ended ' + (eventDate(entry.endDate, false, entry.eventSchedule)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? '');}
+        return eventDate(entry.endDate, true, entry.eventSchedule) ? this.timing(entry).label : status === 'Upcoming' ? this.timing(entry).label : 'No end date';
     }
     gameColor(id: string): string {return this.games().find(game => game.id === id)?.color || 'var(--muted)';}
     tooltip(entry: Entry): string {
@@ -259,7 +259,7 @@ export class Events {
     pinEvent(entry: Entry): void {
         const value = this.pinInput(entry), day = eventDate(value);
         const today = eventDate(balanceDay(new Date(this.now())))!;
-        const start = eventDate(entry.startDate), end = eventDate(entry.endDate, true);
+        const start = eventDate(entry.startDate, false, entry.eventSchedule), end = eventDate(entry.endDate, true, entry.eventSchedule);
         const next = day ? new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1) : null;
         if (!day || !next || day < today || (entry.startDate && !start) || (entry.endDate && !end) || (start && start >= next) || (end && (day >= end || end.getTime() <= this.now()))) {this.error.set('Choose a date during the event availability and before its deadline.'); return;}
         const bounds = this.planningRange();

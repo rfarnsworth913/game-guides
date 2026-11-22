@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CatalogEntry } from '../../../../lib/types/workspace.type';
-import { emptyPatchOverview } from '../../../../common/quests/story-template';
-import { migrateStoryCharacters, resolveCharacterReferences, editCharacterStory } from '../../../../common/characters/character-story';
-import { validCatalog, fromCatalog, toCatalog } from '../../../../common/workspace/workspace';
-import { emptyCharacterDefinition } from '../../../../common/characters/characters';
+import type { CatalogEntry } from '@lib/types/workspace.type';
+import { emptyPatchOverview } from '@common/quests/story-template';
+import { migrateStoryCharacters, resolveCharacterReferences, editCharacterStory } from '@common/characters/character-story';
+import { validCatalog, fromCatalog, toCatalog } from '@common/workspace/workspace';
+import { emptyCharacterDefinition } from '@common/characters/characters';
 import { validateStoryProgress } from '../documents/stories/story-progress.service';
 import { migrateCharacterDocument } from './character-story-migration';
 import { encodeEntries } from '../documents/game-document';

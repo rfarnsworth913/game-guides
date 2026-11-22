@@ -1,5 +1,5 @@
-import { storyContentName } from "../../../../../../../../../common/quests/story-content-types";
-import { eventStoryProfile } from "../../../../../../../../../common/events/event-story";
+import { storyContentName } from "@common/quests/story-content-types";
+import { eventStoryProfile } from "@common/events/event-story";
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, signal, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
@@ -10,16 +10,16 @@ import { storyRequirementLinks } from '../../../utils/story-requirement-links';
 import { StorySubtypeEditor } from '../../context-editor/story-subtype-editor';
 import { StoryContextEditor } from "../../context-editor/story-context-editor";
 import { MarkdownPipe } from "../../../../../../shared/pipes/markdown/markdown";
-import { worldQuestPrerequisites } from "../../../../../../../../../common/quests/world-quest";
+import { worldQuestPrerequisites } from "@common/quests/world-quest";
 import { PatchBadge } from "../../../../shared/components/patch-badge/patch-badge";
-import type { StoryGroup } from "../../../../../../../../../lib/types/story-group.type";
-import { StoryAvailability, StoryTrackingMode } from "../../../../../../../../../lib/enums/story-tracking.enum";
-import type { StoryContext } from "../../../../../../../../../lib/types/story-context.type";
-import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from "../../../../../../../../../common/quests/story-guide";
-import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from "../../../../../../../../../common/quests/story-template";
-import type { StoryTableRow } from "../../../../../../../../../lib/types/story-template.type";
-import { characterStoryProfile } from '../../../../../../../../../common/characters/character-story';
-import { WORLD_QUEST_GROUP_TYPES } from '../../../../../../../../../lib/constants/world-quest.constants';
+import type { StoryGroup } from "@lib/types/story-group.type";
+import { StoryAvailability, StoryTrackingMode } from "@lib/enums/story-tracking.enum";
+import type { StoryContext } from "@lib/types/story-context.type";
+import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from "@common/quests/story-guide";
+import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from "@common/quests/story-template";
+import type { StoryTableRow } from "@lib/types/story-template.type";
+import { characterStoryProfile } from '@common/characters/character-story';
+import { WORLD_QUEST_GROUP_TYPES } from '@lib/constants/world-quest.constants';
 
 @Component({
     selector: 'gg-patch-overview',

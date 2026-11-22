@@ -1,6 +1,6 @@
-import { GAMES } from '../../lib/constants/workspace.constants';
-import type { GameFeature, GameOverview } from '../../lib/types/game-overview.type';
-import { storyImageUrl } from '../quests/story-template';
+import { GAMES } from '@lib/constants/workspace.constants';
+import type { GameFeature, GameOverview } from '@lib/types/game-overview.type';
+import { storyImageUrl } from '@common/quests/story-template';
 
 export const GAME_FEATURES: { id: GameFeature; title: string; description: string; icon: string }[] = [
     { id: 'story', title: 'Story Guide', description: 'Story quests, world quests, lore and related media.', icon: 'M12 5C8 2 4 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-4-2-7-1-10 1Zm0 0v16' },

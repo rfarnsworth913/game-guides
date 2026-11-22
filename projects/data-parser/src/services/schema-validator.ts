@@ -1,7 +1,7 @@
 import Ajv from "ajv";
 const ajv = new Ajv();
 
-import type { DataFile } from "@shared-lib/types";
+import type { DataFile } from "@lib/types";
 
 export class SchemaValidator {
 
@@ -11,6 +11,7 @@ export class SchemaValidator {
 
         properties: {
             id: { type: "string" },
+            gameId: { type: "string", minLength: 1 },
             sourceList: {
                 type: "array",
                 items: {
@@ -33,11 +34,15 @@ export class SchemaValidator {
      *
      * @param config - The configuration object to validate against the schema.
      */
-    static validate (config: DataFile): boolean {
-        const validate = ajv.compile(SchemaValidator.configSchema);
-        const valid = validate(config);
+    private static readonly validator = ajv.compile<DataFile>(SchemaValidator.configSchema);
 
-        return valid;
+    static validate(config: unknown): config is DataFile {
+        return SchemaValidator.validator(config);
+    }
+
+    static errors(config: unknown): string[] {
+        if (SchemaValidator.validator(config)) {return [];}
+        return (SchemaValidator.validator.errors ?? []).map(error => `${error.instancePath || '/'}: ${error.message ?? 'Invalid configuration'}`);
     }
 
 }

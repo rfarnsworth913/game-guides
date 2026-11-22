@@ -1,17 +1,18 @@
 {
-  "id": "Genshin Impact",
-  "sourceList": [
-    {
-      "id": "Version",
-      "url": "https://genshin-impact.fandom.com/wiki/Version"
-    },
-    {
-      "id": "Banners",
-      "url": "https://genshin-impact.fandom.com/wiki/Wish"
-    },
-    {
-      "id": "Events",
-      "url": "https://genshin-impact.fandom.com/wiki/Event"
-    }
-  ]
+    "id": "Genshin Impact",
+    "sourceList": [
+        {
+            "id": "Version",
+            "url": "https://genshin-impact.fandom.com/wiki/Version"
+        },
+        {
+            "id": "Banners",
+            "url": "https://genshin-impact.fandom.com/wiki/Wish"
+        },
+        {
+            "id": "Events",
+            "url": "https://genshin-impact.fandom.com/wiki/Event"
+        }
+    ],
+    "gameId": "genshin"
 }

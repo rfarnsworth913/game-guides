@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from "./patch-overview/patch-overview";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
-import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "../../../../../../../../common/quests/story-template";
-import type { PatchOverview } from "../../../../../../../../lib/types/story-template.type";
-import { StoryAvailability, StoryRequirementType } from "../../../../../../../../lib/enums/story-tracking.enum";
+import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "@common/quests/story-template";
+import type { PatchOverview } from "@lib/types/story-template.type";
+import { StoryAvailability, StoryRequirementType } from "@lib/enums/story-tracking.enum";
 
 describe('Event banner, metadata bar and content groups', () => {
     function setup() {

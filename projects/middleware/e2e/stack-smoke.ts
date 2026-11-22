@@ -11,15 +11,15 @@ import { Auth0Security } from '../src/core/auth/providers/auth0.provider';
 import { GameRepository } from "../src/modules/games/games.repository";
 import { ProgressRepository, type ProgressDocument } from "../src/modules/progress/progress.repository";
 import { createApi } from "../src/app/server";
-import { GAMES } from '../../lib/constants/workspace.constants';
-import type { CatalogEntry } from '../../lib/types/workspace.type';
-import { emptyPatchOverview } from '../../common/quests/story-template';
+import { GAMES } from '@lib/constants/workspace.constants';
+import type { CatalogEntry } from '@lib/types/workspace.type';
+import { emptyPatchOverview } from '@common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
-import { defaultGameOverview } from '../../common/workspace/game-overview';
-import { migrateStoryCharacters } from '../../common/characters/character-story';
-import { migrateStoryEvents } from '../../common/events/event-story';
-import { emptyCharacterCollection, emptyCharacterDefinition } from '../../common/characters/characters';
-import type { CharacterRules } from '../../lib/types/character.type';
+import { defaultGameOverview } from '@common/workspace/game-overview';
+import { migrateStoryCharacters } from '@common/characters/character-story';
+import { migrateStoryEvents } from '@common/events/event-story';
+import { emptyCharacterCollection, emptyCharacterDefinition } from '@common/characters/characters';
+import type { CharacterRules } from '@lib/types/character.type';
 
 // Do not load .env: never inherit the application's database name, assets, or tenant.
 const databaseName = `game_guides_e2e_${randomUUID().replaceAll('-', '')}`;
@@ -699,12 +699,15 @@ try {
     await editor.screenshot({ path: join(artifacts, 'balanced-events-mobile.png'), fullPage: true });
     await editor.setViewportSize({ width: 1440, height: 1000 });
     await clickButton(editor, 'List', 'gg-events');
-    await editor.waitForSelector('.event-list-group[data-group="active"]');
-    assert.ok(await editor.$('.event-list-group[data-group="completed"]'));
-    await editor.$eval('.event-summary-stats', element => { ([...element.querySelectorAll('button')].find(button => button.textContent?.includes('Review completed events')) as HTMLButtonElement).click(); });
-    await editor.waitForSelector('.event-list-group[data-group="completed"][open]');
-    assert.equal(await editor.$$('.event-list-group[data-group="active"]').then(groups => groups.length), 0);
-    assert.equal(await editor.$$eval('.event-list-group[data-group="completed"] .event-completion input', inputs => inputs.every(input => (input as HTMLInputElement).checked)), true);
+    await editor.waitForSelector('.event-list-group[data-group="genshin"][open]');
+    assert.equal(await editor.$$eval('.event-list-group[data-group="genshin"] .event-completion input', inputs =>
+        inputs.some(input => (input as HTMLInputElement).checked) && inputs.some(input => !(input as HTMLInputElement).checked)), true);
+    await editor.click('.event-list-overview button.is-success');
+    await editor.waitForSelector('.event-list-group[data-group="genshin"][open]');
+    await editor.waitForFunction(() => {
+        const inputs = [...document.querySelectorAll<HTMLInputElement>('.event-list-group .event-completion input')];
+        return inputs.length > 0 && inputs.every(input => input.checked);
+    });
     await editor.screenshot({ path: join(artifacts, 'event-groups-completed-desktop.png'), fullPage: true });
     await clickButton(editor, 'Show all events', 'gg-events');
     await clickButton(editor, 'Calendar', 'gg-events');

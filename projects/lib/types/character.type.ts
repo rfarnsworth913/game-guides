@@ -1,6 +1,6 @@
-import type { FarmingConfig, UpgradeRecipe } from './farming-config.type';
-import type { InventoryConfig } from './inventory.type';
-import type { CharacterExtension, CharacterAttributeDefinition, CharacterProgressionProfile, CharacterNodeState } from './character-extension.type';
+import type { FarmingConfig, UpgradeRecipe } from '@lib/types/farming-config.type';
+import type { InventoryConfig } from '@lib/types/inventory.type';
+import type { CharacterExtension, CharacterAttributeDefinition, CharacterProgressionProfile, CharacterNodeState } from '@lib/types/character-extension.type';
 
 export type CharacterSkill = { id?: string; name: string; description: string; maxLevel?: number };
 export type AscensionRank = { levelCap: number; skillLevelCap: number };

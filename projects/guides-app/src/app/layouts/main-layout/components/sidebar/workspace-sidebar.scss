@@ -36,3 +36,79 @@ kbd { white-space: nowrap; font-size: 9px; color: var(--muted); }
 .favorite-toggle.is-favorite svg { fill: currentColor; }
 .game-list-empty, .switch-error { font-size: 12px; line-height: 1.6; padding: 12px 6px; color: var(--muted); }
 .switch-error { color: var(--color-error); }
+
+/* Navigation styles are owned here so nested feature navigation is unaffected. */
+    .brand {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-weight: 750;
+        letter-spacing: 1.4px;
+        font-size: 13px;
+    }
+    .brand small {
+        display: block;
+        font-size: 8px;
+        letter-spacing: 1.7px;
+        margin-top: 6px;
+    }
+    .brand-mark {
+        font-size: 26px;
+        letter-spacing: -7px;
+        padding-right: 9px;
+        color: var(--color-primary);
+    }
+    .brand-mark span {
+        color: var(--color-text-primary);
+    }
+    nav {
+        margin-top: 28px;
+    }
+    nav a,
+    .sidebar-bottom > a {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 12px;
+        border-radius: 6px;
+        color: var(--muted);
+        margin: 3px 0;
+    }
+    nav a:hover,
+    nav a.active,
+    .sidebar-bottom > a.active {
+        background: var(--color-bg-hover);
+        color: var(--color-primary);
+    }
+    nav a.active {
+        box-shadow: inset 2px 0 var(--color-primary);
+    }
+    .nav-icon {
+        font-size: 19px;
+        width: 21px;
+        text-align: center;
+    }
+    .game-nav-title {
+        margin: 25px 12px 12px;
+        color: var(--color-primary);
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+    .nav-label {
+        font-size: 9px;
+        letter-spacing: 1.7px;
+        color: var(--color-text-muted);
+        margin: 27px 12px 10px;
+        display: block;
+    }
+    .sidebar-bottom {
+        margin-top: auto;
+        padding-top: 24px;
+    }
+    .sidebar-bottom select {
+        font-size: 12px;
+    }
+    .sidebar-bottom > a {
+        margin: 16px 0;
+    }

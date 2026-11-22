@@ -1,10 +1,11 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { createRequire } from "node:module";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-import { EventType } from "@shared-lib/enums";
-import type { DataFile, DataSource, Version } from "@shared-lib/types";
+import { EventType } from "@lib/enums";
+import type { DataFile, DataSource, Version } from "@lib/types";
 
-import { DataService } from "../services";
+import { DataService } from "../../services";
 import { HonkaiStarRailParser } from "./honkai-star-rail";
 
 

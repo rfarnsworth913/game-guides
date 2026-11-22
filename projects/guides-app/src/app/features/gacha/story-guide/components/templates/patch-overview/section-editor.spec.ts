@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from './patch-overview';
 import { Entry, WorkspaceStore } from '../../../../../../core/state/workspace.store';
-import { emptyPatchOverview, validPatchOverview } from '../../../../../../../../../common/quests/story-template';
+import { emptyPatchOverview, validPatchOverview } from '@common/quests/story-template';
 
 describe('Content section editor workspace', () => {
     function setup() {

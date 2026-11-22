@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { StoryContentList } from "./story-content-list";
 import { Entry } from "../../../../../core/state/workspace.store";
-import { emptyPatchOverview } from "../../../../../../../../common/quests/story-template";
-import type { PatchOverview } from "../../../../../../../../lib/types/story-template.type";
-import { StoryTrackingMode, StoryRequirementType } from "../../../../../../../../lib/enums/story-tracking.enum";
+import { emptyPatchOverview } from "@common/quests/story-template";
+import type { PatchOverview } from "@lib/types/story-template.type";
+import { StoryTrackingMode, StoryRequirementType } from "@lib/enums/story-tracking.enum";
 import { storyProgress } from "../../utils/story-progress";
 
 describe('Unified story reading view', () => {

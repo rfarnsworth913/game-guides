@@ -19,8 +19,8 @@ import { Teams } from "../../features/gacha/teams/pages/teams/teams";
 import { Inventory } from "../../features/gacha/inventory/pages/inventory/inventory";
 import { Farming } from "../../features/gacha/farming/pages/farming/farming";
 import { GameImagePicker } from "../../shared/components/image-selector/game-image-picker";
-import { EventType } from "../../../../../lib/enums/event-types.enum";
-import { guideUrl } from "../../../../../common/characters/characters";
+import { EventType } from "@lib/enums/event-types.enum";
+import { guideUrl } from "@common/characters/characters";
 import { eventDate } from "../../features/gacha/events/utils/event-calendar";
 import { BackToTop } from "../../shared/components/back-to-top/back-to-top";
 import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialog-focus";
@@ -214,9 +214,9 @@ export class Workspace {
         if (this.editor.kind === 'events') {
             const entry = this.editor;
             if ((entry.wikiUrl && !guideUrl(entry.wikiUrl)) ||
-                (entry.startDate && !eventDate(entry.startDate)) ||
-                (entry.endDate && !eventDate(entry.endDate, true)) ||
-                (entry.startDate && entry.endDate && eventDate(entry.endDate, true)! <= eventDate(entry.startDate)!)) {
+                (entry.startDate && !eventDate(entry.startDate, false, entry.eventSchedule)) ||
+                (entry.endDate && !eventDate(entry.endDate, true, entry.eventSchedule)) ||
+                (entry.startDate && entry.endDate && eventDate(entry.endDate, true, entry.eventSchedule)! <= eventDate(entry.startDate, false, entry.eventSchedule)!)) {
                 this.formError = 'Use an HTTP(S) event URL and valid dates, with the end on or after the start.';
                 return;
             }

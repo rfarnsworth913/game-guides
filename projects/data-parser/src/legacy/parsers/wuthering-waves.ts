@@ -1,12 +1,14 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { endOfISOWeek, endOfMonth, format, isValid, startOfISOWeek, startOfMonth, sub } from "date-fns";
 
-import { DATE_FORMAT } from '@shared-lib/constants';
-import { EventType } from '@shared-lib/enums';
-import type { DataFile, DataSource, Event, Version } from '@shared-lib/types';
-import { DataService, Logger } from "../services";
+import { DATE_FORMAT } from '@lib/constants';
+import { EventType } from '@lib/enums';
+import type { DataFile, DataSource, Event, Version } from '@lib/types';
+import { DataService, Logger } from "../../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
 
+/** @deprecated Legacy implementation retained for regression tests. Use the sync pipeline. */
 export class WutheringWavesParser extends AbstractDataParser {
 
     // Constructor ------------------------------------------------------------

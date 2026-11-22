@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from './patch-overview';
 import { WorkspaceStore, type Entry } from '../../../../../../core/state/workspace.store';
-import { emptyPatchOverview } from '../../../../../../../../../common/quests/story-template';
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 describe('Character story profile', () => {
     it.each(['character-information','side-stories'])('edits and renders a linked content-group title in %s without changing row tracking', async category => {

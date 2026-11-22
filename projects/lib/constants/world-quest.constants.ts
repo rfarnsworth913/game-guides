@@ -1,4 +1,4 @@
-import type { WorldQuestGroupType } from '../types/world-quest.type';
+import type { WorldQuestGroupType } from '@lib/types/world-quest.type';
 
 /** Stable IDs retain existing region and quest-chain data without a migration. */
 export const WORLD_QUEST_GROUP_TYPES: ReadonlyArray<{ id: WorldQuestGroupType; label: string }> = [

@@ -3,8 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Characters } from "./characters";
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import type { CharacterRules } from "../../../../../../../../lib/types/character.type";
-import { emptyCharacterCollection, emptyCharacterDefinition } from "../../../../../../../../common/characters/characters";
+import type { CharacterRules } from "@lib/types/character.type";
+import { emptyCharacterCollection, emptyCharacterDefinition } from "@common/characters/characters";
 import { characterCard } from '../../utils/character-inventory';
 import { emptyPatchOverview } from '@common/quests/story-template';
 

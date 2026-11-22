@@ -1,11 +1,11 @@
-import type { PlayerState } from '../../lib/types/workspace.type';
-import { GAMES } from '../../lib/constants/workspace.constants';
-import { validGameId } from '../workspace/game-overview';
-import { validRowCompletion } from '../quests/story-template';
-import { validCharacterCollection } from '../characters/characters';
-import { TEAM_PROGRESS_ID } from '../../lib/constants/team.constants';
-import { validTeams } from './teams';
-import {validEquipmentInstances} from '../characters/character-equipment';
+import type { PlayerState } from '@lib/types/workspace.type';
+import { GAMES } from '@lib/constants/workspace.constants';
+import { validGameId } from '@common/workspace/game-overview';
+import { validRowCompletion } from '@common/quests/story-template';
+import { validCharacterCollection } from '@common/characters/characters';
+import { TEAM_PROGRESS_ID } from '@lib/constants/team.constants';
+import { validTeams } from '@common/player/teams';
+import {validEquipmentInstances} from '@common/characters/character-equipment';
 export function safeId(id: string): boolean {
     return (
         id.length > 0 &&

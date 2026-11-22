@@ -2,7 +2,7 @@ import { Component, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore } from '../../../../../core/state/workspace.store';
 import { ThemeService } from '../../../../../core/theme/theme.service';
-import { parseBackup } from '../../../../../../../../common/workspace/workspace';
+import { parseBackup } from '@common/workspace/workspace';
 
 @Component({ selector: 'gg-settings', imports: [FormsModule], templateUrl: './settings.html', styles: [':host { display: block; }'] })
 export class SettingsPage {

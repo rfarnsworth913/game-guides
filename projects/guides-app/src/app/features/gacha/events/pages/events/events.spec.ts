@@ -12,6 +12,7 @@ const event: Entry = { id: 'event', game: 'genshin', kind: 'events', name: 'Snow
     startDate: '2026-10-29', endDate: '2026-11-02', wikiUrl: 'https://example.com/event' };
 
 describe('Event tracking', () => {
+
     const groupsKey = 'gg-events-groups-v1';
     beforeEach(() => {
         const values = new Map<string, string>();
@@ -32,6 +33,14 @@ describe('Event tracking', () => {
         fixture.detectChanges();
         return { fixture, store, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
+    it('keeps completed undated events accessible in the backlog unless completed items are hidden', () => {
+        const { fixture, store } = setup();
+        const undated = { ...event, id: 'undated', startDate: globalThis.undefined, endDate: globalThis.undefined, completed: true };
+        store.entries.set([undated]); fixture.detectChanges();
+        expect(fixture.componentInstance.backlog().map(entry => entry.id)).toContain('undated');
+        fixture.componentInstance.showCompleted.set(false); fixture.detectChanges();
+        expect(fixture.componentInstance.backlog()).toEqual([]);
+    });
     it('restores saved categories on reopening the global calendar and remembers All groups', () => {
         const { fixture } = setup();
         fixture.componentRef.setInput('game', ''); fixture.detectChanges();

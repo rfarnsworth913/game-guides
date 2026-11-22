@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { characterCosts, farmingGroups, farmingRequirements, hasCharacterGoal, serverDay, sourceAvailability } from "../../../../common/farming/farming";
-import type { FarmingConfig, UpgradeRecipe } from "../../../../lib/types/farming-config.type";
-import { validFarmingConfig, validRecipes } from "../../../../common/farming/farming-config";
-import { emptyCharacterCollection, emptyCharacterDefinition, validCharacterDefinition, validCharacterRules } from "../../../../common/characters/characters";
-import type { Entry } from "../../../../lib/types/workspace.type";
-import { toCatalog, validCatalog } from "../../../../common/workspace/workspace";
+import { characterCosts, farmingGroups, farmingRequirements, hasCharacterGoal, serverDay, sourceAvailability } from "@common/farming/farming";
+import type { FarmingConfig, UpgradeRecipe } from "@lib/types/farming-config.type";
+import { validFarmingConfig, validRecipes } from "@common/farming/farming-config";
+import { emptyCharacterCollection, emptyCharacterDefinition, validCharacterDefinition, validCharacterRules } from "@common/characters/characters";
+import type { Entry } from "@lib/types/workspace.type";
+import { toCatalog, validCatalog } from "@common/workspace/workspace";
 import { decodeEntries, encodeEntries } from "../documents/game-document";
 import { GameRepository } from "../games/games.repository";
 import { Collection, Document } from 'mongodb';

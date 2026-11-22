@@ -1,6 +1,6 @@
-import { trimStoryContext, validStoryContext } from './story-guide';
-import type { StoryGroup } from '../../lib/types/story-group.type';
-import type { StoryTableRow, PatchOverview } from '../../lib/types/story-template.type';
+import { trimStoryContext, validStoryContext } from '@common/quests/story-guide';
+import type { StoryGroup } from '@lib/types/story-group.type';
+import type { StoryTableRow, PatchOverview } from '@lib/types/story-template.type';
 export function httpUrl(value: string): string | null {
     try {
         const url = new URL(value);

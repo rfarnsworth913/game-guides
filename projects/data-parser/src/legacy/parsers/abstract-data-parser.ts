@@ -1,14 +1,16 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { isFuture } from "date-fns";
 import fs from "fs";
 import https from "https";
 
 import * as puppeteer from "puppeteer";
 
-import { EventType } from "@shared-lib/enums";
-import type { DataFile, Event, Version } from "@shared-lib/types";
-import { DataService, Logger, timeout } from "../services";
+import { EventType } from "@lib/enums";
+import type { DataFile, Event, Version } from "@lib/types";
+import { DataService, Logger, timeout } from "../../services";
 
 
+/** @deprecated Legacy implementation retained for regression tests. Use the sync pipeline. */
 export class AbstractDataParser {
 
     // Internal Properties ----------------------------------------------------

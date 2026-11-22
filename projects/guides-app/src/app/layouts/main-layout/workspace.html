@@ -1,11 +1,11 @@
 <div class="shell">
-    <aside [class.open]="mobile">
+    <aside class="workspace-nav" [class.open]="mobile">
         <gg-workspace-sidebar [activeGameId]="context()?.id ?? null" [links]="nav" [planCount]="plans().length" [catalog]="games()" [canManage]="store.canEdit()"
             (manageGame)="gameManagement = $event"
             (openNavigation)="mobile = true" (navigated)="mobile = false; search.set(''); category.set(''); rarity.set('')" />
     </aside>
     <div class="main-shell">
-        <header>
+        <header class="shell-header">
             <div>
                 <button
                     class="menu"

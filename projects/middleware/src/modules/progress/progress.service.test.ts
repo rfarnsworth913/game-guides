@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ProgressService } from './progress.service';
 import type { CatalogRepository, AccountProgressRepository } from '../../app/app.types';
-import type { CatalogEntry, PlayerState } from '../../../../lib/types/workspace.type';
-import { emptyPatchOverview } from '../../../../common/quests/story-template';
+import type { CatalogEntry, PlayerState } from '@lib/types/workspace.type';
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 await test('progress rejects invalid payloads and stale revisions before catalog lookup or persistence', async () => {
     let reads = 0;

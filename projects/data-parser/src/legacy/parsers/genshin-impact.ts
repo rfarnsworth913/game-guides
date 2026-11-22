@@ -1,13 +1,15 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { add, endOfISOWeek, endOfMonth, format, isValid, parseISO, startOfISOWeek, startOfMonth } from "date-fns";
 import * as puppeteer from "puppeteer";
 
-import { DATE_FORMAT } from "@shared-lib/constants";
-import { EventType } from "@shared-lib/enums";
-import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
+import { DATE_FORMAT } from "@lib/constants";
+import { EventType } from "@lib/enums";
+import type { DataFile, DataSource, Event, Version } from "@lib/types";
 
-import { DataService, Logger } from "../services";
+import { DataService, Logger } from "../../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
+/** @deprecated Legacy implementation retained for regression tests. Use the sync pipeline. */
 export class GenshinImpactParser extends AbstractDataParser {
 
     // Constructor ------------------------------------------------------------

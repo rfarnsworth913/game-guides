@@ -1,6 +1,6 @@
-import type { CharacterCollection, CharacterDefinition, CharacterProgression, CharacterRules } from '../../lib/types/character.type';
-import type { ProgressionTrackDefinition } from '../../lib/types/character-extension.type';
-import { trackAllows, trackMaximum, trackMinimum, validProgressionGraph } from './character-extension';
+import type { CharacterCollection, CharacterDefinition, CharacterProgression, CharacterRules } from '@lib/types/character.type';
+import type { ProgressionTrackDefinition } from '@lib/types/character-extension.type';
+import { trackAllows, trackMaximum, trackMinimum, validProgressionGraph } from '@common/characters/character-extension';
 
 export function characterTrackValue(state: CharacterProgression, track: ProgressionTrackDefinition): number {
     const binding = track.storage ?? (track.type === 'level' ? { field: 'level' as const } : track.type === 'ascension' ? { field: 'ascensionRank' as const } : null);

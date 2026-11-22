@@ -1,9 +1,9 @@
-import type {EquipmentDefinition, EquipmentInstance, EquipmentStat} from '../../lib/types/equipment.type';
-import type {CatalogEntry, PlayerState, Entry} from '../../lib/types/workspace.type';
-import type {CharacterRules, CharacterDefinition} from '../../lib/types/character.type';
-import {characterKey, validCharacterCollection} from './characters';
-import {validProgressionTracks, validProgressionGraph} from './character-extension';
-import {characterProgressIssues,characterTrackValue} from './character-progression';
+import type {EquipmentDefinition, EquipmentInstance, EquipmentStat} from '@lib/types/equipment.type';
+import type {CatalogEntry, PlayerState, Entry} from '@lib/types/workspace.type';
+import type {CharacterRules, CharacterDefinition} from '@lib/types/character.type';
+import {characterKey, validCharacterCollection} from '@common/characters/characters';
+import {validProgressionTracks, validProgressionGraph} from '@common/characters/character-extension';
+import {characterProgressIssues,characterTrackValue} from '@common/characters/character-progression';
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const only = (value: Record<string, unknown>, keys: string[]) => Object.keys(value).every(key => keys.includes(key));

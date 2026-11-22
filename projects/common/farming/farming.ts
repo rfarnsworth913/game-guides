@@ -1,9 +1,9 @@
-import type { CharacterCollection, CharacterDefinition, CharacterRules } from '../../lib/types/character.type';
-import {characterMaterialCosts,progressionMaterialCosts} from '../characters/character-materials';
-import {hasEquipmentGoal} from '../characters/character-equipment';
-import type { Entry } from '../../lib/types/workspace.type';
-import type { FarmingConfig, FarmingServer, FarmingSource, UpgradeRecipe } from '../../lib/types/farming-config.type';
-import type { CostIssue, CharacterCost, FarmingMaterial, FarmingGroup } from '../../lib/types/farming.type';
+import type { CharacterCollection, CharacterDefinition, CharacterRules } from '@lib/types/character.type';
+import {characterMaterialCosts,progressionMaterialCosts} from '@common/characters/character-materials';
+import {hasEquipmentGoal} from '@common/characters/character-equipment';
+import type { Entry } from '@lib/types/workspace.type';
+import type { FarmingConfig, FarmingServer, FarmingSource, UpgradeRecipe } from '@lib/types/farming-config.type';
+import type { CostIssue, CharacterCost, FarmingMaterial, FarmingGroup } from '@lib/types/farming.type';
 
 const gearChanged = (collection: CharacterCollection) =>
     [

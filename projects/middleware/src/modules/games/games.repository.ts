@@ -1,15 +1,15 @@
 import { ApiError } from '../../core/errors/app-error';
-import {inventoryReferenceIssues} from '../../../../common/inventory/inventory-config';
+import {inventoryReferenceIssues} from '@common/inventory/inventory-config';
 import { BSON, Collection, Document } from 'mongodb';
-import type { CatalogEntry, GameSnapshot } from "../../../../lib/types/workspace.type";
-import { GAMES } from "../../../../lib/constants/workspace.constants";
+import type { CatalogEntry, GameSnapshot } from "@lib/types/workspace.type";
+import { GAMES } from "@lib/constants/workspace.constants";
 import { decodeEntries, mergeEntries, migrateDocument } from "../documents/game-document";
 import { normalizeStory } from "../documents/stories/story-document";
-import type { CharacterRules } from "../../../../lib/types/character.type";
-import { characterDefinitionFits, validCharacterRules } from "../../../../common/characters/characters";
-import { characterRulesCompatibility } from '../../../../common/characters/character-rules';
-import type { GameOverview } from '../../../../lib/types/game-overview.type';
-import { defaultGameOverview, gameOverviewErrors, normalizeGameColor, validGameId, validGameOverview } from '../../../../common/workspace/game-overview';
+import type { CharacterRules } from "@lib/types/character.type";
+import { characterDefinitionFits, validCharacterRules } from "@common/characters/characters";
+import { characterRulesCompatibility } from '@common/characters/character-rules';
+import type { GameOverview } from '@lib/types/game-overview.type';
+import { defaultGameOverview, gameOverviewErrors, normalizeGameColor, validGameId, validGameOverview } from '@common/workspace/game-overview';
 
 // Match parser source IDs exactly; the UI display name for HSR includes a colon.
 export const gameDocumentName = (id: string) =>

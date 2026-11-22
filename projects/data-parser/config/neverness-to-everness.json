@@ -1,13 +1,14 @@
 {
-  "id": "Neverness to Everness",
-  "sourceList": [
-    {
-      "id": "Version",
-      "url": "https://nte.perfectworld.com/en/article/news/gamenews/index.html"
-    },
-    {
-      "id": "Events",
-      "url": "https://nte.perfectworld.com/en/article/news/gameevent/index.html"
-    }
-  ]
+    "id": "Neverness to Everness",
+    "sourceList": [
+        {
+            "id": "Version",
+            "url": "https://nte.perfectworld.com/en/article/news/gamenews/index.html"
+        },
+        {
+            "id": "Events",
+            "url": "https://nte.perfectworld.com/en/article/news/gameevent/index.html"
+        }
+    ],
+    "gameId": "nte"
 }

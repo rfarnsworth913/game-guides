@@ -1,6 +1,6 @@
 import type { StoredStory } from '../stored-document.types';
-import type { CatalogEntry } from "../../../../../lib/types/workspace.type";
-import { fromCatalog, migrateStory, toCatalog } from "../../../../../common/workspace/workspace";
+import type { CatalogEntry } from "@lib/types/workspace.type";
+import { fromCatalog, migrateStory, toCatalog } from "@common/workspace/workspace";
 
 export function normalizeStory(entries: CatalogEntry[]): CatalogEntry[] {
     return migrateStory(entries.map((entry) => fromCatalog(entry))).map(toCatalog);
@@ -53,7 +53,8 @@ export function decodeStory(input: Array<Record<string, unknown>>, game: string)
             requirements: [],
         });
         for (const entry of section.content?.subsections ?? []) {
-            entries.push({ ...entry, game, kind: 'story', storySection: String(section._id) });
+            // Legacy stored subsections may contain obsolete fields: retain them during decoding.
+            entries.push({ ...entry, game, kind: 'story', storySection: String(section._id) } as CatalogEntry);
         }
     }
     return normalizeStory(entries);

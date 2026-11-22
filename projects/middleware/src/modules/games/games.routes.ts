@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ApiDependencies } from '../../app/app.types';
 import { ApiError } from '../../core/errors/app-error';
-import { GAMES } from '../../../../lib/constants/workspace.constants';
+import { GAMES } from '@lib/constants/workspace.constants';
 import { allGamesController, readGameController, writeGameController } from './games.controller';
 import { jsonBody } from '../../core/http/request-body';
 import { respond } from '../../core/http/response';
-import { validGameId } from '../../../../common/workspace/game-overview';
+import { validGameId } from '@common/workspace/game-overview';
 
 export async function gameRoutes(request: IncomingMessage, response: ServerResponse, url: URL, dependencies: ApiDependencies): Promise<boolean> {
     const repository = dependencies.repository;

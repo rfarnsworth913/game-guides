@@ -1,9 +1,9 @@
 import * as dotenv from "dotenv";
 import * as mongoDB from "mongodb";
 
-import type { Event, RootDocument, Version } from '@shared-lib/types';
+import type { Event, RootDocument, Version } from '@lib/types';
 import { Logger } from "./logger";
-import { EventType } from '@shared-lib/enums';
+import { EventType } from '@lib/enums';
 
 // Retain limited-time history. Only explicit reset-based activities can expire out of storage.
 const repeatingTypes = [EventType.Daily, EventType.Weekly, EventType.WeeklyLinked, EventType.Monthly, EventType.EndGame];
@@ -34,9 +34,7 @@ export class DataService {
         this.dbConnection = new mongoDB.MongoClient(process.env["DB_CONN_STRING"] ?? "");
         this.db = this.dbConnection.db(process.env["DB_NAME"]);
 
-        this.connect().catch((err) => {
-            Logger.error("Failed to connect to the database:", err);
-        });
+
     }
 
 

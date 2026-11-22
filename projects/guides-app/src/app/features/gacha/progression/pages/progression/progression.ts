@@ -1,8 +1,8 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore } from '../../../../../core/state/workspace.store';
-import type { Entry } from '../../../../../../../../lib/types/workspace.type';
-import { GAMES } from '../../../../../../../../lib/constants/workspace.constants';
+import type { Entry } from '@lib/types/workspace.type';
+import { GAMES } from '@lib/constants/workspace.constants';
 import { defaultGameOverview } from '@common/workspace/game-overview';
 
 @Component({ selector: 'gg-progression', imports: [FormsModule], templateUrl: './progression.html', styles: [':host { display: block; }'] })

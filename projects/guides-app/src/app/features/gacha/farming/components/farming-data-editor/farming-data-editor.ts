@@ -2,8 +2,8 @@ import { Component, effect, inject, input, output, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore } from "../../../../../core/state/workspace.store";
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
-import type { FarmingConfig, FarmingSource, UpgradeRecipe } from "../../../../../../../../lib/types/farming-config.type";
-import { validFarmingConfig, validRecipes } from "../../../../../../../../common/farming/farming-config";
+import type { FarmingConfig, FarmingSource, UpgradeRecipe } from "@lib/types/farming-config.type";
+import { validFarmingConfig, validRecipes } from "@common/farming/farming-config";
 
 @Component({
     selector: 'gg-farming-data-editor',

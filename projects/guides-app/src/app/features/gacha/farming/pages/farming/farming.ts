@@ -5,10 +5,10 @@ import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { FarmingMaterialTile } from "../../../shared/components/material-tile/farming-material";
 import { FarmingDataEditor } from "../../components/farming-data-editor/farming-data-editor";
-import type { FarmingGroup, FarmingMaterial } from "../../../../../../../../lib/types/farming.type";
-import { farmingGroups, farmingRequirements, hasCharacterGoal, serverDay, sourceAvailability } from "../../../../../../../../common/farming/farming";
-import type { FarmingSource } from "../../../../../../../../lib/types/farming-config.type";
-import { storyImageUrl } from "../../../../../../../../common/quests/story-template";
+import type { FarmingGroup, FarmingMaterial } from "@lib/types/farming.type";
+import { farmingGroups, farmingRequirements, hasCharacterGoal, serverDay, sourceAvailability } from "@common/farming/farming";
+import type { FarmingSource } from "@lib/types/farming-config.type";
+import { storyImageUrl } from "@common/quests/story-template";
 import {hasEquipmentGoal} from '@common/characters/character-equipment';
 import {
     defaultFarmingPreferences,

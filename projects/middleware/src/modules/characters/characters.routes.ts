@@ -2,8 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ApiDependencies } from '../../app/app.types';
 import { ApiError } from '../../core/errors/app-error';
 import { respond } from '../../core/http/response';
-import { characterCatalogRecord } from '../../../../common/characters/character-catalog';
-import { gameSupports, validGameId } from '../../../../common/workspace/game-overview';
+import { characterCatalogRecord } from '@common/characters/character-catalog';
+import { gameSupports, validGameId } from '@common/workspace/game-overview';
 
 export async function characterRoutes(request: IncomingMessage, response: ServerResponse, url: URL, dependencies: ApiDependencies): Promise<boolean> {
     const match = /^\/api\/games\/([a-z][a-z0-9-]*)\/(characters|character-progression)(?:\/([a-zA-Z0-9_-]{1,100}))?$/.exec(url.pathname);

@@ -3,13 +3,13 @@ import type {ApiDependencies} from '../../app/app.types';
 import {ApiError} from '../../core/errors/app-error';
 import {jsonBody} from '../../core/http/request-body';
 import {respond} from '../../core/http/response';
-import {craftInventory} from '../../../../common/inventory/inventory-crafting';
-import {inventoryItems} from '../../../../common/inventory/inventory-requirements';
-import type {CraftRequest} from '../../../../lib/types/inventory.type';
-import type {Entry, PlayerState} from '../../../../lib/types/workspace.type';
-import {fromCatalog} from '../../../../common/workspace/workspace';
-import {resolveCharacterReferences} from '../../../../common/characters/character-story';
-import {resolveEventReferences} from '../../../../common/events/event-story';
+import {craftInventory} from '@common/inventory/inventory-crafting';
+import {inventoryItems} from '@common/inventory/inventory-requirements';
+import type {CraftRequest} from '@lib/types/inventory.type';
+import type {Entry, PlayerState} from '@lib/types/workspace.type';
+import {fromCatalog} from '@common/workspace/workspace';
+import {resolveCharacterReferences} from '@common/characters/character-story';
+import {resolveEventReferences} from '@common/events/event-story';
 
 export async function inventoryRoutes(request: IncomingMessage, response: ServerResponse, url: URL, dependencies: ApiDependencies): Promise<boolean> {
     const match = /^\/api\/me\/inventory\/([a-z][a-z0-9-]*)\/craft$/.exec(url.pathname);

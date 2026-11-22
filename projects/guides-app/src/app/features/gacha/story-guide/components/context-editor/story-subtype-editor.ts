@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { StoryContext } from '../../../../../../../../lib/types/story-context.type';
-import { WORLD_QUEST_SUBTYPES } from '../../../../../../../../lib/constants/world-quest.constants';
+import type { StoryContext } from '@lib/types/story-context.type';
+import { WORLD_QUEST_SUBTYPES } from '@lib/constants/world-quest.constants';
 
 @Component({
     selector: 'gg-story-subtype-editor',

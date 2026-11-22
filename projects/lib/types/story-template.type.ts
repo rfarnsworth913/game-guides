@@ -1,5 +1,5 @@
-import type { StoryContext } from './story-context.type';
-import type { StoryGroup } from './story-group.type';
+import type { StoryContext } from '@lib/types/story-context.type';
+import type { StoryGroup } from '@lib/types/story-group.type';
 
 export type StoryTableRow = {
     context?: StoryContext;

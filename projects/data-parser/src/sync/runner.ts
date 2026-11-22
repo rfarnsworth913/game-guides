@@ -1,4 +1,4 @@
-import { mkdir, open, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, unlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
@@ -7,8 +7,9 @@ import { DataService } from "../services/data-service";
 import { GAME_PROFILES } from "./game-profiles";
 import { BrowserSource } from "./browser-source";
 import { GameSync, jsonSource } from "./game-sync";
-import type { DataFile } from "@shared-lib/types";
+import type { DataFile } from "@lib/types";
 import type { GameReport } from "./types";
+import { writeRunReport } from "./run-report";
 
 export type Options = { games: Array<string>; dryRun: boolean; months: number; now: Date; report: string; headless: boolean; browser: "chrome" | "chromium" };
 export function parseOptions (args: Array<string>): Options {
@@ -46,11 +47,13 @@ export async function runCli (args = process.argv.slice(2)): Promise<number> {
     for (const name of (await readdir(configFolder)).filter(name => name.endsWith(".json")).sort()) {
         try {
             const parsed: unknown = JSON.parse(await readFile(resolve(configFolder, name), "utf8"));
-            if (!SchemaValidator.validate(parsed as DataFile)) { throw new Error("Configuration does not match the schema."); }
-            const config = parsed as DataFile;
-            if (configs.has(config.id)) { throw new Error(`Duplicate game configuration: ${config.id}.`); }
-            if (!GAME_PROFILES.some(profile => profile.name === config.id)) { throw new Error(`Unsupported configuration ${config.id}.`); }
-            configs.set(config.id, config);
+            if (!SchemaValidator.validate(parsed)) { throw new Error(SchemaValidator.errors(parsed).join(" ")); }
+            const config = parsed;
+            // Legacy name-only configurations remain readable; new configurations use gameId.
+            const id = config.gameId ?? GAME_PROFILES.find(profile => profile.name === config.id)?.id;
+            if (!id || !GAME_PROFILES.some(profile => profile.id === id)) {throw new Error(`Unsupported configuration ${config.id}.`);}
+            if (configs.has(id)) {throw new Error(`Duplicate game configuration: ${id}.`);}
+            configs.set(id, config);
         } catch (error) { errors.push(`${name}: ${error instanceof Error ? error.message : String(error)}`); }
     }
     const profiles = GAME_PROFILES.filter(profile => !options.games.length || options.games.includes(profile.id));
@@ -67,12 +70,29 @@ export async function runCli (args = process.argv.slice(2)): Promise<number> {
     });
     const reports: Array<GameReport> = [];
     let interrupted = false;
+    const checkpoint = async (complete = false, success = false) => {
+        await writeRunReport(options.report, {
+            startedFor: options.now.toISOString(),
+            finished: complete ? new Date().toISOString() : null,
+            checkpoint: new Date().toISOString(),
+            complete,
+            months: options.months,
+            dryRun: options.dryRun,
+            headless: options.headless,
+            browser: process.env["PARSER_BROWSER_EXECUTABLE"] ? "custom executable" : options.browser,
+            success: complete && success,
+            interrupted,
+            errors,
+            games: reports
+        });
+    };
     const stop = () => { interrupted = true; browser.close().catch((error) => { console.error("Browser shutdown failed:", String(error)); }); };
     process.once("SIGINT", stop); process.once("SIGTERM", stop);
     try {
+        await checkpoint();
         for (const profile of profiles) {
             if (interrupted) { break; }
-            const config = configs.get(profile.name);
+            const config = configs.get(profile.id);
             if (!config?.sourceList.some(source => source.id === "Version")) { errors.push(`${profile.name}: a Version source is required.`); continue; }
             let service: DataService | undefined;
             try {
@@ -80,7 +100,10 @@ export async function runCli (args = process.argv.slice(2)): Promise<number> {
                 const report = await new GameSync(profile, config, { read: async url => browser.read(url), json: jsonSource, service }).run(options.now, options.months);
                 reports.push(report);
                 console.log(`${report.status.toUpperCase()} ${profile.name}: ${report.recurring} recurring, ${report.dynamic} dynamic; version ${report.version?.title ?? "unavailable"}`);
-            } catch (error) { errors.push(`${profile.name}: ${error instanceof Error ? error.message : String(error)}`); } finally { await service?.disconnect().catch((error) => { errors.push(`${profile.name}: disconnect failed: ${String(error)}`); }); }
+            } catch (error) { errors.push(`${profile.name}: ${error instanceof Error ? error.message : String(error)}`); } finally {
+                await service?.disconnect().catch((error) => { errors.push(`${profile.name}: disconnect failed: ${String(error)}`); });
+                await checkpoint();
+            }
         }
     } finally {
         try { await browser.close(); } finally {
@@ -89,18 +112,7 @@ export async function runCli (args = process.argv.slice(2)): Promise<number> {
         }
     }
     const success = !interrupted && !errors.length && reports.length === profiles.length && reports.every(report => report.status === "ok");
-    await writeFile(options.report, JSON.stringify({
-        startedFor: options.now.toISOString(),
-        finished: new Date().toISOString(),
-        months: options.months,
-        dryRun: options.dryRun,
-        headless: options.headless,
-        browser: process.env["PARSER_BROWSER_EXECUTABLE"] ? "custom executable" : options.browser,
-        success,
-        interrupted,
-        errors,
-        games: reports
-    }, null, 2));
+    await checkpoint(true, success);
     console.log(`Report: ${options.report}`);
     return success ? 0 : interrupted ? 130 : 1;
 }

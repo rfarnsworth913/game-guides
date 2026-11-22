@@ -1,14 +1,14 @@
-import type { CatalogEntry, Entry, PlayerState } from '../../lib/types/workspace.type';
-import { storyCompletionKey, storyRowDone } from '../quests/story-guide';
+import type { LegacyCatalogEntry, Entry, PlayerState } from '@lib/types/workspace.type';
+import { storyCompletionKey, storyRowDone } from '@common/quests/story-guide';
 
-export const eventObjectives = (entry: CatalogEntry) => entry.eventStory?.rows.filter(row => (!row.rowType || row.rowType === 'quest') && !row.optional) ?? [];
+export const eventObjectives = (entry: LegacyCatalogEntry) => entry.eventStory?.rows.filter(row => (!row.rowType || row.rowType === 'quest') && !row.optional) ?? [];
 export function eventProgress(entry: Entry) {
     const rows = eventObjectives(entry);
     const completed = rows.filter(row => storyRowDone(entry, row)).length;
     const optional = entry.eventStory?.rows.filter(row => (!row.rowType || row.rowType === 'quest') && row.optional) ?? [];
     return { total: rows.length, completed, canComplete: rows.every(row => storyCompletionKey(entry, row) !== null), optionalTotal: optional.length, optionalCompleted: optional.filter(row => storyRowDone(entry, row)).length };
 }
-export function setEventCompletion(entry: CatalogEntry, completed: boolean, state: PlayerState): PlayerState {
+export function setEventCompletion(entry: LegacyCatalogEntry, completed: boolean, state: PlayerState): PlayerState {
     const storyRowCompletion = { ...state.storyRowCompletion };
     for (const row of eventObjectives(entry)) {
         const key = storyCompletionKey(entry as Entry, row);
@@ -19,7 +19,7 @@ export function setEventCompletion(entry: CatalogEntry, completed: boolean, stat
 }
 
 /** Canonical event progress wins; placement history is a read-only fallback until the next save. */
-export function sharedEventState(entry: CatalogEntry, current?: PlayerState, legacy: PlayerState[] = []): PlayerState {
+export function sharedEventState(entry: LegacyCatalogEntry, current?: PlayerState, legacy: PlayerState[] = []): PlayerState {
     const state: PlayerState = { completed: false, quantity: 0, target: 90, ...current };
     if (current?.storyRowCompletion === globalThis.undefined) {
         const history: Record<string, boolean> = {};

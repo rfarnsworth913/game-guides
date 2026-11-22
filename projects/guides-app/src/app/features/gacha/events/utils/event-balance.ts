@@ -18,7 +18,7 @@ export function balanceEvents(entries: readonly Entry[], now: Date, range?: { st
     const jobs: Job[] = [];
     const pinnedLoads = days.map(() => 0);
     for (const entry of entries) {
-        const key = balanceKey(entry), release = eventDate(entry.startDate), deadline = eventDate(entry.endDate, true);
+        const key = balanceKey(entry), release = eventDate(entry.startDate, false, entry.eventSchedule), deadline = eventDate(entry.endDate, true, entry.eventSchedule);
         const pin = options.pins?.[key];
         if (pin) {
             const index = days.findIndex(day => balanceDay(day) === pin);

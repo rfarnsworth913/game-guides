@@ -1,8 +1,8 @@
-import { validFarmingConfig, validRecipes } from '../farming/farming-config';
-import {validInventoryConfig} from '../inventory/inventory-config';
-import type { CharacterSkill, CharacterDefinition, CharacterRules, CharacterCollection } from '../../lib/types/character.type';
-import { validCharacterExtension, validCharacterAttributes, validProgressionProfiles } from './character-extension';
-import { characterExtensionFits, characterProgressIssues } from './character-progression';
+import { validFarmingConfig, validRecipes } from '@common/farming/farming-config';
+import {validInventoryConfig} from '@common/inventory/inventory-config';
+import type { CharacterSkill, CharacterDefinition, CharacterRules, CharacterCollection } from '@lib/types/character.type';
+import { validCharacterExtension, validCharacterAttributes, validProgressionProfiles } from '@common/characters/character-extension';
+import { characterExtensionFits, characterProgressIssues } from '@common/characters/character-progression';
 
 const record = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);

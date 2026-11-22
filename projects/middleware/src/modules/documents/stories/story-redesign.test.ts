@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Entry } from "../../../../../lib/types/workspace.type";
-import { fromCatalog, toCatalog, validCatalog } from "../../../../../common/workspace/workspace";
-import { emptyPatchOverview, validPatchOverview } from "../../../../../common/quests/story-template";
-import { storyCompletionKey, storyRowDone, validStoryContext } from "../../../../../common/quests/story-guide";
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from "../../../../../lib/enums/story-tracking.enum";
-import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '../../../../../lib/constants/story-requirements.constants';
+import type { Entry } from "@lib/types/workspace.type";
+import { fromCatalog, toCatalog, validCatalog } from "@common/workspace/workspace";
+import { emptyPatchOverview, validPatchOverview } from "@common/quests/story-template";
+import { storyCompletionKey, storyRowDone, validStoryContext } from "@common/quests/story-guide";
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from "@lib/enums/story-tracking.enum";
+import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '@lib/constants/story-requirements.constants';
 
 await test('main quest requirement links accept composite identifiers without relaxing ordinary content identifier limits',()=>{
     const targetId=`quest:${'a'.repeat(95)}:${'b'.repeat(90)}`;

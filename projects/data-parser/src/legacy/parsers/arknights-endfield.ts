@@ -1,13 +1,15 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { endOfISOWeek, format, startOfISOWeek } from "date-fns";
 
-import { DATE_FORMAT } from "@shared-lib/constants";
-import { EventType } from "@shared-lib/enums";
-import type { DataFile, DataSource, Event } from "@shared-lib/types";
+import { DATE_FORMAT } from "@lib/constants";
+import { EventType } from "@lib/enums";
+import type { DataFile, DataSource, Event } from "@lib/types";
 
-import { DataService, Logger } from "../services";
+import { DataService, Logger } from "../../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
 
+/** @deprecated Legacy implementation retained for regression tests. Use the sync pipeline. */
 export class ArknightsEndfield extends AbstractDataParser {
 
     // Constructor ------------------------------------------------------------

@@ -9,6 +9,7 @@ export default defineConfig({
         alias: {
             "@common": localPath("../common"),
             "@lib": localPath("../lib"),
+            // Deprecated compatibility alias; current source imports use @lib.
             "@shared-lib": localPath("../lib"),
             chalk: localPath("./src/test/mocks/chalk.ts"),
             puppeteer: localPath("./src/test/mocks/puppeteer.ts"),

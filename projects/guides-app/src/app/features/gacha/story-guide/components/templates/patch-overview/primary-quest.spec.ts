@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from './patch-overview';
 import { WorkspaceStore, type Entry } from '../../../../../../core/state/workspace.store';
-import { emptyPatchOverview } from '../../../../../../../../../common/quests/story-template';
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 describe('Primary quest reading layout', () => {
     it.each(['main-story', 'side-stories'])('preserves artwork attribution, linked quest headings and completion within the shared %s layout', category => {

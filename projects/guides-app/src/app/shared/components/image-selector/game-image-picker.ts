@@ -2,11 +2,11 @@ import { inject, Component, computed, effect, ElementRef, input, model, signal, 
 import { AuthStore } from "../../../core/auth/auth.store";
 
 import { FormsModule } from '@angular/forms';
-import { storyImageUrl } from "../../../../../../common/quests/story-template";
+import { storyImageUrl } from "@common/quests/story-template";
 
-import type { GameImage, ImageCategory } from "../../../../../../lib/types/game-image.type";
-import { friendlyImageName } from "../../../../../../common/images/game-images";
-import { imageRecommendations } from "../../../../../../lib/constants/image-recommendations.constants";
+import type { GameImage, ImageCategory } from "@lib/types/game-image.type";
+import { friendlyImageName } from "@common/images/game-images";
+import { imageRecommendations } from "@lib/constants/image-recommendations.constants";
 
 @Component({
     selector: 'gg-game-image-picker',

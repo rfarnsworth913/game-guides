@@ -1,9 +1,9 @@
-import type { CatalogEntry } from '../../lib/types/workspace.type';
-import type { CharacterResource, CharacterCatalogRecord } from '../../lib/types/character-extension.type';
-import type { CharacterRules } from '../../lib/types/character.type';
+import type { LegacyCatalogEntry } from '@lib/types/workspace.type';
+import type { CharacterResource, CharacterCatalogRecord } from '@lib/types/character-extension.type';
+import type { CharacterRules } from '@lib/types/character.type';
 
 /** Public read projection. Existing entry IDs and shared storage remain authoritative. */
-export function characterCatalogRecord(entry: CatalogEntry, entries: CatalogEntry[], rules?: CharacterRules): CharacterCatalogRecord {
+export function characterCatalogRecord(entry: LegacyCatalogEntry, entries: LegacyCatalogEntry[], rules?: CharacterRules): CharacterCatalogRecord {
     const definition = entry.characterDefinition, story = entry.characterInformation;
     const resources: CharacterResource[] = structuredClone(definition?.resources ?? []);
     for (const [index, guide] of (definition?.guides ?? []).entries()) {

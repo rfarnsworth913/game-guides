@@ -1,9 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {characterRulesCompatibility} from '../../../../common/characters/character-rules';
-import {validCharacterRules, emptyCharacterDefinition, characterDefinitionFits} from '../../../../common/characters/characters';
-import {characterProfileTracks} from '../../../../common/characters/character-progression';
-import type {CharacterRules} from '../../../../lib/types/character.type';
+import {characterRulesCompatibility} from '@common/characters/character-rules';
+import {validCharacterRules, emptyCharacterDefinition, characterDefinitionFits} from '@common/characters/characters';
+import {characterProfileTracks} from '@common/characters/character-progression';
+import type {CharacterRules} from '@lib/types/character.type';
 
 const rules: CharacterRules = {levelCap: 100, rarities: [5], weaponTypes: [], damageTypes: [], roles: [], equipmentSlots: [], progressionTracks: [],
     configurationVersion: 1, description: 'Synthetic test configuration', attributes: [{id:'element', label:'Element', type:'enum', options:['A','B'], displayOrder:0, filterable:true, visibleInHeader:true}],

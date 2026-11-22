@@ -1,7 +1,7 @@
-import type { CatalogEntry, PlayerState } from '../../../../lib/types/workspace.type';
-import type { CharacterRules } from '../../../../lib/types/character.type';
+import type { CatalogEntry, PlayerState } from '@lib/types/workspace.type';
+import type { CharacterRules } from '@lib/types/character.type';
 import { ApiError } from '../../core/errors/app-error';
-import { teamSize } from '../../../../common/player/teams';
+import { teamSize } from '@common/player/teams';
 export function validateTeamProgress(game: string, key: string, state: PlayerState, previous: Record<string, PlayerState>, requestedChanges: Record<string, PlayerState>, catalog: Map<string, CatalogEntry>, rules?: CharacterRules): void {
     const existing = previous[key]?.teams ?? [];
     for (const team of state.teams ?? []) {

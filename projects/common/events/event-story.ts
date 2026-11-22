@@ -1,12 +1,12 @@
-import type { CatalogEntry } from '../../lib/types/workspace.type';
-import type { PatchOverview } from '../../lib/types/story-template.type';
-import { StoryAvailability } from '../../lib/enums/story-tracking.enum';
-import { emptyPatchOverview } from '../quests/story-template';
+import type { CatalogEntry, LegacyCatalogEntry } from '@lib/types/workspace.type';
+import type { PatchOverview } from '@lib/types/story-template.type';
+import { StoryAvailability } from '@lib/enums/story-tracking.enum';
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 export const eventNameKey = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en');
 
 /** Return a detached editor/reading view of the single shared event definition. */
-export function eventStoryProfile(event: CatalogEntry): PatchOverview {
+export function eventStoryProfile(event: LegacyCatalogEntry): PatchOverview {
     const profile = structuredClone(event.eventStory ?? emptyPatchOverview());
     profile.summary = event.notes || profile.summary;
     profile.context = { ...profile.context,
@@ -18,7 +18,7 @@ export function eventStoryProfile(event: CatalogEntry): PatchOverview {
     return profile;
 }
 
-export function resolveEventReferences<T extends CatalogEntry>(entries: T[]): T[] {
+export function resolveEventReferences<T extends LegacyCatalogEntry>(entries: T[]): T[] {
     return entries.map(entry => {
         if (entry.kind !== 'story' || entry.category !== 'events' || !entry.eventId) {return entry;}
         const event = entries.find(item => item.kind === 'events' && item.game === entry.game && item.id === entry.eventId);
@@ -26,7 +26,7 @@ export function resolveEventReferences<T extends CatalogEntry>(entries: T[]): T[
     });
 }
 
-export function editEventStory<T extends CatalogEntry>(event: T, draft: PatchOverview, name = event.name): T {
+export function editEventStory<T extends LegacyCatalogEntry>(event: T, draft: PatchOverview, name = event.name): T {
     const profile = structuredClone(draft);
     const notes = profile.summary ?? event.notes;
     delete profile.summary;

@@ -1,4 +1,5 @@
-import { EventType } from "@shared-lib/enums";
+import { EVENT_SCHEDULES } from '@lib/constants/event-schedules.constants';
+import { EventType } from "@lib/enums";
 import type { GameProfile, Recurrence } from "./types";
 
 const daily = (title: string, url: string): Recurrence => ({ title, url, cadence: "daily", eventType: EventType.Daily });
@@ -11,8 +12,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "endfield",
         name: "Arknights: Endfield",
-        offsetMinutes: -300,
-        resetHour: 4,
+        ...EVENT_SCHEDULES["endfield"],
         recurring: [
             daily("Stock Redistribution", "https://endfield.wiki.gg/wiki/Stock_Redistribution"),
             daily("Daily Routine", "https://endfield.wiki.gg/wiki/Operational_Manual#Daily"),
@@ -23,8 +23,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "fgo",
         name: "Fate Grand Order",
-        offsetMinutes: 0,
-        resetHour: 0,
+        ...EVENT_SCHEDULES["fgo"],
         recurring: [
             daily("Daily Quests", "https://fategrandorder.fandom.com/wiki/Daily_Event_Quests"),
             weekly("Weekly Master Missions", "https://fategrandorder.fandom.com/wiki/Master_Missions"),
@@ -34,8 +33,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "genshin",
         name: "Genshin Impact",
-        offsetMinutes: -300,
-        resetHour: 4,
+        ...EVENT_SCHEDULES["genshin"],
         recurring: [
             daily("Daily Commissions", "https://genshin-impact.fandom.com/wiki/Commission"),
             weekly("Trounce Domain", "https://genshin-impact.fandom.com/wiki/Trounce_Domain"),
@@ -47,8 +45,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "gf2",
         name: "Girls Frontline 2",
-        offsetMinutes: -240,
-        resetHour: 5,
+        ...EVENT_SCHEDULES["gf2"],
         recurring: [
             daily("Daily Missions", "https://iopwiki.com/wiki/GFL2_Main_Screen#Daily_Missions"),
             weekly("Weekly Missions", "https://iopwiki.com/wiki/GFL2_Main_Screen#Weekly_Missions"),
@@ -57,8 +54,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "hsr",
         name: "Honkai Star Rail",
-        offsetMinutes: -300,
-        resetHour: 4,
+        ...EVENT_SCHEDULES["hsr"],
         recurring: [
             daily("Daily Training", "https://honkai-star-rail.fandom.com/wiki/Interastral_Peace_Guide/Daily_Training"),
             weekly("Echo of War", "https://honkai-star-rail.fandom.com/wiki/Echo_of_War"),
@@ -70,8 +66,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "nte",
         name: "Neverness to Everness",
-        offsetMinutes: -300,
-        resetHour: 5,
+        ...EVENT_SCHEDULES["nte"],
         recurring: [
             daily("Daily Quests", "https://nte.perfectworld.com/en/index.html"),
             weekly("City Stamina", "https://nte.perfectworld.com/en/index.html"),
@@ -81,8 +76,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "wuwa",
         name: "Wuthering Waves",
-        offsetMinutes: -300,
-        resetHour: 4,
+        ...EVENT_SCHEDULES["wuwa"],
         recurring: [
             daily("Daily Activities", "https://wutheringwaves.fandom.com/wiki/Guidebook/Activity"),
             weekly("Weekly Challenge", "https://wutheringwaves.fandom.com/wiki/Weekly_Challenge"),
@@ -93,8 +87,7 @@ export const GAME_PROFILES: Array<GameProfile> = [
     {
         id: "zzz",
         name: "Zenless Zone Zero",
-        offsetMinutes: -300,
-        resetHour: 4,
+        ...EVENT_SCHEDULES["zzz"],
         recurring: [
             daily("Errands", "https://zenless-zone-zero.fandom.com/wiki/Compendium#Errands"),
             weekly("Notorious Hunt", "https://zenless-zone-zero.fandom.com/wiki/Notorious_Hunt"),

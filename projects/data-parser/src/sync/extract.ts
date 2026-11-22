@@ -1,5 +1,5 @@
-import { EventType } from "@shared-lib/enums";
-import type { Event, Version } from "@shared-lib/types";
+import { EventType } from "@lib/enums";
+import type { Event, Version } from "@lib/types";
 import type { Link, SkippedRow, SourcePage } from "./types";
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];

@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { GAMES } from '../../../../lib/constants/workspace.constants';
-import type { ImageDetails } from '../../../../lib/types/game-image.type';
-import { httpUrl } from '../../../../common/quests/story-template';
+import { GAMES } from '@lib/constants/workspace.constants';
+import type { ImageDetails } from '@lib/types/game-image.type';
+import { httpUrl } from '@common/quests/story-template';
 import { ApiError } from '../../core/errors/app-error';
 import { ImageRepository } from './images.repository';
 import { IMAGE_FILENAME, imageType } from './images.schema';
-import { validGameId } from '../../../../common/workspace/game-overview';
+import { validGameId } from '@common/workspace/game-overview';
 export function gameImageFolder(id: string): string {
     const game = GAMES.find((game) => game.id === id);
     if (!game && !validGameId(id))

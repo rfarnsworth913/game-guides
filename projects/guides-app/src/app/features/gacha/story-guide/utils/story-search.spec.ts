@@ -1,6 +1,6 @@
 import { searchStoryGuides } from "./story-search";
 import { Entry } from "../../../../core/state/workspace.store";
-import { emptyPatchOverview } from "../../../../../../../common/quests/story-template";
+import { emptyPatchOverview } from "@common/quests/story-template";
 
 describe('game-wide story search', () => {
     const section: Entry = { id: 'valley', game: 'endfield', kind: 'story-category', name: 'Valley IV',

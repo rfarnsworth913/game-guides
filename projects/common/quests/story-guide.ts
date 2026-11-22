@@ -1,8 +1,8 @@
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
-import type { Entry } from '../../lib/types/workspace.type';
-import type { StoryTableRow } from '../../lib/types/story-template.type';
-import type { StoryContext } from '../../lib/types/story-context.type';
-import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '../../lib/constants/story-requirements.constants';
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '@lib/enums/story-tracking.enum';
+import type { Entry } from '@lib/types/workspace.type';
+import type { StoryTableRow } from '@lib/types/story-template.type';
+import type { StoryContext } from '@lib/types/story-context.type';
+import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '@lib/constants/story-requirements.constants';
 
 /** Decorative entries retain ordering IDs but are never tracked as quests. */
 export function isStoryDivider(entry: Pick<Entry, 'kind' | 'category'>): boolean {

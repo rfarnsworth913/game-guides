@@ -1,5 +1,5 @@
-import type {InventoryConfig, InventoryMetadata} from '../../lib/types/inventory.type';
-import type {CatalogEntry} from '../../lib/types/workspace.type';
+import type {InventoryConfig, InventoryMetadata} from '@lib/types/inventory.type';
+import type {LegacyCatalogEntry} from '@lib/types/workspace.type';
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const text = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 160;
 const id = (value: unknown): value is string => text(value) && /^[a-zA-Z0-9][\w-]*$/.test(value);
@@ -28,7 +28,7 @@ export function validInventoryConfig(value: unknown): value is InventoryConfig {
         acyclic(new Map(config.categories.map(category => [category.id, category.parentCategoryId ? [category.parentCategoryId] : []]))) &&
         acyclic(new Map(config.recipes.map(recipe => [recipe.outputItemId, config.recipes.filter(other => other.outputItemId === recipe.outputItemId).flatMap(other => [...other.ingredients,...other.currencyCosts ?? []].map(cost => cost.itemId))])));
 }
-export function inventoryReferenceIssues(config: InventoryConfig | undefined, entries: CatalogEntry[]): string[] {
+export function inventoryReferenceIssues(config: InventoryConfig | undefined, entries: LegacyCatalogEntry[]): string[] {
     if (!config) {return [];}
     const ids = new Map(entries.map(entry => [entry.id,entry]));
     const categories = new Set(config.categories.map(category => category.id));

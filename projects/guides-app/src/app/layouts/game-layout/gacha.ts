@@ -1,3 +1,4 @@
+/** @deprecated Legacy alternate layout; main-layout/workspace is the active shell. */
 import { Component } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
 
@@ -15,6 +16,7 @@ import { Sidebar } from "./components/sidebar/sidebar";
     templateUrl: "./gacha.html",
     styleUrls: ["./gacha.scss"]
 })
+/** @deprecated Legacy alternate layout. Use main-layout/workspace. */
 export class GachaPage {
 
 }

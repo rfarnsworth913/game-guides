@@ -1,6 +1,6 @@
 import { Entry } from "../../../../core/state/workspace.store";
-import { storyContentTypes } from "../../../../../../../common/quests/story-content-types";
-import { isStoryDivider, storyTemplateFor } from "../../../../../../../common/quests/story-guide";
+import { storyContentTypes } from "@common/quests/story-content-types";
+import { isStoryDivider, storyTemplateFor } from "@common/quests/story-guide";
 
 export type StorySearchResult = {
     id: string;

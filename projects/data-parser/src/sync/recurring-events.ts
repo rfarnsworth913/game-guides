@@ -1,4 +1,4 @@
-import type { Event } from "@shared-lib/types";
+import type { Event } from "@lib/types";
 import type { GameProfile } from "./types";
 
 const DAY = 86_400_000;
@@ -35,6 +35,7 @@ export function recurringEvents (profile: GameProfile, now: Date, months = 2): A
                 title: rule.title,
                 url: rule.url,
                 eventType: rule.eventType,
+                eventSchedule: { offsetMinutes: profile.offsetMinutes, resetHour: profile.resetHour },
                 startDate: dateOnly(start),
                 endDate: dateOnly(new Date(next.getTime() - DAY))
             });

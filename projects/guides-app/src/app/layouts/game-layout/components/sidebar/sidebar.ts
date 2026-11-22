@@ -1,3 +1,4 @@
+/** @deprecated Legacy alternate layout; main-layout/workspace is the active shell. */
 import { Component, inject } from "@angular/core";
 import { ThemeService } from "../../../../core/theme/theme.service";
 import { GAME_THEMES } from "../../../../games/registry/game-themes";
@@ -7,6 +8,7 @@ import { GAME_THEMES } from "../../../../games/registry/game-themes";
     templateUrl: "./sidebar.html",
     styleUrls: ["./sidebar.scss"],
 })
+/** @deprecated Legacy alternate layout. Use main-layout/workspace. */
 export class Sidebar {
     readonly themes = inject(ThemeService);
     readonly games = GAME_THEMES;

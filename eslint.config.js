@@ -2,6 +2,7 @@
 import angular from "angular-eslint";
 import js from "@eslint/js";
 import stylistic from "@stylistic/eslint-plugin";
+import boundaries from "./tooling/eslint/project-boundaries.mjs";
 import tseslint from "typescript-eslint";
 
 import { defineConfig } from "eslint/config";
@@ -14,6 +15,11 @@ const config = defineConfig([
   },
 
   // TypeScript Files Configuration -----------------------------------------
+  {
+    files: ["projects/lib/**/*.ts", "projects/common/**/*.ts", "projects/middleware/src/**/*.ts", "projects/data-parser/src/**/*.ts", "projects/guides-app/src/**/*.ts"],
+    plugins: { boundaries },
+    rules: { "boundaries/imports": "error" },
+  },
   {
     ...jsdoc.configs["flat/recommended"],
 

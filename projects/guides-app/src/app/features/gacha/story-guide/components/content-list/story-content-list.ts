@@ -2,15 +2,15 @@ import { storyRequirementLinks } from '../../utils/story-requirement-links';
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { Entry } from "../../../../../core/state/workspace.store";
 import { MarkdownPipe } from "../../../../../shared/pipes/markdown/markdown";
-import { httpUrl, patchGroups } from "../../../../../../../../common/quests/story-template";
-import type { PatchOverview, StoryTableRow } from "../../../../../../../../lib/types/story-template.type";
-import { storyCompletionKey, storyRowDone, storyTrackingMode } from "../../../../../../../../common/quests/story-guide";
-import type { StoryContext } from "../../../../../../../../lib/types/story-context.type";
-import { StoryTrackingMode } from "../../../../../../../../lib/enums/story-tracking.enum";
+import { httpUrl, patchGroups } from "@common/quests/story-template";
+import type { PatchOverview, StoryTableRow } from "@lib/types/story-template.type";
+import { storyCompletionKey, storyRowDone, storyTrackingMode } from "@common/quests/story-guide";
+import type { StoryContext } from "@lib/types/story-context.type";
+import { StoryTrackingMode } from "@lib/enums/story-tracking.enum";
 import { NgTemplateOutlet } from '@angular/common';
-import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "../../../../../../../../common/quests/world-quest";
-import type { WorldQuestSection } from "../../../../../../../../lib/types/world-quest.type";
-import { WORLD_QUEST_SUBTYPES, WORLD_QUEST_GROUP_TYPES } from "../../../../../../../../lib/constants/world-quest.constants";
+import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "@common/quests/world-quest";
+import type { WorldQuestSection } from "@lib/types/world-quest.type";
+import { WORLD_QUEST_SUBTYPES, WORLD_QUEST_GROUP_TYPES } from "@lib/constants/world-quest.constants";
 import { PatchBadge } from "../../../shared/components/patch-badge/patch-badge";
 
 @Component({

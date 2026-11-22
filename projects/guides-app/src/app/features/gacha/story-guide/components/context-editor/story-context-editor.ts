@@ -1,9 +1,9 @@
 import { Component, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
-import type { StoryContext } from "../../../../../../../../lib/types/story-context.type";
-import { StoryAvailability, StoryRequirementType } from "../../../../../../../../lib/enums/story-tracking.enum";
-import { worldQuestPrerequisites } from "../../../../../../../../common/quests/world-quest";
+import type { StoryContext } from "@lib/types/story-context.type";
+import { StoryAvailability, StoryRequirementType } from "@lib/enums/story-tracking.enum";
+import { worldQuestPrerequisites } from "@common/quests/world-quest";
 import { StorySubtypeEditor } from './story-subtype-editor';
 
 import { RequirementPicker } from './requirement-picker';

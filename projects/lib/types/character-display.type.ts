@@ -1,4 +1,4 @@
-import type { Entry } from './workspace.type';
+import type { Entry } from '@lib/types/workspace.type';
 export type CharacterCardViewModel = {
     entry: Entry; characterId: string; gameId: string; name: string; headshotUrl: string | null;
     rarity: number; rarityLabel: string; attributes: { id: string; label: string; value: string }[];

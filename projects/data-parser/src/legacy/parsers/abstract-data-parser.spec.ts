@@ -1,10 +1,11 @@
+/** @deprecated Legacy parser regression code. Production imports use src/sync. */
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import https from "node:https";
 import type { ClientRequest, IncomingMessage } from "node:http";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import type { DataService } from "../services";
+import type { DataService } from "../../services";
 import { AbstractDataParser } from "./abstract-data-parser";
 
 /** Isolates filesystem and HTTP effects while exercising the download's actual Promise lifecycle. */

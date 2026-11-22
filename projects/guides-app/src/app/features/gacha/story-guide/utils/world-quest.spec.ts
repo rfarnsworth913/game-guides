@@ -4,11 +4,11 @@ import { StoryContentList } from "../components/content-list/story-content-list"
 import { StoryContextEditor } from "../components/context-editor/story-context-editor";
 import { PatchOverviewTemplate } from "../components/templates/patch-overview/patch-overview";
 import { Entry, WorkspaceStore } from "../../../../core/state/workspace.store";
-import { emptyPatchOverview, validPatchOverview } from "../../../../../../../common/quests/story-template";
-import type { PatchOverview, StoryTableRow } from "../../../../../../../lib/types/story-template.type";
-import { validStoryContext } from "../../../../../../../common/quests/story-guide";
-import { StoryRequirementType, StoryAvailability } from "../../../../../../../lib/enums/story-tracking.enum";
-import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "../../../../../../../common/quests/world-quest";
+import { emptyPatchOverview, validPatchOverview } from "@common/quests/story-template";
+import type { PatchOverview, StoryTableRow } from "@lib/types/story-template.type";
+import { validStoryContext } from "@common/quests/story-guide";
+import { StoryRequirementType, StoryAvailability } from "@lib/enums/story-tracking.enum";
+import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "@common/quests/world-quest";
 import { storyProgress } from "./story-progress";
 import { searchStoryGuides } from "./story-search";
 

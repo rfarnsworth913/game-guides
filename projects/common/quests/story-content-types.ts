@@ -1,5 +1,5 @@
-import { STORY_CONTENT_TYPES, GAME_STORY_NAMES } from '../../lib/constants/story-content.constants';
-import type { StoryContentType } from '../../lib/types/story-content.type';
+import { STORY_CONTENT_TYPES, GAME_STORY_NAMES } from '@lib/constants/story-content.constants';
+import type { StoryContentType } from '@lib/types/story-content.type';
 
 export function storyContentName(game: string, type: StoryContentType): string {
     return GAME_STORY_NAMES[game]?.[type] ?? STORY_CONTENT_TYPES.find((item) => item.id === type)!.title;

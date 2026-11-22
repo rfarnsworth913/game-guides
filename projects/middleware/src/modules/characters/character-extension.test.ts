@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CharacterDefinition, CharacterRules, CharacterCollection } from '../../../../lib/types/character.type';
-import type { CharacterProgressionProfile, ProgressionTrackDefinition } from '../../../../lib/types/character-extension.type';
-import { emptyCharacterCollection, emptyCharacterDefinition, validCharacterCollection, validCharacterDefinition, validCharacterRules, characterCollectionFits, characterDefinitionFits } from '../../../../common/characters/characters';
-import { validProgressionProfiles, validCharacterResources } from '../../../../common/characters/character-extension';
-import { characterProgressIssues, characterTrackProgress } from '../../../../common/characters/character-progression';
-import { characterCatalogRecord } from '../../../../common/characters/character-catalog';
-import type { CatalogEntry } from '../../../../lib/types/workspace.type';
-import { validCatalog } from '../../../../common/workspace/workspace';
+import type { CharacterDefinition, CharacterRules, CharacterCollection } from '@lib/types/character.type';
+import type { CharacterProgressionProfile, ProgressionTrackDefinition } from '@lib/types/character-extension.type';
+import { emptyCharacterCollection, emptyCharacterDefinition, validCharacterCollection, validCharacterDefinition, validCharacterRules, characterCollectionFits, characterDefinitionFits } from '@common/characters/characters';
+import { validProgressionProfiles, validCharacterResources } from '@common/characters/character-extension';
+import { characterProgressIssues, characterTrackProgress } from '@common/characters/character-progression';
+import { characterCatalogRecord } from '@common/characters/character-catalog';
+import type { CatalogEntry } from '@lib/types/workspace.type';
+import { validCatalog } from '@common/workspace/workspace';
 import { ProgressService } from '../progress/progress.service';
 import type { CatalogRepository, AccountProgressRepository } from '../../app/app.types';
 
@@ -64,7 +64,7 @@ await test('attribute registries, independent abilities and resources validate w
     assert.equal(validCharacterDefinition({ ...data, owned: true }), false);
     assert.equal(validCharacterResources([{ id: 'bad', category: 'other', title: 'Bad', sourceType: 'external', url: 'data:text/html,unsafe' }]), false);
     assert.equal(validCharacterResources([{ id: 'bad', category: 'other', title: 'Bad', sourceType: 'external', url: 'https://name:password@example.com' }]), false);
-    const shared = { ...character, characterDefinition: data }, story = { ...character, id: 'story', kind: 'story' as const };
+    const shared = { ...character, characterDefinition: data }, story = { ...character, characterDefinition: globalThis.undefined, id: 'story', kind: 'story' as const };
     assert.equal(validCatalog([shared, story], 'genshin'), true); assert.equal(validCatalog([shared], 'genshin'), false);
     const projected = characterCatalogRecord(shared, [shared, { ...story, characterId: shared.id }]);
     assert.equal(projected.resources.filter(resource => resource.contentId === 'story').length, 1);

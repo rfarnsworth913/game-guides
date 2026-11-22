@@ -9,9 +9,9 @@ import { AuthService, safeReturnTo } from '../../core/auth/auth.service';
 import type { LoginDocument, SessionDocument } from '../../core/auth/auth.types';
 import { ProgressDocument, ProgressRepository } from "../../modules/progress/progress.repository";
 import { createApi } from "../../app/server";
-import { validProgressState } from "../../../../common/player/player-progress";
-import type { CatalogEntry } from "../../../../lib/types/workspace.type";
-import { StoryTrackingMode } from "../../../../lib/enums/story-tracking.enum";
+import { validProgressState } from "@common/player/player-progress";
+import type { CatalogEntry } from "@lib/types/workspace.type";
+import { StoryTrackingMode } from "@lib/enums/story-tracking.enum";
 
 function memory<T extends Document>() {
     const docs = new Map<string, T>();

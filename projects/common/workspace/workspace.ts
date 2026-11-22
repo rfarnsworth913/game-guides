@@ -1,11 +1,12 @@
-import { validPatchOverview, validRowCompletion } from '../quests/story-template';
-import {validInventoryMetadata} from '../inventory/inventory-config';
-import { isStoryDivider, storyRowDone, storyTemplateFor } from '../quests/story-guide';
-import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '../characters/characters';
-import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
-import { GAMES } from '../../lib/constants/workspace.constants';
-import { validGameId } from './game-overview';
-import {validEquipmentDefinition, validEquipmentInstances} from '../characters/character-equipment';
+import { validEventSchedule } from '@common/events/event-dates';
+import { validPatchOverview, validRowCompletion } from '@common/quests/story-template';
+import {validInventoryMetadata} from '@common/inventory/inventory-config';
+import { isStoryDivider, storyRowDone, storyTemplateFor } from '@common/quests/story-guide';
+import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '@common/characters/characters';
+import type { Entry, PlayerState, CatalogEntry } from '@lib/types/workspace.type';
+import { GAMES } from '@lib/constants/workspace.constants';
+import { validGameId } from '@common/workspace/game-overview';
+import {validEquipmentDefinition, validEquipmentInstances} from '@common/characters/character-equipment';
 
 /** Give legacy guide steps a stable parent without changing their player progress keys. */
 export function migrateStory(entries: Entry[]): Entry[] {
@@ -111,6 +112,7 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
 }
 
 
+/** Legacy combined editor projection; shared persistence must use catalog/player contracts separately. */
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
     const template = storyTemplateFor(entry);
     const sharedEvent = entry.kind === 'events' || (entry.kind === 'story' && !!entry.eventId);
@@ -151,6 +153,7 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.startDate !== globalThis.undefined ? { startDate: entry.startDate } : {}),
         ...(entry.endDate !== globalThis.undefined ? { endDate: entry.endDate } : {}),
         ...(entry.eventType !== globalThis.undefined ? { eventType: entry.eventType } : {}),
+        ...(entry.eventSchedule ? { eventSchedule: entry.eventSchedule } : {}),
         ...(entry.characterDefinition !== globalThis.undefined ? { characterDefinition: entry.characterDefinition } : {}),
         ...(entry.equipmentDefinition !== globalThis.undefined ? {equipmentDefinition:entry.equipmentDefinition} : {}),
         ...(entry.characterInformation !== globalThis.undefined && !(entry.kind === 'story' && entry.characterId) ? { characterInformation: entry.characterInformation } : {}),
@@ -170,7 +173,7 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.rewardIcon !== globalThis.undefined ? { rewardIcon: entry.rewardIcon } : {}),
         ...(entry.description !== globalThis.undefined ? { description: entry.description } : {}),
         ...(entry.requirementText !== globalThis.undefined ? { requirementText: entry.requirementText } : {}),
-    };
+    } as CatalogEntry; // Legacy adapter preserves stored fields; new callers use discriminated contracts.
 }
 export function validCatalog(value: unknown, game: string): value is CatalogEntry[] {
     if (!Array.isArray(value)) {
@@ -194,6 +197,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'startDate',
         'endDate',
         'eventType',
+        'eventSchedule',
         'icon',
         'sectionImageUrl',
         'wikiUrl',
@@ -224,6 +228,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
     ) {
         return false;
     }
+    if (!value.every((entry: unknown) => !!entry && typeof entry === 'object' && (!('eventSchedule' in entry) || validEventSchedule(entry.eventSchedule)))) {return false;}
     const entries = (value as CatalogEntry[]).map((e) => fromCatalog(e));
     if (entries.some((entry) => !Number.isSafeInteger(entry.order))) {
         return false;
@@ -248,7 +253,7 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),
     );
 }
-/** Preserve earlier standalone achievements by placing them into categories. */
+/** Legacy compatibility: preserve earlier standalone achievements by placing them into categories. */
 export function migrateAchievements(entries: Entry[]): Entry[] {
     const result = entries.map((e) => ({ ...e }));
     for (const achievement of result.filter((e) => e.kind === 'achievements')) {

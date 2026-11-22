@@ -21,6 +21,7 @@ export function safeReturnTo(value: string | null): string {
         ? parsed.pathname + parsed.search + parsed.hash
         : '/dashboard';
 }
+/** @deprecated Legacy cookie/OIDC provider retained for regression tests. Production uses Auth0 bearer validation. */
 export class AuthService implements Security {
     private readonly secure: boolean;
     private readonly sessionCookie: string;

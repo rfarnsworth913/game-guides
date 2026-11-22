@@ -1,9 +1,9 @@
-import type {CharacterDefinition, CharacterCollection, CharacterRules, CharacterProgression} from '../../lib/types/character.type';
-import type {ProgressionTrackDefinition} from '../../lib/types/character-extension.type';
-import type {CharacterCost} from '../../lib/types/farming.type';
-import {characterTrackValue} from './character-progression';
-import {trackMinimum} from './character-extension';
-import {characterDetailsTracks} from './character-details';
+import type {CharacterDefinition, CharacterCollection, CharacterRules, CharacterProgression} from '@lib/types/character.type';
+import type {ProgressionTrackDefinition} from '@lib/types/character-extension.type';
+import type {CharacterCost} from '@lib/types/farming.type';
+import {characterTrackValue} from '@common/characters/character-progression';
+import {trackMinimum} from '@common/characters/character-extension';
+import {characterDetailsTracks} from '@common/characters/character-details';
 
 /** Cost each required track once, including shared prerequisites. Missing/ambiguous paths stay explicit. */
 export function progressionMaterialCosts(tracks: ProgressionTrackDefinition[], current: CharacterProgression, target: CharacterProgression, selected?:string[]): CharacterCost {

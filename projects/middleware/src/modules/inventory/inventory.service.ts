@@ -1,4 +1,4 @@
-import type { CatalogEntry, PlayerState } from '../../../../lib/types/workspace.type';
+import type { CatalogEntry, PlayerState } from '@lib/types/workspace.type';
 import { ApiError } from '../../core/errors/app-error';
 export function validateInventoryProgress(entry: CatalogEntry, state: PlayerState): void {
     if (state.equipmentInstances && (entry.kind !== 'inventory' || !entry.equipmentDefinition || state.equipmentInstances.length > state.quantity)) {throw new ApiError(400, 'Equipment copies require an owned inventory item and valid equipment definition.');}

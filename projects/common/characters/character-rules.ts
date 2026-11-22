@@ -1,5 +1,5 @@
-import type { CharacterRules } from '../../lib/types/character.type';
-import { trackMinimum, trackMaximum } from './character-extension';
+import type { CharacterRules } from '@lib/types/character.type';
+import { trackMinimum, trackMaximum } from '@common/characters/character-extension';
 
 /** Conservative protection for shared definitions: account progress may exist outside the loaded catalog. */
 export function characterRulesCompatibility(previous: CharacterRules | undefined, next: CharacterRules): string[] {

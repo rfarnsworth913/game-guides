@@ -3,11 +3,11 @@ import { RequirementPicker } from './requirement-picker';
 import { StoryContextEditor } from './story-context-editor';
 import { StoryContentList } from '../content-list/story-content-list';
 import { storyRequirementLinks } from '../../utils/story-requirement-links';
-import { emptyPatchOverview } from '../../../../../../../../common/quests/story-template';
-import { validStoryContext } from '../../../../../../../../common/quests/story-guide';
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../../../../../../../lib/enums/story-tracking.enum';
+import { emptyPatchOverview } from '@common/quests/story-template';
+import { validStoryContext } from '@common/quests/story-guide';
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '@lib/enums/story-tracking.enum';
 import type { Entry } from '../../../../../core/state/workspace.store';
-import type { StoryContext } from '../../../../../../../../lib/types/story-context.type';
+import type { StoryContext } from '@lib/types/story-context.type';
 
 describe('Requirement title search', () => {
     const entry: Entry = { id: 'guide', game: 'genshin', kind: 'story', category: 'world-quests', name: 'The Frozen Coast', storySection: 'chapter',
