@@ -83,6 +83,7 @@ describe("dated source extraction", () => {
         ["February 30, 2026", []],
         ["Coming soon", []],
         ["2025/5/1 9:00 ~ 2025/5/2118:59(UTC-4)", ["2025-05-01", "2025-05-21"]],
+        ["Endstate Matrix StagesNovember 12, 2026 - December 22, 2026", ["2026-11-12", "2026-12-22"]],
     ])("parses %s without inventing unknown dates", (text, expected) => {
         expect(datesIn(text, 2026)).toEqual(expected);
     });
@@ -113,16 +114,32 @@ describe("dated source extraction", () => {
     it("does not mistake a non-schedule for a successful empty import", () => {
         expect(extractEvents(page(["Name", "Reward"], []), "Events", now).recognizedTables).toBe(0);
     });
+    it("ignores navigation headings containing date substrings and non-date period captions", () => {
+        const source = page(["Game Updates", "Characters"], [[cell("Story"), cell("Dolls List")]]);
+        source.tables[0].periods = ["Events in 2026"];
+        expect(extractEvents(source, "Events", now)).toMatchObject({events: [], undated: 0, recognizedTables: 0});
+    });
+    it("does not require artificial end dates for permanent activities", () => {
+        const source = page(["Event", "Duration"], [[cell("Permanent mode"), cell("April 26, 2023")]], "Permanent");
+        expect(extractEvents(source, "Events", now)).toMatchObject({events: [], undated: 0, recognizedTables: 0});
+    });
     it("classifies summoning and endgame separately", () => {
         const source = page(["Name", "Duration"], [[cell("A cycle"), cell("2026-11-01 – 2026-12-01")]]);
         expect(extractEvents(source, "Banners", now).events[0].eventType).toBe("banner");
         expect(extractEvents(source, "Pure Fiction", now).events[0].eventType).toBe("end-game");
+    });
+    it('prefers current endgame rotations over overlapping historical version windows and ignores maintenance links', () => {
+        const source = page(['Duration', 'Effect'], [[cell('November 2, 2026 - December 14, 2026', 'https://example.com/events?action=purge'), cell('Current buff')]], 'Memory of Chaos');
+        source.tables.push({ heading: 'History', headers: ['Cycle', 'Start', 'End'], rows: [[cell('4.6'), cell('September 28, 2026'), cell('December 14, 2026')]] });
+        const result = extractEvents(source, 'Forgotten Hall', now);
+        expect(result.events).toEqual([{title: 'Forgotten Hall', startDate: '2026-11-02', endDate: '2026-12-14', url: source.url, eventType: 'end-game'}]);
     });
     it.each([
         ["Stygian Onslaught", "end-game"],
         ["Heated Battle Mode", "tcg"],
         ["The Forge Realm's Temper", "tcg"],
         ["Miliastra Pass", "battle-pass"],
+        ["Glittering Starwish", "temporary"],
     ])("classifies %s using its activity type", (title, expected) => {
         expect(extractEvents(page(["Name", "Duration"], [[cell(title), cell("2026-11-04 – 2026-12-15")]]), "Events", now).events[0].eventType).toBe(expected);
     });

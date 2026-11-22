@@ -5,7 +5,7 @@ export type EventViewPreferences = {
     status: 'all' | 'not-expired' | 'active'; period: EventDateRange; search: string;
     showCompleted: boolean; balanceEnabled: boolean; filtersOpen: boolean;
     month: string; backlogSort: 'deadline' | 'game' | 'completion';
-    settingsOpen: boolean; summaryFilter: 'all' | 'scheduled' | 'completed'; collapsedGroups: string[];
+    settingsOpen: boolean; summaryFilter: 'all' | 'scheduled' | 'completed'; collapsedGroups: string[]; listSort: 'game' | 'deadline';
 };
 
 export function readEventView(key: string, defaults: EventViewPreferences): EventViewPreferences {
@@ -19,7 +19,8 @@ export function readEventView(key: string, defaults: EventViewPreferences): Even
         if (value['status'] === 'all' || value['status'] === 'not-expired' || value['status'] === 'active') {result.status = value['status'];}
         if (value['backlogSort'] === 'deadline' || value['backlogSort'] === 'game' || value['backlogSort'] === 'completion') {result.backlogSort = value['backlogSort'];}
         if (value['summaryFilter'] === 'all' || value['summaryFilter'] === 'scheduled' || value['summaryFilter'] === 'completed') {result.summaryFilter = value['summaryFilter'];}
-        if (Array.isArray(value['collapsedGroups']) && value['collapsedGroups'].every((id: unknown) => id === 'active' || id === 'completed' || id === 'ended')) {result.collapsedGroups = [...new Set(value['collapsedGroups'] as string[])];}
+        if (value['listSort'] === 'game' || value['listSort'] === 'deadline') {result.listSort = value['listSort'];}
+        if (Array.isArray(value['collapsedGroups']) && value['collapsedGroups'].length <= 100 && value['collapsedGroups'].every((id: unknown) => typeof id === 'string' && /^[a-z0-9-]{1,100}$/.test(id))) {result.collapsedGroups = [...new Set(value['collapsedGroups'] as string[])];}
         if (typeof value['period'] === 'string' && ['all', 'today', 'week', 'next-7-days', 'month', 'next-month', 'year'].includes(value['period'])) {result.period = value['period'] as EventDateRange;}
         for (const field of ['selectedGame', 'type', 'search'] as const) {
             if (typeof value[field] === 'string' && value[field].length <= 500) {result[field] = value[field];}

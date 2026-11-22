@@ -29,7 +29,7 @@ export class DataService {
 
 
     // Constructor ------------------------------------------------------------
-    constructor () {
+    constructor (private readonly gameId?: string) {
         dotenv.config();
         this.dbConnection = new mongoDB.MongoClient(process.env["DB_CONN_STRING"] ?? "");
         this.db = this.dbConnection.db(process.env["DB_NAME"]);
@@ -41,6 +41,10 @@ export class DataService {
 
 
     // Generic DB Methods -----------------------------------------------------
+    /** Modern jobs target the registered game ID, including games with editor-defined names. */
+    private documentFilter(name: string): {name: string} | {_gameId: string} {
+        return this.gameId ? { _gameId: this.gameId } : { name };
+    }
 
     /**
      * Establishes the database connection and prepares it for usage.
@@ -77,9 +81,10 @@ export class DataService {
      */
     private async getRootDocument (rootDocumentName: string, subDocumentName?: string): Promise<RootDocument> {
         const collection = this.db.collection(process.env["DB_COLLECTION"] ?? "");
-        let rootDocument = await collection.findOne<RootDocument>({ name: rootDocumentName });
+        let rootDocument = await collection.findOne<RootDocument>(this.documentFilter(rootDocumentName));
 
         if (!rootDocument) {
+            if (this.gameId) {throw new Error(`Game '${this.gameId}' is not registered. Create or restore the game before importing; no duplicate document was created.`);}
             Logger.info(`Root document '${rootDocumentName}' does not exist. Creating it.`);
 
             rootDocument = {
@@ -129,7 +134,7 @@ export class DataService {
 
             // Get document to be cleaned -------------------------------------
             const collection = this.db.collection(process.env["DB_COLLECTION"] ?? "");
-            const document = await collection.findOne({ name: documentName });
+            const document = await collection.findOne(this.documentFilter(documentName));
 
             if (!document) {
                 Logger.warn(`No document found for '${documentName}'.`);
@@ -143,7 +148,7 @@ export class DataService {
             // Update database if any items were removed ----------------------
             if (removedItems.length > 0) {
                 await collection.updateOne(
-                    { name: documentName },
+                    this.documentFilter(documentName),
                     {
                         $pull: { [topic]: { kind: { $exists: false }, $or: removedItems.map(item => ({ title: item.title, eventType: item.eventType, startDate: item.startDate, endDate: item.endDate })) } } as mongoDB.PullOperator<mongoDB.Document>,
                         $inc: { _revision: 1 },
@@ -204,7 +209,7 @@ export class DataService {
 
             // Update the database with the new records -----------------------
             await collection.updateOne(
-                { name: rootDocumentName },
+                this.documentFilter(rootDocumentName),
                 [
                     { $set: {
                         [subDocumentName]: { $concatArrays: [
@@ -255,7 +260,7 @@ export class DataService {
             }
 
             await collection.updateOne(
-                { name: rootDocumentName },
+                this.documentFilter(rootDocumentName),
                 { $set: { version: nextVersion }, $inc: { _revision: 1 } }
             );
 

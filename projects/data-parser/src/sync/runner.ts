@@ -76,7 +76,7 @@ export async function runCli (args = process.argv.slice(2)): Promise<number> {
             if (!config?.sourceList.some(source => source.id === "Version")) { errors.push(`${profile.name}: a Version source is required.`); continue; }
             let service: DataService | undefined;
             try {
-                if (!options.dryRun) { service = new DataService(); await service.connect(); }
+                if (!options.dryRun) { service = new DataService(profile.id); await service.connect(); }
                 const report = await new GameSync(profile, config, { read: async url => browser.read(url), json: jsonSource, service }).run(options.now, options.months);
                 reports.push(report);
                 console.log(`${report.status.toUpperCase()} ${profile.name}: ${report.recurring} recurring, ${report.dynamic} dynamic; version ${report.version?.title ?? "unavailable"}`);

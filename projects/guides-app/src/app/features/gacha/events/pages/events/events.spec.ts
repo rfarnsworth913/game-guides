@@ -107,7 +107,7 @@ describe('Event tracking', () => {
         fixture.componentInstance.toggleGroup('daily'); fixture.detectChanges();
         expect(fixture.componentInstance.filtered().map(entry => entry.id)).toEqual(['daily']);
     });
-    it('groups filtered events with completion taking precedence and sorts active, upcoming and historical entries', () => {
+    it('groups events by game and keeps completion in place while sorting availability and deadlines', async () => {
         const { fixture, store, root } = setup();
         const component = fixture.componentInstance;
         component.now.set(new Date(2026, 9, 29, 12).getTime());
@@ -119,25 +119,61 @@ describe('Event tracking', () => {
             make('ended-recent', '2026-10-01', '2026-10-28'), make('completed-active', '2026-10-01', '2026-11-01', true),
         ]); fixture.detectChanges();
         expect(component.listGroups().map(group => [group.id, group.entries.map(entry => entry.id)])).toEqual([
-            ['active', ['active-urgent', 'active-later', 'upcoming-sooner', 'upcoming-later', 'unknown']],
-            ['completed', ['completed-active', 'completed-ended']], ['ended', ['ended-recent', 'ended-old']],
+            ['genshin', ['active-urgent', 'completed-active', 'active-later', 'upcoming-sooner', 'upcoming-later', 'unknown', 'ended-recent', 'completed-ended', 'ended-old']],
         ]);
-        expect(root.querySelector<HTMLDetailsElement>('[data-group="active"]')!.open).toBe(true);
-        expect(root.querySelector<HTMLDetailsElement>('[data-group="completed"]')!.open).toBe(false);
-        expect(root.querySelector<HTMLDetailsElement>('[data-group="ended"]')!.open).toBe(false);
-        expect(root.querySelector('.event-groups')!.textContent).not.toContain('Limited-time'); expect(root.textContent).toContain('Unknown availability');
+        expect(root.querySelector<HTMLDetailsElement>('[data-group="genshin"]')!.open).toBe(true);
+        expect(root.textContent).toContain('Unknown availability');
+        const before = [...root.querySelectorAll('.event-row')];
+        await component.toggle(store.entries().find(entry => entry.id === 'active-urgent')!); fixture.detectChanges();
+        [...root.querySelectorAll('.event-row')].forEach((row, index) => expect(row).toBe(before[index]));
+        expect(before[0].classList.contains('is-completed')).toBe(true);
+        expect(component.listGroups()[0].completed).toBe(3);
+        await component.toggle(store.entries().find(entry => entry.id === 'active-urgent')!); fixture.detectChanges();
         component.showCompleted.set(false); fixture.detectChanges();
-        expect(component.listGroups().map(group => group.id)).toEqual(['active', 'ended']);
+        expect(component.listGroups().map(group => group.id)).toEqual(['genshin']);
         component.search.set('ended-recent'); fixture.detectChanges();
-        expect(component.listGroups().map(group => group.id)).toEqual(['ended']);
+        expect(component.listGroups()[0].entries.map(entry => entry.id)).toEqual(['ended-recent']);
         component.search.set(''); component.status.set('active'); fixture.detectChanges();
         expect(component.listGroups()[0].entries.map(entry => entry.id)).toEqual(['active-urgent', 'active-later']);
+    });
+    it('shows game groups, a range summary, multi-select type counts and the next real deadlines', () => {
+        const { fixture, store, root } = setup();
+        fixture.componentRef.setInput('game', ''); fixture.detectChanges();
+        const component = fixture.componentInstance;
+        component.view.set('list'); component.now.set(new Date(2026, 9, 29, 12).getTime()); component.selectPeriod('today');
+        store.entries.set([event, { ...event, id: 'daily', name: 'Daily Training', game: 'hsr', eventType: 'daily', endDate: '2026-10-29' }]);
+        fixture.detectChanges();
+        expect(component.listGroups().map(group => group.id)).toEqual(['genshin', 'hsr']);
+        expect(root.querySelector('.event-list-overview')?.textContent).toContain("Today's Items");
+        expect(component.listStats()).toEqual({ total: 2, completed: 0, remaining: 2, overdue: 0, percent: 0 });
+        expect(component.nextDeadlines().map(entry => entry.id)).toEqual(['daily', 'event']);
+        const sidebar = root.querySelector('.event-type-options')!;
+        const daily = sidebar.querySelector<HTMLInputElement>('input')!;
+        daily.click(); fixture.detectChanges();
+        expect(component.filtered().map(entry => entry.id)).toEqual(['event']);
+        expect(component.typeCounts().map(item => item.count)).toEqual([1, 1]);
+        sidebar.querySelectorAll<HTMLInputElement>('input')[1].click(); fixture.detectChanges();
+        expect(component.filtered()).toEqual([]);
+        sidebar.querySelectorAll<HTMLInputElement>('input')[0].click(); fixture.detectChanges();
+        expect(component.filtered().map(entry => entry.id)).toEqual(['daily']);
+        component.selectedGroups.set([]); component.listSort.set('deadline'); component.collapseGroups(); fixture.detectChanges();
+        expect(component.listGroups().map(group => group.id)).toEqual(['hsr', 'genshin']);
+        expect([...root.querySelectorAll<HTMLDetailsElement>('.event-list-group')].every(group => !group.open)).toBe(true);
+        component.expandGroups(); fixture.detectChanges();
+        expect([...root.querySelectorAll<HTMLDetailsElement>('.event-list-group')].every(group => group.open)).toBe(true);
+        expect(JSON.parse(localStorage.getItem('gg-event-view-v1:guest:global')!) as unknown).toMatchObject({ listSort: 'deadline', collapsedGroups: [] });
+        component.collapseGroups(); fixture.detectChanges(); fixture.destroy();
+        const restored = TestBed.createComponent(Events); restored.detectChanges();
+        expect(restored.componentInstance.listSort()).toBe('deadline');
+        expect(restored.componentInstance.collapsedGroups().slice().sort()).toEqual(['genshin', 'hsr']);
+        const restoredRoot = restored.nativeElement as HTMLElement;
+        expect([...restoredRoot.querySelectorAll<HTMLDetailsElement>('.event-list-group')].every(group => !group.open)).toBe(true);
     });
     it('provides interactive summary counts without rebalancing completion or consuming capacity for completed tasks', async () => {
         const { fixture, store, root } = setup();
         const component = fixture.componentInstance;
         component.now.set(new Date(2026, 9, 29, 12).getTime()); component.month.set(new Date(2026, 9, 1));
-        component.setBalance(true); fixture.detectChanges();
+        component.view.set('calendar'); component.setBalance(true); fixture.detectChanges();
         const plan = structuredClone(component.balancePlan().assignments);
         expect(component.scheduledCount()).toBe(1); expect(component.remainingCount()).toBe(1); expect(component.backlog()).toHaveLength(1);
         await component.toggle(event); fixture.detectChanges();
@@ -145,12 +181,12 @@ describe('Event tracking', () => {
         const cards = root.querySelectorAll<HTMLButtonElement>('.event-summary-stats > button');
         cards[2].click(); fixture.detectChanges();
         expect(component.view()).toBe('list'); expect(component.filtered().map(entry => entry.id)).toEqual(['event']);
-        expect(root.querySelector<HTMLDetailsElement>('[data-group="completed"]')!.open).toBe(true);
-        cards[1].click(); fixture.detectChanges(); expect(component.backlogOpen()).toBe(true); component.backlogOpen.set(false);
-        cards[3].click(); fixture.detectChanges(); expect(component.settingsOpen()).toBe(true);
+        expect(root.querySelector<HTMLDetailsElement>('[data-group="genshin"]')!.open).toBe(true);
+        root.querySelector<HTMLButtonElement>('.events-backlog-button')!.click(); fixture.detectChanges(); expect(component.backlogOpen()).toBe(true); component.backlogOpen.set(false); fixture.detectChanges();
+        root.querySelector<HTMLButtonElement>('.event-list-tools button')!.click(); fixture.detectChanges(); expect(component.settingsOpen()).toBe(true);
         expect(root.querySelector('#events-secondary-filters input[aria-label="Maximum tasks per day"]')).toBeNull();
         expect(root.querySelector('#events-scheduling-settings input[aria-label="Maximum tasks per day"]')).not.toBeNull();
-        cards[0].click(); fixture.detectChanges(); expect(component.filtered().map(entry => entry.id)).toEqual(['event']);
+        component.showSummary('scheduled'); fixture.detectChanges(); expect(component.filtered().map(entry => entry.id)).toEqual(['event']);
         component.summaryFilter.set('all'); await component.toggle(store.entries()[0]); fixture.detectChanges();
         expect(component.remainingCount()).toBe(1); expect(component.balancePlan().assignments).toEqual(plan);
     });
@@ -160,7 +196,7 @@ describe('Event tracking', () => {
         const partial: Entry = { ...event, eventStory: { ...emptyPatchOverview(), rows: [{ ...row, id: 'one' }, { ...row, id: 'two' }, { ...row, id: 'bonus', optional: true }] }, storyRowCompletion: { one: true, bonus: true } };
         store.entries.set([partial]); fixture.componentInstance.now.set(new Date(2026, 11, 1).getTime()); fixture.detectChanges();
         const checkbox = root.querySelector<HTMLInputElement>('.event-completion input')!;
-        expect(checkbox.indeterminate).toBe(true); expect(fixture.componentInstance.listGroups()[0].id).toBe('ended');
+        expect(checkbox.indeterminate).toBe(true); expect(fixture.componentInstance.listGroups()[0].id).toBe('genshin');
         const bubbled = vi.fn(); root.addEventListener('click', bubbled);
         checkbox.click(); fixture.detectChanges(); expect(bubbled).not.toHaveBeenCalled();
         expect(store.save).not.toHaveBeenCalled();
@@ -171,7 +207,7 @@ describe('Event tracking', () => {
         expect(store.entries()[0].storyRowCompletion).toEqual({ one: true, bonus: true }); expect(checkbox.checked).toBe(false);
         await fixture.componentInstance.toggle(partial); await fixture.componentInstance.confirmCompletion(); fixture.detectChanges();
         expect(store.entries()[0].storyRowCompletion).toEqual({ one: true, two: true, bonus: true });
-        expect(fixture.componentInstance.listGroups()[0].id).toBe('completed');
+        expect(fixture.componentInstance.listGroups()[0].completed).toBe(1);
     });
     it('limits overflow actions to editors and closes menus on outside click and Escape', () => {
         const { fixture, store, root } = setup();
@@ -194,7 +230,7 @@ describe('Event tracking', () => {
         await fixture.componentInstance.toggle(event);
         fixture.detectChanges();
         expect(store.save).toHaveBeenCalledWith({ ...event, completed: true });
-        expect(root.querySelector<HTMLInputElement>('[data-group="completed"] .event-completion input')!.checked).toBe(true);
+        expect(root.querySelector<HTMLInputElement>('input[aria-label="Mark Snowball Fight incomplete"]')!.checked).toBe(true);
         await fixture.componentInstance.toggle(store.entries()[0]);
         expect(store.entries()[0].completed).toBe(false);
     });
@@ -349,6 +385,75 @@ describe('Event tracking', () => {
         expect(Object.keys(component.balancePlan().assignments)).toHaveLength(1);
         component.setBalance(false); fixture.detectChanges();
         expect(root.querySelectorAll('.calendar-event')).toHaveLength(5);
+    });
+    it('uses one wider balanced plan for Today, List, Calendar and presentation filters', () => {
+        const { fixture, store, root } = setup();
+        fixture.componentRef.setInput('game', ''); fixture.detectChanges();
+        const component = fixture.componentInstance;
+        component.now.set(new Date(2026, 9, 29, 12).getTime()); component.month.set(new Date(2026, 9, 1));
+        store.entries.set(Array.from({ length: 6 }, (_, index) => ({ ...event, id: 'task-' + index, name: 'Task ' + index, endDate: '2026-11-01' })));
+        component.view.set('list'); component.selectPeriod('today'); fixture.detectChanges();
+        root.querySelector<HTMLInputElement>('.event-list-planning input')!.click(); fixture.detectChanges();
+        expect(component.view()).toBe('list');
+        const plan = structuredClone(component.balancePlan().assignments);
+        expect(Object.keys(plan)).toHaveLength(6);
+        expect(new Set(Object.values(plan)).size).toBeGreaterThan(1);
+        const todayKeys = Object.keys(plan).filter(key => plan[key] === '2026-10-29').sort();
+        expect(component.filtered().map(entry => component.eventKey(entry)).sort()).toEqual(todayKeys);
+        expect(component.listStats().total).toBe(todayKeys.length);
+        expect(component.listStats().total).toBeLessThan(6);
+        component.view.set('calendar'); fixture.detectChanges();
+        expect(component.days().find(day => day.key === '2026-10-29')!.events.map(entry => component.eventKey(entry)).sort()).toEqual(todayKeys);
+        component.view.set('list'); component.selectPeriod('week'); fixture.detectChanges();
+        expect(component.balancePlan().assignments).toEqual(plan);
+        component.selectPeriod('all'); component.search.set('Task 2'); fixture.detectChanges();
+        expect(component.filtered().map(entry => entry.id)).toEqual(['task-2']);
+        expect(component.balancePlan().assignments).toEqual(plan);
+        component.search.set(''); component.selectedGame.set('hsr'); fixture.detectChanges();
+        expect(component.filtered()).toEqual([]); expect(component.balancePlan().assignments).toEqual(plan);
+    });
+    it('restores the same balanced assignments after completion and refresh', async () => {
+        const { fixture, store, root } = setup();
+        const component = fixture.componentInstance;
+        component.now.set(new Date(2026, 9, 29, 12).getTime()); component.selectPeriod('today');
+        store.entries.set(Array.from({ length: 4 }, (_, index) => ({ ...event, id: 'task-' + index, name: 'Task ' + index })));
+        component.setBalance(true); fixture.detectChanges();
+        const plan = structuredClone(component.balancePlan().assignments);
+        const firstRow = root.querySelector('.event-groups .event-row');
+        const entry = component.filtered()[0];
+        await component.toggle(entry); fixture.detectChanges();
+        expect(root.querySelector('.event-groups .event-row')).toBe(firstRow);
+        expect(component.balancePlan().assignments).toEqual(plan);
+        fixture.destroy();
+        const restored = TestBed.createComponent(Events); restored.componentRef.setInput('game', 'genshin');
+        restored.componentInstance.now.set(new Date(2026, 9, 29, 12).getTime()); restored.detectChanges();
+        expect(restored.componentInstance.view()).toBe('list'); expect(restored.componentInstance.balanceEnabled()).toBe(true);
+        expect(restored.componentInstance.balancePlan().assignments).toEqual(plan);
+        expect(restored.componentInstance.filtered().find(item => item.id === entry.id)?.completed).toBe(true);
+        restored.componentInstance.setDailyLimit(2); restored.detectChanges();
+        expect(restored.componentInstance.balancePlan().dailyLimit).toBe(2);
+    });
+    it('pins from Backlog and row scheduling in List without narrowing the planning window to Today', () => {
+        const { fixture, store, root } = setup();
+        const component = fixture.componentInstance;
+        component.now.set(new Date(2026, 9, 29, 12).getTime()); component.selectPeriod('today');
+        store.entries.set([{ ...event, startDate: '', endDate: '' }]);
+        component.setBalance(true); fixture.detectChanges();
+        expect(component.filtered()).toEqual([]); expect(component.backlog()).toHaveLength(1);
+        component.setPinDraft(store.entries()[0], '2026-10-30'); component.pinEvent(store.entries()[0]); fixture.detectChanges();
+        expect(component.error()).toBe(''); expect(component.view()).toBe('list');
+        expect(component.backlog()).toHaveLength(0); expect(component.filtered()).toEqual([]);
+        component.selectPeriod('all'); fixture.detectChanges();
+        const menu = root.querySelector<HTMLDetailsElement>('.event-schedule-actions')!;
+        menu.open = true; fixture.detectChanges();
+        const input = menu.querySelector<HTMLInputElement>('input[type=date]')!;
+        input.value = '2026-10-31'; input.dispatchEvent(new Event('input')); fixture.detectChanges();
+        menu.querySelector<HTMLButtonElement>('button')!.click(); fixture.detectChanges();
+        expect(component.plannedDate(store.entries()[0])).toBe('2026-10-31');
+        expect(component.view()).toBe('list'); expect(store.save).not.toHaveBeenCalled();
+        expect(store.entries()[0].startDate).toBe(''); expect(store.entries()[0].endDate).toBe('');
+        document.body.click(); expect(menu.open).toBe(false);
+        component.unpin(store.entries()[0]); fixture.detectChanges(); expect(component.backlog()).toHaveLength(1);
     });
     it('keeps undated events accessible and blocks unsafe URLs', () => {
         const { fixture, root } = setup();

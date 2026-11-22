@@ -11,9 +11,9 @@ import { Logger } from "./logger";
 const { mockConnect, mockClose, mockFindOne, mockInsertOne, mockUpdateOne, mockCollection, mockDb, mockMongoClient } = vi.hoisted(() => {
     const mockConnect = vi.fn<() => Promise<void>>();
     const mockClose = vi.fn<() => Promise<void>>();
-    const mockFindOne = vi.fn<(filter: { name: string }) => Promise<RootDocument | null>>();
+    const mockFindOne = vi.fn<(filter: { name: string } | { _gameId: string }) => Promise<RootDocument | null>>();
     const mockInsertOne = vi.fn<(document: RootDocument) => Promise<void>>();
-    const mockUpdateOne = vi.fn<(filter: { name: string }, update: UpdateFilter<Document> | Array<Document>) => Promise<void>>();
+    const mockUpdateOne = vi.fn<(filter: { name: string } | { _gameId: string }, update: UpdateFilter<Document> | Array<Document>) => Promise<void>>();
     const mockCollection = { findOne: mockFindOne, insertOne: mockInsertOne, updateOne: mockUpdateOne };
     const mockDb = { collection: vi.fn<(name: string) => typeof mockCollection>() };
     const mockMongoClient = { connect: mockConnect, close: mockClose, db: vi.fn<(name?: string) => typeof mockDb>() };
@@ -106,6 +106,25 @@ describe("DataService manages database connections and stored game data", () => 
     afterEach(() => {
         process.env = originalEnv;
         vi.restoreAllMocks();
+    });
+
+    it.each([['fgo', 'Fate Grand Order'], ['gf2', 'Girls Frontline 2']])('updates the registered %s document rather than creating a second name-based document', async (id, parserName) => {
+        const bound = new DataService(id);
+        mockFindOne.mockResolvedValue(createRoot({ name: 'game:' + id, _gameId: id, events: [] }));
+        await bound.addRecords(parserName, 'events', [createEvent('Daily task')]);
+        await bound.updateVersion(parserName, version);
+        expect(mockFindOne).toHaveBeenCalledWith({ _gameId: id });
+        expect(mockFindOne).not.toHaveBeenCalledWith({ name: parserName });
+        expect(mockUpdateOne).toHaveBeenCalledWith({ _gameId: id }, expect.any(Array));
+        expect(mockUpdateOne).toHaveBeenCalledWith({ _gameId: id }, { $set: { version }, $inc: { _revision: 1 } });
+        expect(mockInsertOne).not.toHaveBeenCalled();
+    });
+
+    it('refuses to create an invisible duplicate if a bound game is not registered', async () => {
+        const bound = new DataService('fgo');
+        await expect(bound.addRecords('Fate Grand Order', 'events', [createEvent('Daily task')])).rejects.toThrow('not registered');
+        expect(mockInsertOne).not.toHaveBeenCalled();
+        expect(mockUpdateOne).not.toHaveBeenCalled();
     });
 
     describe("Database connections use configured settings and handle lifecycle failures", () => {

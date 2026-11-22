@@ -9,8 +9,9 @@ import { gameSupports } from '@common/workspace/game-overview';
 import { balanceDay, balanceEvents, balanceKey, type BalancedEvents } from '../../utils/event-balance';
 import { readEventSchedule } from '../../utils/event-schedule-preferences';
 import { readEventView } from '../../utils/event-view-preferences';
+import { readEventPlan, writeEventPlan } from '../../utils/event-plan-preferences';
 import { eventProgress, setEventCompletion } from '@common/events/event-progress';
-import { compareAvailableEvents, compareEventHistory, eventGroup, type EventGroupId } from '../../utils/event-list';
+import { compareAvailableEvents } from '../../utils/event-list';
 
 const EVENT_GROUPS_KEY = 'gg-events-groups-v1';
 
@@ -18,7 +19,7 @@ const EVENT_GROUPS_KEY = 'gg-events-groups-v1';
     selector: 'gg-events',
     imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective],
     templateUrl: "./events.html",
-    styleUrls: ["./events.scss", './event-panels.scss', './event-list.scss'],
+    styleUrls: ["./events.scss", './event-panels.scss', './event-list.scss', './event-list-insights.scss', './event-planning.scss'],
     host: { '(document:click)': 'closeGroups($event)' },
 })
 export class Events {
@@ -42,7 +43,8 @@ export class Events {
     readonly filtersOpen = signal(false);
     readonly settingsOpen = signal(false);
     readonly summaryFilter = signal<'all' | 'scheduled' | 'completed'>('all');
-    readonly collapsedGroups = signal<string[]>(['completed', 'ended']);
+    readonly collapsedGroups = signal<string[]>([]);
+    readonly listSort = signal<'game' | 'deadline'>('game');
     readonly backlogOpen = signal(false);
     readonly selectedDay = signal('');
     readonly backlogSort = signal<'deadline' | 'game' | 'completion'>('deadline');
@@ -72,38 +74,61 @@ export class Events {
             return completed === globalThis.undefined ? entry : { ...entry, ...setEventCompletion(entry, completed, entry) };
         }));
     readonly types = computed(() => [...new Set(this.entries().map(eventType))].sort((a, b) => eventTypeLabel(a).localeCompare(eventTypeLabel(b))));
-    readonly matching = computed(() => this.entries().filter(entry =>
+    readonly viewCandidates = computed(() => this.entries().filter(entry =>
         (!this.selectedGame() || entry.game === this.selectedGame()) &&
-        (!this.periodBounds() || occursBetween(entry, this.periodBounds()!.start, this.periodBounds()!.end)) &&
         (this.status() === 'all' || (this.status() === 'active' ? eventStatus(entry, this.now()) === 'Active' : eventStatus(entry, this.now()) !== 'Ended')) &&
-        (this.game() ? !this.type() || eventType(entry) === this.type() : !this.selectedGroups().length || this.selectedGroups().includes(eventType(entry))) &&
         entry.name.toLowerCase().includes(this.search().trim().toLowerCase()),
     ).sort((a, b) => (eventDate(a.endDate, true)?.getTime() ?? Infinity) - (eventDate(b.endDate, true)?.getTime() ?? Infinity) || a.order - b.order || a.name.localeCompare(b.name)));
+    readonly typeCandidates = computed(() => this.viewCandidates().filter(entry => this.inDisplayedRange(entry)));
+    readonly scopedEvents = computed(() => this.viewCandidates().filter(entry => this.game()
+        ? !this.type() || eventType(entry) === this.type()
+        : !this.selectedGroups().length || this.selectedGroups().includes(eventType(entry))));
+    readonly matching = computed(() => this.scopedEvents().filter(entry => this.inDisplayedRange(entry)));
     readonly visibleEvents = computed(() => this.matching().filter(entry => this.showCompleted() || !entry.completed));
     readonly filtered = computed(() => this.visibleEvents().filter(entry => this.summaryFilter() === 'all' || (this.summaryFilter() === 'completed' ? entry.completed : !!this.plannedDate(entry))));
-    readonly listGroups = computed(() => [
-        { id: 'active' as const, title: 'Active & Upcoming' },
-        { id: 'completed' as const, title: 'Completed' },
-        { id: 'ended' as const, title: 'Ended / Archived' },
-    ].map(group => ({ ...group, entries: this.filtered().filter(entry => eventGroup(entry, this.now()) === group.id)
-        .sort(group.id === 'active' ? (a, b) => compareAvailableEvents(a, b, this.now()) : compareEventHistory) })).filter(group => group.entries.length));
+    readonly listGroups = computed(() => this.games().map(game => {
+        const entries = this.filtered().filter(entry => entry.game === game.id).sort((a, b) =>
+            (this.balanceEnabled() ? this.plannedDate(a).localeCompare(this.plannedDate(b)) : 0) || compareAvailableEvents(a, b, this.now()));
+        return { id: game.id, title: game.name, entries, completed: entries.filter(entry => entry.completed).length,
+            deadline: Math.min(...entries.map(entry => this.deadlineTime(entry)).filter(time => time > this.now())) };
+    }).filter(group => group.entries.length).sort((a, b) => this.listSort() === 'deadline'
+        ? a.deadline - b.deadline || a.title.localeCompare(b.title)
+        : a.title.localeCompare(b.title)));
+    readonly listStats = computed(() => {
+        const entries = this.matching(), completed = entries.filter(entry => entry.completed).length;
+        return { total: entries.length, completed, remaining: entries.length - completed,
+            percent: entries.length ? Math.round(completed / entries.length * 100) : 0,
+            overdue: entries.filter(entry => !entry.completed && eventStatus(entry, this.now()) === 'Ended').length };
+    });
+    readonly typeCounts = computed(() => this.types().map(type => ({ type, count: this.typeCandidates().filter(entry => eventType(entry) === type).length })));
+    readonly nextDeadlines = computed(() => this.matching().filter(entry => !entry.completed &&
+        ['Active', 'Upcoming'].includes(eventStatus(entry, this.now())) && Number.isFinite(this.deadlineTime(entry)))
+        .sort((a, b) => this.deadlineTime(a) - this.deadlineTime(b) || a.name.localeCompare(b.name)).slice(0, 5));
+    readonly listHeading = computed(() => this.period() === 'today' ? "Today's Items" : 'Your Events');
+    readonly listDescription = computed(() => this.period() === 'today' ? 'Tasks and events for ' + this.dayLabel(new Date(this.now()))
+        : 'Tasks and events across ' + (this.game() || this.selectedGame() ? this.gameName(this.game() || this.selectedGame()) : 'all your games'));
+    readonly planningRange = computed(() => {
+        const today = new Date(this.now());
+        return { start: new Date(today.getFullYear(), today.getMonth(), today.getDate()), end: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30) };
+    });
+    private readonly planStorageKey = computed(() => `gg-event-plan-v1:${this.store.auth?.user()?.id ?? 'guest'}:${this.game() || 'global'}`);
     private readonly balanceInputs = computed(() => JSON.stringify({
         account: this.store.auth?.user()?.id ?? 'guest',
         pins: this.manualPins(), capacity: this.maxPerDay(),
-        today: balanceDay(new Date(this.now())), range: this.periodBounds(),
-        entries: this.matching().map(entry => ({ key: balanceKey(entry), start: entry.startDate, end: entry.endDate, expired: (eventDate(entry.endDate, true)?.getTime() ?? Infinity) <= this.now() })).sort((a, b) => a.key.localeCompare(b.key)),
+        today: balanceDay(new Date(this.now())), scope: this.game(),
+        entries: this.entries().map(entry => ({ key: balanceKey(entry), start: entry.startDate, end: entry.endDate, expired: (eventDate(entry.endDate, true)?.getTime() ?? Infinity) <= this.now() })).sort((a, b) => a.key.localeCompare(b.key)),
     }));
     readonly days = computed(() => monthDays(this.month()).map(date => ({ date,
         key: this.dayKey(date), currentMonth: date.getMonth() === this.month().getMonth(),
         today: this.dayKey(date) === this.dayKey(new Date(this.now())),
         events: this.periodBounds() && (date < this.periodBounds()!.start || date >= this.periodBounds()!.end) ? [] : this.filtered().filter(entry => this.balanceEnabled() ? this.balancePlan().assignments[balanceKey(entry)] === this.dayKey(date) : occursOn(entry, date)),
     })));
-    readonly unscheduled = computed(() => this.filtered().filter(entry => !entry.completed && !this.balancePlan().assignments[balanceKey(entry)]));
+    readonly unscheduled = computed(() => this.scopedEvents().filter(entry => !entry.completed && !this.balancePlan().assignments[balanceKey(entry)]));
     readonly plannedCount = computed(() => Object.keys(this.balancePlan().assignments).length);
     readonly scheduledCount = computed(() => this.visibleEvents().filter(entry => !!this.plannedDate(entry)).length);
     readonly remainingCount = computed(() => this.visibleEvents().filter(entry => !entry.completed && !!this.plannedDate(entry)).length);
     readonly completedCount = computed(() => this.matching().filter(entry => entry.completed).length);
-    readonly backlog = computed(() => this.visibleEvents().filter(entry => !this.plannedDate(entry)).slice().sort((a, b) => {
+    readonly backlog = computed(() => this.unscheduled().slice().sort((a, b) => {
         const order = this.backlogSort() === 'game' ? this.gameName(a.game).localeCompare(this.gameName(b.game)) : this.backlogSort() === 'completion' ? Number(a.completed) - Number(b.completed) : 0;
         return order || compareAvailableEvents(a, b, this.now());
     }));
@@ -123,11 +148,12 @@ export class Events {
             untracked(() => {
                 const today = new Date();
                 const saved = readEventView(scope, { view: game ? 'list' : 'calendar', selectedGame: '', groups: this.readGroups(), type: '', status: 'all', period: 'all', search: '',
-                    showCompleted: true, balanceEnabled: false, filtersOpen: false, month: balanceDay(today).slice(0, 7), backlogSort: 'deadline', settingsOpen: false, summaryFilter: 'all', collapsedGroups: ['completed', 'ended'] });
+                    showCompleted: true, balanceEnabled: false, filtersOpen: false, month: balanceDay(today).slice(0, 7), backlogSort: 'deadline', settingsOpen: false, summaryFilter: 'all', collapsedGroups: [], listSort: 'game' });
                 this.selectedGame.set(game ? '' : saved.selectedGame); this.selectedGroups.set(saved.groups); this.type.set(saved.type);
                 this.status.set(saved.status); this.period.set(saved.period); this.view.set(saved.view); this.search.set(saved.search);
                 this.showCompleted.set(saved.showCompleted); this.balanceEnabled.set(saved.balanceEnabled); this.filtersOpen.set(saved.filtersOpen); this.backlogSort.set(saved.backlogSort);
                 this.settingsOpen.set(saved.settingsOpen); this.summaryFilter.set(saved.summaryFilter); this.collapsedGroups.set(saved.collapsedGroups);
+                this.listSort.set(saved.listSort);
                 const [year, month] = saved.month.split('-').map(Number); this.month.set(new Date(year, month - 1, 1));
                 this.error.set(''); this.failedImages.set(new Set()); this.closePanels(); this.pinDrafts.set({});
                 this.lastBalanceKey = ''; this.viewScope.set(scope);
@@ -138,7 +164,7 @@ export class Events {
             if (scope !== `gg-event-view-v1:${this.store.auth?.user()?.id ?? 'guest'}:${this.game() || 'global'}`) {return;}
             const saved = { version: 1, view: this.view(), selectedGame: this.selectedGame(), groups: this.selectedGroups(), type: this.type(), status: this.status(), period: this.period(), search: this.search(),
                 showCompleted: this.showCompleted(), balanceEnabled: this.balanceEnabled(), filtersOpen: this.filtersOpen(), month: balanceDay(this.month()).slice(0, 7), backlogSort: this.backlogSort(),
-                settingsOpen: this.settingsOpen(), summaryFilter: this.summaryFilter(), collapsedGroups: this.collapsedGroups() };
+                settingsOpen: this.settingsOpen(), summaryFilter: this.summaryFilter(), collapsedGroups: this.collapsedGroups(), listSort: this.listSort() };
             try {localStorage.setItem(scope, JSON.stringify(saved));} catch { /* Controls remain usable when browser storage is blocked. */ }
         });
         effect(() => {
@@ -157,22 +183,63 @@ export class Events {
             const key = this.balanceInputs();
             if (key === this.lastBalanceKey) {return;}
             this.lastBalanceKey = key;
-            untracked(() => this.rebalance());
+            untracked(() => {
+                const range = this.planningRange();
+                const saved = readEventPlan(this.planStorageKey(), key, balanceDay(range.start), balanceDay(range.end));
+                if (saved) {this.balancePlan.set(saved);} else {this.rebalance();}
+            });
         });
     }
-    setBalance(enabled: boolean): void {this.balanceEnabled.set(enabled); if (enabled) {this.view.set('calendar');}}
-    rebalance(): void {this.balancePlan.set(balanceEvents(this.matching(), new Date(this.now()), this.periodBounds(), { maxPerDay: this.maxPerDay(), pins: this.manualPins() }));}
+    setBalance(enabled: boolean): void {this.balanceEnabled.set(enabled);}
+    rebalance(): void {
+        const plan = balanceEvents(this.entries(), new Date(this.now()), this.planningRange(), { maxPerDay: this.maxPerDay(), pins: this.manualPins() });
+        this.balancePlan.set(plan);
+        this.lastBalanceKey = this.balanceInputs();
+        writeEventPlan(this.planStorageKey(), this.lastBalanceKey, plan);
+    }
+    inDisplayedRange(entry: Entry): boolean {
+        const range = this.periodBounds();
+        if (!this.balanceEnabled()) {return !range || occursBetween(entry, range.start, range.end);}
+        const assigned = this.plannedDate(entry);
+        return !!assigned && (!range || (assigned >= balanceDay(range.start) && assigned < balanceDay(range.end)));
+    }
     plannedDate(entry: Entry): string {return this.balancePlan().assignments[balanceKey(entry)] ?? '';}
     balanceReason(entry: Entry): string {return this.balancePlan().unscheduled[balanceKey(entry)] ?? 'Select Rebalance to add this event to the plan.';}
     plannedDateLabel(entry: Entry): string {return eventDate(this.plannedDate(entry))?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? '';}
     remaining(events: Entry[]): number {return events.filter(entry => !entry.completed).length;}
-    setGroupOpen(id: EventGroupId, event: Event): void {
+    setGroupOpen(id: string, event: Event): void {
         const open = (event.target as HTMLDetailsElement).open;
         this.collapsedGroups.update(groups => open ? groups.filter(group => group !== id) : groups.includes(id) ? groups : [...groups, id]);
     }
+    expandGroups(): void {this.collapsedGroups.set([]);}
+    collapseGroups(): void {this.collapsedGroups.set(this.listGroups().map(group => group.id));}
+    typeSelected(type: string): boolean {return this.game() ? !this.type() || this.type() === type : !this.selectedGroups().length || this.selectedGroups().includes(type);}
+    toggleListType(type: string): void {
+        if (this.game()) {this.type.set(this.type() === type ? '' : type); return;}
+        const selected = this.selectedGroups().length ? this.selectedGroups().filter(value => value !== '__none__') : this.types();
+        const next = selected.includes(type) ? selected.filter(value => value !== type) : [...selected, type];
+        // An empty array means All in the existing filter contract; use a sentinel for None.
+        this.selectedGroups.set(next.length === this.types().length ? [] : next.length ? next : ['__none__']);
+    }
+    deadlineTime(entry: Entry): number {return (eventStatus(entry, this.now()) === 'Upcoming' ? eventDate(entry.startDate) : eventDate(entry.endDate, true))?.getTime() ?? Infinity;}
+    deadlineLabel(entry: Entry): string {
+        const label = this.availability(entry);
+        return ['daily', 'weekly', 'weekly-linked', 'monthly'].includes(eventType(entry)) ? label.replace('Ends in', 'Resets in') : label;
+    }
+    gameIcon(id: string): string | null {
+        const icon = this.games().find(game => game.id === id)?.icon;
+        return icon && !this.failedImages().has('game:' + id) && (guideUrl(icon) || /^\/?(?:icons|images|assets)\/[\w/.,% -]+$/i.test(icon)) ? icon : null;
+    }
+    typeIcon(type: string): string {
+        if (['daily', 'weekly', 'weekly-linked', 'monthly'].includes(type)) {return 'M4 5h16v16H4ZM8 2v6m8-6v6M4 11h16m-12 4h2m4 0h2';}
+        if (type === 'end-game') {return 'm4 3 7 7-3 3-7-7Zm16 0-7 7 3 3 7-7ZM8 16l-5 5m13-5 5 5M3 16l5 5m8 0 5-5';}
+        if (type === 'story') {return 'M12 5C8 2 4 3 2 4v16c4-2 7-1 10 1 3-2 6-3 10-1V4c-4-2-7-1-10 1Zm0 0v16';}
+        if (type === 'banner') {return 'm12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z';}
+        return 'm12 3 9 5v8l-9 5-9-5V8Zm0 0v18M3 8l9 5 9-5';
+    }
     showSummary(filter: 'scheduled' | 'completed'): void {
         this.summaryFilter.set(filter); this.view.set('list');
-        if (filter === 'completed') {this.showCompleted.set(true); this.collapsedGroups.update(groups => groups.filter(id => id !== 'completed'));}
+        if (filter === 'completed') {this.showCompleted.set(true); this.expandGroups();}
     }
     availability(entry: Entry): string {
         const status = eventStatus(entry, this.now());
@@ -195,9 +262,9 @@ export class Events {
         const start = eventDate(entry.startDate), end = eventDate(entry.endDate, true);
         const next = day ? new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1) : null;
         if (!day || !next || day < today || (entry.startDate && !start) || (entry.endDate && !end) || (start && start >= next) || (end && (day >= end || end.getTime() <= this.now()))) {this.error.set('Choose a date during the event availability and before its deadline.'); return;}
-        const bounds = this.periodBounds() ?? { start: today, end: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30) };
-        if (day < bounds.start || day >= bounds.end) {this.error.set('Choose a date in the planning range, or change the date-range filter.'); return;}
-        const load = this.matching().filter(other => balanceKey(other) !== balanceKey(entry) && !other.completed && this.plannedDate(other) === value).length;
+        const bounds = this.planningRange();
+        if (day < bounds.start || day >= bounds.end) {this.error.set('Choose a date within the next 30 days.'); return;}
+        const load = this.entries().filter(other => balanceKey(other) !== balanceKey(entry) && !other.completed && this.plannedDate(other) === value).length;
         if (this.maxPerDay() && load >= this.maxPerDay()) {this.error.set('That day has reached its task limit. Choose another date or increase the limit.'); return;}
         this.error.set(''); this.manualPins.update(pins => ({ ...pins, [balanceKey(entry)]: value })); this.setBalance(true);
     }
@@ -229,7 +296,7 @@ export class Events {
     closeGroups(event: MouseEvent): void {
         const picker = this.groupPicker()?.nativeElement;
         if (picker?.open && !event.composedPath().includes(picker)) {picker.open = false;}
-        for (const menu of this.hostElement.nativeElement.querySelectorAll<HTMLDetailsElement>('.event-admin-actions[open]')) {
+        for (const menu of this.hostElement.nativeElement.querySelectorAll<HTMLDetailsElement>('.event-admin-actions[open], .event-schedule-actions[open]')) {
             if (!event.composedPath().includes(menu)) {menu.open = false;}
         }
     }

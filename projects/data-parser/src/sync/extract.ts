@@ -11,7 +11,9 @@ const iso = (year: number, month: number, day: number): string | null => {
 /** Extracts explicit dates, including wiki ranges with one shared year. Unknown dates stay unknown. */
 export function datesIn (text: string, year: number): Array<string> {
     // Some wiki cards omit the separator between a numeric date and its clock.
-    const datedText = text.replace(/\b(20\d{2}[-/]\d{1,2}[-/])(\d{1,2})([0-2]\d:[0-5]\d)\b/g, "$1$2 $3");
+    const datedText = text
+        .replace(/\b(20\d{2}[-/]\d{1,2}[-/])(\d{1,2})([0-2]\d:[0-5]\d)\b/g, "$1$2 $3")
+        .replace(/([a-z])(January|February|March|April|May|June|July|August|September|October|November|December)(?=\s+\d)/g, "$1 $2");
     const result: Array<string> = [];
     const sharedYear = Number(text.match(/\b(20\d{2})\b/)?.[1] ?? year);
     const regex = /\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b|\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?\b|\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+(20\d{2}))?\b/gi;
@@ -38,9 +40,9 @@ export function datesIn (text: string, year: number): Array<string> {
     return result;
 }
 
-const articleLink = (links: Array<Link>): Link | undefined => links.find(link => (/^https?:\/\//).test(link.url) && link.text.trim() && !(/(?:\/wiki\/|[?&]title=)(?:File|Image|Category|Special):/i).test(link.url));
+const articleLink = (links: Array<Link>): Link | undefined => links.find(link => (/^https?:\/\//).test(link.url) && link.text.trim() && !(/[?&]action=/i).test(link.url) && !(/(?:\/wiki\/|[?&]title=)(?:File|Image|Category|Special):/i).test(link.url));
 const classify = (text: string, source: string): EventType => {
-    if ((/banner|wish|warp|summon|channel|procurement|board|arc research|limited.*(?:class character|class arc)|character rerun|arc rerun/i).test(`${source} ${text}`)) { return EventType.Banner; }
+    if ((/\b(?:banners?|wishes|wish|warps?|summon(?:ing)?|channels?|procurement|boards?|arc research|limited.*(?:class character|class arc)|character rerun|arc rerun)\b/i).test(`${source} ${text}`)) { return EventType.Banner; }
     if ((/battle pass|miliastra pass|circle bounty|voyage logs|arclight logs/i).test(text)) { return EventType.BattlePass; }
     if ((/apocalyptic|pure fiction|forgotten hall|memory of chaos|anomaly arbitration|shiyu|deadly assault|tower of adversity|whimpering wastes|doubled pawns|endstate matrix|stygian onslaught/i).test(`${source} ${text}`)) { return EventType.EndGame; }
     if ((/heated battle|forge realm|genius invokation|\bTCG\b/i).test(text)) {return EventType.TCG;}
@@ -129,12 +131,20 @@ export function extractGf2Banners(page: SourcePage, now: Date): EventExtraction 
 export function extractEvents (page: SourcePage, source: string, now: Date, server = "EN"): EventExtraction {
     const result: EventExtraction = { events: [], undated: 0, recognizedTables: 0 };
     const today = now.toISOString().slice(0, 10);
-    const recognized = /date|duration|period|window|schedule|start|end/i;
+    const recognized = /\b(?:dates?|duration|period|window|schedule|starts?|ends?|starting|ending)\b/i;
+    // Historical version windows can encompass several rotations. Prefer the published current cycle.
+    const hasCurrentCycle = classify('', source) === EventType.EndGame && page.tables.some(table =>
+        !(/\bhistory\b/i).test(table.heading) && table.headers.some(header => recognized.test(header)) && table.rows.some(row => {
+            const dates = datesIn(row.map(cell => cell.text).join(' '), now.getUTCFullYear());
+            return dates.length >= 2 && dates[0] <= dates[1] && dates[1] >= today;
+        }));
     for (const table of page.tables) {
         if ((/^versions?(?: history)?$/i).test(table.heading.trim())) {continue;}
+        if ((/\bpermanent\b/i).test(table.heading)) {continue;}
+        if (hasCurrentCycle && (/\bhistory\b/i).test(table.heading)) {continue;}
         if (table.headers.some(header => (/^version$/i).test(header.trim()))) { continue; }
         const dateIndexes = table.headers.flatMap((header, index) => recognized.test(header) ? [index] : []);
-        if (!dateIndexes.length && !table.periods?.some(Boolean)) { continue; }
+        if (!dateIndexes.length && !table.periods?.some(period => datesIn(period, now.getUTCFullYear()).length)) { continue; }
         result.recognizedTables++;
         const serverIndex = table.headers.findIndex(header => (/server|region/i).test(header));
         const titleIndex = table.headers.findIndex(header => (/^(?:event|name|title|banner|warp|wish|board|program|convene)/i).test(header.trim()));

@@ -18,7 +18,7 @@
         @if (!game()) {
             <div class="events-select-field"><span id="events-groups-label">Groups</span>
             <details #groupPicker class="event-type-filter dropdown" (keydown.escape)="groupPicker.open = false; groupSummary.focus(); $event.stopPropagation()">
-                <summary #groupSummary class="dropdown-toggle" aria-describedby="events-groups-label">{{ selectedGroups().length ? selectedGroups().length + ' selected' : 'All groups' }}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+                <summary #groupSummary class="dropdown-toggle" aria-describedby="events-groups-label">{{ selectedGroups().includes('__none__') ? 'No groups' : selectedGroups().length ? selectedGroups().length + ' selected' : 'All groups' }}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
                 <div class="dropdown-menu" role="group" aria-label="Filter event groups">
                     <label class="dropdown-item"><input #allGroups type="checkbox" [checked]="!selectedGroups().length" (change)="selectedGroups.set([]); allGroups.checked = true" />All groups</label>
                     <hr class="dropdown-divider" />
@@ -40,12 +40,22 @@
         <label class="events-check-filter"><input type="checkbox" [ngModel]="balanceEnabled()" (ngModelChange)="setBalance($event)" />Balance events</label>
         @if (view() === 'calendar') { <label class="events-check-filter"><input type="checkbox" [ngModel]="compact()" (ngModelChange)="compact.set($event)" />Compact calendar</label> }
         <label>Maximum tasks/day<input type="number" aria-label="Maximum tasks per day" min="1" max="1000" placeholder="Auto" [ngModel]="maxPerDay() || null" (ngModelChange)="setDailyLimit($event)" /></label>
-        <p class="events-help">Manual dates stay pinned when rebalancing. Change or remove a pin in day details or Backlog.</p>
+        <p class="events-help">Plans cover the next 30 days {{ game() ? 'for this game' : 'across all enabled games' }}. Filters only change what you see. Change pinned dates in a row's Schedule menu, day details, or Backlog.</p>
         @if (pinnedEvents().length) { <ul class="event-pinned-list" aria-label="Manually pinned events">@for (entry of pinnedEvents(); track eventKey(entry)) { <li><span>{{ entry.name }}</span><time [attr.datetime]="manualPins()[eventKey(entry)]">{{ manualPins()[eventKey(entry)] }}</time><button type="button" [disabled]="busy()" [attr.aria-label]="'Unpin ' + entry.name" (click)="unpin(entry)">Unpin</button></li> }</ul> }
     </section>
     @if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
     @if (store.loading() || !store.initialized()) { <p class="events-empty" role="status">Loading events...</p> }
     @else {
+        @if (view() === 'list') {
+            <section class="event-list-overview" aria-label="Event overview">
+                <div class="event-overview-title"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/></svg><div><h2>{{ listHeading() }}</h2><p>{{ listDescription() }}</p></div></div>
+                <div class="event-overview-stat"><span>Total</span><strong>{{ listStats().total }}</strong></div>
+                <button type="button" class="event-overview-stat is-success" [attr.aria-pressed]="summaryFilter() === 'completed'" (click)="showSummary('completed')"><span>Completed</span><strong>{{ listStats().completed }}</strong></button>
+                <div class="event-overview-stat event-overview-progress"><span class="event-progress-ring" [style.--progress]="listStats().percent + '%'" aria-hidden="true"></span><div><span>Progress</span><strong>{{ listStats().percent }}%</strong></div></div>
+                <div class="event-overview-stat"><span>Remaining</span><strong>{{ listStats().remaining }}</strong></div>
+                <div class="event-overview-stat" [class.is-overdue]="listStats().overdue > 0"><span>Overdue</span><strong>{{ listStats().overdue }}</strong></div>
+            </section>
+        } @else {
         <section class="event-balance-summary" aria-label="Balanced event plan">
             <div class="event-summary-stats">
                 <button type="button" [attr.aria-pressed]="summaryFilter() === 'scheduled'" (click)="showSummary('scheduled')"><span>Scheduled</span><strong>{{ scheduledCount() }}</strong><small>{{ remainingCount() }} remaining tasks</small></button>
@@ -55,9 +65,10 @@
             </div>
             <button type="button" [disabled]="busy()" (click)="setBalance(true); rebalance()">Rebalance</button>
         </section>
+        }
         @if (summaryFilter() !== 'all') { <div class="events-summary-filter" role="status">Showing {{ summaryFilter() }} events <button type="button" (click)="summaryFilter.set('all')">Show all events</button></div> }
         @if (balanceEnabled()) {
-            <p class="events-help">One task per event. Targets seven days before the deadline when possible. {{ period() === 'all' ? 'Next 30 days.' : 'Selected date range.' }} Manual dates are kept; checking off events does not move other tasks.</p>
+            <p class="events-help">Balanced plan · Next 30 days · Up to {{ maxPerDay() || balancePlan().dailyLimit }} tasks/day. The date range shows assigned days. Manual dates are kept; checking off events does not move other tasks.</p>
             @for (conflict of balancePlan().conflicts; track conflict) { <p class="alert" role="alert">{{ conflict }}</p> }
         }
         @if (view() === 'calendar') {
@@ -82,24 +93,64 @@
                 }</tr> }</tbody>
             </table>
         } @else {
+            <div class="event-list-layout">
+            <section class="event-list-main" aria-label="Events by game">
+                <div class="event-list-controls">
+                    <label>Sort:<select aria-label="Sort event groups" [ngModel]="listSort()" (ngModelChange)="listSort.set($event)"><option value="game">Game (A–Z)</option><option value="deadline">Next deadline</option></select></label>
+                    <div class="event-list-tools"><button type="button" aria-controls="events-scheduling-settings" [attr.aria-expanded]="settingsOpen()" (click)="settingsOpen.set(!settingsOpen())">Scheduling</button><button type="button" [disabled]="busy()" (click)="setBalance(true); rebalance()">Rebalance</button><button type="button" (click)="expandGroups()">Expand All</button><button type="button" (click)="collapseGroups()">Collapse All</button></div>
+                </div>
+                <div class="event-list-planning">
+                    <label><input type="checkbox" [ngModel]="balanceEnabled()" (ngModelChange)="setBalance($event)" />Balance events</label>
+                    @if (balanceEnabled()) {
+                        <span>{{ remainingCount() }} scheduled tasks remaining in view</span>
+                        <button type="button" [attr.aria-pressed]="period() === 'today'" (click)="selectPeriod('today')">Today's tasks</button>
+                        <button type="button" [attr.aria-pressed]="period() === 'all'" (click)="selectPeriod('all')">Full plan</button>
+                    }
+                </div>
             <div class="event-groups" aria-label="Events">@for (group of listGroups(); track group.id) {
                 <details class="event-list-group" [attr.data-group]="group.id" [open]="!collapsedGroups().includes(group.id)" (toggle)="setGroupOpen(group.id, $event)">
-                    <summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg><h2>{{ group.title }}</h2><span class="event-group-count">{{ group.entries.length }}</span></summary>
-                    <div class="event-list" role="list" [attr.aria-label]="group.title">@for (entry of group.entries; track eventKey(entry)) { <ng-container *ngTemplateOutlet="eventRow; context: { $implicit: entry }" /> }</div>
+                    <summary>
+                        <span class="event-group-icon" [style.--event-game-color]="gameColor(group.id)">@if (gameIcon(group.id); as icon) {<img [src]="icon" alt="" (error)="imageFailed('game:' + group.id)" />} @else { {{ gameShort(group.id) }} }</span>
+                        <h2>{{ group.title }}</h2><span class="event-group-count">{{ group.entries.length }} {{ group.entries.length === 1 ? 'item' : 'items' }}</span>
+                        <span class="event-group-completed">{{ group.completed }} / {{ group.entries.length }} <span>Completed</span></span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                    </summary>
+                    <div class="event-list" role="list" [attr.aria-label]="group.title">@for (entry of group.entries; track eventKey(entry)) { <ng-container *ngTemplateOutlet="eventRow; context: { $implicit: entry, schedule: true }" /> }</div>
                 </details>
             }</div>
+            </section>
+            <div class="event-list-sidebar" role="complementary" aria-label="Event insights">
+                <section class="event-insight-panel"><h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 5-10 5L2 8Zm-10 9 10 5 10-5M2 16l10 5 10-5"/></svg>Event Types {{ period() === 'today' ? '(Today)' : '' }}</h2>
+                    <div class="event-type-options">@for (item of typeCounts(); track item.type) {
+                        <label><input type="checkbox" [checked]="typeSelected(item.type)" (change)="toggleListType(item.type)" /><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="typeIcon(item.type)"/></svg><span>{{ typeLabel(item.type) }}</span><span class="event-type-count">{{ item.count }}</span></label>
+                    } @empty {<p class="events-help">No event types in this range.</p>}</div>
+                    @if (selectedGroups().length || type()) {<button type="button" class="event-clear-types" (click)="selectedGroups.set([]); type.set('')">Show all types</button>}
+                </section>
+                <section class="event-insight-panel"><h2><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></svg>{{ period() === 'today' ? 'Today at a Glance' : 'Coming Up' }}</h2>
+                    <ol class="event-deadline-timeline">@for (entry of nextDeadlines(); track eventKey(entry)) {
+                        <li><strong>{{ deadlineLabel(entry) }}</strong><span>{{ gameShort(entry.game) }} · {{ entry.name }}</span></li>
+                    } @empty {<li class="event-no-deadlines">No upcoming deadlines in this view.</li>}</ol>
+                </section>
+            </div>
+            </div>
         }
-        @if (!filtered().length) { <div class="events-empty"><h2>{{ entries().length ? 'No matching events' : 'No events yet' }}</h2><p>Try another game, group, date range, or status.</p></div> }
+        @if (!filtered().length) { <div class="events-empty"><h2>{{ entries().length ? balanceEnabled() ? 'No scheduled tasks in this view' : 'No matching events' : 'No events yet' }}</h2><p>{{ balanceEnabled() ? 'Change the date range or filters. Unscheduled events are available in Backlog.' : 'Try another game, group, date range, or status.' }}</p></div> }
     }
 </section>
 
-<ng-template #eventRow let-entry>
-    <article class="event-row" role="listitem" [class.is-completed]="entry.completed" [style.--event-game-color]="gameColor(entry.game)" [title]="tooltip(entry)">
+<ng-template #eventRow let-entry let-schedule="schedule">
+    <article class="event-row" role="listitem" [class.has-scheduling]="balanceEnabled() && schedule" [class.is-completed]="entry.completed" [style.--event-game-color]="gameColor(entry.game)" [title]="tooltip(entry)">
         <label class="event-completion"><input type="checkbox" [checked]="entry.completed" [indeterminate]="progress(entry).completed > 0 && !entry.completed" [disabled]="busy()" [attr.aria-label]="'Mark ' + entry.name + (entry.completed ? ' incomplete' : ' complete')" (click)="$event.stopPropagation()" (change)="toggle(entry, $event)" /></label>
         <span class="event-game-badge" [title]="gameName(entry.game)">{{ gameShort(entry.game) }}</span>
-        <a class="event-body" [attr.href]="url(entry)" [attr.target]="external(entry) ? '_blank' : null" rel="noopener noreferrer" [attr.aria-disabled]="url(entry) ? null : 'true'" [attr.aria-description]="tooltip(entry)" [title]="entry.name"><span class="event-title"><strong>{{ entry.name }}</strong><small>{{ availability(entry) }}</small></span></a>
-        <span class="event-deadline" [class.urgent]="timing(entry).urgent && !entry.completed">@if (progress(entry).total) { {{ progress(entry).completed }} / {{ progress(entry).total }} objectives <small>{{ entry.completed ? 'Complete' : progress(entry).completed ? 'Partial' : 'Incomplete' }}</small> } @else { {{ entry.completed ? 'Complete' : 'Incomplete' }} }</span>
-        @if (balanceEnabled() && plannedDate(entry)) { <small class="event-suggested">Suggested: {{ plannedDateLabel(entry) }}</small> }
+        <a class="event-body" [attr.href]="url(entry)" [attr.target]="external(entry) ? '_blank' : null" rel="noopener noreferrer" [attr.aria-disabled]="url(entry) ? null : 'true'" [attr.aria-description]="tooltip(entry)" [title]="entry.name"><span class="event-title"><strong>{{ entry.name }}</strong>@if (balanceEnabled() && plannedDate(entry)) {<small class="event-suggested">{{ manualPins()[eventKey(entry)] ? 'Pinned:' : 'Scheduled:' }} {{ plannedDateLabel(entry) }}</small>}</span></a>
+        <span class="event-objectives">@if (progress(entry).total) {<span>{{ progress(entry).completed }} / {{ progress(entry).total }}</span><span class="event-objective-track" role="progressbar" [attr.aria-label]="entry.name + ' objectives'" [attr.aria-valuenow]="progress(entry).completed" [attr.aria-valuemax]="progress(entry).total" aria-valuemin="0"><span [style.width.%]="progress(entry).completed / progress(entry).total * 100"></span></span>}</span>
+        <span class="event-deadline" [class.urgent]="timing(entry).urgent && !entry.completed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4ZM8 2v6m8-6v6M4 11h16m-12 4h2m4 0h2"/></svg><span>{{ deadlineLabel(entry) }}</span></span>
+        @if (balanceEnabled() && schedule) {
+            <details #scheduler class="event-schedule-actions" (keydown.escape)="scheduler.open = false; scheduleSummary.focus(); $event.stopPropagation()">
+                <summary #scheduleSummary [attr.aria-label]="'Schedule ' + entry.name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4ZM8 2v6m8-6v6M4 11h16m-8 3v5m-3-2h6"/></svg></summary>
+                <div class="event-schedule-menu"><strong>{{ entry.name }}</strong><ng-container *ngTemplateOutlet="pinControls; context: { $implicit: entry }" /></div>
+            </details>
+        }
         @if (store.canEdit() && (!entry.id.startsWith('parsed-event-') || entry.eventStory)) { <details #actions class="event-admin-actions" (keydown.escape)="actions.open = false; actionsSummary.focus(); $event.stopPropagation()"><summary #actionsSummary [attr.aria-label]="'Actions for ' + entry.name">&hellip;</summary><div class="event-actions-menu"><button type="button" [attr.aria-label]="'Edit ' + entry.name" [disabled]="busy()" (click)="actions.open = false; edit.emit(entry)">Edit</button><button type="button" class="event-delete-action" [attr.aria-label]="'Delete ' + entry.name" [disabled]="busy()" (click)="actions.open = false; remove.emit(entry)">Delete</button></div></details> }
     </article>
 </ng-template>
@@ -112,6 +163,7 @@
         <div class="event-panel-heading"><h2 id="event-backlog-title">Unscheduled events <small>{{ backlog().length }}</small></h2><button type="button" aria-label="Close backlog" (click)="backlogOpen.set(false)">&times;</button></div>
         <label class="event-backlog-sort">Sort by<select [ngModel]="backlogSort()" (ngModelChange)="backlogSort.set($event)"><option value="deadline">Deadline</option><option value="game">Game</option><option value="completion">Completion</option></select></label>
         @if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
+        @if (balanceEnabled()) {<p class="events-help">Unscheduled tasks across the planning window. The display date range does not hide Backlog items.</p>}
         <div class="event-list" role="list">@for (entry of backlog(); track eventKey(entry)) {
             <section class="event-backlog-item"><ng-container *ngTemplateOutlet="eventRow; context: { $implicit: entry }" /><p class="events-help">{{ entry.completed ? 'Completed event. Uncheck to return it to the workload.' : balanceEnabled() ? balanceReason(entry) : 'No suggested completion day assigned. Enable Balance events or pin a date.' }}</p><p class="events-help">Deadline: {{ entry.endDate || 'Not specified' }}</p><ng-container *ngTemplateOutlet="pinControls; context: { $implicit: entry }" /></section>
         } @empty { <p class="events-empty">No unscheduled events match your filters.</p> }</div>
