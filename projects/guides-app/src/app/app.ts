@@ -14,14 +14,15 @@ import { ThemeService } from "./core/theme/theme.service";
 })
 export class App {
 
-    // Application title and theme service initialization
-    private readonly themeService = inject(ThemeService);
+    // Initialize global services ---------------------------------------------
     private readonly auth = inject(AuthService, { optional: true });      // Start callback handling before lazy workspace routes load.
+    private readonly themeService = inject(ThemeService);
 
     protected readonly title = signal("guides-app");
 
+
+    // Initialize themes when the app loads -----------------------------------
     constructor () {
-        // Initialize theme when app loads
         this.themeService.initializeTheme();
     }
 }
