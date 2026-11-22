@@ -32,7 +32,7 @@
                                 @if (chapter.entry; as entry) {
                             <div class="outline-chapter-heading" [class.active]="outlineChapterActive(chapter.id, chapter.children)">
                                     @if (showEntry(entry)) {
-                                    <a [href]="encodeAnchor('story-content-' + entry.id)"
+                                    <a [href]="outlineHref('story-content-' + entry.id)"
                                         [class.active]="outlineChapterActive(chapter.id, chapter.children)"
                                         [attr.aria-current]="activeOutline() === 'story-content-' + entry.id ? 'location' : null"
                                         (click)="openOutlineChapter($event, chapter.id, chapter.children.length > 0)">
@@ -56,7 +56,7 @@
                                 <div class="outline-children-inner"><div class="outline-children-list">
                                 @for (entry of chapter.children; track entry.id) {
                                     <div class="outline-group" [attr.data-story-topic]="entry.category">
-                                            <a class="outline-secondary" [href]="encodeAnchor('story-content-' + entry.id)"
+                                            <a class="outline-secondary" [href]="outlineHref('story-content-' + entry.id)"
                                                 [class.active]="activeOutline() === 'story-content-' + entry.id"
                                                 [attr.aria-current]="activeOutline() === 'story-content-' + entry.id ? 'location' : null"
                                                 [attr.title]="topic(entry).title"

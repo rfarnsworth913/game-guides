@@ -197,6 +197,11 @@ export class DataService {
                 }
             });
 
+            // A Monday rerun with identical occurrences must not invalidate editors' revisions.
+            if (!newRecords.length) {
+                return;
+            }
+
             // Update the database with the new records -----------------------
             await collection.updateOne(
                 { name: rootDocumentName },
@@ -242,19 +247,20 @@ export class DataService {
 
             const storedVersion = rootDocument["version"] as Version | undefined;
             const isNewVersion = storedVersion?.title !== version.title;
+            const nextVersion = isNewVersion ? version : { ...storedVersion, ...version };
 
-            if (!isNewVersion) {
+            if (JSON.stringify(storedVersion) === JSON.stringify(nextVersion)) {
                 Logger.info(`Version unchanged: ${version.title}`);
                 return false;
             }
 
             await collection.updateOne(
                 { name: rootDocumentName },
-                { $set: { version } }
+                { $set: { version: nextVersion }, $inc: { _revision: 1 } }
             );
 
             Logger.info(`Updated version: ${version.title}`);
-            return true;
+            return isNewVersion;
 
         } catch (err) {
             Logger.error("Error updating version: ", err);

@@ -1,9 +1,8 @@
 import { endOfISOWeek, format, startOfISOWeek } from "date-fns";
-import * as puppeteer from "puppeteer";
 
 import { DATE_FORMAT } from "@shared-lib/constants";
 import { EventType } from "@shared-lib/enums";
-import type { DataFile, DataSource, Event, Version } from "@shared-lib/types";
+import type { DataFile, DataSource, Event } from "@shared-lib/types";
 
 import { DataService, Logger } from "../services";
 import { AbstractDataParser } from "./abstract-data-parser";
@@ -16,6 +15,8 @@ export class ArknightsEndfield extends AbstractDataParser {
         super(data, service);
         this.documentID = data.id;
         this.data = data;
+
+        this.imageOutputPath = `${this.imageOutputPath}endfield/`;
     }
 
 
@@ -108,64 +109,52 @@ export class ArknightsEndfield extends AbstractDataParser {
         const versionInfo = await this.browserController(sourceData.url, async (page) => {
 
             // Get version content element ------------------------------------
-            const versionHeader = await this.getElementByText(page, "h2", "Version");
-            if (!versionHeader) {
+            const versionTable = await this.getTableByHeaderText(page, "h2", "Current Version");
+            if (!versionTable) {
                 Logger.warn("Could not find Version header element.");
                 return [];
             }
 
-            // Get version anchor element -------------------------------------
-            const versionAnchorHandle = await page.evaluateHandle((header) => {
-                let nextElement = header.nextElementSibling;
+            const versionData = await page.evaluate((tableElement) => {
+                const row = Array.from(tableElement.querySelectorAll("tr"))
+                    .find(item => item.querySelector("td"));
 
-                while (nextElement) {
-                    const versionAnchor = nextElement.querySelector(".mp-body a");
-                    if (versionAnchor) {
-                        return versionAnchor;
-                    }
-
-                    nextElement = nextElement.nextElementSibling;
+                if (!row) {
+                    return null;
                 }
 
-                return null;
-            }, versionHeader);
+                const cells = row.querySelectorAll("td");
+                const anchor = cells[0]?.querySelector<HTMLAnchorElement>("a[title]:not(.image):not([href*=\"/wiki/File:\"])");
 
-            const isMissingAnchor = await page.evaluate(el => el === null, versionAnchorHandle);
-            if (isMissingAnchor) {
-                Logger.warn("Could not find version link after Version header.");
-                return [];
-            }
+                const imageTag = cells[0]?.querySelector<HTMLImageElement>("img");
 
-            const versionAnchorElement = versionAnchorHandle.asElement() as puppeteer.ElementHandle<HTMLAnchorElement> | null;
-            if (!versionAnchorElement) {
-                Logger.warn("Could not resolve version link element.");
-                return [];
-            }
-
-            // Extract Version data from anchor element -----------------------
-            const versionData = await page.evaluate((anchor: HTMLAnchorElement) => {
-                const title = anchor.getAttribute("title") ?? "";
-                const href = anchor.getAttribute("href") ?? "";
+                const title = anchor?.getAttribute("title") ?? "";
+                const href = anchor?.getAttribute("href") ?? "";
+                const dateText = cells[1]?.textContent ?? "";
+                const releaseDate = dateText.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0];
                 const url = href ? new URL(href, window.location.origin).toString() : "";
 
-                return { title, url };
-            }, versionAnchorElement);
+                return { title, url, imageUrl: imageTag?.src ?? "", ...releaseDate ? { releaseDate } : {} };
+            }, versionTable);
 
-            if (!versionData.title) {
+            if (!versionData?.title) {
                 Logger.warn("Could not parse version data.");
                 return [];
             }
 
+            if (versionData.imageUrl) {
+                await this.downloadImage(versionData.imageUrl, `${this.imageOutputPath}/current-banner.png`);
+            }
             return [{
                 title: versionData.title,
-                releaseDate: "",
+                releaseDate: versionData.releaseDate,
                 url: versionData.url
             }];
 
         });
 
-        this.versionInfo = versionInfo[0] as Version;
-        this.isNewVersion = await this.service.updateVersion(this.documentID, versionInfo[0] as Version);
+        [this.versionInfo] = versionInfo;
+        this.isNewVersion = await this.service.updateVersion(this.documentID, versionInfo[0]);
     }
 
 }

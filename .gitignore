@@ -45,3 +45,4 @@ __screenshots__/
 Thumbs.db
 .env
 /backups/
+/projects/data-parser/.weekly-sync.lock

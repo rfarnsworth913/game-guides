@@ -6,7 +6,7 @@ import { mkdtemp, readFile, readdir, rm, mkdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, extname, relative, isAbsolute } from 'node:path';
 import { MongoClient } from 'mongodb';
-import puppeteer, { type Browser, type BrowserContext, type Page } from 'puppeteer';
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { Auth0Security } from '../src/core/auth/providers/auth0.provider';
 import { GameRepository } from "../src/modules/games/games.repository";
 import { ProgressRepository, type ProgressDocument } from "../src/modules/progress/progress.repository";
@@ -112,30 +112,30 @@ const uiServer = createServer((req, res) => {
 
 async function newPage(subject?: string, invalidRefresh = false): Promise<{ page: Page; context: BrowserContext }> {
     assert.ok(browser);
-    const context = await browser.createBrowserContext();
+    const context = await browser.newContext();
     const page = await context.newPage();
     pages.push(page);
     page.setDefaultTimeout(15000);
     page.on('pageerror', error => runtimeErrors.push(String(error)));
-    await page.setViewport({ width: 1440, height: 1000 });
-    await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
-    await page.setRequestInterception(true);
-    page.on('request', request => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.route('**/*', async route => {
+        const request = route.request();
         const url = new URL(request.url());
         if (invalidRefresh && url.origin === issuer.slice(0, -1) && url.pathname === '/oauth/token') {
             // Fixture only: reproduce a permanently invalid refresh token without contacting a real tenant.
-            void request.respond({ status: request.method() === 'OPTIONS' ? 204 : 403,
+            await route.fulfill({ status: request.method() === 'OPTIONS' ? 204 : 403,
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST, OPTIONS',
                     'Access-Control-Allow-Headers': request.headers()['access-control-request-headers'] ?? 'content-type, auth0-client' },
                 ...(request.method() === 'OPTIONS' ? {} : { body: JSON.stringify({ error: 'invalid_grant', error_description: 'Unknown or invalid refresh token.' }) }) });
         } else if (url.origin === issuer.slice(0, -1) && ['/v2/logout', '/oidc/logout'].includes(url.pathname)) {
             // Exercise SDK logout/cache clearing; replace only the remote provider redirect.
-            void request.respond({ status: 302, headers: { location: origin + '/' } });
+            await route.fulfill({ status: 302, headers: { location: origin + '/' } });
         } else if (url.origin === origin || ['data:', 'blob:', 'about:'].includes(url.protocol)) {
-            void request.continue();
+            await route.continue();
         } else {
             externalRequests.push(url.origin + url.pathname);
-            void request.abort();
+            await route.abort();
         }
     });
     if (subject) {
@@ -162,11 +162,11 @@ async function newPage(subject?: string, invalidRefresh = false): Promise<{ page
 const checkbox = '#story-row-e2e-quest-e2e-row input[type=checkbox]';
 const activeEditSwitch = 'gg-story .story-header-expanded:not([inert]) .story-mode-toggle, gg-story .compact-story-toolbar.visible .story-mode-toggle';
 async function openStory(page: Page): Promise<void> {
-    await page.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle0' });
+    await page.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle' });
     await page.waitForSelector(checkbox);
 }
 async function checked(page: Page, expected: boolean): Promise<void> {
-    await page.waitForFunction((selector, value) => (document.querySelector(selector) as HTMLInputElement)?.checked === value, {}, checkbox, expected);
+    await page.waitForFunction(([selector, value]) => (document.querySelector(selector) as HTMLInputElement)?.checked === value, [checkbox,expected] as const, {});
 }
 async function clickButton(page: Page, label: string, scope = 'gg-story'): Promise<void> {
     await page.$$eval(`${scope} button`, (buttons, label) => {
@@ -242,14 +242,14 @@ try {
     assert.equal(seeded.status, 200, await seeded.text());
     console.log('PASS API authentication: real RS256 validation, guest denial, editor allowlist, invalid claims/signature denial.');
 
-    browser = await puppeteer.launch({ headless: true, userDataDir: join(temporary, 'browser-profile') });
+    browser = await chromium.launch({ headless: true });
     const { page: guest } = await newPage();
     await openStory(guest);
     assert.equal(await guest.$('gg-story .story-mode-toggle'), null);
     await checked(guest, false);
     await guest.click(checkbox);
     await checked(guest, true);
-    await guest.reload({ waitUntil: 'networkidle0' });
+    await guest.reload({ waitUntil: 'networkidle' });
     await checked(guest, true);
     assert.equal(await db.collection('games_player_progress').countDocuments(), 0);
     console.log('PASS guest completion persists locally without shared catalog or account writes.');
@@ -263,7 +263,7 @@ try {
     await editor.click(checkbox);
     assert.equal((await saved).status(), 200);
     await checked(editor, true);
-    await editor.reload({ waitUntil: 'networkidle0' });
+    await editor.reload({ waitUntil: 'networkidle' });
     await checked(editor, true);
     assert.equal((await repository.read('genshin')).revision, revisionBeforeCompletion);
     assert.equal((await (await api('/api/me/progress', editorToken)).json()).state['genshin/e2e-quest'].storyRowCompletion['e2e-row'], true);
@@ -296,23 +296,23 @@ try {
     await editor.click(`${workspace} [data-editor-group="quest-group"] .editor-group-link`);
     const rowEditor = `${workspace} [data-story-editor-row="e2e-row"]`;
     await editor.click(`${rowEditor} [aria-label="Edit E2E Objective"]`);
-    await editor.waitForSelector(`${rowEditor} .compact-row-fields`, { visible: true });
+    await editor.waitForSelector(`${rowEditor} .compact-row-fields`, { state: 'visible' });
     assert.equal(await editor.$$eval(`${rowEditor} .context-panel-toggle`, buttons => buttons.every(button => button.getAttribute('aria-expanded') === 'false')), true);
     await editor.click(`${rowEditor} .context-panel-toggle`);
     await editor.waitForSelector(`${rowEditor} .context-panel-body.expanded`);
     await editor.$eval(`${workspace} .section-editor-main`, element => { element.scrollTop = 0; });
     await editor.screenshot({ path: join(artifacts, 'content-group-details-desktop.png') });
-    await editor.setViewport({ width: 390, height: 844 });
+    await editor.setViewportSize({ width: 390, height: 844 });
     assert.equal(await editor.$eval(`${workspace} .section-editor-main`, element => element.scrollWidth <= element.clientWidth), true, 'Expanded row must fit the mobile editor.');
     await editor.screenshot({ path: join(artifacts, 'content-group-details-mobile.png') });
-    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
     await editor.click(`${workspace} .editor-overview-link`);
     await editor.click(`${workspace} .editor-add-group`);
     await editor.waitForSelector(`${workspace} .patch-edit-group:not([hidden]) input[name^=groupTitle-]`);
     await editor.$eval(`${workspace} .patch-edit-group:not([hidden]) input[name^=groupTitle-]`, element => {
         const input = element as HTMLInputElement; input.value = 'E2E Related Media'; input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Related Media'), {}, `${workspace} .editor-group-list`);
+    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Related Media'), `${workspace} .editor-group-list`, {});
     await editor.$eval(workspace, element => {
         const groups = [...element.querySelectorAll<HTMLElement>('[data-editor-group]')];
         const source = groups.at(-1)!;
@@ -323,16 +323,16 @@ try {
         target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: transfer, clientY: bounds.top + 2 }));
         target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer, clientY: bounds.top + 2 }));
     });
-    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Related Media'), {}, `${workspace} .editor-group-link`);
+    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Related Media'), `${workspace} .editor-group-link`, {});
     assert.equal((await repository.read('genshin')).revision, beforeGroupEdits.revision, 'Group edits must remain drafts until Save.');
     await editor.screenshot({ path: join(artifacts, 'section-editor-group-desktop.png') });
-    await editor.setViewport({ width: 390, height: 844 });
+    await editor.setViewportSize({ width: 390, height: 844 });
     assert.equal(await editor.$eval('gg-story [role=dialog]', element => element.getBoundingClientRect().width <= innerWidth), true);
     assert.equal(await editor.$eval(`${workspace} .section-editor-main`, element => element.scrollWidth <= element.clientWidth), true);
     await editor.screenshot({ path: join(artifacts, 'section-editor-mobile.png') });
-    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
     await clickButton(editor, 'Cancel');
-    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
     assert.deepEqual((await repository.read('genshin')).entries, beforeGroupEdits.entries, 'Cancel must discard group additions and ordering.');
     await clickButton(editor, 'Edit');
     await editor.waitForSelector(`${workspace} .editor-overview-link`);
@@ -355,10 +355,10 @@ try {
         if (!button) throw new Error('Add requirement control is missing.');
         button.click();
     });
-    await editor.waitForSelector(`${guideContext} gg-requirement-picker input`, { visible: true });
+    await editor.waitForSelector(`${guideContext} gg-requirement-picker input`, { state: 'visible' });
     await editor.type(`${guideContext} gg-requirement-picker input`, 'objective');
-    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Objective'), {}, `${guideContext} [role=listbox]`);
-    await editor.locator(`${guideContext} [role=option]`).click();
+    await editor.waitForFunction((selector: string) => document.querySelector(selector)?.textContent?.includes('E2E Objective'), `${guideContext} [role=listbox]`, {});
+    await editor.locator(`${guideContext} [role=option]`).filter({hasText: 'E2E Objective'}).click();
     await editor.waitForSelector(`${guideContext} .requirement-selected`);
     assert.match(await editor.$eval(`${guideContext} .requirement-selected`, element => element.textContent ?? ''), /E2E Objective/);
     assert.equal(await editor.$(`${guideContext} [role=listbox]`), null);
@@ -367,7 +367,7 @@ try {
         if (!button) throw new Error('Add requirement control is missing.');
         button.click();
     });
-    await editor.waitForFunction((selector: string) => document.querySelectorAll(selector).length === 2, {}, `${guideContext} .guide-requirement-editor`);
+    await editor.waitForFunction((selector: string) => document.querySelectorAll(selector).length === 2, `${guideContext} .guide-requirement-editor`, {});
     await editor.$$eval(`${guideContext} .guide-requirement-editor textarea`, elements => {
         const input = elements.at(-1) as HTMLTextAreaElement;
         input.value = 'Reach Adventure Rank 25'; input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -389,7 +389,7 @@ try {
     const upload = editor.waitForResponse(response => /\/api\/games\/genshin\/images/.test(response.url()) && response.request().method() === 'POST');
     const fileInput = await editor.$('gg-story [role=dialog] gg-game-image-picker input[type=file]');
     assert.ok(fileInput);
-    await fileInput.uploadFile(imagePath);
+    await fileInput.setInputFiles(imagePath);
     const uploaded = await upload;
     assert.equal(uploaded.status(), 201);
     const image = (await (await api('/api/games/genshin/images')).json()).images.find((item: { name: string }) => item.name.startsWith('e2e-pixel-'));
@@ -401,17 +401,17 @@ try {
     const save = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
     await clickButton(editor, 'Save changes');
     assert.equal((await save).status(), 200);
-    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
-    await guest.reload({ waitUntil: 'networkidle0' });
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
+    await guest.reload({ waitUntil: 'networkidle' });
     await guest.waitForFunction(() => document.querySelector('gg-story')?.textContent?.includes('E2E Edited Quest'));
-    await editor.reload({ waitUntil: 'networkidle0' });
+    await editor.reload({ waitUntil: 'networkidle' });
     await checked(editor, true);
     await editor.$eval('gg-story .main-story-template .patch-hero', element => element.scrollIntoView({ block: 'start' }));
     await editor.screenshot({ path: join(artifacts, 'primary-quest-reading-desktop.png') });
-    await editor.setViewport({ width: 390, height: 844 });
+    await editor.setViewportSize({ width: 390, height: 844 });
     assert.equal(await editor.$eval('gg-story .main-story-template', element => element.scrollWidth <= element.clientWidth), true, 'Primary quest banner and cards must fit on mobile.');
     await editor.screenshot({ path: join(artifacts, 'primary-quest-reading-mobile.png') });
-    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
     assert.equal((await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.imageUrl, image.url);
     const savedContext = (await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-quest')?.mainStory?.context;
     assert.equal(savedContext?.requirements?.[0].targetId, 'quest:e2e-quest:e2e-row');
@@ -434,12 +434,12 @@ try {
     await editor.click(activeEditSwitch);
     await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
     await clickButton(editor, '+ Add subsection');
-    await editor.select('gg-story [role=dialog] select[name=topic]', 'divider');
+    await editor.selectOption('gg-story [role=dialog] select[name=topic]', 'divider');
     await editor.waitForFunction(() => !document.querySelector('gg-story [role=dialog] input[name=title]'));
     const createDivider = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
     await clickButton(editor, 'Create Subsection');
     assert.equal((await createDivider).status(), 200);
-    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
     const divider = (await repository.read('genshin')).entries.find(entry => entry.category === 'divider');
     assert.ok(divider?.id);
     assert.equal(divider.name, '');
@@ -448,11 +448,11 @@ try {
     await editor.keyboard.press('ArrowUp');
     assert.equal((await reorderDivider).status(), 200);
     assert.equal((await repository.read('genshin')).entries.find(entry => entry.id === divider.id)?.order, 0);
-    await guest.reload({ waitUntil: 'networkidle0' });
+    await guest.reload({ waitUntil: 'networkidle' });
     await guest.waitForSelector('gg-story .story-divider-section [role=separator]');
     assert.equal(await guest.$('gg-story .story-divider-section input[type=checkbox]'), null);
     assert.equal(await guest.$('gg-story .story-divider-section .story-section-header'), null);
-    assert.equal(await guest.$(`gg-story .story-outline a[href="#story-content-${divider.id}"]`), null);
+    assert.equal(await guest.$(`gg-story .story-outline a[href$="#story-content-${divider.id}"]`), null);
     assert.equal(await guest.$eval('gg-story .story-overall-progress p', element => element.textContent?.trim()), '1 / 1 complete');
     await guest.$eval('gg-story .story-divider-section', element => element.scrollIntoView({ block: 'center' }));
     await (await guest.$('gg-story .story-divider-section'))!.screenshot({ path: join(artifacts, 'story-divider.png') });
@@ -475,7 +475,7 @@ try {
     ];
     const sharedCharacterEntries = migrateStoryEvents(migrateStoryCharacters(navigationEntries, () => 'shared-fischl').entries, () => 'shared-event').entries;
     assert.equal((await update(editorToken, beforeNavigation.revision, sharedCharacterEntries)).status, 200);
-    await guest.reload({ waitUntil: 'networkidle0' });
+    await guest.reload({ waitUntil: 'networkidle' });
     assert.equal(await guest.$eval('.region-artwork', target => target.getAttribute('src')), image.url);
     assert.equal(await guest.$$eval('.outline-chapter-heading a', links => links.length), 2);
     assert.equal(await guest.$$eval('.outline-children', elements => elements.every(element => (element as HTMLElement).inert)), true);
@@ -492,7 +492,7 @@ try {
     await guest.$$eval('link[rel=stylesheet]', links => links.forEach(link => { (link as HTMLLinkElement).disabled = false; }));
     await guest.$eval('.outline-toggle', button => (button as HTMLButtonElement).click());
     await guest.waitForFunction(() => document.querySelectorAll('.outline-children.expanded').length === 1);
-    assert.deepEqual(await guest.$$eval('.outline-secondary', links => links.map(link => link.getAttribute('href'))), ['#story-content-nav-world', '#story-content-nav-character', '#story-content-nav-side', '#story-content-nav-event']);
+    assert.deepEqual(await guest.$$eval('.outline-secondary', links => links.map(link => new URL((link as HTMLAnchorElement).href).hash)), ['#story-content-nav-world', '#story-content-nav-character', '#story-content-nav-side', '#story-content-nav-event']);
     assert.deepEqual(await guest.$$eval('.outline-secondary .outline-type-icon', icons => icons.map(icon => icon.getAttribute('data-story-topic'))), ['world-quests', 'character-information', 'side-stories', 'events']);
     assert.equal(await guest.$('.guide-directories'), null);
     await guest.$eval('#story-content-nav-world', target => target.scrollIntoView({ block: 'center', behavior: 'instant' }));
@@ -501,7 +501,7 @@ try {
         const bounds = target.getBoundingClientRect();
         window.scrollBy({ top: bounds.top + bounds.height / 2 - (top + (innerHeight - top) / 2), behavior: 'instant' });
     });
-    await guest.waitForSelector('.outline-secondary[href="#story-content-nav-world"][aria-current=location]');
+    await guest.waitForSelector('.outline-secondary[href$="#story-content-nav-world"][aria-current=location]');
     await guest.bringToFront();
     // Centering a short section can leave part of the expanded header visible.
     // Verify the compact toolbar only after explicitly moving that header offscreen.
@@ -520,14 +520,14 @@ try {
     await guest.waitForFunction(() => !document.querySelector('.compact-progress-details')!.classList.contains('open'));
     assert.equal(await guest.$eval('.outline-secondary.active', target => getComputedStyle(target).boxShadow), 'none');
     await (await guest.$('.story-outline'))!.screenshot({ path: join(artifacts, 'story-navigation-desktop.png') });
-    await guest.setViewport({ width: 390, height: 844 });
+    await guest.setViewportSize({ width: 390, height: 844 });
     await guest.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     assert.equal(await guest.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     const mobileOutline = await guest.$eval('.story-outline', target => {
         const bounds = target.getBoundingClientRect();
         return { x: bounds.left, y: bounds.top + scrollY, width: bounds.width, height: bounds.height };
     });
-    await guest.screenshot({ path: join(artifacts, 'story-navigation-mobile.png'), clip: mobileOutline, captureBeyondViewport: true });
+    await guest.screenshot({ path: join(artifacts, 'story-navigation-mobile.png'), clip: mobileOutline });
     await guest.evaluate(() => window.scrollTo({ top: document.querySelector('.story-header-expanded')!.getBoundingClientRect().bottom + scrollY + 80, behavior: 'instant' }));
     await guest.waitForSelector('.compact-story-toolbar.visible');
     await guest.click('.compact-progress');
@@ -544,9 +544,9 @@ try {
     await guest.$eval('.compact-story-toolbar input[type=search]', target => {
         const input = target as HTMLInputElement; input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await guest.setViewport({ width: 1440, height: 1000 });
+    await guest.setViewportSize({ width: 1440, height: 1000 });
     const profile = 'gg-story .patch-overview-dashboard[data-story-topic="character-information"]';
-    await guest.setViewport({ width: 1920, height: 1080 });
+    await guest.setViewportSize({ width: 1920, height: 1080 });
     const world = '#story-template-nav-world';
     assert.equal(await guest.$(`${world} .patch-hero`), null);
     assert.equal(await guest.$eval(`${world} .world-quest-title`, element => getComputedStyle(element).display), 'block');
@@ -557,15 +557,15 @@ try {
     assert.equal(await guest.$eval(`${profile} .character-profile-art > img`, element => getComputedStyle(element).display), 'block');
     assert.equal(await guest.$$eval(`${profile} .guide-content-row`, rows => rows.length), 1);
     await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-desktop.png') });
-    await guest.setViewport({ width: 390, height: 844 });
+    await guest.setViewportSize({ width: 390, height: 844 });
     assert.equal(await guest.$eval(world, element => element.scrollWidth <= element.clientWidth), true);
     assert.equal(await guest.$eval(`${world} .world-quest-title`, element => element.scrollHeight <= element.clientHeight), true);
     await (await guest.$(world))!.screenshot({ path: join(artifacts, 'world-quest-reading-mobile.png') });
     assert.equal(await guest.$eval(`${profile} .character-profile-art > img`, element => getComputedStyle(element).display), 'none');
     assert.equal(await guest.$eval(profile, element => element.scrollWidth <= element.clientWidth), true);
     await (await guest.$(profile))!.screenshot({ path: join(artifacts, 'character-profile-mobile.png') });
-    await guest.setViewport({ width: 1440, height: 1000 });
-    await editor.reload({ waitUntil: 'networkidle0' });
+    await guest.setViewportSize({ width: 1440, height: 1000 });
+    await editor.reload({ waitUntil: 'networkidle' });
     if (await editor.$('.story-mode-toggle[aria-checked="false"]')) {await editor.click('.story-mode-toggle[aria-checked="false"]');}
     await editor.waitForSelector('[aria-label="Edit Fischl"]');
     await editor.click('[aria-label="Edit Fischl"]');
@@ -577,16 +577,16 @@ try {
     });
     const sharedSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
     await clickButton(editor, 'Save changes'); assert.equal((await sharedSave).status(), 200);
-    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
     const sharedSnapshot = await repository.read('genshin');
     assert.equal(sharedSnapshot.entries.find(entry => entry.id === 'shared-fischl')?.name, 'Fischl Updated');
     assert.equal(sharedSnapshot.entries.find(entry => entry.id === 'nav-character')?.characterInformation, globalThis.undefined);
     assert.equal(sharedSnapshot.entries.find(entry => entry.id === 'nav-character')?.characterId, 'shared-fischl');
     const characterCheckbox = `${profile} .guide-row-tracking input`;
-    await player.reload({ waitUntil: 'networkidle0' });
+    await player.reload({ waitUntil: 'networkidle' });
     const sharedProgress = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
     await player.click(characterCheckbox); assert.equal((await sharedProgress).status(), 200);
-    await player.reload({ waitUntil: 'networkidle0' });
+    await player.reload({ waitUntil: 'networkidle' });
     assert.equal(await player.$eval(characterCheckbox, input => (input as HTMLInputElement).checked), true);
     assert.equal(await player.$eval(`${profile} .character-info-header h3`, element => element.textContent), 'Fischl Updated');
     console.log('PASS shared character guide reference edits the catalog and preserves account completion after reload.');
@@ -599,19 +599,19 @@ try {
     });
     const eventSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
     await clickButton(editor, 'Save changes'); assert.equal((await eventSave).status(), 200);
-    await editor.waitForSelector('gg-story [role=dialog]', { hidden: true });
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
     const eventSnapshot = await repository.read('genshin');
     assert.equal(eventSnapshot.entries.find(entry => entry.id === 'shared-event')?.eventStory?.subtitle, 'Shared event details');
     assert.equal(eventSnapshot.entries.find(entry => entry.id === 'nav-event')?.eventId, 'shared-event');
     assert.equal(eventSnapshot.entries.find(entry => entry.id === 'nav-event')?.eventStory, globalThis.undefined);
-    await player.reload({ waitUntil: 'networkidle0' });
+    await player.reload({ waitUntil: 'networkidle' });
     const eventCheckbox = '#story-row-nav-event-sample-objective input';
     const eventProgress = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
     await player.click(eventCheckbox); assert.equal((await eventProgress).status(), 200);
-    await player.reload({ waitUntil: 'networkidle0' });
+    await player.reload({ waitUntil: 'networkidle' });
     assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), true);
     assert.ok(await player.$eval('#story-template-nav-event', element => element.textContent?.includes('Shared event details')));
-    await player.goto(origin + '/events', { waitUntil: 'networkidle0' });
+    await player.goto(origin + '/events', { waitUntil: 'networkidle' });
     // This fixture has no dates, so it is available in the backlog rather than the grid.
     await player.$eval('.events-backlog-button', button => (button as HTMLButtonElement).click());
     const sharedCheckbox = '.event-backlog input[aria-label="Mark Curious Use of Xiranite incomplete"]';
@@ -619,7 +619,7 @@ try {
     assert.equal(await player.$eval(sharedCheckbox, input => (input as HTMLInputElement).checked), true);
     const sharedEventProgress = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
     await player.click(sharedCheckbox); assert.equal((await sharedEventProgress).status(), 200);
-    await player.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle0' });
+    await player.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle' });
     await player.waitForSelector(eventCheckbox);
     assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), false);
     console.log('PASS shared event guide and calendar synchronize account completion in both directions after reload.');
@@ -650,7 +650,7 @@ try {
         { id: 'optional', content: 'Optional objective', contentType: '', patch: '', notes: '', optional: true },
     ] } };
     assert.equal((await update(editorToken, beforeBalance.revision, [...beforeBalance.entries, ...balanceFixtures, backlogFixture])).status, 200);
-    await editor.goto(origin + '/events', { waitUntil: 'networkidle0' });
+    await editor.goto(origin + '/events', { waitUntil: 'networkidle' });
     await editor.waitForSelector('gg-events .event-calendar');
     assert.equal(new URL(editor.url()).pathname, '/events');
     assert.equal(await editor.$eval('h1', element => element.textContent?.trim()), 'Events Calendar');
@@ -691,13 +691,13 @@ try {
     assert.deepEqual(bulkState.state['genshin/balance-backlog'].storyRowCompletion, { 'required-one': true, 'required-two': true });
     const afterBulk = await placements();
     assert.equal(afterBulk.find(item => item.title === 'Unscheduled objective event')?.day, pinDate);
-    await editor.reload({ waitUntil: 'networkidle0' });
+    await editor.reload({ waitUntil: 'networkidle' });
     await clickButton(editor, 'Rebalance', 'gg-events');
     assert.equal((await placements()).find(item => item.title === 'Unscheduled objective event')?.day, pinDate);
-    await editor.setViewport({ width: 390, height: 844 });
+    await editor.setViewportSize({ width: 390, height: 844 });
     assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await editor.screenshot({ path: join(artifacts, 'balanced-events-mobile.png'), fullPage: true });
-    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
     await clickButton(editor, 'List', 'gg-events');
     await editor.waitForSelector('.event-list-group[data-group="active"]');
     assert.ok(await editor.$('.event-list-group[data-group="completed"]'));
@@ -708,13 +708,13 @@ try {
     await editor.screenshot({ path: join(artifacts, 'event-groups-completed-desktop.png'), fullPage: true });
     await clickButton(editor, 'Show all events', 'gg-events');
     await clickButton(editor, 'Calendar', 'gg-events');
-    await editor.select('[aria-label="Filter events by game"]', 'hsr');
+    await editor.selectOption('[aria-label="Filter events by game"]', 'hsr');
     assert.equal(await editor.$eval('[aria-label="Filter events by game"]', element => (element as HTMLSelectElement).value), 'hsr');
     assert.ok(await editor.$('gg-workspace-sidebar a[href="/events"].active'));
-    await editor.setViewport({ width: 390, height: 844 });
+    await editor.setViewportSize({ width: 390, height: 844 });
     assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await editor.screenshot({ path: join(artifacts, 'global-events-mobile.png'), fullPage: true });
-    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
     const afterBalance = await repository.read('genshin');
     assert.equal((await update(editorToken, afterBalance.revision, beforeBalance.entries)).status, 200);
     console.log('PASS balanced calendar keeps assignments stable, preserves manual pins after reload, and confirms required-objective completion without changing optional objectives.');
@@ -733,7 +733,7 @@ try {
         ['/games/genshin/events', 'gg-events'],
         ['/games/genshin/achievements', 'gg-achievements'],
     ]) {
-        await editor.goto(origin + route, { waitUntil: 'networkidle0' });
+        await editor.goto(origin + route, { waitUntil: 'networkidle' });
         await editor.waitForSelector(selector!);
     }
     console.log('PASS global and game feature pages load through their existing routes.');
@@ -743,7 +743,7 @@ try {
     const inventoryCharacters: CatalogEntry[] = Array.from({ length: 30 }, (_, index) => ({ ...baseEntry, id: `inventory-character-${index}`, kind: 'characters', name: `Inventory Character ${String(index + 1).padStart(2, '0')}`, rarity: 5,
         characterDefinition: { ...emptyCharacterDefinition(), weaponType: 'Sword', damageType: 'Physical', headshot: image.url, skills:[{id:'attack',name:'Configured attack',description:'Synthetic progression fixture',maxLevel:5}],guides:[{title:'Fixture build guide',url:'https://example.com/build-guide'}] } }));
     await repository.write('genshin', [...beforeInventory.entries, ...inventoryCharacters], beforeInventory.revision, inventoryRules);
-    await player.goto(origin + '/games/genshin/characters', { waitUntil: 'networkidle0' });
+    await player.goto(origin + '/games/genshin/characters', { waitUntil: 'networkidle' });
     await player.waitForSelector('gg-characters h1'); assert.equal(await player.$('gg-characters .character-manage'), null);
     await player.$$eval('.collection-tabs button', buttons => (buttons[1] as HTMLButtonElement).click());
     await player.waitForSelector('gg-character-card .character-ownership');
@@ -754,7 +754,7 @@ try {
     assert.equal(await player.$('gg-characters [role="dialog"]'), null);
     const inventoryProgress = await (await api('/api/me/progress', playerToken)).json() as { revision: number; state: Record<string, unknown> };
     assert.equal((await api('/api/me/progress', playerToken, 'PATCH', { revision: inventoryProgress.revision, changes: { 'genshin/inventory-character-0': { completed: false, quantity: 0, target: 0, characterCollection: { ...emptyCharacterCollection(), level: 60, target: { level: 100, gear: {}, progression: {} } } } } })).status, 200);
-    await player.reload({ waitUntil: 'networkidle0' }); await player.waitForSelector('gg-character-card');
+    await player.reload({ waitUntil: 'networkidle' }); await player.waitForSelector('gg-character-card');
     assert.ok(await player.$eval('gg-character-card', card => card.textContent?.includes('Lv. 60') && card.textContent.includes('Target 100')));
     await player.click('gg-character-card .character-card');
     await player.waitForSelector('gg-character-details .details-layout');
@@ -774,21 +774,21 @@ try {
     await player.waitForFunction(() => document.querySelector('gg-character-details')?.textContent?.includes('Reopen Goal'));
     await player.click('gg-character-details .details-favorite');
     await player.screenshot({path:join(artifacts,'character-details-desktop.png')});
-    await player.setViewport({width:390,height:844});
+    await player.setViewportSize({width:390,height:844});
     assert.equal(await player.$eval('gg-character-details .modal',modal => modal.scrollWidth <= modal.clientWidth + 1),true);
     await player.screenshot({path:join(artifacts,'character-details-mobile.png')});
     const saveDetails = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
     await clickButton(player,'Save development plan','gg-character-details');assert.equal((await saveDetails).status(),200);
     await player.waitForFunction(() => document.querySelector('gg-character-details .details-footer')?.textContent?.includes('Saved progression'));
-    await clickButton(player,'Close','gg-character-details');await player.waitForSelector('gg-character-details',{hidden:true});
-    await player.reload({waitUntil:'networkidle0'});await player.waitForSelector('gg-character-card');
+    await clickButton(player,'Close','gg-character-details');await player.waitForSelector('gg-character-details',{state:'hidden'});
+    await player.reload({waitUntil:'networkidle'});await player.waitForSelector('gg-character-card');
     await player.click('gg-character-card .character-card');await player.waitForSelector('gg-character-details .details-layout');
     assert.equal(await player.$eval('gg-character-details [aria-label="Current Character level"]',field => (field as HTMLInputElement).value),'60');
     assert.equal(await player.$eval('gg-character-details [aria-label="Target Character level"]',field => (field as HTMLInputElement).value),'80');
     assert.equal(await player.$eval('gg-character-details .details-favorite',button => button.getAttribute('aria-pressed')),'true');
     assert.ok(await player.$eval('gg-character-details',dialog => dialog.textContent?.includes('Reopen Goal')));
-    await clickButton(player,'Close','gg-character-details');await player.waitForSelector('gg-character-details',{hidden:true});
-    await player.setViewport({width:1440,height:1000});
+    await clickButton(player,'Close','gg-character-details');await player.waitForSelector('gg-character-details',{state:'hidden'});
+    await player.setViewportSize({width:1440,height:1000});
     console.log('PASS configurable character details: tabs and resources preserve drafts, goal completion stays separate from current level, favorites and targets survive reload, mobile layout fits.');
     await player.$$eval('.collection-tabs button', buttons => (buttons[1] as HTMLButtonElement).click());
     await player.waitForFunction(() => document.querySelectorAll('gg-character-card').length === 24);
@@ -802,13 +802,13 @@ try {
     await player.waitForFunction(() => document.querySelectorAll('gg-character-card').length === 12);
     await player.click('[aria-label="Next character page"]');
     await player.waitForFunction(() => document.querySelector('.character-pagination')?.textContent?.replace(/\s/g, '').includes('Showing13–24of30characters'));
-    await player.setViewport({ width: 390, height: 900 });
+    await player.setViewportSize({ width: 390, height: 900 });
     await player.evaluate(() => window.scrollTo(0, 0));
     assert.equal(await player.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.equal(await player.$$eval('gg-character-card .character-portrait img', images => images.every(image => { const box = image.getBoundingClientRect(); return Math.abs(box.width - box.height) < 1; })), true);
     await player.screenshot({ path: join(artifacts, 'character-inventory-mobile.png') });
-    await player.setViewport({ width: 1440, height: 1000 });
-    await editor.goto(origin + '/games/genshin/characters', { waitUntil: 'networkidle0' });
+    await player.setViewportSize({ width: 1440, height: 1000 });
+    await editor.goto(origin + '/games/genshin/characters', { waitUntil: 'networkidle' });
     await editor.waitForSelector('.character-manage');
     assert.equal(await editor.$$('gg-character-card').then(cards => cards.length), 0, 'Character ownership is isolated per account');
     await editor.click('.character-manage summary');
@@ -825,15 +825,15 @@ try {
     await editor.waitForSelector('gg-game-rules-editor .rules-row');
     await editor.click('gg-game-rules-editor .rules-row summary');
     await editor.screenshot({path: join(artifacts, 'character-rules-desktop.png')});
-    await editor.setViewport({width: 390, height: 844});
+    await editor.setViewportSize({width: 390, height: 844});
     assert.equal(await editor.$eval('gg-game-rules-editor .modal', modal => modal.scrollWidth <= modal.clientWidth + 1), true);
     await editor.screenshot({path: join(artifacts, 'character-rules-mobile.png')});
     await clickButton(editor, 'Cancel', 'gg-game-rules-editor');
     await editor.waitForSelector('gg-game-rules-editor .discard-prompt');
     await clickButton(editor, 'Discard changes', 'gg-game-rules-editor');
-    await editor.waitForSelector('gg-game-rules-editor', {hidden: true});
+    await editor.waitForSelector('gg-game-rules-editor', { state: 'hidden' });
     assert.equal((await repository.read('genshin')).characterRules?.attributes, globalThis.undefined, 'Cancelled rules remain local');
-    await editor.setViewport({width: 1440, height: 1000});
+    await editor.setViewportSize({width: 1440, height: 1000});
     await editor.click('.character-manage summary');
     await clickButton(editor, 'Game rules', 'gg-characters');
     await editor.waitForSelector('gg-game-rules-editor textarea');
@@ -843,14 +843,14 @@ try {
     await editor.keyboard.press('Tab');
     await editor.waitForFunction(() => (document.querySelector('gg-game-rules-editor textarea') as HTMLTextAreaElement)?.value === 'Browser-tested shared rules');
     await clickButton(editor, 'Save Rules', 'gg-game-rules-editor');
-    await editor.waitForSelector('gg-game-rules-editor', {hidden: true});
+    await editor.waitForSelector('gg-game-rules-editor', { state: 'hidden' });
     assert.equal((await repository.read('genshin')).characterRules?.description, 'Browser-tested shared rules');
-    await editor.reload({waitUntil: 'networkidle0'});
+    await editor.reload({waitUntil: 'networkidle'});
     await editor.click('.character-manage summary'); await clickButton(editor, 'Game rules', 'gg-characters');
     await editor.waitForSelector('gg-game-rules-editor textarea');
     assert.equal(await editor.$eval('gg-game-rules-editor textarea', field => (field as HTMLTextAreaElement).value), 'Browser-tested shared rules');
     await clickButton(editor, 'Cancel', 'gg-game-rules-editor');
-    await editor.waitForSelector('gg-game-rules-editor', {hidden: true});
+    await editor.waitForSelector('gg-game-rules-editor', { state: 'hidden' });
     console.log('PASS shared game rules editor: Story Guide shell, inline attributes, responsive layout, dirty cancellation and persisted rules after reload.');
     const beforeEquipment = await repository.read('genshin');
     const equipmentRules:CharacterRules = {...beforeEquipment.characterRules!,equipmentSlots:[{id:'weapon',label:'Weapon',system:'weapon',allowedTypes:['sword'],limit:1}]};
@@ -861,22 +861,22 @@ try {
     await repository.write('genshin',[...beforeEquipment.entries,...equipmentCatalog],beforeEquipment.revision,equipmentRules);
     const beforeCopies = await (await api('/api/me/progress',playerToken)).json() as {revision:number};
     assert.equal((await api('/api/me/progress',playerToken,'PATCH',{revision:beforeCopies.revision,changes:{'genshin/e2e-ore':{completed:false,quantity:3,target:0},'genshin/e2e-sword':{completed:false,quantity:1,target:0}}})).status,200);
-    await player.goto(origin + '/games/genshin/characters',{waitUntil:'networkidle0'});await player.waitForSelector('gg-character-card');
+    await player.goto(origin + '/games/genshin/characters',{waitUntil:'networkidle'});await player.waitForSelector('gg-character-card');
     await player.click('gg-character-card .character-card');await player.waitForSelector('gg-character-details .details-tabs');
     await clickButton(player,'Weapon','gg-character-details');await player.waitForSelector('.details-equipment-selector select');
-    await player.select('.details-equipment-selector select','new:e2e-sword');
+    await player.selectOption('.details-equipment-selector select','new:e2e-sword');
     await player.waitForSelector('gg-character-details [aria-label="Target Weapon level"]');
     await player.$eval('gg-character-details [aria-label="Target Weapon level"]',field => {const input = field as HTMLInputElement;input.value = '2';input.dispatchEvent(new Event('input',{bubbles:true}));});
     await player.waitForFunction(() => document.querySelector('gg-character-details .details-material-grid')?.textContent?.includes('Fixture ore'));
     const saveEquipment = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
     await clickButton(player,'Save development plan','gg-character-details');assert.equal((await saveEquipment).status(),200);
     await player.waitForFunction(() => document.querySelector('gg-character-details .details-footer')?.textContent?.includes('Saved progression'));
-    await player.reload({waitUntil:'networkidle0'});await player.waitForSelector('gg-character-card');await player.click('gg-character-card .character-card');
+    await player.reload({waitUntil:'networkidle'});await player.waitForSelector('gg-character-card');await player.click('gg-character-card .character-card');
     await player.waitForSelector('gg-character-details .details-tabs');await clickButton(player,'Weapon','gg-character-details');await player.waitForSelector('gg-character-details [aria-label="Target Weapon level"]');
     assert.equal(await player.$eval('gg-character-details [aria-label="Current Weapon level"]',field => (field as HTMLInputElement).value),'1');
     assert.equal(await player.$eval('gg-character-details [aria-label="Target Weapon level"]',field => (field as HTMLInputElement).value),'2');
     await player.screenshot({path:join(artifacts,'character-details-equipment.png')});
-    await player.select('.details-equipment-selector select','');
+    await player.selectOption('.details-equipment-selector select','');
     const unequip = player.waitForResponse(response => response.url().endsWith('/api/me/progress') && response.request().method() === 'PATCH');
     await clickButton(player,'Save development plan','gg-character-details');assert.equal((await unequip).status(),200);
     const copies = await (await api('/api/me/progress',playerToken)).json() as {state:Record<string,{equipmentInstances?:{target?:{level:number}}[]}>};
@@ -888,7 +888,7 @@ try {
     await collection.updateOne({name:'Genshin Impact'},{$set:{characterRules:beforeInventory.characterRules ?? inventoryRules}});
     await repository.write('genshin', beforeInventory.entries, afterInventory.revision, beforeInventory.characterRules);
     if (!beforeInventory.characterRules) {await collection.updateOne({ name: 'Genshin Impact' }, { $unset: { characterRules: '' } });}
-    await editor.goto(origin + '/games/genshin/achievements', { waitUntil: 'networkidle0' });
+    await editor.goto(origin + '/games/genshin/achievements', { waitUntil: 'networkidle' });
     console.log('PASS reusable character inventory: catalog ownership, account persistence/isolation, current and target levels, grid/list, pagination, square images and mobile layout.');
 
     const previousRoute = editor.url();
@@ -917,29 +917,29 @@ try {
     await editor.waitForFunction(() => location.pathname === '/games/hsr/dashboard');
     await editor.waitForSelector('gg-workspace-sidebar a[href="/games/hsr/story"]');
     await editor.screenshot({ path: join(artifacts, 'sidebar-workspace.png') });
-    await editor.reload({ waitUntil: 'networkidle0' });
+    await editor.reload({ waitUntil: 'networkidle' });
     await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
     await editor.click('gg-workspace-sidebar .active-game-selector');
     await editor.waitForSelector('[aria-label="Remove Honkai: Star Rail from favorites"]');
     await editor.screenshot({ path: join(artifacts, 'sidebar-game-list.png') });
     await editor.keyboard.press('Escape');
 
-    await editor.setViewport({ width: 390, height: 844 });
+    await editor.setViewportSize({ width: 390, height: 844 });
     await editor.keyboard.down('Control');
     await editor.keyboard.press('k');
     await editor.keyboard.up('Control');
-    await editor.waitForSelector('aside.open gg-workspace-sidebar input[type=search]', { visible: true });
+    await editor.waitForSelector('aside.open gg-workspace-sidebar input[type=search]', { state: 'visible' });
     await editor.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Search games');
     await editor.screenshot({ path: join(artifacts, 'sidebar-mobile.png') });
     await editor.keyboard.press('Escape');
-    await editor.setViewport({ width: 1440, height: 1000 });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
     console.log('PASS two-mode sidebar: route preservation, search, favorites persistence, game switching and mobile keyboard access.');
 
     const customId = 'e2e-custom-rpg';
     assert.equal((await api('/api/games/registry')).status, 401);
     assert.equal((await api('/api/games/registry', playerToken)).status, 403);
     assert.equal((await api('/api/games', playerToken, 'POST', defaultGameOverview(customId))).status, 403);
-    await guest.reload({ waitUntil: 'networkidle0' });
+    await guest.reload({ waitUntil: 'networkidle' });
     await guest.click('gg-workspace-sidebar .active-game-selector');
     await guest.waitForSelector('gg-workspace-sidebar #game-selection');
     assert.equal(await guest.$('.game-management-actions'), null);
@@ -963,8 +963,8 @@ try {
     editor.on('request', request => {if (request.url().includes(`/api/games/${customId}/images`) && request.method() === 'POST') {draftUploads++;}});
     const draftFiles = await editor.$$('gg-game-manager input[type=file]');
     assert.equal(draftFiles.length, 2);
-    await draftFiles[0].uploadFile(imagePath);
-    await draftFiles[1].uploadFile(imagePath);
+    await draftFiles[0].setInputFiles(imagePath);
+    await draftFiles[1].setInputFiles(imagePath);
     await editor.waitForFunction(() => document.querySelectorAll('gg-game-manager .image-preview[src^="blob:"]').length === 2);
     assert.equal(draftUploads, 0, 'Draft images must preview without uploading before creation.');
     await clickButton(editor, 'Advanced', 'gg-game-manager');
@@ -981,11 +981,11 @@ try {
     assert.equal(createdOverview.color, 'rgba(51, 153, 255, 1)');
     assert.ok(createdOverview.icon && createdOverview.banner);
     await editor.click('[aria-label="Close game manager"]');
-    await editor.waitForSelector('gg-game-manager', { hidden: true });
+    await editor.waitForSelector('gg-game-manager', { state: 'hidden' });
     const selectCustom = async () => {
         await editor.waitForFunction(() => [...document.querySelectorAll('gg-workspace-sidebar .game-choice')].some(button => button.textContent?.includes('E2E')));
         await editor.$$eval('gg-workspace-sidebar .game-choice', buttons => (buttons.find(button => button.textContent?.includes('E2E')) as HTMLButtonElement).click());
-        await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, {}, customId);
+        await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, customId, {});
         await editor.waitForSelector('gg-dashboard .events-panel');
     };
     await selectCustom();
@@ -1001,8 +1001,8 @@ try {
     assert.equal((await api('/api/me/progress', editorToken, 'PATCH', { revision: customProgress.revision, changes: {
         [`${customId}/custom-event`]: { completed: true, quantity: 0, target: 0 },
     } })).status, 200);
-    await editor.goto(origin + `/games/${customId}/story`, { waitUntil: 'networkidle0' });
-    await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, {}, customId);
+    await editor.goto(origin + `/games/${customId}/story`, { waitUntil: 'networkidle' });
+    await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, customId, {});
     await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
     await editor.click('gg-workspace-sidebar .active-game-selector');
     await editor.waitForSelector('[aria-label="Edit E2E Custom RPG overview"]');
@@ -1012,7 +1012,7 @@ try {
     const customUpload = editor.waitForResponse(response => response.url().includes(`/api/games/${customId}/images`) && response.request().method() === 'POST');
     const customIcon = await editor.$('gg-game-manager input[type=file]');
     assert.ok(customIcon);
-    await customIcon.uploadFile(imagePath);
+    await customIcon.setInputFiles(imagePath);
     await editor.waitForSelector('gg-game-manager [data-game-field=icon] .image-preview[src^="blob:"]');
     await fillGame('game-color', 'url(https://example.com/invalid)');
     assert.equal(await editor.$$eval('gg-game-manager button', buttons => (buttons.find(button => button.textContent?.trim() === 'Save Changes') as HTMLButtonElement).disabled), true);
@@ -1049,7 +1049,7 @@ try {
     await clickButton(editor, 'Restore Game', 'gg-game-manager');
     await editor.waitForSelector('gg-game-manager .game-registry-list');
     await editor.click('[aria-label="Close game manager"]');
-    await editor.waitForSelector('gg-game-manager', { hidden: true });
+    await editor.waitForSelector('gg-game-manager', { state: 'hidden' });
     await selectCustom();
     await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
     const restoredGame = await repository.read(customId);
@@ -1060,7 +1060,7 @@ try {
 
     await editor.click('[popovertarget=profile-menu]');
     await Promise.all([
-        editor.waitForNavigation({ waitUntil: 'networkidle0' }),
+        editor.waitForNavigation({ waitUntil: 'networkidle' }),
         clickButton(editor, 'Sign out', 'gg-account-menu'),
     ]);
     await openStory(editor);
@@ -1075,13 +1075,13 @@ try {
     await expired.evaluate(progress => { localStorage.setItem('gg-player-v1', progress); localStorage.setItem('e2e-preserved-data', 'keep'); }, preservedProgress);
     let refreshAttempts = 0;
     expired.on('request', request => {if (new URL(request.url()).pathname === '/oauth/token' && request.method() === 'POST') {refreshAttempts++;}});
-    await expired.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle0' });
+    await expired.goto(origin + '/games/genshin/story', { waitUntil: 'networkidle' });
     await expired.waitForFunction(() => document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
     // The SDK swallows its initial checkSession error; the first application request then reports it.
     assert.equal(refreshAttempts, 2, 'Only SDK startup and the first application request should attempt the invalid token.');
     await expired.click('gg-workspace-sidebar a[href="/games"]');
     await expired.waitForFunction(() => location.pathname === '/games' && document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
-    await expired.waitForNetworkIdle({ idleTime: 300, timeout: 5000 });
+    await expired.waitForLoadState('networkidle', { timeout: 5000 });
     assert.equal(refreshAttempts, 2, 'Navigating after recovery must not retry the invalid token.');
     assert.equal(await expired.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('@@auth0spajs@@'))), false);
     assert.equal(await expired.evaluate(() => localStorage.getItem('gg-player-v1')), preservedProgress);
@@ -1095,6 +1095,13 @@ try {
     console.log('PASS SDK logout clears browser credentials; issued bearer tokens are not globally revoked.');
     console.log('Browser integration checks passed.');
 } catch (error) {
+    for (const page of pages.filter(page => !page.isClosed())) {
+        console.error('Browser layout at failure:', await page.evaluate(() => ({
+            path: location.pathname, scrollY, viewport: innerHeight,
+            headerBottom: document.querySelector('.story-header-expanded')?.getBoundingClientRect().bottom,
+            toolbar: document.querySelector('.compact-story-toolbar')?.className,
+        })).catch(() => null));
+    }
     await mkdir(artifacts, { recursive: true });
     for (const [index, page] of pages.entries()) {
         if (!page.isClosed()) await page.screenshot({ path: join(artifacts, `failure-${index}.png`), fullPage: true }).catch(() => {});

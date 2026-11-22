@@ -1,5 +1,79 @@
 # Todoist project: Game Guides - Scheduled Data Parsers
 
+## Monday runner implementation
+
+The shared runner covers all eight configured games and excludes Final Fantasy XIV. Run it once each Monday; predictable daily, weekly and monthly activities are generated through two calendar months. Dynamic events use published dates only. Unknown future patches and irregular endgame cycles are not extrapolated.
+
+```powershell
+npx playwright install chromium
+npx puppeteer browsers install chrome
+npm run parser:preview
+npm run parser:preview -- --headed
+npm run parser:preview -- --game=genshin,hsr --at=2026-11-21T18:00:00Z
+npm run parser:weekly
+```
+
+Preview does not instantiate MongoDB or download images. Inspect `tmp/parser-sync/report.json`: it includes version metadata, every generated event, per-source errors and an overall success flag. `parser:weekly` writes using `DB_CONN_STRING`, `DB_NAME` and `DB_COLLECTION` from the environment or the repository `.env`. Use the existing database backup process before the first write.
+
+Browser scraping pauses a random 10–30 seconds between uncached page visits and waits another 10 seconds after navigation before inspecting or parsing the page. The first visit has only the post-navigation wait; cache hits do not navigate or wait. These waits apply to failures too. A later successful page navigation during the wait can replace an initial 403 response. Requests to JSON feeds retain their separate bounded retry behavior.
+
+HTTP failures now include the final page title and a short visible-text excerpt. HTML and screenshots are saved under `browser-errors` beside the JSON report, making a Cloudflare verification page distinguishable from a missing article. The additional waits increase the scheduled job's runtime; keep overlap protection enabled.
+
+Headed mode (`--headed`, which sets `headless: false`) improves access to Endfield and IOP Wiki in the local checks. The headed preview retrieved Endfield's version and nine dated events, plus GF2's version, four events and four banners. Missing date ranges still produce an incomplete report. Set the process environment variable `PARSER_HEADLESS=false` to retain headed mode across scheduled runs; use `--headless` to override it explicitly. The CLI default remains headless unless the environment or a flag changes it. This setting is read from the process environment, not the database `.env` loader.
+
+The parser CLI defaults to the Chrome build provisioned by Puppeteer, with Playwright controlling navigation and extraction. In the comparison, headed Puppeteer reached the Genshin version article with HTTP 200 after a 10-second wait. Playwright also reached it with HTTP 200 using the same Chrome 153 executable, while Playwright's bundled Chromium remained on Cloudflare's verification page. Use `--browser=chromium` to select Playwright's bundled browser, or set `PARSER_BROWSER_EXECUTABLE` to an explicit executable path. Browser fixtures and application E2E tests continue to use Playwright's bundled Chromium. The parser Docker image installs both browser builds.
+
+The subsequent headed Chrome dry run loaded all three Genshin sources: version 7.2, seven banners and 17 events. It still returned an incomplete status because 16 event rows lacked valid date ranges; Cloudflare was no longer the failure in that run. The other Fandom configurations still need the same live verification with the selected Chrome build.
+
+The parser Docker image defaults to `PARSER_HEADLESS=false` and launches commands through Xvfb, a virtual display for Linux. This permits headed Chromium on the NAS without a physical monitor, remote desktop or published display port. Its Docker build and headed behavior still need verification on the NAS itself.
+
+The runner preserves stored events and user progress, deduplicates by title and dates, continues other games after a source fails, and returns a nonzero exit status for incomplete extraction. Successful sources and predictable recurrences can still be imported on a partially failed run. It does not clear expired records. A lock prevents overlapping runs. After a crash, inspect the PID in `projects/data-parser/.weekly-sync.lock` before removing that file; container runs place it in `/reports/weekly-sync.lock` instead.
+
+### Live source verification
+
+On November 21, 2026, read-only previews confirmed FGO's US App Store version, GF2's official Darkwinter Steam update feed, and NTE's released version and 16 dated events. Headless wiki requests returned HTTP 403; rerunning headed retrieved Endfield's version and nine dated events, plus GF2 event data. Fandom's 403 responses contained Cloudflare verification pages. The browser-build comparison above recovered access to the Genshin version article. Endfield also lists events with only a release date; their end dates remain unknown and are reported rather than invented. NTE's complete configured source preview passed after excluding maintenance notices and parsing the contest submission window. **Complete live dynamic-event coverage is not yet verified. Keep the scheduled job disabled until its preview succeeds on the NAS and the dates have been reviewed.**
+
+Default recurrence profiles are English/Americas, with FGO US and GF2 EN. Review the fixed server offsets and reset hours in `projects/data-parser/src/sync/game-profiles.ts` for your account region. Stored dates are inclusive server-calendar days, matching the existing UI; they do not represent exact reset timestamps in every viewer's timezone. A current cycle may start before today, and its end can extend beyond the two-month horizon. Changing server region after importing creates different occurrences and needs a separate data review.
+
+Version sources are maintained in each game's configuration. NTE uses its official patch notices; GF2's fallback version is the publisher's update title rather than a fabricated numeric version. Published event sources include banners and dated endgame tables where available. Future TBA dates, permanent content without an end date, and unannounced cycles are omitted and reported rather than assigned invented deadlines. Existing legacy parser classes remain available; the weekly CLI uses the new shared Playwright pipeline.
+
+### Synology setup
+
+1. Build from the repository root on the NAS, or transfer a locally built image compatible with its CPU:
+
+   ```sh
+   docker build -f projects/data-parser/Dockerfile -t game-guides-parser:local .
+   ```
+
+2. Create `/volume1/docker/game-guides/parser-reports` and a restricted environment file, for example `/volume1/docker/game-guides/parser.env`, containing only `DB_CONN_STRING`, `DB_NAME` and `DB_COLLECTION`. The MongoDB URL must use the NAS/container-accessible hostname and published port, or the database service name on a shared Docker network. Container `localhost` refers to the parser itself. Grant the report directory write access to the container's `node` user (UID 1000); keep credentials readable only by the task owner.
+
+3. Test without database writes:
+
+   ```sh
+   docker run --rm --name game-guides-parser-preview \
+     --mount type=bind,src=/volume1/docker/game-guides/parser-reports,dst=/reports \
+     game-guides-parser:local npm run parser:preview -- --report=/reports/preview.json
+   ```
+
+4. After reviewing a successful preview, test the write command below manually. In DSM **Control Panel → Task Scheduler → Create → Scheduled Task → User-defined script**, use the account allowed to run Container Manager, choose **weekly, Monday, 06:00**, and enable failure notifications. Use the NAS timezone deliberately. No inbound port or internet hosting configuration is needed.
+
+   ```sh
+   docker run --rm --name game-guides-parser-weekly \
+     --env-file /volume1/docker/game-guides/parser.env \
+     --mount type=bind,src=/volume1/docker/game-guides/parser-reports,dst=/reports \
+     game-guides-parser:local
+   ```
+
+5. Inspect `/volume1/docker/game-guides/parser-reports/latest.json` and DSM's execution log after each run. Keep the Docker command's exit code intact. Rebuild the image after parser/configuration updates. The Dockerfile is supplied for NAS installation; it has not been built in this Windows workspace.
+
+The equivalent cron expression is `0 6 * * 1`. Configure either DSM or cron, never both. No job has been installed on the NAS by these repository changes.
+
+Browser installation in CI uses `npx playwright install --with-deps chromium`, following the [Playwright CI instructions](https://playwright.dev/docs/ci). `npm run parser:browser-test` checks local HTML fixtures with the real browser; `npm run ui:e2e` uses Playwright for the isolated application tests. Live source scraping stays outside required CI so source outages cannot masquerade as test regressions. Puppeteer remains a dependency for the legacy parser implementations.
+
+## Original rollout checklist
+
+The checklist below records the earlier rollout plan; the runner implementation above supersedes its descriptions of missing CLI support. Source access and NAS verification gates still apply.
+
 Scope: schedule one-shot parser jobs on the Synology NAS using DSM Task Scheduler (or one deliberately chosen cron installation). This extends the LAN-only, single-production-environment deployment plan. It creates tasks only: no cron jobs, scheduler settings or parser code are changed.
 
 Import [parser-scheduling-todoist.csv](parser-scheduling-todoist.csv) into a new Todoist project using **Import & export -> Import from CSV**. Tasks are grouped in implementation order. Gate tasks use priority 2, other tasks priority 4; no dates or assignees are invented. Gates are manual checks rather than automatic Todoist dependencies.

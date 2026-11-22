@@ -227,7 +227,7 @@ describe("DataService manages database connections and stored game data", () => 
             const source = createEvent('Festival');
             mockFindOne.mockResolvedValueOnce(createRoot({ events: [{ kind: 'events', id: 'shared-event', name: source.title, startDate: source.startDate, endDate: source.endDate }] }));
             await service.addRecords(documentName, 'events', [source]);
-            expectAppend('events', []);
+            expect(mockUpdateOne).not.toHaveBeenCalled();
         });
         it("preserves existing records and appends only unseen titles in input order", async () => {
             expect.hasAssertions();
@@ -284,7 +284,7 @@ describe("DataService manages database connections and stored game data", () => 
             const existing = { title: "Existing", value: 1 };
             mockFindOne.mockResolvedValueOnce(createRoot({ records: [existing] }));
             await service.addRecords(documentName, "records", records);
-            expectAppend("records", []);
+            expect(mockUpdateOne).not.toHaveBeenCalled();
         });
     });
 
@@ -298,7 +298,7 @@ describe("DataService manages database connections and stored game data", () => 
             await expect(service.updateVersion(documentName, version)).resolves.toBe(true);
             expect(mockInsertOne).not.toHaveBeenCalled();
             expect(mockUpdateOne).toHaveBeenCalledTimes(1);
-            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version } });
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version }, $inc: { _revision: 1 } });
         });
 
         it("creates a missing root and stores the first version", async () => {
@@ -320,14 +320,23 @@ describe("DataService manages database connections and stored game data", () => 
                 _schemaVersion: 2,
                 _revision: 0,
             }));
-            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version } });
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, { $set: { version }, $inc: { _revision: 1 } });
         });
 
         it("skips writes when the version title is unchanged", async () => {
             expect.hasAssertions();
             mockFindOne.mockResolvedValueOnce(createRoot({ version }));
-            await expect(service.updateVersion(documentName, { ...version, url: "https://example.com/changed" })).resolves.toBe(false);
+            await expect(service.updateVersion(documentName, version)).resolves.toBe(false);
             expect(mockUpdateOne).not.toHaveBeenCalled();
+        });
+
+        it("updates corrected metadata without treating it as a new version", async () => {
+            const corrected = { ...version, url: "https://example.com/changed" };
+            mockFindOne.mockResolvedValueOnce(createRoot({ version }));
+            await expect(service.updateVersion(documentName, corrected)).resolves.toBe(false);
+            expect(mockUpdateOne).toHaveBeenCalledWith({ name: documentName }, {
+                $set: { version: corrected }, $inc: { _revision: 1 },
+            });
         });
     });
 

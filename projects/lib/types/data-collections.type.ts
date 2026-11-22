@@ -1,5 +1,6 @@
 import type * as mongoDB from "mongodb";
-import type { EventType } from '../enums/event-types.enum';
+
+import type { EventType } from "../enums/event-types.enum";
 
 export type RootDocument = {
     _id: mongoDB.ObjectId;
@@ -19,6 +20,7 @@ export type Event = {
 
 export type Version = {
     title: string;
-    releaseDate: string | Date | null;
+    versionNumber?: number;
+    releaseDate?: string | Date | null;
     url: string;
 };

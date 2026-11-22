@@ -148,7 +148,7 @@ describe('Story incomplete filter', () => {
         expect(root.querySelector<HTMLElement>('#outline-children-patch')?.inert).toBe(true);
         expect(root.querySelector<HTMLElement>('#outline-children-main')?.inert).toBe(false);
         expect(root.querySelectorAll('.outline-children.expanded')).toHaveLength(1);
-        expect(root.querySelector('.outline-group a[href="#story-content-world"]')).not.toBeNull();
+        expect(root.querySelector('.outline-group a[href$="#story-content-world"]')).not.toBeNull();
         expect(root.querySelector('#story-content-world')).not.toBeNull();
         const operator = root.querySelector('.outline-group[data-story-topic="character-information"] .outline-secondary');
         expect(operator?.textContent).toContain('character');
@@ -157,7 +157,7 @@ describe('Story incomplete filter', () => {
         expect(root.querySelector('.outline-group button')).toBeNull();
         expect(root.querySelectorAll('.outline-secondary').length).toBe(6);
         const contentOrder = [...root.querySelectorAll('.story-subsections [id^="story-content-"]')].map(element => '#' + element.id);
-        const navigationOrder = [...root.querySelectorAll('.story-outline a')].map(element => element.getAttribute('href'));
+        const navigationOrder = [...root.querySelectorAll<HTMLAnchorElement>('.story-outline a')].map(element => new URL(element.href).hash);
         expect(navigationOrder).toEqual(contentOrder);
         expect([...root.querySelectorAll('.outline-secondary')].every(link => link.querySelector('.outline-type-icon'))).toBe(true);
         expect(root.querySelectorAll('.outline-chapter-heading .outline-type-icon').length).toBe(2);
@@ -208,7 +208,7 @@ describe('Story incomplete filter', () => {
         expect(root.querySelector('.outline-chapter-heading a.active')).not.toBeNull();
         fixture.componentInstance.toggleOutline(first.id);
         fixture.detectChanges();
-        expect(root.querySelector('.outline-group a.active')?.getAttribute('href')).toBe('#story-content-second');
+        expect(root.querySelector('.outline-group a.active')?.getAttribute('href')).toBe('/genshin/story/mondstadt#story-content-second');
         expect(root.querySelector('.outline-group a.active')?.getAttribute('aria-current')).toBe('location');
         expect(root.querySelector('.outline-chapter-heading.active')).toBeNull();
         fixture.componentInstance.collapseOutline();
@@ -432,6 +432,100 @@ describe('Story tab persistence', () => {
         await new Promise<void>(resolve => { requestAnimationFrame(() => resolve()); });
         expect(target.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
         expect(fixture.componentInstance.positions.positions()['zzz']).toMatchObject({ entryId: 'chapter', rowId: 'quest' });
+    });
+
+    it('provides complete native link URLs before a click, preserving filters and the selected region', async () => {
+        const first = section('first');
+        const second = {...section('second', 'zzz', 1), name: 'Inazuma'};
+        const chapter: Entry = {...section('chapter'), kind: 'story', category: 'main-story', storySection: second.id};
+        const child: Entry = {...chapter, id: 'child', category: 'world-quests', order: 1};
+        localStorage.setItem('gg-story-tab-v1:zzz', second.id);
+        const {fixture} = setup([first, second, chapter, child]);
+        const route = TestBed.inject(ActivatedRoute);
+        (route.queryParamMap as BehaviorSubject<ReturnType<typeof convertToParamMap>>).next(convertToParamMap({
+            section: second.id, filter: ['a', 'b'],
+        }));
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const links = [...root.querySelectorAll<HTMLAnchorElement>('.story-outline a')];
+        expect(links.map(link => link.getAttribute('href'))).toEqual([
+            '/zzz/story/inazuma?filter=a&filter=b#story-content-chapter',
+            '/zzz/story/inazuma?filter=a&filter=b#story-content-child',
+        ]);
+        const nativeLink = links[0];
+        const contextMenu = new MouseEvent('contextmenu', {bubbles: true, cancelable: true, button: 2});
+        nativeLink.dispatchEvent(contextMenu);
+        expect(contextMenu.defaultPrevented).toBe(false);
+        const modified = new MouseEvent('click', {cancelable: true, ctrlKey: true});
+        fixture.componentInstance.openOutlineChapter(modified, chapter.id, true);
+        expect(modified.defaultPrevented).toBe(false);
+        expect(fixture.componentInstance.expandedOutline()).toBe('');
+    });
+
+    it('restores a natively opened link in a fresh component regardless of saved region', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({matches: true}));
+        const chapter: Entry = {...section('chapter'), kind: 'story', category: 'main-story', storySection: 'second'};
+        const child: Entry = {...chapter, id: 'child', category: 'world-quests', order: 1};
+        const {fixture, params, fragment} = setup([section('first'), section('second', 'zzz', 1), chapter, child]);
+        fixture.destroy();
+        localStorage.setItem('gg-story-tab-v1:zzz', 'first');
+        params.next(convertToParamMap({section: 'second'}));
+        fragment.next('story-content-child');
+        const opened = TestBed.createComponent(Story);
+        opened.componentRef.setInput('game', 'zzz');
+        opened.detectChanges();
+        const target = (opened.nativeElement as HTMLElement).querySelector<HTMLElement>('#story-content-child')!;
+        target.scrollIntoView = vi.fn();
+        await opened.whenStable();
+        await new Promise<void>(resolve => {requestAnimationFrame(() => resolve());});
+        expect(opened.componentInstance.active()?.id).toBe('second');
+        expect(opened.componentInstance.activeOutline()).toBe(target.id);
+        expect(opened.componentInstance.expandedOutline()).toBe('chapter');
+        expect(target.scrollIntoView).toHaveBeenCalledWith({block: 'start', behavior: 'instant'});
+    });
+
+    it('adds a shareable section URL and hashtag when clicking the story outline', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+        const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region' };
+        const child: Entry = { ...chapter, id: 'child', category: 'world-quests', order: 1 };
+        const {fixture} = setup([section('region'), chapter, child]);
+        const root = fixture.nativeElement as HTMLElement;
+        const target = root.querySelector<HTMLElement>('#story-content-child')!;
+        target.scrollIntoView = vi.fn();
+        const focus = vi.spyOn(target, 'focus');
+        const event = new MouseEvent('click', {cancelable: true});
+        fixture.componentInstance.jumpTo(event, target.id);
+        expect(event.defaultPrevented).toBe(true);
+        expect(target.scrollIntoView).toHaveBeenCalledWith({block: 'start', behavior: 'instant'});
+        expect(focus).toHaveBeenCalledWith({preventScroll: true});
+        expect(fixture.componentInstance.expandedOutline()).toBe('chapter');
+        expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/', 'zzz', 'story', 'region'], {
+            relativeTo: TestBed.inject(ActivatedRoute), queryParams: {section: null}, queryParamsHandling: 'merge', fragment: target.id,
+        });
+        await fixture.whenStable();
+        const modified = new MouseEvent('click', {ctrlKey: true, cancelable: true});
+        vi.mocked(TestBed.inject(Router).navigate).mockClear();
+        fixture.componentInstance.jumpTo(modified, target.id);
+        expect(modified.defaultPrevented).toBe(false);
+        expect(TestBed.inject(Router).navigate).not.toHaveBeenCalled();
+    });
+
+    it('restores a hashtag target and its expanded parent after returning through history', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+        const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region' };
+        const child: Entry = { ...chapter, id: 'child', category: 'world-quests', order: 1 };
+        const {fixture, fragment} = setup([section('region'), chapter, child]);
+        const target = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#story-content-child')!;
+        target.scrollIntoView = vi.fn();
+        for (let visit = 0; visit < 2; visit++) {
+            fragment.next(target.id); fixture.detectChanges(); await fixture.whenStable();
+            await new Promise<void>(resolve => {requestAnimationFrame(() => resolve());});
+            expect(fixture.componentInstance.activeOutline()).toBe(target.id);
+            expect(fixture.componentInstance.expandedOutline()).toBe('chapter');
+            fragment.next(null); fixture.detectChanges();
+            fixture.componentInstance.expandedOutline.set('');
+        }
+        expect(target.scrollIntoView).toHaveBeenCalledTimes(2);
     });
 
     it('remembers clicked tabs after recreation and keeps each game independent', () => {

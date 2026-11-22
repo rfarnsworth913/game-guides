@@ -1,4 +1,6 @@
 import { isFuture } from "date-fns";
+import fs from "fs";
+import https from "https";
 
 import * as puppeteer from "puppeteer";
 
@@ -19,6 +21,8 @@ export class AbstractDataParser {
         releaseDate: "",
         url: ""
     };
+
+    protected imageOutputPath = "./../../../guides-app/src/assets";
 
     // Seems to help with getting dynamic content
     protected readonly headless = false;
@@ -51,6 +55,31 @@ export class AbstractDataParser {
         await this.dataService.disconnect();
 
         Logger.info("=".repeat(logMessage.length));
+    }
+
+    /**
+     * Handles downloading an image from a URL to a specified destination.
+     *
+     * @param url         - The URL of the image to download.
+     * @param destination - The local file path to save the downloaded image.
+     * @returns           A promise that resolves to true if the image was downloaded successfully.
+     */
+    protected async downloadImage (url: string, destination: string): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            const file = fs.createWriteStream(destination);
+            file.on("error", reject);
+
+            https.get(url, (response) => {
+                response.on("error", reject);
+                response.pipe(file);
+                file.on("finish", () => {
+                    file.close();
+                    resolve(true);
+                });
+            }).on("error", (err) => {
+                fs.unlink(destination, () => reject(err));
+            });
+        });
     }
 
     // Parsers ----------------------------------------------------------------

@@ -51,6 +51,14 @@ export class StoryGuideHeader {
     private readonly regionId = computed(() => this.region()?.id);
     readonly imageUrl = storyImageUrl;
 
+    // A layout change can move the header from below to above the viewport without
+    // crossing an IntersectionObserver threshold. Recheck on actual scrolling too.
+    @HostListener('window:scroll')
+    updateCompactOnScroll(): void {
+        const expanded = this.expandedHeader()?.nativeElement;
+        if (expanded) { this.compact.set(expanded.getBoundingClientRect().bottom <= 0); }
+    }
+
     constructor() {
         effect(() => {
             this.regionId();

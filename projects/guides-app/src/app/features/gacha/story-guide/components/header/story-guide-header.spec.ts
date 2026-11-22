@@ -172,4 +172,16 @@ describe('Story guide header', () => {
         fixture.destroy();
         expect(disconnected).toHaveBeenCalledOnce();
     });
+    it('updates compact mode after a scroll jumps across a nonintersecting header', async () => {
+        const {fixture, header, root} = await setup();
+        const expanded = root.querySelector<HTMLElement>('.story-header-expanded')!;
+        const bounds = vi.spyOn(expanded, 'getBoundingClientRect');
+        bounds.mockReturnValue({bottom: -200} as DOMRect);
+        window.dispatchEvent(new Event('scroll'));
+        expect(header.compact()).toBe(true);
+        bounds.mockReturnValue({bottom: 200} as DOMRect);
+        window.dispatchEvent(new Event('scroll'));
+        expect(header.compact()).toBe(false);
+        fixture.destroy();
+    });
 });

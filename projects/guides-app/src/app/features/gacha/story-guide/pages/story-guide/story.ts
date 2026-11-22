@@ -6,7 +6,7 @@ import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, H
 import { of } from 'rxjs';
 import { StoryPositionStore } from "../../state/story-position.store";
 import { FormsModule } from '@angular/forms';
-import { NgTemplateOutlet } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
 import { Entry, GAMES, WorkspaceStore } from "../../../../../core/state/workspace.store";
 import { StoryGuideHeader } from '../../components/header/story-guide-header';
@@ -31,6 +31,7 @@ import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, prepareP
 export class Story {
     private readonly injector = inject(Injector);
     private readonly router = inject(Router);
+    private readonly location = inject(Location);
     private readonly route = inject(ActivatedRoute);
     private readonly queryParams = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
     private readonly routeParams = toSignal(this.route.paramMap, { initialValue: this.route.snapshot.paramMap });
@@ -233,6 +234,7 @@ export class Story {
         this.expandedOutline.update(current => current === id ? '' : id);
     }
     openOutlineChapter(event: Event, id: string, hasChildren: boolean): void {
+        if (event instanceof MouseEvent && (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) {return;}
         this.expandedOutline.set(hasChildren ? id : '');
         this.jumpTo(event, 'story-content-' + id);
     }
@@ -243,7 +245,15 @@ export class Story {
             .find(button => button.getAttribute('aria-controls') === 'outline-children-' + id);
         toggle?.focus({ preventScroll: true });
     }
-    readonly encodeAnchor = (id: string) => '#' + encodeURIComponent(id);
+    outlineHref(id: string): string {
+        const section = this.active();
+        const params = this.queryParams();
+        const queryParams = Object.fromEntries(params.keys.filter(key => key !== 'section').map(key => [key, params.getAll(key)]));
+        const url = this.router.createUrlTree(['/', this.game(), 'story', ...(section ? [this.sectionSlug(section)] : [])], {
+            queryParams, fragment: id,
+        });
+        return this.location.prepareExternalUrl(this.router.serializeUrl(url));
+    }
     hasTemplate(entry: Entry): boolean {
         return ['patch-overview', 'main-story', 'side-stories', 'world-quests', 'lore', 'character-information', 'events', 'endgame-activity', 'divider'].includes(entry.category);
     }
@@ -262,10 +272,11 @@ export class Story {
     }
 
     jumpTo(event: Event, id: string): void {
+        if (event instanceof MouseEvent && (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)) {return;}
         const target = document.getElementById(id);
-        if (!target) {return;}
+        if (!target || !this.host.nativeElement.contains(target)) {return;}
         event.preventDefault();
-        this.activeOutline.set(id);
+        this.selectOutlineTarget(target);
         this.rememberTarget(target);
         target.scrollIntoView({
             block: 'start',
@@ -274,12 +285,31 @@ export class Story {
                 : 'smooth',
         });
         target.focus({ preventScroll: true });
+        // Keep native link behavior for sharing and history, while retaining our sticky-header scroll offset.
+        this.resumedTarget = `${this.game()}/${this.active()?.id}/${id}`;
+        const section = this.active();
+        this.router.navigate(section ? ['/', this.game(), 'story', this.sectionSlug(section)] : [], {
+            relativeTo: this.route, queryParams: { section: null }, queryParamsHandling: 'merge', fragment: id,
+        })
+            .catch(() => {
+                this.resumedTarget = '';
+                this.store.error.set('Could not update the story link.');
+            });
+    }
+    private selectOutlineTarget(target: HTMLElement): void {
+        const entry = target.closest<HTMLElement>('[data-story-entry]');
+        if (!entry) {return;}
+        this.activeOutline.set(entry.id);
+        const chapter = this.outlineChapters().find(chapter => chapter.entry?.id === entry.dataset['storyEntry'] ||
+            chapter.children.some(child => child.id === entry.dataset['storyEntry']));
+        this.expandedOutline.set(chapter?.entry && chapter.children.length ? chapter.id : '');
     }
     private revealAndScroll(id: string, behavior: ScrollBehavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'): void {
         document.dispatchEvent(new CustomEvent('story-guide-reveal', { detail: id }));
         requestAnimationFrame(() => {
             const target = document.getElementById(id);
             if (!target || !this.host.nativeElement.contains(target)) {return;}
+            this.selectOutlineTarget(target);
             target.scrollIntoView({ block: 'start', behavior });
             target.focus({ preventScroll: true });
             this.rememberTarget(target);
@@ -366,9 +396,12 @@ export class Story {
             const fragment = this.fragment();
             const key = `${this.game()}/${this.active()?.id}/${fragment}`;
             this.subsections();
-            if (!fragment || !fragment.startsWith('story-') || key === this.resumedTarget) {return;}
+            if (!fragment || !fragment.startsWith('story-')) {this.resumedTarget = '';return;}
+            if (!this.active() || key === this.resumedTarget) {return;}
             this.incompleteOnly.set(false);
             afterNextRender(() => {
+                const target = document.getElementById(fragment);
+                if (!target || !this.host.nativeElement.contains(target)) {return;}
                 this.resumedTarget = key;
                 this.revealAndScroll(fragment, 'instant');
             }, { injector: this.injector });
