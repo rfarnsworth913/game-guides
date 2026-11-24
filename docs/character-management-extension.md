@@ -1,6 +1,6 @@
-# Character management extension: architecture increment
+# Character progression contracts and game rules
 
-This implements the specification's initial step: shared contracts, API conventions, and a configurable progression model validated against three different progression shapes. It does **not** claim completion of the later catalog UI, resource editor, build, equipment, or farming phases. Existing character management and Story Guide behavior remain available.
+This guide documents shared contracts, read APIs, configurable progression profiles and the Game Rules editor. See [Character management](character-management.md) for catalog/collection use and [Character Details](character-details.md) for personal progression, resources, equipment and material calculations.
 
 No production characters, numerical presets, or upgrade recipes were seeded. No live database migration was run. Game-specific fixtures in the tests use synthetic limits; they must not be copied into production as verified game data.
 
@@ -60,7 +60,7 @@ When profile definitions change, unchanged obsolete/new-track values remain stor
 
 Attribute definitions provide labels, text/number/boolean/single-select/multi-select types, display order, filterability, searchability, card/detail visibility, and optional required-value validation. Known attributes are validated against the registry. Safe unknown attributes are retained for fallback rendering.
 
-Resources have stable IDs, category, title, source kind, optional creator/language/tags/official status, and sort order. External resources accept HTTP(S) URLs without credentials. Internal resources resolve to an existing Story Guide record in the same game. Categories remain extensible. Editor resource controls and grouped public rendering are a following phase; the existing curated-guide UI remains operational.
+Resources have stable IDs, category, title, source kind, optional creator/language/tags/official status, and sort order. External resources accept HTTP(S) URLs without credentials. Internal resources resolve to an existing Story Guide record in the same game. Categories remain extensible. The [Character Details guide](character-details.md) documents their current presentation.
 
 ## Validation coverage
 
@@ -70,13 +70,9 @@ Resources have stable IDs, category, title, source kind, optional creator/langua
 - The same contract accepts all eight requested game identities without dedicated validators or unverified presets. Games not currently present in the registry can use the existing editor-managed game configuration; this increment does not automatically add them.
 - Public API filtering/pagination, feature gates, missing records, account/shared data separation, schema round trips, resource references, dependency validation through the real progress service, and unchanged historical values.
 
-## Following increments
+## Configuration boundaries
 
-1. Adopt verified attributes and profiles through the Game Rules editor. Review actual mechanics before assigning profiles; the editor does not install game-specific presets.
-2. Add dynamic catalog filters, collection favorites/planning views, categorized resources, and configuration-driven progression controls. Preserve unknown/retired values visibly.
-3. Extend profile assignment, ability/resource ordering, internal title lookup, and per-character overrides in the shared editor. Add keyboard and browser integration tests for those controls.
-4. Adopt verified configurations for the remaining games, including Neverness to Everness only when its mechanics and limits are confirmed.
-5. Add saved build/equipment references and connect explicit upgrade costs to the existing inventory/farming engine. Advanced optimization remains deferred.
+Review actual game mechanics before assigning attributes, profiles or upgrade recipes. The editor does not install verified game presets, and synthetic test fixtures must not become production defaults. Existing unknown/retired values must remain visible and preserved. Advanced optimization remains outside this contract.
 
 ## Character Game Rules editor
 

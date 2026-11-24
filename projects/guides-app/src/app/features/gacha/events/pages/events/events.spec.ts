@@ -442,6 +442,25 @@ describe('Event tracking', () => {
         restored.componentInstance.setDailyLimit(2); restored.detectChanges();
         expect(restored.componentInstance.balancePlan().dailyLimit).toBe(2);
     });
+    it('recalculates cached daily assignments made under the old server-reset date policy', () => {
+        const { fixture, store } = setup();
+        const component = fixture.componentInstance;
+        const now = new Date(2026, 9, 29, 12).getTime();
+        component.now.set(now);
+        store.entries.set([{ ...event, id: 'daily', eventType: 'daily', endDate: event.startDate, eventSchedule: { offsetMinutes: -300, resetHour: 4 } }]);
+        component.selectPeriod('today'); component.setBalance(true); fixture.detectChanges();
+        const key = 'gg-event-plan-v1:guest:genshin';
+        const cached = JSON.parse(localStorage.getItem(key)!) as { signature: string; plan: { assignments: Record<string, string> } };
+        const signature = JSON.parse(cached.signature) as Record<string, unknown>;
+        delete signature['datePolicy']; cached.signature = JSON.stringify(signature);
+        cached.plan.assignments['genshin/daily'] = '2026-10-30';
+        localStorage.setItem(key, JSON.stringify(cached)); fixture.destroy();
+        const restored = TestBed.createComponent(Events); restored.componentRef.setInput('game', 'genshin');
+        restored.componentInstance.now.set(now); restored.detectChanges();
+        expect(restored.componentInstance.balancePlan().assignments['genshin/daily']).toBe('2026-10-29');
+        expect(restored.componentInstance.filtered().map(entry => entry.id)).toEqual(['daily']);
+        expect(store.save).not.toHaveBeenCalled();
+    });
     it('pins from Backlog and row scheduling in List without narrowing the planning window to Today', () => {
         const { fixture, store, root } = setup();
         const component = fixture.componentInstance;
@@ -569,9 +588,9 @@ describe('Event calendar dates', () => {
         expect(monthDays(new Date(2026, 1, 1))).toHaveLength(42);
         expect(monthDays(new Date(2026, 1, 1))[0].getDay()).toBe(1);
     });
-    it('uses the full final day and distinguishes upcoming and ended events', () => {
+    it('ends date-only events at 23:59 and distinguishes upcoming and ended events', () => {
         const oneDay = { ...event, startDate: '2026-10-29', endDate: '2026-10-29' };
-        expect(eventTiming(oneDay, new Date(2026, 9, 29, 12).getTime())).toEqual({ label: 'Ends in 12h 0m', urgent: true });
+        expect(eventTiming(oneDay, new Date(2026, 9, 29, 12).getTime())).toEqual({ label: 'Ends in 11h 59m', urgent: true });
         expect(eventTiming(oneDay, new Date(2026, 9, 28).getTime()).label).toContain('Starts in');
         expect(eventTiming(oneDay, new Date(2026, 9, 30).getTime()).label).toBe('Ended');
     });

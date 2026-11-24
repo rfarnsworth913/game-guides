@@ -1,6 +1,6 @@
-# Character management v1
+# Character management
 
-The additive contract and progression-profile foundation is documented in [Character management extension](character-management-extension.md). The inventory UI now consumes its registries and progression profiles; advanced shared configuration/resource editors remain a following increment.
+Shared APIs, progression profiles and the Game Rules editor are documented in [Character progression contracts and game rules](character-management-extension.md). The inventory UI consumes these registries and profiles; [Character Details](character-details.md) covers personal progression, resources and equipment.
 
 Character story-guide profiles now belong to the shared character catalog as well. Story placements reference them by `characterId`; see [Shared character records and migration](shared-story-characters.md) for editing, tracking and backup behavior.
 
@@ -102,8 +102,6 @@ The existing API/state envelope preserves backward compatibility. `owned: false`
 - Guest data is imported only through the existing explicit account import. Existing account builds take precedence over guest builds rather than mixing equipment sets.
 - JSON backups include character definitions, collection data, and game character rules. Older backups without rules remain supported. Restoring rules/catalogs requires editor permission, as with other shared definitions.
 
-## Version-one scope
+## Related capabilities
 
-This provides collection CRUD, character details, curated guide links, and configurable game-level progression rules. Equipment is tracked by name, not through a separate shared equipment catalog. Progression tracks store ranks; this does not yet calculate ascension costs, farming material totals, equipment statistics/set bonuses, or game-specific combat formulas. New game mechanics can be represented by new slots/tracks initially, then extended with dedicated models as those features are implemented.
-
-Interaction references supplied for this work: [SEELIE](https://seelie.me/characters), [Genshin Center](https://genshin-center.com/planner), and [WuWa Tracker](https://wuwatracker.com/planner). Their JavaScript planner interfaces were not fully exposed through the text browser; the implementation uses the requested catalog/collection/detail workflow within this application's own styling.
+The [Character Details guide](character-details.md) covers the current progression planner, owned equipment copies and material calculations. The [farming planner](farming-planner.md) describes configured upgrade costs and their inventory integration. Older name-based equipment and progression fields remain compatible; they are not the limits of the current implementation. Effective combat statistics, set bonuses and advanced optimization require their own verified game rules.

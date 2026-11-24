@@ -39,7 +39,7 @@ import { StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
 import { worldQuestObjectives } from '../../common/quests/world-quest';
 ```
 
-Relative paths depend on the importing file. The root TypeScript configuration provides `@lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. The existing `@shared-lib/*` alias remains available for compatibility. The parser Vitest configuration supports these aliases. Angular application and test configurations inherit these paths instead of overriding them. The Angular application's `@models/*` alias points to its UI-only `src/app/models/*`; cross-application contracts remain in `projects/lib`.
+Relative paths depend on the importing file. The root TypeScript configuration provides `@lib/*` for `projects/lib/*` and `@common/*` for `projects/common/*`. The parser Vitest configuration supports these aliases. Angular application and test configurations inherit these paths instead of overriding them. The Angular application's `@models/*` alias points to its UI-only `src/app/models/*`; cross-application contracts remain in `projects/lib`.
 
 ## Project checks
 
@@ -57,7 +57,7 @@ core/
   state/                     Shared catalog/account synchronization and merge handling
   theme/                     Global theme service and preferences
 shared/
-  components/                Header, theme controls, back-to-top, image selector
+  components/                Back-to-top, image selector and shared controls
   directives/                Dialog focus handling
   pipes/                     Safe Markdown rendering
 models/types/                UI-only theme types; imported with @models/*
@@ -73,19 +73,17 @@ features/
     events/
     farming/
     inventory/
-    overview/
     progression/
     story-guide/
     teams/
     shared/components/       Domain UI such as material tiles and patch badges
 layouts/
   main-layout/               Active workspace shell, navigation, and common entry editor
-  game-layout/               Deprecated alternate layout; see legacy-code.md
 ```
 
 Feature components, templates, styles, local state, utilities, models, and tests stay together. Larger features such as story guides separate their page, template components, utilities, and position state. Smaller features do not need empty service/model folders.
 
-The active shell composes pages; dashboard, game collection, settings, and progression are standalone feature components. Major views are loaded through Angular deferred blocks only when selected. The existing route matcher remains in place so changing story sections keeps the shell mounted and preserves readable/legacy URLs. The older alternate game layout and overview remain available but are not the active shell.
+The active shell composes pages; dashboard, game collection, settings, and progression are standalone feature components. Major views are loaded through Angular deferred blocks only when selected. Game routes keep the shell mounted when changing story sections. The unused alternate game layout and placeholder overview have been removed; game dashboards use the maintained dashboard feature.
 
 `core/state/WorkspaceStore` coordinates the shared catalog and account-progress lifecycle across features. Feature-specific view state and preferences stay in the feature, rather than moving every service into core. The repository-level `projects/common` and `projects/lib` split is unchanged; Angular-specific UI declarations belong in app models or their owning feature.
 
@@ -102,15 +100,15 @@ Middleware is organized into `src/app`, `src/config`, `src/core`, and domain-spe
 
 ## Enforced boundaries and current implementation
 
-- `tooling/eslint/project-boundaries.mjs` resolves aliases and relative imports. It rejects application dependencies from `lib`/`common`, browser/server implementation imports, and production imports of deprecated parser/layout implementations. `npm run tooling:test` verifies the restrictions.
-- Current source imports use `@lib/*` and `@common/*`. `@shared-lib/*` remains a deprecated compatibility alias. Native filesystem paths are not import aliases.
+- `tooling/eslint/project-boundaries.mjs` resolves aliases and relative imports. It rejects application dependencies from `lib`/`common`, browser/server implementation imports, and production imports of deprecated parser implementations retained for regression tests. `npm run tooling:test` verifies the restrictions.
+- Current source imports use `@lib/*` and `@common/*`; the unused `@shared-lib/*` alias has been removed. Native filesystem paths are not import aliases.
 - `CatalogEntry` is a discriminated union of character, event, story, inventory and other catalog records. `PlayerState` is an independent account contract. Legacy combined editor projections remain behind explicitly labeled conversion/decoding adapters; stored IDs and the flat database/API format have not changed.
 - `WorkspaceStore` remains the public facade. `core/state/services/` owns request handling, catalog validation/concurrency, account-progress retries, validated guest storage, and detached character/inventory/team edit operations. Feature components continue using the existing store interface.
 - Sidebar navigation styles live beside the sidebar. Shell headers and navigation use explicit classes, and story section heading geometry uses a shared Sass mixin. Remaining global workspace feature rules are marked legacy compatibility styles.
 - Production parsers enter through `src/main.ts` → `sync/runner.ts`. `source-adapters.ts` owns source dispatch/extraction, `game-sync.ts` coordinates scheduling and import outcomes, and `legacy/parsers/` retains deprecated implementations with regression tests.
 - Parser configurations use stable `gameId`; legacy name-only configurations are still readable. Configuration validation accepts `unknown`, compiles its schema once, and reports field paths. Database connections are explicitly opened/closed by the runner, never started by constructors.
 - The runner writes atomic report checkpoints after each processed game. `complete: false` and `success: false` identify unfinished runs; final reports explicitly distinguish completion from success. Reports may include successful imports alongside source errors.
-- `event-schedules.constants.ts` owns configured fixed server offsets/reset hours. Recurring date-only periods carry `eventSchedule`; shared date helpers convert them into absolute reset boundaries. Timestamp dates remain absolute, and older undifferentiated date-only records retain local-calendar compatibility.
+- `event-schedules.constants.ts` owns configured fixed server offsets/reset hours used to generate recurring periods. Date-only event dates display on their labeled local days, from 00:00 through 23:59, so balancing cannot postpone a daily task past midnight. `eventSchedule` remains source metadata; explicit timestamp dates retain their exact absolute deadlines.
 - `npm test` now includes middleware and parser TypeScript checks, architectural tooling tests, middleware tests, Angular tests and parser tests. CI still separately runs lint, production builds, parser browser fixtures and isolated browser integration. No production database or live wiki scraping is required by the normal test gate.
 
 See [legacy-code.md](legacy-code.md) for retained compatibility code and removal conditions. Uploaded-image storage is unchanged by this refactor.

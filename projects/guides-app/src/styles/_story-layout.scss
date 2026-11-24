@@ -137,13 +137,14 @@ gg-patch-overview {
         .compact-group-header { flex-wrap: wrap; }
         .compact-row-card .row-link-patch { grid-template-columns: minmax(0, 1fr) 100px; gap: 10px; }
     }
-    .character-metadata-fields { margin-top: 18px; }
+    .character-metadata-fields { margin-top: 18px; align-items: start; }
     .character-metadata-field { min-width: 0; }
     .character-metadata-field > label { margin-top: 0; margin-bottom: 8px; }
     .character-metadata-field small { margin-inline-start: 6px; font-weight: normal; }
     .character-metadata-control {
-        display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: 10px;
+        display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; gap: 10px;
         > input { height: 44px; margin: 0 !important; box-sizing: border-box; }
+        > gg-game-image-picker { width: 44px; min-width: 0; }
     }
     fieldset.patch-image-editor { margin-top: 28px; }
     .character-info-header {

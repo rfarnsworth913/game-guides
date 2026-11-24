@@ -8,7 +8,7 @@ export function boundaryViolation(filename, specifier, root = process.cwd()) {
     let target;
     if (specifier.startsWith('.')) target = resolve(dirname(filename), specifier);
     else {
-        const aliases = { '@lib/': 'projects/lib/', '@shared-lib/': 'projects/lib/', '@common/': 'projects/common/', '@core/': 'projects/guides-app/src/app/core/', '@guides-app/': 'projects/guides-app/src/app/' };
+        const aliases = { '@lib/': 'projects/lib/', '@common/': 'projects/common/', '@core/': 'projects/guides-app/src/app/core/', '@guides-app/': 'projects/guides-app/src/app/' };
         const alias = Object.keys(aliases).find(prefix => specifier.startsWith(prefix));
         if (!alias) return null;
         target = resolve(root, aliases[alias] + specifier.slice(alias.length));
@@ -17,7 +17,6 @@ export function boundaryViolation(filename, specifier, root = process.cwd()) {
     const within = (path, name) => path.startsWith(folder(name));
     target = normalize(target);
     if (within(source, 'data-parser') && !source.includes('/legacy/') && !source.endsWith('.spec.ts') && target.includes('/data-parser/src/legacy/')) return 'Production parser code cannot import deprecated legacy parsers.';
-    if (within(source, 'guides-app') && !source.includes('/game-layout/') && !source.endsWith('.spec.ts') && target.includes('/layouts/game-layout/')) return 'Active browser code cannot import the deprecated alternate layout.';
     if (within(source, 'lib') && target.startsWith(normalize(resolve(root, 'projects')) + '/') && !within(target, 'lib')) return 'lib may only depend on lib and external packages.';
     if (within(source, 'common') && target.startsWith(normalize(resolve(root, 'projects')) + '/') && !within(target, 'lib') && !within(target, 'common')) return 'common may only depend on common, lib and external packages.';
     if (within(source, 'guides-app') && (within(target, 'middleware') || within(target, 'data-parser'))) return 'Browser code cannot import middleware or parser implementations.';

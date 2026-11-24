@@ -113,6 +113,7 @@ export class Events {
     });
     private readonly planStorageKey = computed(() => `gg-event-plan-v1:${this.store.auth?.user()?.id ?? 'guest'}:${this.game() || 'global'}`);
     private readonly balanceInputs = computed(() => JSON.stringify({
+        datePolicy: 'local-calendar-end-2359-v1',
         account: this.store.auth?.user()?.id ?? 'guest',
         pins: this.manualPins(), capacity: this.maxPerDay(),
         today: balanceDay(new Date(this.now())), scope: this.game(),

@@ -1,5 +1,7 @@
 import type { Entry } from '@lib/types/workspace.type';
 import { balanceDay, balanceEvents, balanceKey } from './event-balance';
+import { EVENT_SCHEDULES } from '@lib/constants/event-schedules.constants';
+import { occursOn } from './event-calendar';
 
 const now = new Date(2026, 10, 17, 12);
 const range = { start: new Date(2026, 10, 17), end: new Date(2026, 10, 20) };
@@ -9,6 +11,19 @@ const event = (id: string, startDate = '2026-11-17', endDate = '2026-11-19'): En
 });
 
 describe('Balanced event scheduling', () => {
+    it('keeps each game’s daily task on its labeled day instead of balancing it past midnight', () => {
+        const current = new Date(2026, 10, 23, 0, 30);
+        const entries = Object.entries(EVENT_SCHEDULES).flatMap(([game, eventSchedule]) => ['2026-11-23', '2026-11-24'].map(date => ({
+            ...event(`${game}-${date}`, date, date), game, eventType: 'daily', eventSchedule,
+        })));
+        const before = structuredClone(entries);
+        const plan = balanceEvents(entries, current);
+        for (const entry of entries) {
+            expect(plan.assignments[balanceKey(entry)]).toBe(entry.startDate);
+            expect(occursOn(entry, new Date(2026, 10, 23))).toBe(entry.startDate === '2026-11-23');
+        }
+        expect(entries).toEqual(before);
+    });
     it('minimizes daily load and preserves the input catalog and dates', () => {
         const entries = Array.from({ length: 6 }, (_, index) => event(String(index)));
         const before = structuredClone(entries);

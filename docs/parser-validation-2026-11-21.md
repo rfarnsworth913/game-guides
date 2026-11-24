@@ -1,5 +1,7 @@
 # Parser validation November 21 2026
 
+Historical validation evidence: the results and source gaps below describe the November 21 run and subsequent checks recorded here. Use the [current parser guide](data-parsers.md) for commands, scheduling and date semantics; do not treat the historical counts as today's coverage.
+
 All eight configured games were run against live sources using headed Chrome, with the requested 10–30 second navigation delays and 10 second wait after loading each page. Final Fantasy XIV is excluded. Version information and two months of configured recurring tasks were generated for every game, but the complete refresh exited with status 1 because event coverage is incomplete.
 
 The initial validation left the production database unchanged and exercised imports in disposable MongoDB. The subsequent live import below populated the configured database.

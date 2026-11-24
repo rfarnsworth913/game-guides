@@ -108,6 +108,6 @@ by the normal middleware/parser tests.
 
 See [middleware documentation](projects/middleware/README.md) for the document schema and API.
 
-See the [implementation guide](docs/implementation-guide.md) for branch reconciliation, CodeRabbit, CI, release rules, and local deployment setup.
+See the [documentation index](docs/README.md) for maintained feature and operations guides.
 
-Use the [NAS and CI deployment guide](docs/nas-ci-deployment-guide-2026-11-14.md) for the current step-by-step process to reconcile `dev` and `main`, validate tests, automate releases, and host one production environment on Synology with LAN-only access.
+Use the [deployment roadmap](docs/deployment-roadmap-2026-11-24.md) for protected dev-to-main promotion, private NAS deployment, parser scheduling, friend review and eventual cloud launch. Its [Todoist CSV](docs/deployment-roadmap-todoist-2026-11-24.csv) contains the matching implementation checklist. These are planned steps, not claims that deployment automation is already configured.
