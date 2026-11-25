@@ -7,6 +7,7 @@ Use this index to find maintained guides. Deployment proposals describe work to 
 | Guide | Purpose |
 | --- | --- |
 | [Project README](../README.md) | Local startup, storage and standard check commands |
+| [Environment configuration](environment.md) | Root `.env` fields, defaults, Auth0 editor access and parser/test overrides |
 | [Code organization](code-organization.md) | Project ownership, imports and enforced boundaries |
 | [Middleware](../projects/middleware/README.md) | API, authentication, persistence and migrations |
 | [Browser integration](browser-integration.md) | Isolated E2E setup, coverage and limitations |

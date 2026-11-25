@@ -25,6 +25,9 @@ MIDDLEWARE_PORT=3001
 UI_PORT=4200
 ```
 
+See the [environment configuration reference](docs/environment.md) for all supported fields,
+Auth0 editor access, defaults, parser overrides and troubleshooting. Do not commit your `.env`.
+
 MongoDB is launched from `projects/database/mongod.exe` on Windows when present, otherwise
 from `MONGOD_PATH` or `mongod` on PATH. The launcher uses the existing
 `projects/database/mongod.cfg`; if absent, it uses `projects/database/db`. A configured
