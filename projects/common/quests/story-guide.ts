@@ -25,8 +25,8 @@ export function validStoryContext(value: unknown): value is StoryContext | undef
         textFields.every(key => context[key] === globalThis.undefined || (typeof context[key] === 'string' && context[key]!.length <= 2000)) &&
         (context.trackingMode === globalThis.undefined || Object.values(StoryTrackingMode).includes(context.trackingMode)) &&
         (context.availability === globalThis.undefined || Object.values(StoryAvailability).includes(context.availability)) &&
-        [context.startDate, context.endDate].every(date => !date || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)))) &&
-        (!context.startDate || !context.endDate || context.startDate <= context.endDate) &&
+        [context.startDate, context.endDate].every(date => !date || (/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(date) && Number.isFinite(Date.parse(date)))) &&
+        (!context.startDate || !context.endDate || Date.parse(context.startDate) <= Date.parse(context.endDate)) &&
         (!context.cycleId || identifier(context.cycleId)) &&
         (context.relatedContentIds === globalThis.undefined || (Array.isArray(context.relatedContentIds) && context.relatedContentIds.length <= 100 && context.relatedContentIds.every(id=>identifier(id)))) &&
         (context.requirements === globalThis.undefined || validRequirements(context.requirements)) &&
@@ -34,8 +34,10 @@ export function validStoryContext(value: unknown): value is StoryContext | undef
         (context.requirementsOperator === globalThis.undefined || ['allOf', 'anyOf'].includes(context.requirementsOperator));
 }
 
-export function storyTemplateFor(entry: Pick<Entry, 'category' | 'patchOverview' | 'mainStory' | 'sideStories' | 'eventStory' | 'worldQuests' | 'lore' | 'characterInformation'> & { kind?: Entry['kind'] }) {
+export function storyTemplateFor(entry: Pick<Entry, 'category' | 'patchOverview' | 'mainStory' | 'sideStories' | 'eventStory' | 'worldQuests' | 'lore' | 'characterInformation' | 'storyContent'> & { kind?: Entry['kind'] }) {
     if (entry.kind === 'events') {return entry.eventStory;}
+    if (entry.category === 'divider') {return globalThis.undefined;}
+    if (entry.storyContent) {return entry.storyContent;}
     return entry.category === 'patch-overview' ? entry.patchOverview
         : entry.category === 'main-story' ? entry.mainStory
         : ['events', 'endgame-activity'].includes(entry.category) ? entry.eventStory

@@ -18,6 +18,10 @@ export type StoryTableRow = {
     notesRight?: string;
 };
 export type PatchOverview = {
+    /** Distinct, pre-existing legacy template drafts retained during conversion. */
+    preservedTemplates?: { template: string; content: Omit<PatchOverview, 'preservedTemplates'> }[];
+    /** Retained title when a decorative presentation hides its section name. */
+    title?: string;
     context?: StoryContext;
     imagePositionX?: number;
     imagePositionY?: number;

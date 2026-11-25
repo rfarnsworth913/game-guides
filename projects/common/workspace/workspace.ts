@@ -5,6 +5,7 @@ import { isStoryDivider, storyRowDone, storyTemplateFor } from '@common/quests/s
 import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '@common/characters/characters';
 import type { Entry, PlayerState, CatalogEntry } from '@lib/types/workspace.type';
 import { GAMES } from '@lib/constants/workspace.constants';
+import { REMOVABLE_STORY_FIELDS } from '@lib/constants/story-preservation.constants';
 import { validGameId } from '@common/workspace/game-overview';
 import {validEquipmentDefinition, validEquipmentInstances} from '@common/characters/character-equipment';
 
@@ -76,8 +77,11 @@ export function validEntries(value: unknown, gameIds: readonly string[] | null =
                 validPatchOverview(e.worldQuests) &&
                 validPatchOverview(e.lore) &&
                 validPatchOverview(e.characterInformation) &&
-                (e.characterId === globalThis.undefined || (e.kind === 'story' && e.category === 'character-information' && typeof e.characterId === 'string' && !!e.characterId)) &&
-                (e.eventId === globalThis.undefined || (e.kind === 'story' && e.category === 'events' && typeof e.eventId === 'string' && !!e.eventId)) &&
+                (e.storyContent === globalThis.undefined || (e.kind === 'story' && validPatchOverview(e.storyContent))) &&
+                (e.removedPreservedFields === globalThis.undefined || (e.kind === 'story' && Array.isArray(e.removedPreservedFields) && e.removedPreservedFields.length <= REMOVABLE_STORY_FIELDS.length && new Set(e.removedPreservedFields).size === e.removedPreservedFields.length && e.removedPreservedFields.every(field => typeof field === 'string' && REMOVABLE_STORY_FIELDS.includes(field)))) &&
+                (e.characterId === globalThis.undefined || (e.kind === 'story' && typeof e.characterId === 'string' && !!e.characterId)) &&
+                (e.eventId === globalThis.undefined || (e.kind === 'story' && typeof e.eventId === 'string' && !!e.eventId)) &&
+                !(e.characterId && e.eventId) &&
                 validRowCompletion(e.storyRowCompletion) &&
                 (e.characterDefinition === globalThis.undefined || (e.kind === 'characters' && Number.isSafeInteger(e.rarity) && e.rarity >= 1 && e.rarity <= 20 && validCharacterDefinition(e.characterDefinition))) &&
                 (e.characterCollection === globalThis.undefined || (e.kind === 'characters' && validCharacterCollection(e.characterCollection))) &&
@@ -158,6 +162,8 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.equipmentDefinition !== globalThis.undefined ? {equipmentDefinition:entry.equipmentDefinition} : {}),
         ...(entry.characterInformation !== globalThis.undefined && !(entry.kind === 'story' && entry.characterId) ? { characterInformation: entry.characterInformation } : {}),
         ...(entry.characterId !== globalThis.undefined ? { characterId: entry.characterId } : {}),
+        ...(entry.storyContent !== globalThis.undefined && !entry.characterId && !entry.eventId ? { storyContent: entry.storyContent } : {}),
+        ...(entry.removedPreservedFields !== globalThis.undefined ? { removedPreservedFields: entry.removedPreservedFields } : {}),
         ...(entry.eventId !== globalThis.undefined ? { eventId: entry.eventId } : {}),
         ...(entry.lore !== globalThis.undefined ? { lore: entry.lore } : {}),
         ...(entry.worldQuests !== globalThis.undefined ? { worldQuests: entry.worldQuests } : {}),
@@ -214,6 +220,8 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'lore',
         'characterInformation',
         'characterId',
+        'storyContent',
+        'removedPreservedFields',
         'eventId',
         'characterDefinition',
         'equipmentDefinition',

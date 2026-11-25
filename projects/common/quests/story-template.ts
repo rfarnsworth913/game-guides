@@ -78,7 +78,7 @@ export const emptyPatchOverview = (): PatchOverview => ({
 /** Trim user-entered text without changing identifiers or internal formatting. */
 export function trimPatchOverviewText(patch: PatchOverview): void {
     trimStoryContext(patch.context);
-    const fields = ['imageUrl', 'imageAlt', 'sourceName', 'sourceUrl', 'versionImageUrl',
+    const fields = ['title', 'imageUrl', 'imageAlt', 'sourceName', 'sourceUrl', 'versionImageUrl',
         'patchVersion', 'patchTitle', 'releaseDate', 'summary', 'region', 'subtitle', 'characterName', 'damageType', 'damageTypeIcon', 'faction', 'factionIcon'] as const;
     for (const key of fields) {
         const value = patch[key];
@@ -144,6 +144,8 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
     return (
         Object.keys(patch).every((key) =>
             [
+                'title',
+                'preservedTemplates',
                 'context',
                 'characterName',
                 'damageType',
@@ -168,6 +170,9 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
             ].includes(key),
         ) &&
         validStoryContext(patch.context) &&
+        (patch.preservedTemplates === globalThis.undefined || (Array.isArray(patch.preservedTemplates) && patch.preservedTemplates.length <= 32 && patch.preservedTemplates.every(item =>
+            !!item && typeof item === 'object' && Object.keys(item).every(key => ['template', 'content'].includes(key)) &&
+            typeof item.template === 'string' && item.template.length <= 80 && !!item.content && !Object.hasOwn(item.content, 'preservedTemplates') && validPatchOverview(item.content)))) &&
         [patch.imageUrl, patch.imageAlt, patch.sourceName, patch.sourceUrl].every(
             (item) => typeof item === 'string',
         ) &&
@@ -177,7 +182,7 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
             (typeof patch.versionImageUrl === 'string' &&
                 (!patch.versionImageUrl || !!storyImageUrl(patch.versionImageUrl)))) &&
         (!patch.sourceUrl || !!httpUrl(patch.sourceUrl)) &&
-        [patch.patchVersion, patch.patchTitle, patch.releaseDate, patch.summary, patch.region, patch.subtitle, patch.characterName, patch.damageType, patch.damageTypeIcon, patch.faction, patch.factionIcon].every(
+        [patch.title, patch.patchVersion, patch.patchTitle, patch.releaseDate, patch.summary, patch.region, patch.subtitle, patch.characterName, patch.damageType, patch.damageTypeIcon, patch.faction, patch.factionIcon].every(
             (value) => value === globalThis.undefined || typeof value === 'string',
         ) &&
         (!patch.releaseDate ||
@@ -188,7 +193,8 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 patch.groups.every(
                     (group) =>
                         group &&
-                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch', 'mainQuest', 'worldQuestMode', 'objectiveIds', 'groupType', 'contentUrl'].includes(key)) &&
+                        Object.keys(group).every((key) => ['id', 'title', 'icon', 'description', 'defaultPatch', 'mainQuest', 'worldQuestMode', 'objectiveIds', 'groupType', 'contentUrl'].includes(key)) &&
+                        [group.icon, group.description].every(value => value === globalThis.undefined || (typeof value === 'string' && value.length <= 4000)) &&
                         (group.contentUrl === globalThis.undefined || (typeof group.contentUrl === 'string' && (!group.contentUrl || !!httpUrl(group.contentUrl)))) &&
                         (group.groupType === globalThis.undefined || ['quest', 'content'].includes(group.groupType)) &&
                         (group.groupType !== 'content' || group.mainQuest === globalThis.undefined) &&

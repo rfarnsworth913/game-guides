@@ -38,3 +38,15 @@ Matching uses normalized English event titles within the same game. Multiple mat
 Applied on November 17, 2026: **50 placements**, **43 newly created shared events**, **7 reused events**, across four games. Backup: `backups/shared-events-2026-11-17T23-43-56-966Z-2d841b3d`. Verification confirmed unrelated game fields and other collections unchanged.
 
 After updating a running development app, restart it and reload open tabs so both server and browser use reference-aware code.
+
+## Activity presentation and template conversion
+
+End-Game Activity uses a compact header and shared objective tables beside optional supporting artwork. Artwork keeps its aspect ratio and attribution; missing or failed artwork gives content the full width. Groups collapse independently, retain existing IDs and can include descriptions, icons and external references. Mobile layouts stack the columns.
+
+Template changes now operate on detached editor drafts. Compatible content moves into the additive `storyContent` profile; legacy records remain readable without bulk migration. Distinct older template drafts are retained in `preservedTemplates`, while unsupported attributes remain inspectable in Preserved Content. Editors can copy retained fields into the summary, restore archived content, or explicitly remove it with confirmation. Undo restores the draft before conversion; Cancel never writes it.
+
+End-Game Activity is a story-guide content template, separate from Events. Its editor provides activity details, artwork, objective groups and requirements, without availability, dates, cycles, reset controls or an Event selector. Creating or saving a new End-Game Activity does not create an Event/calendar record. Older `eventStory` activity content remains readable; new editor drafts use `storyContent`.
+
+Event and character references inherited from earlier conversions remain compatible so existing account completion and calendar assignments keep the same IDs. Conversion does not delete the original records, rebalance assignments, change dates or regenerate tasks. Event-only metadata retained from a conversion is available in Preserved Content and is not displayed in the End-Game Activity header. Existing ISO deadlines and previous-cycle history remain stored for compatibility; recurring Event periods continue to come from parser schedules independently of this story template.
+
+Explicit field removals are recorded on the story placement in `removedPreservedFields`. Shared Event/Character projections respect those removals on subsequent saves and reloads, including availability and dates inferred from the original Event. Context removals track individual properties so adding an Activity Type later does not restore old availability. Explicitly entering a new value restores that field; empty editor scaffolding does not. The original Event type, dates, character identity and account completion remain intact.

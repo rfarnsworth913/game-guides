@@ -1,6 +1,7 @@
 import type { CatalogEntry, LegacyCatalogEntry } from '@lib/types/workspace.type';
 import type { PatchOverview } from '@lib/types/story-template.type';
 import { emptyPatchOverview } from '@common/quests/story-template';
+import { applyPreservedFieldRemovals } from '@common/quests/story-preservation';
 
 export const characterNameKey = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en');
 
@@ -12,9 +13,10 @@ export function characterStoryProfile(character: LegacyCatalogEntry): PatchOverv
 }
 export function resolveCharacterReferences<T extends LegacyCatalogEntry>(entries: T[]): T[] {
     return entries.map(entry => {
-        if (entry.kind !== 'story' || entry.category !== 'character-information' || !entry.characterId) {return entry;}
+        if (entry.kind !== 'story' || !entry.characterId) {return entry;}
         const character = entries.find(item => item.id === entry.characterId && item.game === entry.game && item.kind === 'characters');
-        return character ? { ...entry, characterInformation: characterStoryProfile(character) } : entry;
+        const profile = character ? applyPreservedFieldRemovals(entry, characterStoryProfile(character)) : null;
+        return profile ? { ...entry, ...(entry.category === 'character-information' && !entry.storyContent ? { characterInformation: profile } : { storyContent: profile }) } : entry;
     });
 }
 /** Store profile presentation and lore once; the catalog name/description/damage type remain authoritative. */
@@ -58,7 +60,7 @@ export function migrateStoryCharacters(entries: CatalogEntry[], makeId: (game: s
     const result = structuredClone(entries);
     let created = 0, linked = 0;
     for (const story of result.filter(item => item.kind === 'story' && item.category === 'character-information' && !item.characterId)) {
-        const source = story.characterInformation ?? emptyPatchOverview();
+        const source = story.storyContent ?? story.characterInformation ?? emptyPatchOverview();
         const name = source.characterName?.trim() || story.name.trim();
         if (!name) {throw new Error('A character story has no character name.');}
         const matches = result.filter(item => item.kind === 'characters' && item.game === story.game && characterNameKey(item.name) === characterNameKey(name));
@@ -82,6 +84,7 @@ export function migrateStoryCharacters(entries: CatalogEntry[], makeId: (game: s
         if (source.summary?.trim() && !character.notes.includes(source.summary.trim())) {character.notes = [character.notes, source.summary.trim()].filter(Boolean).join('\n\n');}
         story.characterId = character.id;
         delete story.characterInformation;
+        delete story.storyContent;
         linked++;
     }
     return { entries: result, created, linked };

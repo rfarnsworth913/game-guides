@@ -2,7 +2,9 @@ import { storyContentName } from "@common/quests/story-content-types";
 import { eventStoryProfile } from "@common/events/event-story";
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, input, signal, TemplateRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DatePipe, JsonPipe, NgTemplateOutlet } from '@angular/common';
+import { preservedTemplateFields } from '@common/quests/template-conversion';
+import { removePreservedStoryField } from '@common/quests/story-preservation';
 import { GameImagePicker } from "../../../../../../shared/components/image-selector/game-image-picker";
 import { Entry, WorkspaceStore, GAMES } from "../../../../../../core/state/workspace.store";
 import { StoryContentList } from "../../content-list/story-content-list";
@@ -17,17 +19,46 @@ import { StoryAvailability, StoryTrackingMode } from "@lib/enums/story-tracking.
 import type { StoryContext } from "@lib/types/story-context.type";
 import { storyCompletionKey, storyRowDone, storyTemplateFor, storyTrackingMode } from "@common/quests/story-guide";
 import { emptyPatchOverview, httpUrl, storyImageUrl, patchGroups, preparePatchGroups } from "@common/quests/story-template";
-import type { StoryTableRow } from "@lib/types/story-template.type";
+import type { PatchOverview, StoryTableRow } from "@lib/types/story-template.type";
 import { characterStoryProfile } from '@common/characters/character-story';
 import { WORLD_QUEST_GROUP_TYPES } from '@lib/constants/world-quest.constants';
 
 @Component({
     selector: 'gg-patch-overview',
-    imports: [FormsModule, DatePipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, StorySubtypeEditor, MarkdownPipe, PatchBadge],
+    imports: [FormsModule, DatePipe, JsonPipe, NgTemplateOutlet, GameImagePicker, StoryContentList, StoryContextEditor, StorySubtypeEditor, MarkdownPipe, PatchBadge],
     templateUrl: "./patch-overview.html",
-    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./primary-quest-hero.scss", "./event-reading.scss", "./character-profile.scss", "./world-quest-title.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss"],
+    styleUrls: ["./patch-overview.scss", "./patch-hero.scss", "./primary-quest-hero.scss", "./event-reading.scss", "./character-profile.scss", "./world-quest-title.scss", "./section-editor.scss", "./section-editor-nav.scss", "./group-editor-cards.scss", "./row-editor-list.scss", "./row-editor-fields.scss", "./endgame-activity.scss"],
 })
 export class PatchOverviewTemplate {
+    readonly activity = computed(() => this.entry().category === 'endgame-activity');
+    preservedFields() {return preservedTemplateFields(this.entry());}
+    preservedValue(key: keyof PatchOverview) {return this.data()[key];}
+    legacyDrafts() {return this.data().preservedTemplates ?? [];}
+    restoreArchived(index: number): void {
+        const archives = structuredClone(this.legacyDrafts());
+        const chosen = archives[index];
+        if (!chosen) {return;}
+        const current = structuredClone(this.data());
+        delete current.preservedTemplates;
+        archives[index] = { template: this.entry().category, content: current };
+        for (const key of Object.keys(this.data())) {Reflect.deleteProperty(this.data(), key);}
+        Object.assign(this.data(), chosen.content, { preservedTemplates: archives });
+    }
+    readonly removingArchive = signal<number | null>(null);
+    removeArchive(): void {
+        const index = this.removingArchive();
+        if (index !== null) {this.data().preservedTemplates?.splice(index, 1);}
+        this.removingArchive.set(null);
+    }
+    copyPreservedToSummary(key: keyof PatchOverview): void {
+        this.data().summary = [this.data().summary, `${key}: ${JSON.stringify(this.data()[key])}`].filter(Boolean).join('\n\n');
+    }
+    readonly removingPreserved = signal<keyof PatchOverview | null>(null);
+    removePreserved(): void {
+        const key = this.removingPreserved();
+        if (key && this.preservedFields().includes(key)) {removePreservedStoryField(this.entry(), this.data(), key);}
+        this.removingPreserved.set(null);
+    }
     readonly worldGroupTypes = WORLD_QUEST_GROUP_TYPES;
     private readonly injector = inject(Injector);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -64,7 +95,7 @@ export class PatchOverviewTemplate {
     }
     readonly completionError = signal('');
     readonly groupedTemplate = computed(() => ['world-quests', 'lore', 'character-information'].includes(this.entry().category));
-    readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events', 'endgame-activity'].includes(this.entry().category));
+    readonly storyBanner = computed(() => ['main-story', 'side-stories', 'events'].includes(this.entry().category));
     readonly data = computed(() => {
         const data = storyTemplateFor(this.entry()) ?? emptyPatchOverview();
         if (this.editing()) {preparePatchGroups(data);}

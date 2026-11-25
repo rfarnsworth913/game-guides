@@ -1,5 +1,8 @@
 @use './section-heading' as section;
 .patch-reading-view {
+    .custom-group-icon { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; }
+    .custom-group-icon img { display: block; width: 24px; height: 24px; object-fit: contain; }
+    .guide-group-description { padding: 12px 16px; font-size: 13px; color: var(--guide-muted); }
     display: grid;
     gap: 24px;
     color: var(--guide-text, var(--color-text-primary));

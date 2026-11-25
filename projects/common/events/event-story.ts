@@ -2,6 +2,7 @@ import type { CatalogEntry, LegacyCatalogEntry } from '@lib/types/workspace.type
 import type { PatchOverview } from '@lib/types/story-template.type';
 import { StoryAvailability } from '@lib/enums/story-tracking.enum';
 import { emptyPatchOverview } from '@common/quests/story-template';
+import { applyPreservedFieldRemovals } from '@common/quests/story-preservation';
 
 export const eventNameKey = (name: string) => name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en');
 
@@ -20,9 +21,10 @@ export function eventStoryProfile(event: LegacyCatalogEntry): PatchOverview {
 
 export function resolveEventReferences<T extends LegacyCatalogEntry>(entries: T[]): T[] {
     return entries.map(entry => {
-        if (entry.kind !== 'story' || entry.category !== 'events' || !entry.eventId) {return entry;}
+        if (entry.kind !== 'story' || !entry.eventId) {return entry;}
         const event = entries.find(item => item.kind === 'events' && item.game === entry.game && item.id === entry.eventId);
-        return event ? { ...entry, name: event.name, eventStory: eventStoryProfile(event) } : entry;
+        const profile = event ? applyPreservedFieldRemovals(entry, eventStoryProfile(event)) : null;
+        return event && profile ? { ...entry, name: entry.category === 'divider' ? entry.name : event.name, ...(['events', 'endgame-activity'].includes(entry.category) && !entry.storyContent ? { eventStory: profile } : { storyContent: profile }) } : entry;
     });
 }
 
@@ -67,8 +69,8 @@ function mergeProfiles(left: PatchOverview, right: PatchOverview, name: string):
 export function migrateStoryEvents(entries: CatalogEntry[], makeId: (game: string, name: string) => string = () => crypto.randomUUID()) {
     const result = structuredClone(entries);
     let created = 0, linked = 0;
-    for (const story of result.filter(entry => entry.kind === 'story' && entry.category === 'events' && !entry.eventId)) {
-        const profile = structuredClone(story.eventStory ?? emptyPatchOverview());
+    for (const story of result.filter(entry => entry.kind === 'story' && entry.category === 'events' && !entry.eventId && !entry.characterId)) {
+        const profile = structuredClone(story.storyContent ?? story.eventStory ?? emptyPatchOverview());
         const name = story.name.trim();
         if (!name) {throw new Error('An event story has no title.');}
         const matches = result.filter(entry => entry.kind === 'events' && entry.game === story.game && eventNameKey(entry.name) === eventNameKey(name));
@@ -96,6 +98,7 @@ export function migrateStoryEvents(entries: CatalogEntry[], makeId: (game: strin
         Object.assign(event, updated);
         story.eventId = event.id;
         delete story.eventStory;
+        delete story.storyContent;
         linked++;
     }
     for (const placement of result.filter(entry => entry.kind === 'story' && entry.eventId)) {

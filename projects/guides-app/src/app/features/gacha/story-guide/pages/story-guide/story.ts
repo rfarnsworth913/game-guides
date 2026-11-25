@@ -20,12 +20,13 @@ import { reworkMainQuestTemplate } from "@common/quests/main-quest";
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import { searchStoryGuides, StorySearchResult } from "../../utils/story-search";
 import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, preparePatchGroups, storyImageUrl } from "@common/quests/story-template";
+import { convertStoryTemplate } from '@common/quests/template-conversion';
 
 @Component({
     selector: 'gg-story',
     imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, StoryGuideHeader, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
     templateUrl: "./story.html",
-    styleUrls: ["./story.scss", "./story-navigation.scss", "./story-editor-dialog.scss", "./navigation-group-dialog.scss"],
+    styleUrls: ["./story.scss", "./story-navigation.scss", "./story-editor-dialog.scss", "./navigation-group-dialog.scss", "./template-conversion.scss"],
     host: { '[style.--story-sticky-height]': "stickyHeight() + 'px'" },
 })
 export class Story {
@@ -354,7 +355,9 @@ export class Story {
                 .map((topic) => ({ ...topic, ...storyProgress(entries.filter((entry) => entry.category === topic.id)) })),
         ];
     });
-    editor: Entry | null = null;
+    private readonly editorState = signal<Entry | null>(null);
+    get editor(): Entry | null {return this.editorState();}
+    set editor(entry: Entry | null) {this.editorState.set(entry);}
     isNewSubsection(): boolean {
         return this.editor?.kind === 'story' && !this.store.entries().some((entry) => entry.id === this.editor!.id);
     }
@@ -478,6 +481,7 @@ export class Story {
     }
     open(kind: 'story' | 'story-category', entry?: Entry): void {
         if (!this.editMode() || this.busy()) {return;}
+        this.pendingConversion = null; this.conversionUndo = null; this.conversionNotice = '';
         this.error = '';
         const siblings = kind === 'story' ? this.subsections() : this.sections();
         this.editor = entry
@@ -502,8 +506,28 @@ export class Story {
               };
         this.setTopic(this.editor, this.editor.category);
     }
+    pendingConversion: ReturnType<typeof convertStoryTemplate> | null = null;
+    conversionUndo: Entry | null = null;
+    conversionNotice = '';
+    requestTemplate(entry: Entry, topic: string): void {
+        if (topic === entry.category) {return;}
+        const result = convertStoryTemplate(entry, topic);
+        if (result.requiresConfirmation) {this.pendingConversion = result;}
+        else {this.applyConversion(result);}
+    }
+    applyConversion(result = this.pendingConversion): void {
+        if (!result || !this.editor) {return;}
+        this.conversionUndo = structuredClone(this.editor);
+        this.editor = result.entry;
+        this.pendingConversion = null;
+        this.conversionNotice = 'Template changed. Content, completion and calendar references are retained. Save to apply.';
+    }
+    undoTemplateConversion(): void {
+        if (this.conversionUndo) {this.editor = this.conversionUndo;}
+        this.conversionUndo = null; this.pendingConversion = null; this.conversionNotice = '';
+    }
     setTopic(entry: Entry, topic: string): void {
-        if (entry.characterId && topic !== 'character-information') {delete entry.characterId; delete entry.characterInformation;}
+        if (entry.storyContent) {return;}
         entry.category = topic;
         if (topic === 'character-information') {
             entry.characterInformation ??= emptyPatchOverview();
@@ -518,7 +542,12 @@ export class Story {
             entry.sideStories ??= emptyPatchOverview();
             entry.sideStories = reworkMainQuestTemplate(entry.sideStories, entry.name).template;
         }
-        if (topic === 'events' || topic === 'endgame-activity') {
+        if (topic === 'endgame-activity') {
+            entry.storyContent = entry.eventStory ?? emptyPatchOverview();
+            delete entry.eventStory;
+            preparePatchGroups(entry.storyContent);
+        }
+        if (topic === 'events') {
             entry.eventStory ??= emptyPatchOverview();
             preparePatchGroups(entry.eventStory);
         }
@@ -534,7 +563,7 @@ export class Story {
     }
     async save(): Promise<void> {
         const entry = this.editor;
-        if (!entry || !this.editMode() || this.busy()) {return;}
+        if (!entry || !this.editMode() || this.busy() || this.pendingConversion) {return;}
         if (this.isNewSubsection() && !this.validNewSubsection()) {
             this.error = isStoryDivider(entry) ? 'Choose a navigation category for this divider.' : 'Choose a content template and navigation category, and enter a section title.';
             return;
@@ -550,13 +579,14 @@ export class Story {
             }
         }
         if (entry.patchOverview) {trimPatchOverviewText(entry.patchOverview);}
+        if (entry.storyContent) {trimPatchOverviewText(entry.storyContent);}
         if (entry.mainStory) {trimPatchOverviewText(entry.mainStory);}
         if (entry.worldQuests) {trimPatchOverviewText(entry.worldQuests);}
         if (entry.lore) {trimPatchOverviewText(entry.lore);}
         if (entry.sideStories) {trimPatchOverviewText(entry.sideStories);}
         if (entry.characterInformation) {trimPatchOverviewText(entry.characterInformation);}
         if (entry.eventStory) {trimPatchOverviewText(entry.eventStory);}
-        if (!validPatchOverview(entry.lore) || !validPatchOverview(entry.eventStory) || !validPatchOverview(entry.characterInformation) || !validPatchOverview(entry.sideStories) || !validPatchOverview(entry.worldQuests) || !validPatchOverview(entry.patchOverview) || !validPatchOverview(entry.mainStory)) {
+        if (!validPatchOverview(entry.storyContent) || !validPatchOverview(entry.lore) || !validPatchOverview(entry.eventStory) || !validPatchOverview(entry.characterInformation) || !validPatchOverview(entry.sideStories) || !validPatchOverview(entry.worldQuests) || !validPatchOverview(entry.patchOverview) || !validPatchOverview(entry.mainStory)) {
             this.error =
                 'Check the content template: give each group a name, select uploaded images or use HTTP(S) image URLs, use HTTP(S) source and content links, and enter media durations as minutes:seconds or hours:minutes:seconds.';
             return;

@@ -11,6 +11,7 @@
             <button type="button" class="editor-overview-link editor-template-details-link" [class.selected]="templateDetailsOpen()" [attr.aria-current]="templateDetailsOpen() ? 'page' : null" (click)="selectTemplateDetails()">
                 <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7v1" /></svg>Template Details
             </button>
+            @if (preservedFields().length || legacyDrafts().length) { <button type="button" class="editor-overview-link" (click)="selectTemplateDetails()">Preserved Content <small>{{ preservedFields().length + legacyDrafts().length }}</small></button> }
             <h3 class="editor-groups-label">Content Groups</h3>
             <div class="editor-group-list">
                 @for (group of data().groups; track group.id; let index = $index) {
@@ -40,6 +41,25 @@
     <label>Guide summary<textarea [ngModelOptions]="standalone" [(ngModel)]="data().summary" rows="2" placeholder="Optional introduction or release summary (Markdown)"></textarea></label>
             </div>
             <div class="section-editor-template-details" [hidden]="!templateDetailsOpen()">
+    @if (preservedFields().length || legacyDrafts().length) {
+        <fieldset class="preserved-content"><legend>Preserved Content</legend><p>Retained data that this presentation does not display. Switching templates restores compatible fields.</p>
+            @for (key of preservedFields(); track key) {
+                <details><summary>{{ key }}</summary><pre>{{ preservedValue(key) | json }}</pre>
+                    <button type="button" (click)="copyPreservedToSummary(key)">Copy to summary</button>
+                    <button type="button" (click)="removingPreserved.set(key)">Remove field</button>
+                </details>
+            }
+            @for (draft of legacyDrafts(); track $index) { <details><summary>Previous {{ draft.template }} draft</summary><pre>{{ draft.content | json }}</pre><button type="button" (click)="restoreArchived($index)">Restore this content (keep current content in archive)</button><button type="button" (click)="removingArchive.set($index)">Remove archived draft</button></details> }
+            @if (removingArchive() !== null) { <p role="alert">Remove this archived draft? Its content will be removed when you save.</p><button type="button" (click)="removingArchive.set(null)">Keep draft</button><button type="button" (click)="removeArchive()">Confirm removal</button> }
+            @if (removingPreserved(); as key) { <p role="alert">Remove {{ key }} from this draft? This takes effect when you save.</p><button type="button" (click)="removingPreserved.set(null)">Keep field</button><button type="button" (click)="removePreserved()">Confirm removal</button> }
+        </fieldset>
+    }
+    @if (activity()) {
+        <fieldset><legend>Activity Details</legend>
+            <div class="patch-fields"><label>Subtitle<input [ngModelOptions]="standalone" [(ngModel)]="data().subtitle" /></label><label>Activity Type<input [ngModelOptions]="standalone" [(ngModel)]="editorContext().subtype" placeholder="e.g. Combat simulation" /></label><label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" /></label></div>
+        </fieldset>
+        <fieldset><legend>Supporting Artwork</legend><gg-game-image-picker [game]="entry().game" label="Supporting Artwork" imagePurpose="fullArt" [(value)]="data().imageUrl" [(description)]="data().imageAlt" [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl" /></fieldset>
+    }
     @if (eventTemplate()) {
         <fieldset><legend>Event Details</legend>
             <label>Shared Event<select [ngModelOptions]="standalone" [ngModel]="entry().eventId || ''" (ngModelChange)="selectEvent($event)">
@@ -94,7 +114,7 @@
                 [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl" />
         </fieldset>
     }
-    @if (!groupedTemplate()) {
+    @if (!groupedTemplate() && !activity()) {
     <fieldset class="patch-image-editor">
         <legend>{{ storyBanner() ? storyTemplateName() + ' Banner' : 'Patch Overview Banner' }}</legend>
         <gg-game-image-picker [game]="entry().game" label="Banner" [banner]="true"
@@ -132,13 +152,13 @@
     }
     }
     @if (entry().category !== 'patch-overview') {
-        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'side-stories', 'character-information', 'world-quests'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
+        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'side-stories', 'character-information', 'world-quests', 'endgame-activity'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
     }
             </div>
     <fieldset class="patch-group-editor" aria-label="Content group details" [hidden]="editorSelection() === null || editorSelection() === ''">
         @for (group of data().groups; track group.id) {
             <section class="patch-edit-group" [hidden]="editorSelection() !== group.id" [attr.aria-label]="group.title || 'New group'">
-            <section class="group-settings-panel"><div class="editor-card-heading"><svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></svg><h4>Group Settings</h4></div><div class="group-settings-body">
+            <section class="group-settings-panel"><div class="editor-card-heading"><svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M9.79 4.31 10.72 1.58 13.28 1.58 14.21 4.31 15.88 5 18.46 3.73 20.27 5.54 19 8.12 19.69 9.79 22.42 10.72 22.42 13.28 19.69 14.21 19 15.88 20.27 18.46 18.46 20.27 15.88 19 14.21 19.69 13.28 22.42 10.72 22.42 9.79 19.69 8.12 19 5.54 20.27 3.73 18.46 5 15.88 4.31 14.21 1.58 13.28 1.58 10.72 4.31 9.79 5 8.12 3.73 5.54 5.54 3.73 8.12 5Z"/><circle cx="12" cy="12" r="3.25"/></svg><h4>Group Settings</h4></div><div class="group-settings-body">
             <div class="patch-group-edit-row compact-group-header" [class.has-group-organization]="entry().category === 'world-quests'">
                 <label>{{ isQuestGroup(group) ? questEditorLabel() + ' Title' : 'Group Name' }}<input [attr.name]="'groupTitle-' + group.id"
                     [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.content ?? group.title" (ngModelChange)="isQuestGroup(group) ? setMainQuestTitle(group, $event) : group.title = $event" [placeholder]="isQuestGroup(group) ? 'e.g. Everwinter Without Mercy' : 'e.g. Related Cutscenes'" /></label>
@@ -152,6 +172,7 @@
             @if (eventTemplate() || (['character-information', 'side-stories'].includes(entry().category) && !isQuestGroup(group))) {
                 <label>Group Title Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="group.contentUrl" placeholder="https://..." /></label>
             }
+            @if (activity()) { <label>Group Title Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="group.contentUrl" placeholder="https://..." /></label><label>Group Description<textarea [ngModelOptions]="standalone" [(ngModel)]="group.description" rows="2"></textarea></label> }
             @if (entry().category === 'world-quests') {
                 <p class="guide-help">Use secondary headings to group objectives. Default Patch only prefills new rows; each objective keeps its own release version.</p>
                 <details class="guide-context-editor guide-membership-editor">
@@ -260,7 +281,29 @@
     </ng-template>
 
 } @else {
-    <div class="patch-overview-dashboard story-search-target" [attr.data-story-entry]="entry().id" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.patch-overview-layout]="entry().category === 'patch-overview'" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()">
+    <div class="patch-overview-dashboard story-search-target" [attr.data-story-entry]="entry().id" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.patch-overview-layout]="entry().category === 'patch-overview'" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()" [class.endgame-activity]="activity()" [class.with-artwork]="activity() && imageUrl(data().imageUrl) && failedImage() !== imageUrl(data().imageUrl)">
+        @if (activity()) {
+            <div class="endgame-content">
+            <header class="endgame-header">
+                <h3>{{ entry().name }}</h3><p class="endgame-type">{{ data().context?.subtype || 'End-Game Activity' }}</p>
+                @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
+                @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
+                <div class="endgame-facts">
+                    @if (data().patchVersion; as version) { <gg-patch-badge [version]="version" /> }
+                </div>
+                @for (gate of eventGates(); track $index) { <p class="guide-requirement"><strong>Requirements:</strong> {{ gate.text }} @if (requirementTarget(gate.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</p> }
+                @for (item of eventNotes(); track $index) { <p>{{ item.text }}</p> }
+                @for (target of eventRelated(); track target.id) { <p><a [href]="eventRelatedUrl(target)">{{ target.name }}</a></p> }
+            </header>
+            @if (completionError()) { <p class="guide-completion-error" role="alert">{{ completionError() }}</p> }
+            <gg-story-content-list [entry]="entry()" [data]="data()" [disabled]="store.saving() || store.loading()" [incompleteOnly]="incompleteOnly()" [relatedEntries]="relatedEntries()" (toggled)="toggle($event)" />
+            </div>
+            @if (imageUrl(data().imageUrl); as artwork) { @if (failedImage() !== artwork) {
+                <figure class="endgame-art"><img [src]="artwork" [alt]="data().imageAlt" loading="lazy" referrerpolicy="no-referrer" (error)="failedImage.set(artwork)" />
+                    @if (data().sourceName || data().sourceUrl) { <figcaption class="patch-source">Source: @if (httpUrl(data().sourceUrl); as source) { <a [href]="source" target="_blank" rel="noopener noreferrer">{{ data().sourceName || 'Image source' }}</a> } @else { {{ data().sourceName }} }</figcaption> }
+                </figure>
+            } }
+        } @else {
         @if (entry().category === 'character-information') {
             <div class="character-info-header">
                     <h3>{{ data().characterName || entry().name }}</h3>
@@ -315,7 +358,7 @@
                 <div class="patch-source">Source: @if (httpUrl(data().sourceUrl); as source) { <a [href]="source" target="_blank" rel="noopener noreferrer">{{ data().sourceName || 'Image source' }}</a> } @else { {{ data().sourceName }} }</div>
             }
         }
-        @if (!groupedTemplate()) {
+        @if (!groupedTemplate() && !activity()) {
         <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate" [class.without-artwork]="!imageUrl(data().imageUrl) || failedImage() === imageUrl(data().imageUrl)">
             @if (imageUrl(data().imageUrl); as imageUrl) {
                 @if (failedImage() !== imageUrl) {
@@ -395,5 +438,6 @@
         }
         @if (completionError()) { <p class="guide-completion-error" role="alert">{{ completionError() }}</p> }
         <gg-story-content-list [entry]="entry()" [data]="data()" [disabled]="store.saving() || store.loading()" [incompleteOnly]="incompleteOnly()" [relatedEntries]="relatedEntries()" (toggled)="toggle($event)" />
+        }
     </div>
 }

@@ -3,7 +3,7 @@ import { ApiError } from '../../../core/errors/app-error';
 import { fromCatalog } from '@common/workspace/workspace';
 import { storyCompletionKey } from '@common/quests/story-guide';
 export function validateStoryProgress(entry: CatalogEntry, state: PlayerState, history: Record<string, boolean>): void {
-    const rows = [entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
+    const rows = [entry.storyContent, entry.patchOverview, entry.mainStory, entry.sideStories, entry.worldQuests, entry.lore, entry.eventStory, entry.characterInformation]
         .flatMap((template) => template?.rows ?? []).filter((row) => !row.rowType || row.rowType === 'quest');
     const definition = fromCatalog(entry);
     const rowIds = new Set(rows.flatMap(row => [row.id, storyCompletionKey(definition, row)].filter((id): id is string => id !== null)));

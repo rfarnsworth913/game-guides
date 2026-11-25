@@ -262,19 +262,29 @@
                 </div>
                 } @else {
                     <ng-template #overviewFields>
+                    @if (conversionNotice) { <div class="template-conversion-notice" role="status">{{ conversionNotice }} <button type="button" (click)="undoTemplateConversion()">Undo conversion</button></div> }
+                    @if (pendingConversion; as conversion) {
+                        <section class="template-conversion-review" role="alertdialog" aria-label="Change content template">
+                            <h3>Change Content Template</h3>
+                            <p>Existing content, objective IDs, completion history and calendar assignments will be retained.</p>
+                            @for (warning of conversion.warnings; track warning) { <p>{{ warning }}</p> }
+                            <button type="button" (click)="pendingConversion = null">Cancel</button>
+                            <button type="button" class="primary" (click)="applyConversion()">Switch Template</button>
+                        </section>
+                    }
                     <div class="section-overview-identity">
                     <label
                         >Content Template<select
                             name="topic"
+                            #templateSelect
                             required
-                            [ngModel]="entry.category"
-                            (ngModelChange)="setTopic(entry, $event)"
+                            (change)="requestTemplate(editor, templateSelect.value); templateSelect.value = editor.category"
                         >
                             @for (topic of sortedTopics(); track topic.id) {
-                                <option [value]="topic.id">{{ topic.title }}</option>
+                                <option [value]="topic.id" [selected]="topic.id === editor.category">{{ topic.title }}</option>
                             }
                             @if (topic(entry).id !== entry.category) {
-                                <option [value]="entry.category">
+                                <option [value]="entry.category" [selected]="entry.category === editor.category">
                                     {{ entry.category || 'Main Story' }} (existing)
                                 </option>
                             }

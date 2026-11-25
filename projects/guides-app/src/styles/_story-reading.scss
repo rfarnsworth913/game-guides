@@ -132,9 +132,6 @@ gg-story {
         .guide-objective-notes .notes-markdown > :last-child { margin-bottom: 0; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     }
-    .guide-activity .guide-row-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; padding: 12px; }
-    .guide-activity .guide-content-row { border: 1px solid var(--guide-border); border-radius: 8px; background: var(--guide-nested); }
-    .guide-activity .guide-row-heading, .guide-activity .guide-content-row:has(.guide-global-note) { grid-column: 1 / -1; }
     @media (prefers-reduced-motion: reduce) {
         .guide-section-content, .guide-section-heading svg, .guide-world-quests .guide-notes-toggle svg { transition: none; }
     }

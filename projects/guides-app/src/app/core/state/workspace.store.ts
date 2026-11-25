@@ -1,4 +1,6 @@
 import { collectionEdit, characterDetailsEdits } from './services/character-edits';
+import { storyTemplateFor } from '@common/quests/story-guide';
+import { reconcilePreservedFieldRemovals } from '@common/quests/story-preservation';
 import { inventoryQuantityEdits } from './services/inventory-edits';
 import { mergeTeamEdits } from './services/team-edits';
 import { WorkspaceApi } from './services/workspace-api';
@@ -398,6 +400,7 @@ export class WorkspaceStore {
         finally { this.saving.set(false); }
     }
     async save(entry: Entry): Promise<boolean> {
+        if (entry.kind === 'story') {reconcilePreservedFieldRemovals(entry);}
         if (entry.kind === 'characters' && entry.characterInformation && entry.characterDefinition) {entry = editCharacterStory(entry, characterStoryProfile(entry));}
         let entries = [...this.entries().filter((e) => e.id !== entry.id), entry];
         const sharedEvent = entry.kind === 'events' ? entry : entry.eventId ? this.entries().find(item => item.kind === 'events' && item.id === entry.eventId && item.game === entry.game) : null;
@@ -410,7 +413,10 @@ export class WorkspaceStore {
             state = sharedEventState(sharedEvent, state);
             entries = entries.map(item => item.game === sharedEvent.game && (item.id === sharedEvent.id || item.eventId === sharedEvent.id) ? { ...item, ...state } : item);
         }
-        if (entry.kind === 'story' && entry.category === 'character-information') {
+        if (entry.kind === 'story' && entry.characterId && entry.storyContent) {
+            entries = entries.map(item => item.kind === 'characters' && item.game === entry.game && item.id === entry.characterId ? editCharacterStory(item, entry.storyContent!) : item);
+        }
+        if (entry.kind === 'story' && entry.category === 'character-information' && !entry.eventId) {
             if (entry.characterId && entry.characterInformation) {
                 const previous = this.entries().find(item => item.id === entry.id);
                 if (previous?.characterId !== entry.characterId || JSON.stringify(previous.characterInformation) !== JSON.stringify(entry.characterInformation)) {
@@ -424,11 +430,12 @@ export class WorkspaceStore {
                 } catch (error) {this.error.set(error instanceof Error ? error.message : 'Could not create the shared character.'); return false;}
             }
         }
-        if (entry.kind === 'story' && entry.category === 'events') {
-            if (entry.eventId && entry.eventStory) {
+        if (entry.kind === 'story' && (entry.eventId || entry.category === 'events') && !entry.characterId) {
+            const profile = entry.storyContent ?? storyTemplateFor(entry);
+            if (entry.eventId && profile) {
                 const previous = this.entries().find(item => item.id === entry.id);
-                if (previous?.eventId !== entry.eventId || previous.name !== entry.name || JSON.stringify(previous.eventStory) !== JSON.stringify(entry.eventStory)) {
-                    entries = entries.map(item => item.kind === 'events' && item.game === entry.game && item.id === entry.eventId ? editEventStory(item, entry.eventStory!, entry.name) : item);
+                if (previous?.eventId !== entry.eventId || previous.name !== entry.name || JSON.stringify(storyTemplateFor(previous)) !== JSON.stringify(profile)) {
+                    entries = entries.map(item => item.kind === 'events' && item.game === entry.game && item.id === entry.eventId ? editEventStory(item, profile, entry.name) : item);
                 }
             } else if (!entry.eventId) {
                 try {

@@ -512,7 +512,7 @@ try {
         ] } },
         { ...baseEntry, id: 'nav-character', kind: 'story', name: 'Fischl', category: 'character-information', storySection: 'e2e-section', order: 3, characterInformation: { ...sampleTemplate('Character Profile'), imageUrl: image.url, characterName: 'Fischl', damageType: 'Electro', faction: "Adventurers' Guild", patchVersion: '1.0', summary: 'A character profile with existing content rows.', sourceName: 'Fixture artwork', sourceUrl: 'https://example.invalid/art' } },
         { ...baseEntry, id: 'nav-side', kind: 'story', name: 'Wraith’s Nocturne', category: 'side-stories', storySection: 'e2e-section', order: 4, sideStories: sampleTemplate('Story Quest') },
-        { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: sampleTemplate('Event Objective') },
+        { ...baseEntry, id: 'nav-event', kind: 'story', name: 'Curious Use of Xiranite', category: 'events', storySection: 'e2e-section', order: 5, eventStory: { ...sampleTemplate('Event Objective'), imageUrl: image.url, sourceName: 'Fixture artwork', sourceUrl: 'https://example.invalid/art' } },
         { ...baseEntry, id: 'nav-patch', kind: 'story', name: 'Patch 7.1 Overview', category: 'patch-overview', storySection: 'e2e-section', order: 6, patchOverview: sampleTemplate('Patch Notes') },
     ];
     const sharedCharacterEntries = migrateStoryEvents(migrateStoryCharacters(navigationEntries, () => 'shared-fischl').entries, () => 'shared-event').entries;
@@ -653,6 +653,35 @@ try {
     await player.reload({ waitUntil: 'networkidle' });
     assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), true);
     assert.ok(await player.$eval('#story-template-nav-event', element => element.textContent?.includes('Shared event details')));
+    await editor.click('[aria-label="Edit Curious Use of Xiranite"]');
+    await editor.waitForSelector('gg-story [role=dialog] [name=topic]');
+    await editor.selectOption('gg-story [role=dialog] [name=topic]', 'endgame-activity');
+    await editor.waitForSelector('.template-conversion-review, .template-conversion-notice');
+    if (await editor.$('.template-conversion-review')) { await editor.click('.template-conversion-review .primary'); }
+    await editor.waitForSelector('.template-conversion-notice');
+    const conversionSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await clickButton(editor, 'Save changes'); assert.equal((await conversionSave).status(), 200);
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
+    const converted = (await repository.read('genshin')).entries.find(entry => entry.id === 'nav-event')!;
+    assert.equal(converted.category, 'endgame-activity'); assert.equal(converted.eventId, 'shared-event');
+    await player.reload({ waitUntil: 'networkidle' }); await player.waitForSelector(eventCheckbox);
+    assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), true);
+    await player.$eval('#story-template-nav-event', element => element.scrollIntoView({ block: 'center' }));
+    assert.equal(await player.$('#story-template-nav-event .patch-hero, #story-template-nav-event .guide-event-info'), null);
+    const activityLayout = await player.$eval('#story-template-nav-event', element => {
+        const header = element.querySelector('.endgame-header')!.getBoundingClientRect();
+        const art = element.querySelector('.endgame-art')!.getBoundingClientRect();
+        return { headerTop: header.top, artTop: art.top, headerRight: header.right, artLeft: art.left };
+    });
+    assert.ok(Math.abs(activityLayout.headerTop - activityLayout.artTop) < 2);
+    assert.ok(activityLayout.artLeft > activityLayout.headerRight);
+    await (await player.$('#story-template-nav-event'))!.screenshot({ path: join(artifacts, 'endgame-activity-desktop.png') });
+    await player.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await player.$eval('#story-template-nav-event', element => element.querySelector('.endgame-art')!.getBoundingClientRect().top >= element.querySelector('gg-story-content-list')!.getBoundingClientRect().bottom));
+    await (await player.$('#story-template-nav-event'))!.screenshot({ path: join(artifacts, 'endgame-activity-mobile.png') });
+    assert.equal(await player.$eval('#story-template-nav-event', element => element.scrollWidth > element.clientWidth + 1), false);
+    await player.setViewportSize({ width: 1440, height: 1000 });
+    console.log('PASS end-game activity conversion preserves shared event identity, completion and attribution with responsive supporting artwork.');
     await player.goto(origin + '/events', { waitUntil: 'networkidle' });
     // This fixture has no dates, so it is available in the backlog rather than the grid.
     await player.$eval('.events-backlog-button', button => (button as HTMLButtonElement).click());
@@ -665,6 +694,43 @@ try {
     await player.waitForSelector(eventCheckbox);
     assert.equal(await player.$eval(eventCheckbox, input => (input as HTMLInputElement).checked), false);
     console.log('PASS shared event guide and calendar synchronize account completion in both directions after reload.');
+    const eventsBeforeActivity = (await repository.read('genshin')).entries.filter(item => item.kind === 'events').map(item => item.id).sort();
+    await clickButton(editor, '+ Add subsection');
+    await editor.selectOption('gg-story [role=dialog] [name=topic]', 'endgame-activity');
+    await editor.fill('gg-story [role=dialog] [name=title]', 'E2E Independent Activity');
+    const independentSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await clickButton(editor, 'Create Subsection'); assert.equal((await independentSave).status(), 200);
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
+    const independentSnapshot = await repository.read('genshin');
+    const independentActivity = independentSnapshot.entries.find(item => item.name === 'E2E Independent Activity')!;
+    assert.equal(independentActivity.kind, 'story'); assert.equal(independentActivity.category, 'endgame-activity');
+    assert.ok(independentActivity.storyContent); assert.equal(independentActivity.eventId, globalThis.undefined);
+    assert.deepEqual(independentSnapshot.entries.filter(item => item.kind === 'events').map(item => item.id).sort(), eventsBeforeActivity);
+    console.log('PASS independent End-Game Activity creation does not create or link an Event/calendar record.');
+    const eventBeforeRemoval = independentSnapshot.entries.find(item => item.id === 'shared-event')!;
+    await editor.click('[aria-label="Edit Curious Use of Xiranite"]');
+    await editor.click('gg-story [role=dialog] .editor-template-details-link');
+    await editor.waitForSelector('.preserved-content');
+    await clickButton(editor, 'Remove field'); await clickButton(editor, 'Confirm removal');
+    await editor.waitForSelector('.preserved-content', { state: 'hidden' });
+    const removalSave = editor.waitForResponse(response => response.url().endsWith('/api/games/genshin/catalog') && response.request().method() === 'PUT');
+    await clickButton(editor, 'Save changes'); assert.equal((await removalSave).status(), 200);
+    await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
+    for (let reopen = 0; reopen < 2; reopen++) {
+        await editor.reload({ waitUntil: 'networkidle' });
+        await editor.waitForSelector(activeEditSwitch); await editor.click(activeEditSwitch);
+        await editor.click('[aria-label="Edit Curious Use of Xiranite"]');
+        await editor.click('gg-story [role=dialog] .editor-template-details-link');
+        assert.equal(await editor.$('.preserved-content'), null, 'Explicitly removed context must not be regenerated after reload.');
+        await clickButton(editor, 'Save changes'); await editor.waitForSelector('gg-story [role=dialog]', { state: 'hidden' });
+    }
+    const afterRemoval = await repository.read('genshin');
+    assert.ok(afterRemoval.entries.find(item => item.id === 'nav-event')?.removedPreservedFields?.includes('context.availability'));
+    const eventAfterRemoval = afterRemoval.entries.find(item => item.id === 'shared-event')!;
+    assert.equal(eventAfterRemoval.eventType, eventBeforeRemoval.eventType);
+    assert.equal(eventAfterRemoval.startDate, eventBeforeRemoval.startDate); assert.equal(eventAfterRemoval.endDate, eventBeforeRemoval.endDate);
+    assert.deepEqual(eventAfterRemoval.eventStory?.rows, eventBeforeRemoval.eventStory?.rows);
+    console.log('PASS removed preserved fields stay removed through repeated save/reload without changing Event scheduling or objectives.');
     const afterNavigation = await repository.read('genshin');
     assert.equal((await update(editorToken, afterNavigation.revision, beforeNavigation.entries)).status, 200);
     console.log('PASS story navigation hierarchy, guide ordering, scroll highlighting and responsive layout.');

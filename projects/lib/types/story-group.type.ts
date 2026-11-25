@@ -4,6 +4,8 @@ import type { WorldQuestGroupType } from '@lib/types/world-quest.type';
 export type StoryGroup = {
     id: string;
     title: string;
+    icon?: string;
+    description?: string;
 
     /** Optional external destination for the group's title. */
     contentUrl?: string;

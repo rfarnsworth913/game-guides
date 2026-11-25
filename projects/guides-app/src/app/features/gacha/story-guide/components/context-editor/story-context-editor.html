@@ -11,8 +11,8 @@
             <option [ngValue]="undefined">Not specified</option>
             @for (availability of availabilities; track availability) { <option [value]="availability">{{ availability }}</option> }
         </select></label>
-        <label>Start date<input type="date" [ngModelOptions]="standalone" [(ngModel)]="context().startDate" /></label>
-        <label>End date<input type="date" [ngModelOptions]="standalone" [(ngModel)]="context().endDate" /></label>
+        <label>Start date<input type="date" [ngModelOptions]="standalone" [ngModel]="context().startDate?.slice(0, 10)" (ngModelChange)="context().startDate = $event" /></label>
+        <label>End date<input type="date" [ngModelOptions]="standalone" [ngModel]="context().endDate?.slice(0, 10)" (ngModelChange)="context().endDate = $event" /></label>
     </div>
     }
     } @else if (showSubtype()) {

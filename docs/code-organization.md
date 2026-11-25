@@ -112,3 +112,5 @@ Middleware is organized into `src/app`, `src/config`, `src/core`, and domain-spe
 - `npm test` now includes middleware and parser TypeScript checks, architectural tooling tests, middleware tests, Angular tests and parser tests. CI still separately runs lint, production builds, parser browser fixtures and isolated browser integration. No production database or live wiki scraping is required by the normal test gate.
 
 See [legacy-code.md](legacy-code.md) for retained compatibility code and removal conditions. Uploaded-image storage is unchanged by this refactor.
+
+Production build budgets use a 650 kB initial warning limit (1 MB error) and an 8 kB per-style warning limit (10 kB error). These reflect the current Angular/Auth0 runtime and existing complex feature styles, rather than the former small-app baseline. Compiler diagnostics remain enabled. Shared quest-row selectors use `:is()` to avoid emitting repeated style rules for each supported template.

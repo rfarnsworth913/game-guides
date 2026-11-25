@@ -36,6 +36,10 @@ export type Entry = {
     worldQuests?: PatchOverview;
     lore?: PatchOverview;
     characterInformation?: PatchOverview;
+    /** Template-independent content, adopted when an editor converts a legacy template. */
+    storyContent?: PatchOverview;
+    /** Explicit removals prevent shared-reference projections from restoring deleted fields. */
+    removedPreservedFields?: string[];
     /** Story placement referencing a shared character in this game's catalog. */
     characterId?: string;
     /** Story placement referencing a shared event definition in this game's catalog. */

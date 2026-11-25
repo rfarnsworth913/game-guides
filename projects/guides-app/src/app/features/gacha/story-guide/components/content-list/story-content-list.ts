@@ -2,7 +2,7 @@ import { storyRequirementLinks } from '../../utils/story-requirement-links';
 import { Component, computed, HostListener, input, output, signal } from '@angular/core';
 import { Entry } from "../../../../../core/state/workspace.store";
 import { MarkdownPipe } from "../../../../../shared/pipes/markdown/markdown";
-import { httpUrl, patchGroups } from "@common/quests/story-template";
+import { httpUrl, storyImageUrl, patchGroups } from "@common/quests/story-template";
 import type { PatchOverview, StoryTableRow } from "@lib/types/story-template.type";
 import { storyCompletionKey, storyRowDone, storyTrackingMode } from "@common/quests/story-guide";
 import type { StoryContext } from "@lib/types/story-context.type";
@@ -42,6 +42,8 @@ export class StoryContentList {
     readonly completed = computed(() => this.rows().filter(this.done).length);
     readonly reference = computed(() => ['patch-overview', 'lore', 'character-information'].includes(this.entry().category));
     readonly activity = computed(() => this.entry().category === 'endgame-activity');
+    readonly iconUrl = storyImageUrl;
+    groupTitle(group: { title: string }): string {return this.activity() && (group.title === this.entry().name || group.title === 'Overview') ? 'Objectives' : group.title;}
     readonly eventTemplate = computed(() => this.entry().category === 'events');
     readonly questTemplate = computed(() => ['main-story', 'side-stories'].includes(this.entry().category));
     readonly sharedPatch = computed(() => {
@@ -72,7 +74,7 @@ export class StoryContentList {
         return this.mediaWords.test(group.title) || !!rows.length && rows.every(row => !!row.thumbnailUrl || !!row.duration || ['youtube', 'bilibili', 'video'].includes(this.mediaProvider(row)?.kind ?? ''));
     }
     groupIcon(group: ReturnType<typeof patchGroups>[number]): string {
-        return /\b(music|eps?|songs?|soundtracks?|ost)\b/i.test(group.title) ? 'music' : this.mediaGroup(group) ? 'play' : this.eventTemplate() ? 'event' : 'document';
+        return /\b(music|eps?|songs?|soundtracks?|ost)\b/i.test(group.title) ? 'music' : this.mediaGroup(group) ? 'play' : this.eventTemplate() || this.activity() ? 'event' : 'document';
     }
     mediaRow(row: StoryTableRow): boolean {
         if (row.rowType === 'heading' || row.rowType === 'note') {return false;}
@@ -127,8 +129,8 @@ export class StoryContentList {
         const first = this.worldGroups().find(group => group.rows.some(item => item.id === row.id));
         return first?.id === groupId ? this.anchor(row) : `${this.anchor(row)}-membership-${groupId}`;
     }
-    count(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(row => !this.eventTemplate() || !row.optional).length; }
-    countDone(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(row => (!this.eventTemplate() || !row.optional) && this.done(row)).length; }
+    count(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(row => !(this.eventTemplate() || this.activity()) || !row.optional).length; }
+    countDone(rows: StoryTableRow[]): number { return worldQuestObjectives(rows).filter(row => (!(this.eventTemplate() || this.activity()) || !row.optional) && this.done(row)).length; }
     groupProgress(id: string): { total: number; completed: number; percent: number } {
         const rows = patchGroups(this.data()).find(group => group.id === id)?.rows ?? [];
         return this.progressForRows(rows);

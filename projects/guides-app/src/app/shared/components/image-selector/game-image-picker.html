@@ -138,11 +138,11 @@
     @if (previewImage(); as image) {
         <header class="library-heading"><div><h3>Image Preview</h3><p>{{ displayName(image) }}</p></div><button type="button" class="library-close" aria-label="Close image preview" (click)="closePreview()">×</button></header>
         <div class="library-preview-content"><img class="library-full-image" [src]="image.url" [alt]="image.details?.description || displayName(image)" (load)="recordSize($event, image.url)" />
-            <dl><div><dt>Image type</dt><dd>{{ categoryName(image) }}</dd></div><div><dt>Dimensions</dt><dd>{{ dimensionLabel(image) }}</dd></div><div><dt>Aspect ratio</dt><dd>{{ aspect(size(image)?.width, size(image)?.height) }}</dd></div><div><dt>Format</dt><dd>{{ format(image) }}</dd></div>
+            <dl><div><dt>Image type</dt><dd>{{ categoryName(image) }}</dd></div><div><dt>Dimensions</dt><dd>{{ dimensionLabel(image) }}</dd></div><div><dt>Aspect ratio</dt><dd>{{ aspect(size(image).width, size(image).height) }}</dd></div><div><dt>Format</dt><dd>{{ format(image) }}</dd></div>
                 @if (image.fileSize !== undefined) { <div><dt>File size</dt><dd>{{ fileSize(image.fileSize) }}</dd></div> }
-                @if (image.details?.tags) { <div><dt>Tags</dt><dd>{{ image.details?.tags }}</dd></div> }
-                @if (image.details?.description) { <div class="wide"><dt>Description</dt><dd>{{ image.details?.description }}</dd></div> }
-                @if (image.details?.sourceName) { <div><dt>Attribution</dt><dd>{{ image.details?.sourceName }}</dd></div> }
+                @if (image.details?.tags) { <div><dt>Tags</dt><dd>{{ image.details.tags }}</dd></div> }
+                @if (image.details?.description) { <div class="wide"><dt>Description</dt><dd>{{ image.details.description }}</dd></div> }
+                @if (image.details?.sourceName) { <div><dt>Attribution</dt><dd>{{ image.details.sourceName }}</dd></div> }
                 @if (imageUrl(image.details?.sourceUrl || ''); as source) { <div><dt>Source</dt><dd><a [href]="source" target="_blank" rel="noopener noreferrer">Source page</a></dd></div> }
                 @if (image.createdAt) { <div><dt>Created</dt><dd>{{ image.createdAt }}</dd></div> }
                 @if (image.updatedAt) { <div><dt>Modified</dt><dd>{{ image.updatedAt }}</dd></div> }
