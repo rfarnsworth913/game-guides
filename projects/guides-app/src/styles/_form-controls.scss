@@ -1,0 +1,11 @@
+/** Shared select treatment for dialogs and reusable controls. */
+@mixin select {
+    appearance: none;
+    padding-right: 38px;
+    background-image:
+        linear-gradient(45deg, transparent 50%, currentColor 50%),
+        linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 17px center, right 12px center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+}

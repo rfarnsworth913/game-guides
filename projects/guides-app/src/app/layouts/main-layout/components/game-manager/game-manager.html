@@ -42,7 +42,7 @@
                         </div>
                         <div class="game-artwork">
                             <div class="game-image-field" data-game-field="icon"><h3>Icon Image <small>(optional)</small></h3>
-                                <gg-game-image-picker #iconPicker [game]="game.id" label="Game Icon" [selectionOnly]="true" [deferUploads]="true" [libraryAvailable]="!creating && !game.archived" [value]="game.icon" (valueChange)="game.icon = $event; touched.add('icon')" />
+                                <gg-game-image-picker #iconPicker [game]="game.id" label="Game Icon" preferredImageType="icon" [selectionOnly]="true" [deferUploads]="true" [libraryAvailable]="!creating && !game.archived" [value]="game.icon" (valueChange)="game.icon = $event; touched.add('icon')" />
                                 <p class="field-error">{{ fieldError('icon') }}</p>
                             </div>
                             <div class="game-image-field" data-game-field="banner"><h3>Banner Image <small>(optional)</small></h3>

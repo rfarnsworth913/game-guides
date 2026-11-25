@@ -18,7 +18,7 @@ describe('Game management editor', () => {
     async function setup(request: GameManagementRequest = { action: 'add' }, games: GameOverview[] = []) {
         const store = { canEdit: () => true, saving: signal(false), gameRegistry: vi.fn(async () => games),
             saveGameOverview: vi.fn(async (game: GameOverview, create: boolean = false, remove: boolean = false): Promise<GameOverview> => ({ ...game, features: [...game.features], archived: remove || game.archived, revision: create ? 0 : game.revision + 1 })) };
-        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: store }, { provide: AuthStore, useValue: { request: vi.fn() } }] });
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: store }, { provide: AuthStore, useValue: { request: vi.fn(), user: signal(null) } }] });
         const fixture = TestBed.createComponent(GameManager);
         fixture.componentRef.setInput('request', request);
         fixture.detectChanges();

@@ -25,6 +25,7 @@ The older implementation guide, NAS/parser task exports and historical lint/pars
 | Area | Guides |
 | --- | --- |
 | Games | [Game management](game-management.md) |
+| Shared image selectors | [Image library browser](image-library.md) |
 | Characters | [Character management](character-management.md), [progression contracts and game rules](character-management-extension.md), [Character Details](character-details.md) |
 | Inventory and planning | [Inventory management](inventory-management.md), [farming planner](farming-planner.md), [teams](teams.md) |
 | Events | [Event tracking and calendar](event-tracking.md), [shared story events](shared-story-events.md) |

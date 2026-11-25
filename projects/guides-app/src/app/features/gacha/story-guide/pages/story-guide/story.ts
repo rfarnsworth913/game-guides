@@ -25,7 +25,7 @@ import { emptyPatchOverview, validPatchOverview, trimPatchOverviewText, prepareP
     selector: 'gg-story',
     imports: [FormsModule, NgTemplateOutlet, DialogFocusDirective, StoryGuideHeader, PatchOverviewTemplate, StoryDividerTemplate, WorldQuestsTemplate, LoreTemplate, CharacterInformationTemplate, GameImagePicker],
     templateUrl: "./story.html",
-    styleUrls: ["./story.scss", "./story-navigation.scss", "./story-editor-dialog.scss"],
+    styleUrls: ["./story.scss", "./story-navigation.scss", "./story-editor-dialog.scss", "./navigation-group-dialog.scss"],
     host: { '[style.--story-sticky-height]': "stickyHeight() + 'px'" },
 })
 export class Story {
@@ -462,8 +462,11 @@ export class Story {
     topic(entry: Entry) {
         return this.topics().find((topic) => topic.id === entry.category) ?? this.topics()[1];
     }
+    isNewEntry(entry: Entry): boolean {
+        return !this.store.entries().some(saved => saved.id === entry.id);
+    }
     editorTitle(entry: Entry): string {
-        const existing = this.store.entries().some(saved => saved.id === entry.id);
+        const existing = !this.isNewEntry(entry);
         if (isStoryDivider(entry)) {return existing ? 'Edit Divider' : 'Create Divider';}
         if (entry.kind === 'story-category') {
             return existing ? 'Edit Navigation Group' : 'Create Navigation Group';

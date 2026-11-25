@@ -433,6 +433,48 @@ try {
 
     await editor.click(activeEditSwitch);
     await editor.waitForSelector('gg-story .story-mode-toggle[aria-checked=true]');
+    await clickButton(editor, 'Edit section');
+    await editor.waitForSelector('.navigation-group-modal');
+    assert.equal(await editor.$eval('.navigation-group-modal h2', element => element.textContent?.trim()), 'Edit Navigation Group');
+    assert.ok(await editor.$('.navigation-category-icon .compact-icon-button'));
+    const originalNavigationGroup = (await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-section');
+    await editor.click('.navigation-group-banner .image-actions button');
+    await editor.waitForSelector('.navigation-group-banner .game-image-dialog[open] .library-categories');
+    await editor.locator('.navigation-group-banner .library-categories button').filter({ hasText: 'All' }).click();
+    await editor.waitForSelector('.navigation-group-banner .image-library .image-select');
+    await editor.locator('.navigation-group-banner .image-preview-action').first().click();
+    await editor.waitForSelector('.library-image-preview[open] .library-full-image');
+    await editor.screenshot({ path: join(artifacts, 'image-library-preview.png') });
+    await editor.keyboard.press('Escape');
+    await editor.waitForSelector('.library-image-preview', { state: 'hidden' });
+    assert.ok(await editor.$('.navigation-group-banner .game-image-dialog[open]'));
+    await editor.locator('.navigation-group-banner .image-library .image-select').first().click();
+    await editor.waitForSelector('.navigation-group-banner .selected-check');
+    await editor.screenshot({ path: join(artifacts, 'image-library-desktop.png') });
+    const libraryViewport = editor.viewportSize()!;
+    await editor.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await editor.$eval('.navigation-group-banner .game-image-dialog', element => {
+        const bounds = element.getBoundingClientRect();
+        const footer = element.querySelector('.library-footer')!.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.right <= innerWidth && footer.bottom <= innerHeight && element.scrollWidth <= element.clientWidth + 1;
+    }), 'Image browser and fixed footer must fit mobile screens.');
+    await editor.screenshot({ path: join(artifacts, 'image-library-mobile.png') });
+    await editor.setViewportSize(libraryViewport);
+    await editor.locator('.navigation-group-banner .use-selected').click();
+    await editor.waitForSelector('.navigation-group-banner .banner-preview');
+    await editor.screenshot({ path: join(artifacts, 'navigation-group-desktop.png') });
+    const navigationViewport = editor.viewportSize()!;
+    await editor.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await editor.$eval('.navigation-group-modal', element => {
+        const bounds = element.getBoundingClientRect();
+        const actions = element.querySelector('.modal-actions')!.getBoundingClientRect();
+        return bounds.left >= 0 && bounds.right <= innerWidth && element.scrollWidth <= element.clientWidth + 1 && actions.bottom <= innerHeight;
+    }), 'Navigation group fields and footer must fit a narrow viewport.');
+    await editor.screenshot({ path: join(artifacts, 'navigation-group-mobile.png') });
+    await clickButton(editor, 'Cancel', '.navigation-group-modal');
+    assert.deepEqual((await repository.read('genshin')).entries.find(entry => entry.id === 'e2e-section'), originalNavigationGroup, 'Cancelling artwork selection must preserve the stored navigation group.');
+    await editor.setViewportSize(navigationViewport);
+    console.log('PASS navigation group dialog: standard icon picker, banner preview, responsive layout and cancellation isolation.');
     await clickButton(editor, '+ Add subsection');
     await editor.selectOption('gg-story [role=dialog] select[name=topic]', 'divider');
     await editor.waitForFunction(() => !document.querySelector('gg-story [role=dialog] input[name=title]'));

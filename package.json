@@ -10,6 +10,7 @@
     "middleware:characters": "tsx projects/middleware/scripts/migrations/character-story-migration.ts",
     "middleware:check": "tsc -p projects/middleware/tsconfig.json",
     "middleware:events": "tsx projects/middleware/scripts/migrations/event-story-migration.ts",
+    "middleware:image-categories": "tsx projects/middleware/scripts/migrations/image-category-migration.ts",
     "middleware:lint": "eslint projects/middleware/src projects/middleware/scripts",
     "middleware:main-quests": "tsx projects/middleware/scripts/migrations/main-quest-migration.ts",
     "middleware:migrate": "tsx projects/middleware/scripts/migrate.ts",
@@ -58,6 +59,7 @@
     "playwright": "1.59.1",
     "puppeteer": "25.11.0",
     "rxjs": "7.8.1",
+    "sharp": "0.35.5",
     "tslib": "2.6.2"
   },
   "devDependencies": {

@@ -207,19 +207,27 @@
     <div class="modal-backdrop">
         <section
             class="modal story-guide-dialog"
+            [class.navigation-group-modal]="entry.kind === 'story-category'"
             [class.create-subsection-modal]="isNewSubsection()"
             [class.patch-modal]="hasTemplate(entry) && !isDivider(entry) && !isNewSubsection()"
             role="dialog"
             aria-modal="true"
             aria-labelledby="story-editor-title"
-            [attr.aria-describedby]="isNewSubsection() ? 'story-create-description' : null"
+            [attr.aria-describedby]="entry.kind === 'story-category' ? 'story-navigation-description' : isNewSubsection() ? 'story-create-description' : null"
             ggDialogFocus
             (keydown.escape)="editor = null"
         >
             <div class="story-dialog-header">
+                @if (entry.kind === 'story-category') {
+                    <div class="navigation-group-heading-copy">
+                        <h2 id="story-editor-title">{{ editorTitle(entry) }}</h2>
+                        <p id="story-navigation-description">{{ isNewEntry(entry) ? 'Add a new group to the navigation.' : 'Update this navigation group’s title and artwork.' }}</p>
+                    </div>
+                } @else {
                 <h2 id="story-editor-title">
                     {{ editorTitle(entry) }}
                 </h2>
+                }
                 <button type="button" class="story-dialog-close" aria-label="Close editor" (click)="editor = null">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 6 12 12M18 6 6 18" /></svg>
                 </button>
@@ -229,9 +237,10 @@
             }
             <form (ngSubmit)="save()" #sectionForm="ngForm">
                 @if (entry.kind === 'story-category') {
+                <div class="navigation-group-fields">
                 <div class="navigation-category-title-row">
-                <label
-                    >Title<input
+                <label class="navigation-group-title"
+                    ><span class="navigation-group-field-heading"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 3h8l10 10-8 8L3 11V3Z" /><circle cx="7.5" cy="7.5" r="1" /></svg>Title <span class="required-indicator" aria-hidden="true">*</span></span><input
                         name="title"
                         [(ngModel)]="entry.name"
                         required
@@ -245,8 +254,12 @@
                             [value]="entry.icon ?? ''" (valueChange)="entry.icon = $event" />
                     </div>
                 </div>
-                    <gg-game-image-picker [game]="entry.game" label="Region Header Background" imagePurpose="banner" [selectionOnly]="true"
+                    <section class="navigation-group-banner" aria-labelledby="navigation-group-banner-title">
+                    <h3 id="navigation-group-banner-title" class="navigation-group-field-heading"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8" cy="8" r="1.5" /><path d="m3 17 6-6 4 4 3-3 5 5" /></svg>Banner Image</h3>
+                    <gg-game-image-picker [game]="entry.game" label="Banner Image" imagePurpose="banner" [banner]="true" [selectionOnly]="true" [previewOverlay]="true"
                         [value]="entry.sectionImageUrl ?? ''" (valueChange)="entry.sectionImageUrl = $event" />
+                    </section>
+                </div>
                 } @else {
                     <ng-template #overviewFields>
                     <div class="section-overview-identity">
@@ -300,7 +313,13 @@
                     <p class="error" role="alert">{{ error }}</p>
                 }
                 <div class="modal-actions">
-                    @if (isNewSubsection()) {
+                    @if (entry.kind === 'story-category') {
+                        <button type="button" [disabled]="busy()" (click)="editor = null">Cancel</button>
+                        <button type="submit" class="primary" [disabled]="busy() || sectionForm.invalid || !entry.name.trim()">
+                            @if (isNewEntry(entry)) { <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v16M4 12h16" /></svg> }
+                            {{ isNewEntry(entry) ? 'Create Group' : 'Save Changes' }}
+                        </button>
+                    } @else if (isNewSubsection()) {
                         <button type="submit" class="primary" [disabled]="busy() || sectionForm.invalid || !validNewSubsection()">Create Subsection</button>
                         <button type="button" class="cancel-create" (click)="editor = null">Cancel</button>
                     } @else {

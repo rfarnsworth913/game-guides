@@ -254,7 +254,7 @@
                     <label>Tags (comma-separated)<input name="inventoryTags" [ngModel]="(e.inventoryMetadata?.tags ?? []).join(', ')" (ngModelChange)="inventoryMetadataText('tags',$event)" /></label>
                     <label>Category identifiers (comma-separated)<input name="inventoryCategories" [ngModel]="(e.inventoryMetadata?.categoryIds ?? []).join(', ')" (ngModelChange)="inventoryMetadataText('categoryIds',$event)" /></label>
                     <label><input name="inventoryEnabled" type="checkbox" [ngModel]="e.inventoryMetadata?.enabled !== false" (ngModelChange)="setInventoryEnabled($event)" />Enabled in inventory</label>
-                    <gg-game-image-picker [game]="e.game" label="Item artwork" [value]="e.icon ?? ''" (valueChange)="e.icon = $event" />
+                    <gg-game-image-picker [game]="e.game" label="Item artwork" preferredImageType="icon" [value]="e.icon ?? ''" (valueChange)="e.icon = $event" />
                     <label>Region (optional)<input name="region" [(ngModel)]="e.region" maxlength="160" /></label>
                     <label>Stack limit (optional)<input name="maxStack" type="number" min="1" max="1000000000" step="1" [ngModel]="e.maxStack" (ngModelChange)="setMaxStack($event)" /></label>
                     <label>Item reference URL (optional)<input name="itemUrl" type="url" [(ngModel)]="e.wikiUrl" placeholder="https://" /></label>

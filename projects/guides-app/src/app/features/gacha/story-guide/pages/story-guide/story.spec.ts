@@ -85,6 +85,14 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
+        expect(root.querySelector('.navigation-group-modal')?.getAttribute('aria-describedby')).toBe('story-navigation-description');
+        expect(root.querySelector('#story-editor-title')?.textContent).toBe('Edit Navigation Group');
+        const banner = fixture.debugElement.query(By.css('.navigation-group-banner gg-game-image-picker')).componentInstance as GameImagePicker;
+        expect(banner.banner()).toBe(true);
+        expect(banner.selectionOnly()).toBe(true);
+        banner.value.set('/api/games/genshin/images/mondstadt-banner.webp');
+        expect(component.editor?.sectionImageUrl).toBe('/api/games/genshin/images/mondstadt-banner.webp');
+        expect(section.sectionImageUrl).toBeUndefined();
         expect(root.querySelector('.navigation-category-icon > span')?.textContent).toBe('Icon or Icon URL');
         expect(root.querySelector('.navigation-category-icon .compact-icon-button')).not.toBeNull();
         const picker = fixture.debugElement.query(By.css('.navigation-category-icon gg-game-image-picker')).componentInstance as GameImagePicker;
@@ -98,7 +106,7 @@ describe('Story incomplete filter', () => {
         expect(save).not.toHaveBeenCalled();
         await component.save();
         fixture.detectChanges();
-        expect(save).toHaveBeenCalledWith(expect.objectContaining({ icon: '/api/games/genshin/images/mondstadt.webp' }));
+        expect(save).toHaveBeenCalledWith(expect.objectContaining({ icon: '/api/games/genshin/images/mondstadt.webp', sectionImageUrl: '/api/games/genshin/images/mondstadt-banner.webp' }));
         expect(root.querySelector('#story-tab-section img')?.getAttribute('src')).toBe('/api/games/genshin/images/mondstadt.webp');
         expect(component.iconUrl('https://example.com/icon.png')).toBe('https://example.com/icon.png');
         expect(component.iconUrl('*')).toBeNull();

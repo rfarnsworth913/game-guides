@@ -1,3 +1,4 @@
+@use './form-controls' as controls;
 // Shared guide navigation and template editor layout.
 :root { --story-content-link: #7dd3fc; }
 :root.theme-light, [data-theme="light"] { --story-content-link: #0369a1; }
@@ -60,14 +61,7 @@ gg-story {
     }
     .attached-world-quests { margin-top: 24px; }
     .modal select {
-        appearance: none;
-        padding-right: 38px;
-        background-image:
-            linear-gradient(45deg, transparent 50%, currentColor 50%),
-            linear-gradient(135deg, currentColor 50%, transparent 50%);
-        background-position: right 17px center, right 12px center;
-        background-size: 5px 5px;
-        background-repeat: no-repeat;
+        @include controls.select;
     }
     .modal .patch-group-edit-row,
     .modal .image-actions {

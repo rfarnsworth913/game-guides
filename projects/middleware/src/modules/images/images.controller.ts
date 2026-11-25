@@ -3,6 +3,8 @@ import { ApiError } from '../../core/errors/app-error';
 import { imageRoot } from './images.repository';
 import { ImagesService } from './images.service';
 import { IMAGE_TYPES, IMAGE_LIMIT } from './images.schema';
+import { IMAGE_CATEGORIES } from '@lib/constants/image-category.constants';
+import type { ImageCategory } from '@lib/types/game-image.type';
 export async function handleGameImages(request: IncomingMessage, response: ServerResponse, id: string, filename: string | undefined, root = imageRoot): Promise<void> {
     const service = new ImagesService(root, id);
     const json = (status: number, body: unknown) => {
@@ -33,8 +35,9 @@ export async function handleGameImages(request: IncomingMessage, response: Serve
         return;
     }
     if (request.method === 'GET' && filename) {
-        const data = await service.read(filename);
-        response.writeHead(200, { 'Content-Type': IMAGE_TYPES[filename.split('.').at(-1)!], 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
+        const thumbnail = new URL(request.url!, 'http://localhost').searchParams.get('thumbnail') === '1';
+        const data = thumbnail ? await service.thumbnail(filename) : await service.read(filename);
+        response.writeHead(200, { 'Content-Type': thumbnail ? 'image/webp' : IMAGE_TYPES[filename.split('.').at(-1)!], 'Content-Length': data.length, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
         response.end(data);
         return;
     }
@@ -58,5 +61,7 @@ export async function handleGameImages(request: IncomingMessage, response: Serve
     }
     const data = Buffer.concat(chunks);
     const original = new URL(request.url!, 'http://localhost').searchParams.get('name') ?? 'image';
-    json(201, await service.upload(data, original));
+    const category = new URL(request.url!, 'http://localhost').searchParams.get('category');
+    if (category && !Object.hasOwn(IMAGE_CATEGORIES, category)) { throw new ApiError(400, 'Unsupported image category.'); }
+    json(201, await service.upload(data, original, (category || globalThis.undefined) as ImageCategory | undefined));
 }
