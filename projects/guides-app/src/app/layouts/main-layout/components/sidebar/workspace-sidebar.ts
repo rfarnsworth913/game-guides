@@ -2,8 +2,8 @@ import { afterNextRender, Component, computed, DestroyRef, effect, ElementRef, H
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { GAMES } from '@lib/constants/workspace.constants';
 import { GameNavigationPreferences } from '../../../../core/state/game-navigation-preferences';
-import { defaultGameOverview, gameSupports } from '@common/workspace/game-overview';
-import type { GameOverview } from '@lib/types/game-overview.type';
+import { defaultGameOverview, canAccessGame, canAccessFeature } from '@common/workspace/game-overview';
+import type { GameRegistration } from '@lib/types/game-registration.type';
 import type { GameManagementRequest } from '../game-manager/game-manager';
 
 export type SidebarLink = { id: string; label: string; icon: string; divider?: boolean };
@@ -26,7 +26,7 @@ export class WorkspaceSidebar {
     readonly activeGameId = input<string | null>(null);
     readonly links = input.required<readonly SidebarLink[]>();
     readonly planCount = input(0);
-    readonly catalog = input<GameOverview[]>(GAMES.map(game => defaultGameOverview(game.id)));
+    readonly catalog = input<GameRegistration[]>(GAMES.map(game => defaultGameOverview(game.id)));
     readonly canManage = input(false);
     readonly manageGame = output<GameManagementRequest>();
     readonly navigated = output<void>();
@@ -37,7 +37,7 @@ export class WorkspaceSidebar {
     readonly switching = signal(false);
     readonly error = signal('');
     readonly activeGame = computed(() => this.catalog().find(game => game.id === this.activeGameId()));
-    readonly workspaceLinks = computed(() => this.links().slice(2).filter(link => gameSupports(this.activeGame(), link.id)));
+    readonly workspaceLinks = computed(() => this.links().slice(2).filter(link => canAccessFeature(this.activeGame(), link.id, this.canManage())));
     readonly failedImages = signal<string[]>([]);
     readonly filters: { id: GameFilter; label: string; icon: string }[] = [
         { id: 'all', label: 'All Games', icon: 'grid' },
@@ -48,7 +48,7 @@ export class WorkspaceSidebar {
         const favorites = this.preferences.favoriteGameIds();
         const recent = this.preferences.recentGameIds();
         const query = this.searchQuery().trim().toLocaleLowerCase();
-        return this.catalog().filter(game => (!query || game.name.toLocaleLowerCase().includes(query)) &&
+        return this.catalog().filter(game => canAccessGame(game, this.canManage()) && (!query || game.name.toLocaleLowerCase().includes(query)) &&
             (this.filter() === 'all' || (this.filter() === 'favorites' ? favorites.includes(game.id) : recent.includes(game.id))))
             .sort((a, b) => this.filter() === 'recent' ? recent.indexOf(a.id) - recent.indexOf(b.id) : a.name.localeCompare(b.name));
     });
@@ -91,7 +91,7 @@ export class WorkspaceSidebar {
     }
 
     async selectGame(id: string): Promise<void> {
-        if (this.switching() || !this.catalog().some(game => game.id === id)) {return;}
+        if (this.switching() || !this.catalog().some(game => game.id === id && canAccessGame(game, this.canManage()))) {return;}
         if (id === this.activeGameId()) {this.closeSelector(); return;}
         this.switching.set(true);
         this.error.set('');

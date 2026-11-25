@@ -26,7 +26,7 @@ import { BackToTop } from "../../shared/components/back-to-top/back-to-top";
 import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialog-focus";
 import { WorkspaceSidebar } from './components/sidebar/workspace-sidebar';
 import { GameManager, type GameManagementRequest } from './components/game-manager/game-manager';
-import { gameSupports } from '@common/workspace/game-overview';
+import { canAccessGame, canAccessFeature } from '@common/workspace/game-overview';
 
 @Component({
     selector: 'gg-workspace',
@@ -65,6 +65,7 @@ export class Workspace {
             : this.nav.find((n) => n.id === this.page())?.label ?? 'Settings',
     );
     readonly context = computed(() => this.games().find((g) => g.id === this.params()?.get('game')));
+    readonly pageAccessible = computed(() => !this.params()?.get('game') || canAccessFeature(this.context(), this.page(), this.store.canEdit()));
     constructor() {
         this.store.initialize().catch(() => this.notice.set('Could not initialize game data.'));
         effect(() => {
@@ -75,7 +76,8 @@ export class Workspace {
             }
             const context = this.context();
             this.theme.setGame((GAMES.some(item => item.id === context?.id) ? context!.id : 'default') as GameTheme, context?.color);
-            if (context && !gameSupports(context, this.page())) {this.navigate(`/games/${context.id}/dashboard`);}
+            if (context && !canAccessGame(context, this.store.canEdit())) {this.navigate('/games');}
+            else if (context && !canAccessFeature(context, this.page(), this.store.canEdit())) {this.navigate(`/games/${context.id}/dashboard`);}
         });
     }
     sectionLink(page: string): string {

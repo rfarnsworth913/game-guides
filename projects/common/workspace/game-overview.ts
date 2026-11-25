@@ -1,5 +1,5 @@
 import { GAMES } from '@lib/constants/workspace.constants';
-import type { GameFeature, GameOverview } from '@lib/types/game-overview.type';
+import type { GameFeature, GameRegistration } from '@lib/types/game-registration.type';
 import { storyImageUrl } from '@common/quests/story-template';
 
 export const GAME_FEATURES: { id: GameFeature; title: string; description: string; icon: string }[] = [
@@ -12,7 +12,7 @@ export const GAME_FEATURES: { id: GameFeature; title: string; description: strin
     { id: 'farming', title: 'Farming', description: 'Material sources and farming plans.', icon: 'M12 22V12M12 16C3 16 3 7 3 7c9 0 9 9 9 9Zm0-4C12 3 21 3 21 3s0 9-9 9Z' },
     { id: 'achievements', title: 'Achievements', description: 'Achievement categories and completion.', icon: 'M8 3h8v8a4 4 0 0 1-8 0Zm0 2H3v3a5 5 0 0 0 5 5m8-8h5v3a5 5 0 0 1-5 5m-4 2v6m-5 0h10' },
 ];
-export type GameOverviewField = 'id' | 'name' | 'short' | 'description' | 'gameType' | 'icon' | 'banner' | 'features' | 'color' | 'form';
+export type GameOverviewField = 'id' | 'name' | 'short' | 'description' | 'genre' | 'icon' | 'banner' | 'features' | 'color' | 'form';
 
 /** Only opaque RGB colors are accepted; arbitrary CSS expressions are not game settings. */
 export function gameColorChannels(value: string): [number, number, number] | null {
@@ -37,34 +37,61 @@ export function validGameId(value: unknown): value is string {
     return typeof value === 'string' && /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value) && value.length <= 64 &&
         !['constructor', 'prototype', 'registry', 'catalog', 'parsed', 'overview', 'images'].includes(value);
 }
-export function defaultGameOverview(id: string): GameOverview {
+export function defaultGameOverview(id: string): GameRegistration {
     const game = GAMES.find(item => item.id === id);
     return { id, name: game?.name ?? id, short: game?.short ?? id.slice(0, 4).toUpperCase(), subtitle: game?.subtitle ?? '',
-        color: game?.color ?? 'var(--color-primary)', description: '', gameType: '', icon: '', banner: '',
-        features: GAME_FEATURES.map(item => item.id), archived: false, revision: 0 };
+        color: game?.color ?? 'var(--color-primary)', description: '', genre: '', icon: '', banner: '',
+        features: Object.fromEntries(GAME_FEATURES.map(item => [item.id, { feature: item.id, visibility: 'public' as const }])), visibility: 'public', revision: 0 };
 }
 export function gameOverviewErrors(value: unknown): Partial<Record<GameOverviewField, string>> {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {return { form: 'Invalid game overview.' };}
-    const game = value as GameOverview;
+    const game = value as GameRegistration;
     const errors: Partial<Record<GameOverviewField, string>> = {};
     if (!validGameId(game.id)) {errors.id = 'Use a game ID starting with a lowercase letter, followed by lowercase letters, numbers or single hyphens (up to 64 characters). Reserved IDs are unavailable.';}
     if (typeof game.name !== 'string' || !game.name.trim() || game.name.length > 120) {errors.name = 'Enter a name of 1–120 characters.';}
     if (typeof game.short !== 'string' || !game.short.trim() || game.short.length > 8) {errors.short = 'Enter a short name of 1–8 characters.';}
     if (typeof game.description !== 'string' || game.description.length > 500) {errors.description = 'Description must be 500 characters or fewer.';}
-    if (typeof game.gameType !== 'string' || game.gameType.length > 80) {errors.gameType = 'Game type must be 80 characters or fewer.';}
+    if (typeof game.genre !== 'string' || game.genre.length > 80) {errors.genre = 'Game type must be 80 characters or fewer.';}
     for (const field of ['icon', 'banner'] as const) {
         const url = game[field];
         if (typeof url !== 'string' || url.length > 2048 || (!!url && storyImageUrl(url) === null)) {errors[field] = 'Choose an image from the picker or enter a valid HTTP(S) image URL.';}
     }
-    if (!Array.isArray(game.features) || game.features.length > GAME_FEATURES.length || new Set(game.features).size !== game.features.length || !game.features.every(id => GAME_FEATURES.some(feature => feature.id === id))) {errors.features = 'Choose only supported features, without duplicates.';}
+    if (!game.features || typeof game.features !== 'object' || Array.isArray(game.features) ||
+        !Object.entries(game.features).every(([key, value]) => GAME_FEATURES.some(feature => feature.id === key) &&
+            value && typeof value === 'object' && value.feature === key && ['public', 'editors'].includes(value.visibility) &&
+            Object.keys(value).every(field => ['feature', 'visibility'].includes(field)))) {errors.features = 'Choose supported features with matching IDs and public or editor visibility.';}
     if (typeof game.color !== 'string' || (!normalizeGameColor(game.color) && game.color !== defaultGameOverview(typeof game.id === 'string' ? game.id : '').color)) {errors.color = 'Choose an opaque highlight color or enter #RRGGBB, rgb(r, g, b) or rgba(r, g, b, 1).';}
-    if (!Object.keys(value).every(key => ['id', 'name', 'short', 'subtitle', 'description', 'gameType', 'icon', 'banner', 'features', 'archived', 'revision', 'color'].includes(key)) ||
-        typeof game.subtitle !== 'string' || game.subtitle.length > 160 || typeof game.archived !== 'boolean' || !Number.isSafeInteger(game.revision) || game.revision < 0 || game.revision >= Number.MAX_SAFE_INTEGER) {errors.form = 'Invalid game metadata. Reload the game list and try again.';}
+    if (!Object.keys(value).every(key => ['id', 'name', 'short', 'subtitle', 'description', 'genre', 'icon', 'banner', 'features', 'visibility', 'revision', 'color'].includes(key)) ||
+        typeof game.subtitle !== 'string' || game.subtitle.length > 160 || !['public', 'editors'].includes(game.visibility) || !Number.isSafeInteger(game.revision) || game.revision < 0 || game.revision >= Number.MAX_SAFE_INTEGER) {errors.form = 'Invalid game metadata. Reload the game list and try again.';}
     return errors;
 }
-export function validGameOverview(value: unknown): value is GameOverview {
+export function validGameOverview(value: unknown): value is GameRegistration {
     return Object.keys(gameOverviewErrors(value)).length === 0;
 }
-export function gameSupports(game: Pick<GameOverview, 'features'> | undefined, feature: string): boolean {
-    return !!game && (feature === 'dashboard' || game.features.includes(feature as GameFeature));
+export function gameSupports(game: Pick<GameRegistration, 'features'> | undefined, feature: string): boolean {
+    return !!game && (feature === 'dashboard' || Object.hasOwn(game.features, feature));
+}
+
+/** Workspace visibility only; global shared catalog data remains public. */
+export function canAccessGame(game: Pick<GameRegistration, 'visibility'>, editor = false): boolean {
+    return game.visibility === 'public' || editor;
+}
+export function canAccessFeature(game: GameRegistration | undefined, feature: string, editor = false): boolean {
+    return !!game && canAccessGame(game, editor) && gameSupports(game, feature) &&
+        (feature === 'dashboard' || game.features[feature as GameFeature]?.visibility === 'public' || editor);
+}
+
+/** Explicit adapter for pre-configuration documents; never used to validate new requests. */
+export function legacyGameRegistration(id: string, value: unknown): GameRegistration {
+    const defaults = defaultGameOverview(id);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {return defaults;}
+    const old = value as Record<string, unknown>;
+    const features = Array.isArray(old['features']) ? Object.fromEntries(old['features']
+        .filter((key): key is GameFeature => typeof key === 'string' && GAME_FEATURES.some(feature => feature.id === key))
+        .map(feature => [feature, { feature, visibility: 'public' as const }])) : old['features'] === globalThis.undefined ? defaults.features : old['features'] as GameRegistration['features'];
+    const result = { ...defaults, ...Object.fromEntries(['name', 'short', 'subtitle', 'description', 'icon', 'banner', 'color', 'revision'].filter(key => old[key] !== globalThis.undefined).map(key => [key, old[key]])),
+        genre: typeof old['gameType'] === 'string' ? old['gameType'] : typeof old['genre'] === 'string' ? old['genre'] : '',
+        features, visibility: old['archived'] === true || old['visibility'] === 'editors' ? 'editors' as const : 'public' as const };
+    if (!validGameOverview(result)) {throw new Error(`Invalid legacy configuration for ${id}; original data must be preserved.`);}
+    return result;
 }

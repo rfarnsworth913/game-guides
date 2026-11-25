@@ -9,6 +9,7 @@ Use this index to find maintained guides. Deployment proposals describe work to 
 | [Project README](../README.md) | Local startup, storage and standard check commands |
 | [Environment configuration](environment.md) | Root `.env` fields, defaults, Auth0 editor access and parser/test overrides |
 | [Code organization](code-organization.md) | Project ownership, imports and enforced boundaries |
+| [Application type checklist](application-type-checklist.md) | Named types/enums, defining fields, supporting modules and compatibility notes |
 | [Middleware](../projects/middleware/README.md) | API, authentication, persistence and migrations |
 | [Browser integration](browser-integration.md) | Isolated E2E setup, coverage and limitations |
 | [Data parsers](data-parsers.md) | Active parser pipeline, CLI, reports and unresolved source gaps |

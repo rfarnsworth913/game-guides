@@ -2,6 +2,8 @@
 
 Every `gg-game-image-picker` uses the same image browser. Browse Library opens existing images for the current game; upload controls remain in the parent picker. Selecting or previewing an image never saves the parent entity or edits library metadata. Cancel preserves its original reference and attribution.
 
+Full-size pickers show the selected image name beneath the preview by default. Navigation group banners opt into separate translucent image-name and metadata overlays and a guidance bar. Compact icon buttons retain their small selector/popover layout and visible size recommendations.
+
 ## Browsing and selection
 
 - The fixed header describes the image selector and its recommended dimensions. Search and sort share a toolbar; category tabs replace the old image-type dropdown.

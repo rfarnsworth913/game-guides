@@ -29,7 +29,7 @@ import { resolveCharacterReferences, editCharacterStory, migrateStoryCharacters,
 import { resolveEventReferences, editEventStory, migrateStoryEvents } from '@common/events/event-story';
 import { sharedEventState, setEventCompletion } from '@common/events/event-progress';
 import { defaultGameOverview, validGameOverview } from '@common/workspace/game-overview';
-import type { GameOverview } from '@lib/types/game-overview.type';
+import type { GameRegistration } from '@lib/types/game-registration.type';
 export type { Entry, Kind } from "@lib/types/workspace.type";
 export { GAMES } from "@lib/constants/workspace.constants";
 export { validEntries, parseBackup } from "@common/workspace/workspace";
@@ -44,7 +44,7 @@ export class WorkspaceStore {
     readonly initialized = signal(false);
     readonly loading = signal(false);
     readonly saving = signal(false);
-    readonly games = signal<GameOverview[]>(GAMES.map(game => defaultGameOverview(game.id)));
+    readonly games = signal<GameRegistration[]>(GAMES.map(game => defaultGameOverview(game.id)));
     readonly characterRules = signal<Record<string, CharacterRules>>({});
     readonly teams = signal<Record<string, Team[]>>({});
     private snapshots = new Map<string, GameSnapshot>();
@@ -72,15 +72,18 @@ export class WorkspaceStore {
             }),
         );
     }
-    async gameRegistry(): Promise<GameOverview[]> {
+    async gameRegistry(): Promise<GameRegistration[]> {
         if (!this.canEdit()) {throw new Error('Editor access is required.');}
         const data = await this.request('games/registry');
         if (!data || typeof data !== 'object' || !('games' in data) || !Array.isArray(data.games) || !data.games.every(validGameOverview)) {
             throw new Error('Invalid game registry response.');
         }
-        return data.games as GameOverview[];
+        return data.games as GameRegistration[];
     }
-    async saveGameOverview(game: GameOverview, create = false, remove = false): Promise<GameOverview> {
+    async authorizeGameWorkspace(id: string, feature: string): Promise<void> {
+        await this.request(`games/${encodeURIComponent(id)}/workspace?feature=${encodeURIComponent(feature)}`);
+    }
+    async saveGameOverview(game: GameRegistration, create = false, remove = false): Promise<GameRegistration> {
         if (!this.canEdit() || this.saving() || this.loading()) {throw new Error('Editor access and an idle workspace are required.');}
         if (!validGameOverview(game)) {throw new Error('Complete the required game fields and valid image URLs.');}
         this.saving.set(true);
@@ -88,9 +91,8 @@ export class WorkspaceStore {
             const data = await this.request(create ? 'games' : `games/${game.id}${remove ? '' : '/overview'}`,
                 remove ? { revision: game.revision } : game, create ? 'POST' : remove ? 'DELETE' : 'PUT');
             if (!validGameOverview(data) || data.id !== game.id) {throw new Error('Invalid saved game response.');}
-            if (data.archived) {this.snapshots.delete(data.id);}
-            else {this.snapshots.set(data.id, this.snapshot(await this.request(`games/${data.id}`)));}
-            this.games.set([...this.games().filter(item => item.id !== data.id), ...(data.archived ? [] : [data])].sort((a, b) => a.name.localeCompare(b.name)));
+            this.snapshots.set(data.id, this.snapshot(await this.request(`games/${data.id}`)));
+            this.games.set([...this.games().filter(item => item.id !== data.id), data].sort((a, b) => a.name.localeCompare(b.name)));
             this.showSnapshots();
             return data;
         } finally {this.saving.set(false);}

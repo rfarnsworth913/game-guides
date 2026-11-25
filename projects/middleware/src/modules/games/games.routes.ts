@@ -5,10 +5,24 @@ import { GAMES } from '@lib/constants/workspace.constants';
 import { allGamesController, readGameController, writeGameController } from './games.controller';
 import { jsonBody } from '../../core/http/request-body';
 import { respond } from '../../core/http/response';
-import { validGameId } from '@common/workspace/game-overview';
+import { validGameId, canAccessFeature, gameSupports } from '@common/workspace/game-overview';
 
 export async function gameRoutes(request: IncomingMessage, response: ServerResponse, url: URL, dependencies: ApiDependencies): Promise<boolean> {
     const repository = dependencies.repository;
+    const workspace = /^\/api\/games\/([a-z][a-z0-9-]*)\/workspace$/.exec(url.pathname);
+    if (workspace) {
+        if (request.method !== 'GET') {throw new ApiError(405, 'Method not allowed.');}
+        const feature = url.searchParams.get('feature') ?? 'dashboard';
+        const snapshot = await repository.read(workspace[1]);
+        const game = snapshot.overview;
+        if (!game || !gameSupports(game, feature)) {throw new ApiError(404, 'This game feature is unavailable.');}
+        if (!canAccessFeature(game, feature)) {
+            const user = await dependencies.security.requireUser(request);
+            if (!canAccessFeature(game, feature, user.editor)) {throw new ApiError(403, 'An editor account is required for this workspace.');}
+        }
+        respond(response, 200, { gameId: snapshot.id, feature });
+        return true;
+    }
     if (url.pathname === '/api/games/registry' || (url.pathname === '/api/games' && request.method === 'POST')) {
         if (request.method === 'GET' && url.pathname === '/api/games/registry') {
             const user = await dependencies.security.requireUser(request);

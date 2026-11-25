@@ -1,9 +1,9 @@
 @if (context(); as game) {
     @for (overview of games; track overview.id) {
-        @if (overview.id === game.id && (overview.banner || overview.icon || overview.description || overview.gameType)) {
+        @if (overview.id === game.id && (overview.banner || overview.icon || overview.description || overview.genre)) {
             <section class="game-overview-card" aria-label="Game overview">
                 @if (overview.banner) { <img class="game-overview-banner" [src]="overview.banner" alt="" /> }
-                <div>@if (overview.icon) { <img class="game-overview-icon" [src]="overview.icon" alt="" /> }<span><strong>{{ overview.gameType }}</strong>@if (overview.description) { <p>{{ overview.description }}</p> }</span></div>
+                <div>@if (overview.icon) { <img class="game-overview-icon" [src]="overview.icon" alt="" /> }<span><strong>{{ overview.genre }}</strong>@if (overview.description) { <p>{{ overview.description }}</p> }</span></div>
             </section>
         }
     }

@@ -1,3 +1,4 @@
+import { flatGameDocument } from '../documents/game-configuration-document';
 import { createHash } from 'node:crypto';
 import type { StoredStory } from '../documents/stored-document.types';
 import { decodeEntries } from '../documents/game-document';
@@ -7,6 +8,7 @@ import { GAMES } from '@lib/constants/workspace.constants';
 
 /** Touch only character records and character guide placements, retaining unknown document metadata. */
 export function migrateCharacterDocument(document: Record<string, unknown>) {
+    document = flatGameDocument(document);
     const existingStory = (document['story'] ?? []) as StoredStory[];
     const hasLegacy = existingStory.some(section => (section['kind'] === 'story' ? [section] : section.category?.content?.subsections ?? []).some(entry => entry['category'] === 'character-information' && !entry['characterId']));
     if (!hasLegacy) {return { story: existingStory, characters: (document['characters'] ?? []) as Record<string, unknown>[], linked: 0, created: 0 };}

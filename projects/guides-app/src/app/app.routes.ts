@@ -1,6 +1,7 @@
 import { Routes } from "@angular/router";
 
 import { featureWorkspaceMatcher, globalWorkspaceManager } from "./routes";
+import { gameWorkspaceGuard } from './core/auth/game-workspace.guard';
 
 
 export const routes: Routes = [
@@ -20,6 +21,8 @@ export const routes: Routes = [
 
     {
         matcher: featureWorkspaceMatcher,
+        canActivate: [gameWorkspaceGuard],
+        runGuardsAndResolvers: 'paramsChange',
         loadComponent: async () => import("./layouts/main-layout/workspace").then(m => m.Workspace),
     },
 

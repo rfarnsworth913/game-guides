@@ -12,7 +12,7 @@ export async function characterRoutes(request: IncomingMessage, response: Server
     const [, game, kind, id] = match;
     if (!validGameId(game)) {throw new ApiError(404, 'Unknown game.');}
     const snapshot = await dependencies.repository.read(game);
-    if (snapshot.id !== game || (snapshot.overview && (!gameSupports(snapshot.overview, 'characters') || snapshot.overview.archived))) {throw new ApiError(404, 'Character management is unavailable for this game.');}
+    if (snapshot.id !== game || (snapshot.overview && !gameSupports(snapshot.overview, 'characters'))) {throw new ApiError(404, 'Character management is unavailable for this game.');}
     if (kind === 'character-progression') {
         const profiles = snapshot.characterRules?.progressionProfiles ?? [];
         if (id) {

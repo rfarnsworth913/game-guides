@@ -54,6 +54,7 @@
             </div>
         </header>
         <main id="main-content">
+            @if (pageAccessible()) {
             @if (auth.reauthenticationRequired()) {
                 <div class="alert" role="alert"><span>{{ auth.error() }}</span><button type="button" (click)="auth.login()">Sign in again</button></div>
             } @else if (store.error()) {
@@ -164,6 +165,7 @@
                     day.</span
                 ><span>Personal workspace · v1.0</span>
             </footer>
+            }
         </main>
     </div>
 </div>

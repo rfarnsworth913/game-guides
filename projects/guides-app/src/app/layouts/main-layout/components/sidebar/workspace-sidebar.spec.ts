@@ -153,7 +153,7 @@ describe('Workspace sidebar game selection', () => {
     });
     it('uses registry metadata and exposes management only to editors', async () => {
         const { fixture, component, root } = await setup('custom-rpg');
-        fixture.componentRef.setInput('catalog', [{ ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: ['characters'] }]);
+        fixture.componentRef.setInput('catalog', [{ ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: { characters: { feature: 'characters', visibility: 'public' } } }]);
         fixture.detectChanges();
         expect(root.querySelector('a[href="/games/custom-rpg/characters"]')).not.toBeNull();
         expect(root.querySelector('a[href="/games/custom-rpg/story"]')).toBeNull();

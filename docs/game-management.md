@@ -1,33 +1,73 @@
 # Shared game management
 
-Editors can open the expanded game selector and choose **Add Game**, **Manage Games**, or the edit icon beside a game. Guests and non-editor accounts can browse games but cannot manage them; the API independently requires editor authorization for every registry mutation and the management listing.
+Editors open the expanded game selector and choose **Add Game**, **Manage Games**, or the edit icon beside a game. The API independently requires editor authorization for creation, configuration updates and the management registry.
 
-The Overview tab contains the title, game type, description, highlight color, optional icon/banner and enabled modules. Every feature has an icon. Game types can be selected from suggestions or entered as text. The Advanced tab contains the stable game ID and short name; an existing game's ID cannot be changed. Legacy taglines remain stored and supply the description when it is empty.
+The Overview tab contains title, genre (shown as Game Type), description, highlight color and icon/banner pickers. The Features tab lists modules alphabetically in full-width rows with a checkbox, icon, description and Public/Editors only selector. Visibility controls remain visible but disabled for unused features. The Advanced tab contains the immutable game ID, short name and game visibility. Missing feature keys mean the game does not use that module. Disabling a module preserves its content and personal progress. The dialog keeps its height when switching tabs; arrow keys, Home and End move between tabs without resetting drafts.
 
-Both artwork fields use the reusable image picker with previews, library browsing and upload support. New files stay in the local draft until Save; a new game is created before its files are uploaded. If an upload fails, keep the dialog open and retry: it retains the draft and does not create another game. An uploaded library asset remains in the library if a later metadata save fails. Existing library selection is available once the game exists.
+The editor has a fixed height of 90% of the viewport across all tabs. Its fields scroll independently while the header, tabs and bottom Save/Cancel actions remain visible.
 
-Field validation is shared with the API. It checks required text, lengths, safe image URLs, unique/reserved IDs, supported features and an opaque highlight color (hex, RGB or RGBA with alpha 1). Invalid fields show inline errors and a summary that focuses the relevant field, including fields on Advanced. Custom colors are normalized and applied to the game's theme with readable foreground text; Reset restores its theme default.
+Artwork selections preview in the editor. New uploads remain local until Save; creation precedes upload so images have a valid game owner. If an upload fails, the dialog retains the created game and draft for retry instead of creating a duplicate. An uploaded library asset remains if a later configuration save fails.
 
-Feature switches control sidebar links, direct-page routing and dashboard cards, panels and summaries. The available switches correspond to implemented modules: Story Guide, Characters, Teams, Inventory, Planner, Events, Farming and Achievements. World quests, lore and related media remain part of Story Guide. Disabling modules preserves their catalog and player records. Creating a game does not create a parser or external data source for it.
+Validation checks required text, length limits, safe image URLs, unique/reserved IDs, supported feature keys, matching feature IDs, public/editor visibility and opaque highlight colors. Fields show errors and a focusable summary. Configuration revision conflicts return 409 without overwriting another editor's changes.
 
-## Persistence and compatibility
+## Game document and configuration
 
-The existing game document receives additive `_gameId` and `_gameOverview` fields. Original parser-facing document names, catalog IDs and player-progress keys remain unchanged. Display-title edits never rename parser documents or image folders. New game documents use an internal `game:<id>` name; their image folders derive from their stable ID.
+The shared contract is `GameDocument` in `projects/lib/types/game-overview.type.ts`:
 
-Built-in games are seeded from the existing constants only when missing registry metadata. Changes and removal survive application restarts. Overview revisions are separate from catalog revisions; stale overview saves return HTTP 409 and require reloading the management list.
+```text
+gameId
+version
+gameConfiguration
+  name, short, subtitle, description, genre
+  icon, banner, color
+  features: { story?: { feature: "story", visibility: "public" | "editors" }, ... }
+  revision, visibility
+content
+  achievements?, characters?, events?, inventory?, plans?, story?, teams?
+```
 
-**Remove Game** archives the registry entry. Navigation and dashboards hide it, while its database document, uploads and player progress remain intact. **Manage Games -> Edit / Restore -> Restore Game** makes that same game available again. IDs remain reserved after removal, preventing accidental reassignment of existing progress. There is no hard-delete action.
+The content array element types intentionally remain `unknown` pending the separate domain-type refactor. Existing nested achievements/story payloads remain intact. Character rules stay in their existing storage field for now; personal progress remains in the separate account collection or guest localStorage.
 
-Back up the complete database and uploaded assets before a production middleware upgrade. Startup adds metadata and an index; it does not purge game data. The existing workspace JSON export is not a substitute for a full database/asset backup.
+`GameRegistration` pairs configuration with `id` for existing registry/editor responses. It is a projection, not a second stored configuration. `GameSnapshot` remains the API's catalog projection during this transition. The middleware adds MongoDB `_id`, `_schemaVersion: 3` and catalog `_revision`; configuration has its own independent `revision`. Legacy `name` and `_gameId` lookup fields remain for parser/image compatibility. Game-title edits do not change identity, image folders or account keys.
+
+## Workspace visibility and public global data
+
+- A public game dashboard is accessible to guests and signed-in players.
+- An editor-only game requires an editor account, even if its feature configuration says Public.
+- An editor-only feature requires an editor account within an otherwise public game.
+- A missing feature is unavailable even to editors through normal workspace navigation.
+- Sidebars and the game collection omit inaccessible games/features. Direct URLs are checked before a workspace mounts; access changes also hide an already-mounted feature and redirect.
+- Shared catalogs, parsed data and image assets remain public, including data from restricted workspaces. Visibility is a workspace access rule, not confidentiality for shared definitions. Global calendars can continue using shared data from every game.
+- Personal account data and all shared-data writes keep their existing authentication/authorization requirements.
+
+There is no new game archive state or archive/restore editor action. Change visibility to Editors only to withdraw a workspace from public navigation. This does not remove its public shared data. The old DELETE endpoint is retained as a compatibility operation that changes visibility to Editors only.
+
+## Existing database upgrade
+
+On middleware startup, `GameRepository.initialize()` first performs existing compatibility migrations, then converts pre-v3 documents:
+
+1. Determine the stable game ID, including known parser-only game identities.
+2. Save the complete pre-v3 document in `<DB_COLLECTION>_schema_v1_backup`, identified by `migration: "game-configuration-v3"` and `originalId`. Its `original` field contains the backed-up document. Earlier schema backups are retained separately in that collection.
+3. Convert `_gameOverview` into `gameConfiguration`, rename `gameType` to `genre`, and convert the feature array into a keyed map with public visibility.
+4. Move existing game arrays into `content`, retaining row IDs, ordering, unknown payload fields and relationships. Only after the backup succeeds are the superseded top-level arrays and `_gameOverview` removed.
+5. Map an old archived game to editor-only visibility; retain all its records and account progress.
+6. Mark schema version 3 and preserve catalog/configuration revisions. Guarded writes reject concurrent changes; subsequent startups skip completed conversions.
+
+Malformed configurations/content cause conversion to fail instead of silently replacing them with empty data. Take a complete database and uploaded-assets backup before upgrading production; the startup copy supplements it. Validation uses disposable test databases, not the configured application database.
+
+Parser event append/cleanup supports nested `content.events` and legacy arrays. Version updates remain at the root. The maintained character/event/main-quest migration commands also select the appropriate old/new content paths.
 
 ## API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/games` | Public active game snapshots, including overview metadata |
-| GET | `/api/games/registry` | Editor-only overview list, including removed games |
-| POST | `/api/games` | Editor-only creation with a validated overview |
-| PUT | `/api/games/:id/overview` | Editor-only overview/features update or restoration, with current overview revision |
-| DELETE | `/api/games/:id` | Editor-only archive; JSON body contains current overview `revision` |
+| GET | `/api/games` | Public shared game snapshots, including restricted-workspace definitions |
+| GET | `/api/games/:id` | Public shared catalog projection |
+| GET | `/api/games/:id/parsed` | Public parsed/shared document projection |
+| GET | `/api/games/:id/workspace?feature=story` | Workspace access check; defaults to dashboard; unavailable feature 404, unauthenticated restriction 401, non-editor restriction 403 |
+| GET | `/api/games/registry` | Editor-only configuration registry |
+| POST | `/api/games` | Editor-only creation with a validated registration |
+| PUT | `/api/games/:id/overview` | Editor-only configuration update with current configuration revision |
+| DELETE | `/api/games/:id` | Legacy compatibility: set visibility to Editors only; body contains current configuration revision |
 
-Existing catalog and image routes support validated custom game IDs. Account-progress validation resolves new game IDs against the repository, so adding games does not require modifying a frontend constant. Archived progress remains stored, but archived games reject new catalog reads and writes until restored.
+Creating a game does not automatically implement a parser for it. See the [application type checklist](application-type-checklist.md) for completed game contract definitions and the types retained for later cleanup.

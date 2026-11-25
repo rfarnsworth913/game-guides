@@ -2,7 +2,7 @@ import type { EventSchedule } from '@lib/types/event-schedule.type';
 import type { PatchOverview } from '@lib/types/story-template.type';
 import type { Team } from '@lib/types/team.type';
 import type { CharacterCollection, CharacterDefinition, CharacterRules } from '@lib/types/character.type';
-import type { GameOverview } from '@lib/types/game-overview.type';
+import type { GameRegistration } from '@lib/types/game-registration.type';
 import type { EquipmentDefinition, EquipmentInstance } from '@lib/types/equipment.type';
 import type {InventoryMetadata} from '@lib/types/inventory.type';
 
@@ -93,4 +93,4 @@ export type StoryCatalogEntry = CatalogFields & DomainFields<'patchOverview' | '
 export type InventoryCatalogEntry = CatalogFields & DomainFields<'inventoryMetadata' | 'equipmentDefinition' | 'maxStack'> & { kind: 'inventory' };
 type OtherCatalogEntry = { [K in Exclude<Kind, 'characters' | 'events' | 'story' | 'inventory'>]: CatalogFields & DomainFields<never> & { kind: K } }[Exclude<Kind, 'characters' | 'events' | 'story' | 'inventory'>];
 export type CatalogEntry = CharacterCatalogEntry | EventCatalogEntry | StoryCatalogEntry | InventoryCatalogEntry | OtherCatalogEntry;
-export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules; overview?: GameOverview };
+export type GameSnapshot = { id: string; name: string; revision: number; entries: CatalogEntry[]; characterRules?: CharacterRules; overview?: GameRegistration };

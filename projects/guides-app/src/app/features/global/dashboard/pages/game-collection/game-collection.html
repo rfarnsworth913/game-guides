@@ -12,7 +12,7 @@
                             </div>
                             <div class="game-card-body">
                                 <h2>{{ game.name }}</h2>
-                                @if (game.gameType) { <small>{{ game.gameType }}</small> }
+                                @if (game.genre) { <small>{{ game.genre }}</small> }
                                 @if (game.description || game.subtitle) { <p>{{ game.description || game.subtitle }}</p> }
                                 <p>
                                     @if (supportsGame(game.id, 'characters')) { {{ gameCount(game.id, 'characters') }} characters }

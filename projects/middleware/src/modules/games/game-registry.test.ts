@@ -43,7 +43,7 @@ await test('game overviews validate IDs, images, feature flags and bounded metad
         { color: 'url(https://example.com)' }, { extra: 'not allowed' }, { revision: -1 }]) {
         assert.equal(validGameOverview({ ...game, ...bad }), false);
     }
-    assert.equal(validGameOverview({ ...game, icon: '/api/games/new-rpg/images/icon-a123.png', features: [] }), true);
+    assert.equal(validGameOverview({ ...game, icon: '/api/games/new-rpg/images/icon-a123.png', features: {} }), true);
 });
 await test('highlight colors accept opaque RGB only and persist normalized without changing game identity', async () => {
     const { repository } = registryRepository();
@@ -59,35 +59,35 @@ await test('highlight colors accept opaque RGB only and persist normalized witho
     assert.equal((await repository.read('genshin')).overview?.color, saved.color);
 });
 
-await test('renaming and archiving games preserve parser document names and shared catalog data', async () => {
+await test('renaming and restricting games preserve public shared data and parser identity', async () => {
     const { repository, documents } = registryRepository();
     const original = documents.find(document => document['_gameId'] === 'genshin')!;
     original['inventory'] = [{ id: 'material', kind: 'inventory', game: 'genshin', name: 'Material', category: '', notes: '',
         rarity: 1, order: 0, day: '', members: [], requirements: [] }];
     const before = await repository.read('genshin');
-    const edited = await repository.saveOverview({ ...before.overview!, name: 'A new display title', features: ['inventory'] });
+    const edited = await repository.saveOverview({ ...before.overview!, name: 'A new display title', features: { inventory: { feature: 'inventory', visibility: 'public' } } });
     assert.equal((await repository.read('genshin')).name, 'A new display title');
     assert.equal(original['name'], 'Genshin Impact');
     assert.deepEqual((await repository.read('genshin')).entries, before.entries);
     assert.equal((await repository.read('genshin')).revision, before.revision);
     await assert.rejects(repository.saveOverview(before.overview!), { status: 409 });
-    const archived = await repository.archive('genshin', edited.revision);
-    assert.equal((await repository.list()).some(game => game.id === 'genshin'), false);
+    const restricted = await repository.saveOverview({ ...edited, visibility: 'editors' });
+    assert.equal((await repository.list()).some(game => game.id === 'genshin'), true);
     assert.equal((await repository.list(true)).some(game => game.id === 'genshin'), true);
-    await assert.rejects(repository.read('genshin'), { status: 404 });
-    await repository.saveOverview({ ...archived, archived: false });
+    assert.deepEqual((await repository.read('genshin')).entries, before.entries);
+    await repository.saveOverview({ ...restricted, visibility: 'public' });
     assert.deepEqual((await repository.read('genshin')).entries, before.entries);
     assert.equal(documents.length, GAMES.length);
 });
 
 await test('custom games support catalog writes and keep stable IDs across overview edits', async () => {
     const { repository } = registryRepository();
-    const game = await repository.saveOverview({ ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: ['events'] }, true);
+    const game = await repository.saveOverview({ ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: { events: { feature: 'events', visibility: 'public' } } }, true);
     await assert.rejects(repository.saveOverview(game, true), { status: 409 });
     const entry = { id: 'event', game: game.id, kind: 'events' as const, name: 'New event', category: '', notes: '', rarity: 1,
         order: 0, day: '', members: [], requirements: [] };
     await repository.write(game.id, [entry], 0);
-    await repository.saveOverview({ ...game, name: 'Renamed RPG', features: [] });
+    await repository.saveOverview({ ...game, name: 'Renamed RPG', features: {} });
     assert.equal((await repository.read(game.id)).entries[0].id, 'event');
     assert.equal((await repository.read(game.id)).name, 'Renamed RPG');
 });
@@ -120,5 +120,15 @@ await test('game management endpoints reject guests and players and require curr
     assert.equal((await request('/api/games/new-game/overview', 'PUT', 'editor', { ...game, id: 'wrong-game' })).status, 400);
     assert.equal((await request('/api/games/new-game', 'DELETE', 'editor', { revision: 0 })).status, 200);
     assert.equal((await request('/api/games/new-game/overview', 'PUT', 'editor', game)).status, 409);
-    assert.equal((await request('/api/games/new-game', 'GET')).status, 404);
+    assert.equal((await request('/api/games/new-game', 'GET')).status, 200);
+    assert.equal((await request('/api/games/new-game/workspace', 'GET')).status, 401);
+    assert.equal((await request('/api/games/new-game/workspace', 'GET', 'player')).status, 403);
+    assert.equal((await request('/api/games/new-game/workspace', 'GET', 'editor')).status, 200);
+    const configuration = (await repository.read('new-game')).overview!;
+    await repository.saveOverview({ ...configuration, visibility: 'public', features: { story: { feature: 'story', visibility: 'editors' } } });
+    assert.equal((await request('/api/games/new-game/workspace', 'GET')).status, 200);
+    assert.equal((await request('/api/games/new-game/workspace?feature=story', 'GET', 'player')).status, 403);
+    assert.equal((await request('/api/games/new-game/workspace?feature=story', 'GET', 'editor')).status, 200);
+    assert.equal((await request('/api/games/new-game/workspace?feature=events', 'GET', 'editor')).status, 404);
+    assert.equal((await request('/api/games/new-game/parsed', 'GET')).status, 200);
 });

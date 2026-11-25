@@ -2,13 +2,13 @@ import { afterNextRender, Component, ElementRef, inject, Injector, input, OnInit
 import { DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { defaultGameOverview, GAME_FEATURES, gameColorHex, gameOverviewErrors, normalizeGameColor, type GameOverviewField } from '@common/workspace/game-overview';
-import type { GameFeature, GameOverview } from '@lib/types/game-overview.type';
+import type { GameFeature, GameRegistration, GameVisibility } from '@lib/types/game-registration.type';
 import { WorkspaceStore } from '../../../../core/state/workspace.store';
 import { DialogFocusDirective } from '../../../../shared/directives/dialog-focus/dialog-focus';
 import { GameImagePicker } from '../../../../shared/components/image-selector/game-image-picker';
 
 export type GameManagementRequest = { action: 'add' | 'edit' | 'list'; id?: string };
-type EditorTab = 'overview' | 'advanced';
+type EditorTab = 'overview' | 'features' | 'advanced';
 
 @Component({
     selector: 'gg-game-manager',
@@ -25,7 +25,7 @@ export class GameManager implements OnInit {
     readonly bannerPicker = viewChild<GameImagePicker>('bannerPicker');
     readonly request = input.required<GameManagementRequest>();
     readonly closed = output<void>();
-    readonly registry = signal<GameOverview[]>([]);
+    readonly registry = signal<GameRegistration[]>([]);
     readonly loading = signal(true);
     readonly registryLoaded = signal(false);
     readonly saving = signal(false);
@@ -33,9 +33,8 @@ export class GameManager implements OnInit {
     readonly error = signal('');
     readonly features = [...GAME_FEATURES].sort((a, b) => a.title.localeCompare(b.title));
     readonly gameTypes = ['RPG', 'JRPG', 'Action RPG', 'MMORPG', 'Adventure', 'Strategy', 'Gacha', 'Other'].sort((a, b) => a.localeCompare(b));
-    draft: GameOverview | null = null;
+    draft: GameRegistration | null = null;
     creating = false;
-    confirmRemove = false;
     idEdited = false;
     shortEdited = false;
     submitted = false;
@@ -59,7 +58,6 @@ export class GameManager implements OnInit {
         finally {this.loading.set(false);}
     }
     private resetForm(): void {
-        this.confirmRemove = false;
         this.submitted = false;
         this.touched.clear();
         this.tab.set('overview');
@@ -68,12 +66,12 @@ export class GameManager implements OnInit {
     add(): void {
         if (this.busy()) {return;}
         this.creating = true;
-        this.draft = { ...defaultGameOverview(''), name: '', short: '', features: [] };
+        this.draft = { ...defaultGameOverview(''), name: '', short: '', features: {} };
         this.idEdited = false;
         this.shortEdited = false;
         this.resetForm();
     }
-    edit(game: GameOverview): void {
+    edit(game: GameRegistration): void {
         if (this.busy()) {return;}
         this.creating = false;
         this.draft = { ...structuredClone(game), description: game.description || game.subtitle };
@@ -97,11 +95,16 @@ export class GameManager implements OnInit {
     }
     toggleFeature(id: GameFeature): void {
         if (!this.draft) {return;}
-        this.draft.features = this.draft.features.includes(id) ? this.draft.features.filter(item => item !== id) : [...this.draft.features, id];
+        if (this.draft.features[id]) {this.draft.features = Object.fromEntries(Object.entries(this.draft.features).filter(([feature]) => feature !== id));}
+        else {this.draft.features[id] = { feature: id, visibility: 'public' };}
+    }
+    setFeatureVisibility(id: GameFeature, visibility: GameVisibility): void {
+        const feature = this.draft?.features[id];
+        if (feature) {feature.visibility = visibility;}
     }
     errors(): Partial<Record<GameOverviewField, string>> {
         const errors = gameOverviewErrors(this.draft);
-        if (this.creating && this.draft && this.registry().some(game => game.id === this.draft!.id)) {errors.id = 'This game ID already exists. Edit or restore that game, or choose another ID in Advanced.';}
+        if (this.creating && this.draft && this.registry().some(game => game.id === this.draft!.id)) {errors.id = 'This game ID already exists. Edit that game, or choose another ID in Advanced.';}
         return errors;
     }
     errorEntries(): { field: GameOverviewField; message: string }[] {
@@ -118,13 +121,15 @@ export class GameManager implements OnInit {
     tabKey(event: KeyboardEvent): void {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {return;}
         event.preventDefault();
-        this.selectTab(event.key === 'Home' ? 'overview' : event.key === 'End' ? 'advanced' : this.tab() === 'overview' ? 'advanced' : 'overview', true);
+        const tabs: EditorTab[] = ['overview', 'features', 'advanced'];
+        const index = (tabs.indexOf(this.tab()) + (event.key === 'ArrowLeft' ? -1 : 1) + tabs.length) % tabs.length;
+        this.selectTab(event.key === 'Home' ? 'overview' : event.key === 'End' ? 'advanced' : tabs[index], true);
     }
     focusError(field: GameOverviewField): void {
-        this.selectTab(field === 'id' || field === 'short' ? 'advanced' : 'overview');
+        this.selectTab(field === 'features' ? 'features' : field === 'id' || field === 'short' ? 'advanced' : 'overview');
         afterNextRender(() => {
-            const names: Partial<Record<GameOverviewField, string>> = { name: 'title', id: 'id', short: 'short', gameType: 'type', description: 'description', color: 'color' };
-            const target = names[field] ? this.host.nativeElement.querySelector<HTMLElement>('[name=game-' + names[field] + ']') :
+            const names: Partial<Record<GameOverviewField, string>> = { name: 'title', id: 'id', short: 'short', genre: 'type', description: 'description', color: 'color' };
+            const target = field === 'features' ? this.host.nativeElement.querySelector<HTMLElement>('.game-feature input') : names[field] ? this.host.nativeElement.querySelector<HTMLElement>('[name=game-' + names[field] + ']') :
                 this.host.nativeElement.querySelector<HTMLElement>('[data-game-field=' + field + '] input[type=text]');
             const details = target?.closest('details');
             if (details) {details.open = true;}
@@ -145,46 +150,33 @@ export class GameManager implements OnInit {
     previewColor(): string | null {return this.errors().color ? null : this.draft?.color ?? null;}
     close(): void {if (!this.busy()) {this.closed.emit();}}
     cancelEdit(): void {if (!this.busy()) {this.draft = null; this.error.set('');}}
-    private rememberSaved(game: GameOverview): void {
+    private rememberSaved(game: GameRegistration): void {
         this.registry.update(games => [...games.filter(item => item.id !== game.id), game].sort((a, b) => a.name.localeCompare(b.name)));
     }
-    async save(remove = false, restore = false): Promise<void> {
-        if (!this.draft || this.busy() || !this.store.canEdit() || (remove && !this.confirmRemove)) {return;}
+    async save(): Promise<void> {
+        if (!this.draft || this.busy() || !this.store.canEdit()) {return;}
         this.submitted = true;
-        if (!remove && !this.valid()) {this.focusError(this.errorEntries()[0]?.field ?? 'name'); return;}
+        if (!this.valid()) {this.focusError(this.errorEntries()[0]?.field ?? 'name'); return;}
         this.error.set('');
         this.saving.set(true);
         let created = false;
-        let restored = false;
         try {
-            if (remove) {
-                const original = this.registry().find(game => game.id === this.draft!.id);
-                if (!original) {throw new Error('Reload the game list before removing this game.');}
-                this.rememberSaved(await this.store.saveGameOverview(original, false, true));
-            } else {
-                let working = this.draft;
-                const pendingUploads = !!this.iconPicker()?.pendingFile() || !!this.bannerPicker()?.pendingFile();
-                if (this.creating) {
-                    working = await this.store.saveGameOverview(working, true);
-                    this.creating = false;
-                    this.draft = working;
-                    this.rememberSaved(working);
-                    created = true;
-                } else if (restore && working.archived) {
-                    working = await this.store.saveGameOverview({ ...working, archived: false });
-                    this.draft = working;
-                    this.rememberSaved(working);
-                    restored = true;
-                }
-                working.icon = await this.iconPicker()?.commitPendingUpload() ?? working.icon;
-                working.banner = await this.bannerPicker()?.commitPendingUpload() ?? working.banner;
-                if ((!created && !restored) || pendingUploads) {this.rememberSaved(await this.store.saveGameOverview(working));}
+            let working = this.draft;
+            const pendingUploads = !!this.iconPicker()?.pendingFile() || !!this.bannerPicker()?.pendingFile();
+            if (this.creating) {
+                working = await this.store.saveGameOverview(working, true);
+                this.creating = false;
+                this.draft = working;
+                this.rememberSaved(working);
+                created = true;
             }
+            working.icon = await this.iconPicker()?.commitPendingUpload() ?? working.icon;
+            working.banner = await this.bannerPicker()?.commitPendingUpload() ?? working.banner;
+            if (!created || pendingUploads) {this.rememberSaved(await this.store.saveGameOverview(working));}
             this.draft = null;
-            this.confirmRemove = false;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Could not save the game.';
-            this.error.set(created || restored ? 'The game was ' + (created ? 'created' : 'restored') + ', but some changes could not be saved. Retry here without creating another game. ' + message : message);
+            this.error.set(created ? 'The game was created, but some changes could not be saved. Retry here without creating another game. ' + message : message);
         } finally {this.saving.set(false);}
     }
 }

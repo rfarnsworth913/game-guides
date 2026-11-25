@@ -97,7 +97,7 @@ export class DataService {
             await collection.insertOne(rootDocument);
         }
 
-        return rootDocument;
+        return { ...rootDocument, ...(rootDocument['content'] as Record<string, unknown> | undefined) };
     }
 
     /**
@@ -140,7 +140,8 @@ export class DataService {
             }
 
             // Extract topic data ---------------------------------------------
-            const items: Array<Event> = (document[topic] as Array<Event>) ?? [];
+            const path = document['content'] ? `content.${topic}` : topic;
+            const items: Array<Event> = ((document['content'] as Record<string, unknown> | undefined)?.[topic] ?? document[topic] ?? []) as Array<Event>;
             const removedItems = items.filter(item => !("kind" in item) && repeatingTypes.includes(item.eventType) && !filterFn(item));
 
             // Update database if any items were removed ----------------------
@@ -148,7 +149,7 @@ export class DataService {
                 await collection.updateOne(
                     this.documentFilter(documentName),
                     {
-                        $pull: { [topic]: { kind: { $exists: false }, $or: removedItems.map(item => ({ title: item.title, eventType: item.eventType, startDate: item.startDate, endDate: item.endDate })) } } as mongoDB.PullOperator<mongoDB.Document>,
+                        $pull: { [path]: { kind: { $exists: false }, $or: removedItems.map(item => ({ title: item.title, eventType: item.eventType, startDate: item.startDate, endDate: item.endDate })) } } as mongoDB.PullOperator<mongoDB.Document>,
                         $inc: { _revision: 1 },
                     }
                 );
@@ -185,6 +186,7 @@ export class DataService {
             const collection = this.db.collection(process.env["DB_COLLECTION"] ?? "");
             let rootDocument = await this.getRootDocument(rootDocumentName, subDocumentName);
             rootDocument = this.getSubDocument(rootDocument, subDocumentName);
+            const path = rootDocument['content'] ? `content.${subDocumentName}` : subDocumentName;
 
             // Add only new records to the sub-document -----------------------
             const existingRecords: Array<T> = rootDocument[subDocumentName] as Array<T>;
@@ -210,8 +212,8 @@ export class DataService {
                 this.documentFilter(rootDocumentName),
                 [
                     { $set: {
-                        [subDocumentName]: { $concatArrays: [
-                            { $ifNull: [`$${subDocumentName}`, []] },
+                        [path]: { $concatArrays: [
+                            { $ifNull: [`$${path}`, []] },
                             { $filter: {
                                 input: { $literal: newRecords.map(record => {
                                     const { completed, quantity, target, ...shared } = record as T & { completed?: boolean; quantity?: number; target?: number };
@@ -219,7 +221,7 @@ export class DataService {
                                 }) },
                                 as: "record",
                                 cond: { $not: [{ $in: [subDocumentName === 'events' ? mongoEventIdentity('$$record') : "$$record.title", { $map: {
-                                    input: { $ifNull: [`$${subDocumentName}`, []] }, as: "existing", in: subDocumentName === 'events' ? mongoEventIdentity('$$existing') : "$$existing.title",
+                                    input: { $ifNull: [`$${path}`, []] }, as: "existing", in: subDocumentName === 'events' ? mongoEventIdentity('$$existing') : "$$existing.title",
                                 } }] }] },
                             } },
                         ] },

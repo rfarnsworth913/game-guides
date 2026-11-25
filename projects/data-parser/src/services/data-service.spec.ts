@@ -396,6 +396,22 @@ describe("DataService manages database connections and stored game data", () => 
         expectAppend("events", [{ title: "New" }]);
     });
 
+    it('appends into nested game content without writing legacy top-level arrays', async () => {
+        mockFindOne.mockResolvedValueOnce(createRoot({ gameId: 'genshin', content: { events: [createEvent('Existing')] } }));
+        await service.addRecords(documentName, 'events', [createEvent('Existing'), createEvent('New')]);
+        const update = mockUpdateOne.mock.calls[0][1] as Document[];
+        expect(update[0]['$set']).toHaveProperty('content.events');
+        expect(update[0]['$set']).not.toHaveProperty('events');
+        expect(JSON.stringify(update)).toContain('$content.events');
+        expect(JSON.stringify(update)).not.toContain('$events');
+    });
+
+    it('cleans recurring events from nested content without touching limited-time history', async () => {
+        mockFindOne.mockResolvedValueOnce(createRoot({ content: { events: [{ ...createEvent('Daily'), eventType: EventType.Daily }, createEvent('History')] } }));
+        await service.cleanupExpiredItems(documentName, 'events', () => false);
+        expect(mockUpdateOne.mock.calls[0][1]).toMatchObject({ $pull: { 'content.events': { $or: [{ title: 'Daily' }] } } });
+    });
+
     it("removes expired parser events while preserving manually authored events", async () => {
         expect.hasAssertions();
         mockFindOne.mockResolvedValueOnce(createRoot({

@@ -84,7 +84,7 @@ describe('Dashboard feature ownership', () => {
     it('hides disabled feature cards and panels without removing their data', () => {
         const { page, fixture, root } = setupEvents();
         const original = page.store.entries();
-        page.store.games.set([{ ...defaultGameOverview('genshin'), features: ['events'] }]);
+        page.store.games.set([{ ...defaultGameOverview('genshin'), features: { events: { feature: 'events', visibility: 'public' } } }]);
         fixture.componentRef.setInput('context', GAMES.find(game => game.id === 'genshin'));
         fixture.detectChanges();
         expect(root.querySelector('.summary-characters')).toBeNull();
@@ -92,7 +92,7 @@ describe('Dashboard feature ownership', () => {
         expect(root.querySelector('.story-panel')).toBeNull();
         expect(root.querySelector('.plans-panel')).toBeNull();
         expect(root.querySelector('.events-panel')).not.toBeNull();
-        page.store.games.set([{ ...defaultGameOverview('genshin'), features: [] }]);
+        page.store.games.set([{ ...defaultGameOverview('genshin'), features: {} }]);
         fixture.detectChanges();
         expect(root.querySelector('.events-panel')).toBeNull();
         expect(page.store.entries()).toEqual(original);

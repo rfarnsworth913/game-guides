@@ -33,7 +33,7 @@ await test('public character projections paginate and filter shared data without
     assert.equal((await request('/api/games/unknown/characters')).status, 404);
     for (const query of ['limit=201', 'offset=-1', 'limit=1.2', 'rarity=invalid', 'unknown=1']) {assert.equal((await request('/api/games/genshin/characters?' + query)).status, 400);}
     assert.equal((await fetch(base + '/api/games/genshin/characters', { method: 'POST', headers: { Origin: 'http://localhost:4200' } })).status, 405);
-    snapshot = { ...snapshot, overview: { ...snapshot.overview!, features: [] } };
+    snapshot = { ...snapshot, overview: { ...snapshot.overview!, features: {} } };
     assert.equal((await request('/api/games/genshin/characters')).status, 404);
     assert.equal((await request('/api/games/genshin/character-progression')).status, 404);
 });

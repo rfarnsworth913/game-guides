@@ -4,7 +4,7 @@ import { AuthStore } from '../../../../core/auth/auth.store';
 import { WorkspaceStore } from '../../../../core/state/workspace.store';
 import { GameManager, type GameManagementRequest } from './game-manager';
 import { defaultGameOverview, GAME_FEATURES, validGameId } from '@common/workspace/game-overview';
-import type { GameOverview } from '@lib/types/game-overview.type';
+import type { GameRegistration } from '@lib/types/game-registration.type';
 
 describe('Game management editor', () => {
     beforeEach(() => {
@@ -15,9 +15,9 @@ describe('Game management editor', () => {
         vi.stubGlobal('URL', PreviewURL);
     });
     afterEach(() => vi.unstubAllGlobals());
-    async function setup(request: GameManagementRequest = { action: 'add' }, games: GameOverview[] = []) {
+    async function setup(request: GameManagementRequest = { action: 'add' }, games: GameRegistration[] = []) {
         const store = { canEdit: () => true, saving: signal(false), gameRegistry: vi.fn(async () => games),
-            saveGameOverview: vi.fn(async (game: GameOverview, create: boolean = false, remove: boolean = false): Promise<GameOverview> => ({ ...game, features: [...game.features], archived: remove || game.archived, revision: create ? 0 : game.revision + 1 })) };
+            saveGameOverview: vi.fn(async (game: GameRegistration, create: boolean = false, remove: boolean = false): Promise<GameRegistration> => ({ ...game, features: structuredClone(game.features), visibility: remove ? 'editors' : game.visibility, revision: create ? 0 : game.revision + 1 })) };
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: store }, { provide: AuthStore, useValue: { request: vi.fn(), user: signal(null) } }] });
         const fixture = TestBed.createComponent(GameManager);
         fixture.componentRef.setInput('request', request);
@@ -53,6 +53,31 @@ describe('Game management editor', () => {
         component.setTitle('New Title');
         expect(component.draft).toMatchObject({ id: 'manual-rpg', short: 'CUSTOM', color: '#12abef' });
         expect(component.valid()).toBe(true);
+    });
+    it('keeps feature settings in their own tab and preserves drafts across keyboard tab changes', async () => {
+        const game = defaultGameOverview('genshin');
+        const { component, fixture, root, store } = await setup({ action: 'edit', id: game.id }, [game]);
+        expect(root.querySelectorAll('[role=tab]')).toHaveLength(3);
+        expect(root.querySelector('#game-overview-panel .game-feature')).toBeNull();
+        expect(root.querySelector<HTMLElement>('#game-features-panel')!.hidden).toBe(true);
+        root.querySelector<HTMLButtonElement>('#game-features-tab')!.click();
+        fixture.detectChanges();
+        expect(root.querySelector<HTMLElement>('#game-features-panel')!.hidden).toBe(false);
+        component.setFeatureVisibility('story', 'editors');
+        root.querySelector<HTMLInputElement>('[aria-label="Enable Events"]')!.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(root.querySelector<HTMLSelectElement>('[aria-label="Events Visibility"]')!.disabled).toBe(true);
+        component.tabKey(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        expect(component.tab()).toBe('advanced');
+        component.tabKey(new KeyboardEvent('keydown', { key: 'Home' }));
+        expect(component.tab()).toBe('overview');
+        component.tabKey(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+        expect(component.tab()).toBe('advanced');
+        expect(component.draft!.features.story?.visibility).toBe('editors');
+        expect(component.draft!.features.events).toBeUndefined();
+        await component.save();
+        expect(store.saveGameOverview.mock.calls[0][0].features.story?.visibility).toBe('editors');
     });
     it('reports duplicate IDs and invalid advanced fields instead of silently rejecting submission', async () => {
         const { fixture, component, store, root } = await setup({ action: 'add' }, [defaultGameOverview('duplicate')]);
@@ -102,14 +127,15 @@ describe('Game management editor', () => {
         expect(component.registry()).toHaveLength(1);
         fixture.destroy();
     });
-    it('archives the saved record after confirmation even if unsaved form fields are invalid', async () => {
+    it('edits game and feature visibility without an archive action', async () => {
         const game = defaultGameOverview('genshin');
-        const { component, store } = await setup({ action: 'edit', id: game.id }, [game]);
-        component.draft!.name = '';
-        await component.save(true);
-        expect(store.saveGameOverview).not.toHaveBeenCalled();
-        component.confirmRemove = true;
-        await component.save(true);
-        expect(store.saveGameOverview).toHaveBeenCalledWith(game, false, true);
+        const { component, store, root } = await setup({ action: 'edit', id: game.id }, [game]);
+        component.draft!.visibility = 'editors';
+        component.draft!.features.story!.visibility = 'editors';
+        expect(root.textContent).not.toContain('Remove Game');
+        await component.save();
+        const saved = store.saveGameOverview.mock.calls[0][0];
+        expect(saved.visibility).toBe('editors');
+        expect(saved.features.story).toEqual({ feature: 'story', visibility: 'editors' });
     });
 });

@@ -24,7 +24,10 @@ delete pre-existing duplicates. UI IDs map to the parser's canonical game names.
 {
   _id: ObjectId(...),
   name: "Genshin Impact",
+  gameId: "genshin",
+  gameConfiguration: { name: "Genshin Impact", genre: "RPG", visibility: "public", revision: 0, ... },
   version: { title: "3.8.0 Example", releaseDate: "2024-06-01", url: "https://example.com" },
+  content: {
   achievements: [{
     _id: "stable-category-id", title: "Category title", order: 1,
     icon: "", reward: "", rewardIcon: "", description: "", url: "",
@@ -34,7 +37,8 @@ delete pre-existing duplicates. UI IDs map to the parser's canonical game names.
     }]
   }],
   characters: [], events: [], inventory: [], plans: [], story: [], teams: [],
-  _schemaVersion: 2,
+  },
+  _schemaVersion: 3,
   _revision: 4
 }
 ```
@@ -104,7 +108,7 @@ Achievement categories contain their achievements directly. IDs remain stable ac
 migration, edits and moves, preserving local completion keys. Orders are stored as integers. Existing string orders are converted automatically at startup. Icons accept symbols or
 URLs. Legacy nonempty notes are retained as an optional `notes` field.
 
-Other arrays retain their existing record fields. Parser event records and manually authored
+The content arrays retain their existing record fields. Parser event records and manually authored
 events share `events`; manual entries have `id` and `kind`, parser entries use their existing
 `title`, dates, URL and event type. Parser records remain read-only in the UI adapter.
 Unknown legacy root fields are preserved. The two internal metadata fields support schema
@@ -113,7 +117,10 @@ migration and optimistic concurrency. Version information remains owned by the p
 Startup automatically migrates all existing documents, including parser-only games, and
 removes the old `catalog` envelope. Before changing a document it saves the original, with
 its original MongoDB `_id`, to `<DB_COLLECTION>_schema_v1_backup` in the same database.
-Repeated startup skips schema-v2 documents whose orders are already numeric and does not overwrite backups. A concurrent
+The subsequent schema-v3 migration backs up the pre-v3 document in the same collection under
+`migration: "game-configuration-v3"` and `originalId`, with the document stored in `original`.
+It moves arrays under `content` and replaces `_gameOverview` with `gameConfiguration`.
+Repeated startup skips completed schema-v3 conversions and does not overwrite backups. A concurrent
 change aborts migration; restart to retry. Keep backups until you have verified your data.
 To migrate without starting the UI, with MongoDB running, use `npm run middleware:migrate`.
 
@@ -122,7 +129,7 @@ The repository maps them to nested documents, and validates same-game references
 `completed`, `quantity`, and `target` remain in the browser's `gg-player-v1` state map;
 parser writes strip these fields too. Migration removes old parser completion defaults.
 
-Game saves atomically update root arrays using `_revision` in the update filter. Parser
+Game saves atomically update content arrays using `_revision` in the update filter. Parser
 appends and cleanup also increment this revision and use atomic array operations so neither
 writer overwrites another writer's changes. No replica set is required. Imports across games
 are sequential, not a cross-game transaction. Requests are capped at 8 MiB and resulting

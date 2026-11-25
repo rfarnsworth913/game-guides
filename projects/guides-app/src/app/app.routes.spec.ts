@@ -7,6 +7,7 @@ import { featureWorkspaceMatcher } from "./routes";
 import { routes } from "./app.routes";
 import { ErrorPage } from "./features/global/errors/error-page";
 import { NotFoundPage } from "./features/global/errors/not-found-page";
+import { WorkspaceStore } from './core/state/workspace.store';
 
 
 @Component({
@@ -57,7 +58,7 @@ describe("Application Routing", () => {
         expect(route.snapshot.paramMap.get("section")).toBeNull();
     });
     it('opens the global events calendar without redirecting to the game collection', async () => {
-        TestBed.configureTestingModule({ providers: [provideRouter(routes.map(route => route.loadComponent ? { ...route, loadComponent: globalThis.undefined, component: WorkspaceFixture } : route))] });
+        TestBed.configureTestingModule({ providers: [provideRouter(routes.map(route => route.loadComponent ? { ...route, loadComponent: globalThis.undefined, component: WorkspaceFixture } : route)), { provide: WorkspaceStore, useValue: { initialized: () => true, authorizeGameWorkspace: async () => {} } }] });
         const harness = await RouterTestingHarness.create();
         await harness.navigateByUrl('/events', WorkspaceFixture);
         const route = harness.routeDebugElement!.injector.get(ActivatedRoute);

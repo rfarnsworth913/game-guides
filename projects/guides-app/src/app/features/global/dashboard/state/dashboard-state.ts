@@ -4,15 +4,15 @@ import { StoryPositionStore } from '../../../gacha/story-guide/state/story-posit
 import { storyDashboard } from '../../../gacha/story-guide/utils/story-dashboard';
 import { storyProgress } from '../../../gacha/story-guide/utils/story-progress';
 import { GAMES } from '@lib/constants/workspace.constants';
-import { defaultGameOverview, gameSupports } from '@common/workspace/game-overview';
-import type { GameOverview } from '@lib/types/game-overview.type';
+import { defaultGameOverview, gameSupports, canAccessGame } from '@common/workspace/game-overview';
+import type { GameRegistration } from '@lib/types/game-registration.type';
 
 /** Read model shared by the global dashboard and game collection views. */
 @Directive()
 export abstract class DashboardState {
     readonly context = input<(typeof GAMES)[number]>();
     readonly store = inject(WorkspaceStore);
-    get games(): GameOverview[] {return (this.store.games?.() ?? GAMES.map(game => defaultGameOverview(game.id))).slice().sort((a, b) => a.name.localeCompare(b.name));}
+    get games(): GameRegistration[] {return (this.store.games?.() ?? GAMES.map(game => defaultGameOverview(game.id))).filter(game => canAccessGame(game, this.store.canEdit?.() ?? false)).sort((a, b) => a.name.localeCompare(b.name));}
     supports(feature: string): boolean {
         return this.games.some(game => (!this.context() || game.id === this.context()!.id) && gameSupports(game, feature));
     }

@@ -2,13 +2,13 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { AuthStore } from '../auth/auth.store';
 import { WorkspaceStore } from './workspace.store';
 import { defaultGameOverview } from '@common/workspace/game-overview';
-import type { GameOverview } from '@lib/types/game-overview.type';
+import type { GameRegistration } from '@lib/types/game-registration.type';
 
 describe('Dynamic game registry in the workspace', () => {
     afterEach(() => vi.unstubAllGlobals());
 
-    it('loads custom games and preserves guest progress through rename, removal and restoration', async () => {
-        let overview = { ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: ['events'] } as GameOverview;
+    it('loads custom games and preserves guest progress through rename and visibility changes', async () => {
+        let overview = { ...defaultGameOverview('custom-rpg'), name: 'Custom RPG', features: { events: { feature: 'events', visibility: 'public' } } } as GameRegistration;
         const entries = [{ id: 'event', game: overview.id, kind: 'events', name: 'An event', category: '', notes: '', rarity: 1,
             order: 0, day: '', members: [], requirements: [] }];
         const values = new Map([['gg-player-v1', JSON.stringify({ version: 1, state: {
@@ -17,11 +17,11 @@ describe('Dynamic game registry in the workspace', () => {
         vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) });
         const snapshot = () => ({ id: overview.id, name: overview.name, revision: 0, overview, entries });
         const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
-            if (url === '/api/games') {return new Response(JSON.stringify({ games: overview.archived ? [] : [snapshot()] }));}
+            if (url === '/api/games') {return new Response(JSON.stringify({ games: [snapshot()] }));}
             if (url === '/api/games/registry') {return new Response(JSON.stringify({ games: [overview] }));}
             if (url === '/api/games/custom-rpg' && init?.method === 'GET') {return new Response(JSON.stringify(snapshot()));}
-            const body = JSON.parse(init?.body as string) as GameOverview;
-            overview = { ...(init?.method === 'DELETE' ? { ...overview, archived: true } : body), revision: overview.revision + 1 };
+            const body = JSON.parse(init?.body as string) as GameRegistration;
+            overview = { ...(init?.method === 'DELETE' ? { ...overview, visibility: 'editors' } : body), revision: overview.revision + 1 };
             return new Response(JSON.stringify(overview));
         });
         vi.stubGlobal('fetch', fetcher);
@@ -32,10 +32,10 @@ describe('Dynamic game registry in the workspace', () => {
         const renamed = await store.saveGameOverview({ ...overview, name: 'Renamed Game' });
         expect(store.games()[0].name).toBe('Renamed Game');
         const archived = await store.saveGameOverview(renamed, false, true);
-        expect(store.games()).toEqual([]);
-        expect(store.entries()).toEqual([]);
-        expect((await store.gameRegistry())[0].archived).toBe(true);
-        await store.saveGameOverview({ ...archived, archived: false });
+        expect(store.games()[0].visibility).toBe('editors');
+        expect(store.entries()[0].completed).toBe(true);
+        expect((await store.gameRegistry())[0].visibility).toBe('editors');
+        await store.saveGameOverview({ ...archived, visibility: 'public' });
         expect(store.games()[0].id).toBe('custom-rpg');
         expect(store.entries()[0].completed).toBe(true);
         expect(fetcher.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(true);
