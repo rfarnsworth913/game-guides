@@ -31,8 +31,8 @@ export class Inventory {
     readonly rules = computed(() => this.store.characterRules?.()[this.game()]);
     readonly requirementIssues = computed(() => inventoryRequirementIssues(this.store.entries(),this.game(),this.rules()));
     readonly config = computed(() => this.rules()?.inventory ?? {categories:[],rarities:[],recipes:[]});
-    readonly gameName = computed(() => this.store.games?.().find(game => game.id === this.game())?.name ?? this.game());
-    readonly accent = computed(() => this.store.games?.().find(game => game.id === this.game())?.color ?? 'var(--color-primary)');
+    readonly gameName = computed(() => this.store.games?.().find(game => game.gameId === this.game())?.name ?? this.game());
+    readonly accent = computed(() => this.store.games?.().find(game => game.gameId === this.game())?.color ?? 'var(--color-primary)');
     readonly editMode = signal(false);
     readonly settingsOpen = signal(false);
     readonly countDialog = signal<'import'|'reset'|null>(null);

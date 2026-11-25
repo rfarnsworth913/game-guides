@@ -5,29 +5,29 @@ import { storyDashboard } from '../../../gacha/story-guide/utils/story-dashboard
 import { storyProgress } from '../../../gacha/story-guide/utils/story-progress';
 import { GAMES } from '@lib/constants/workspace.constants';
 import { defaultGameOverview, gameSupports, canAccessGame } from '@common/workspace/game-overview';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 
 /** Read model shared by the global dashboard and game collection views. */
 @Directive()
 export abstract class DashboardState {
-    readonly context = input<(typeof GAMES)[number]>();
+    readonly context = input<GameRegistration>();
     readonly store = inject(WorkspaceStore);
     get games(): GameRegistration[] {return (this.store.games?.() ?? GAMES.map(game => defaultGameOverview(game.id))).filter(game => canAccessGame(game, this.store.canEdit?.() ?? false)).sort((a, b) => a.name.localeCompare(b.name));}
     supports(feature: string): boolean {
-        return this.games.some(game => (!this.context() || game.id === this.context()!.id) && gameSupports(game, feature));
+        return this.games.some(game => (!this.context() || game.gameId === this.context()!.gameId) && gameSupports(game, feature));
     }
-    supportsGame(id: string, feature: string): boolean {return gameSupports(this.games.find(game => game.id === id), feature);}
+    supportsGame(id: string, feature: string): boolean {return gameSupports(this.games.find(game => game.gameId === id), feature);}
     readonly storyPositions = inject(StoryPositionStore);
-    readonly storyDashboards = computed(() => Object.fromEntries(this.games.map(game => [game.id,
-        storyDashboard(gameSupports(game, 'story') ? this.store.entries() : [], game.id, this.storyPositions.positions()[game.id]),
+    readonly storyDashboards = computed(() => Object.fromEntries(this.games.map(game => [game.gameId,
+        storyDashboard(gameSupports(game, 'story') ? this.store.entries() : [], game.gameId, this.storyPositions.positions()[game.gameId]),
     ])));
     readonly storyCompletion = computed(() => storyProgress(this.story()));
-    readonly dashboardStories = computed(() => this.games.filter(game => !this.context() || this.context()!.id === game.id)
-        .map(game => ({ ...game, ...this.storyDashboards()[game.id] }))
+    readonly dashboardStories = computed(() => this.games.filter(game => !this.context() || this.context()!.gameId === game.gameId)
+        .map(game => ({ ...game, ...this.storyDashboards()[game.gameId] }))
         .sort((a, b) => a.name.localeCompare(b.name)));
     readonly storyGames = computed(() => this.dashboardStories().filter(game => gameSupports(game, 'story')));
     readonly scoped = computed(() =>
-        this.store.entries().filter((e) => (!this.context() || e.game === this.context()!.id) &&
+        this.store.entries().filter((e) => (!this.context() || e.game === this.context()!.gameId) &&
             this.supportsGame(e.game, e.kind === 'story-category' ? 'story' : e.kind === 'achievement-category' ? 'achievements' : e.kind)),
     );
     readonly plans = computed(() =>
@@ -46,10 +46,10 @@ export abstract class DashboardState {
             .sort((a, b) => a.order - b.order),
     );
     sectionLink(page: string): string {
-        return this.context() ? `/games/${this.context()!.id}/${page}` : '/games';
+        return this.context() ? `/games/${this.context()!.gameId}/${page}` : '/games';
     }
     gameName(id: string): string {
-        return this.games.find((g) => g.id === id)?.name ?? 'All games';
+        return this.games.find((g) => g.gameId === id)?.name ?? 'All games';
     }
     count(kind: string): number {
         return this.scoped().filter((e) => e.kind === kind && (kind !== 'characters' || e.characterCollection?.owned)).length;

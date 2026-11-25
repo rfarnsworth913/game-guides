@@ -77,7 +77,7 @@ export class CharacterDetails implements OnInit {
     }
     definition() {return this.entry().characterDefinition ?? emptyCharacterDefinition();}
     card() {return characterCard(this.entry(),this.rules());}
-    gameTitle():string {return this.gameName() || this.store.games?.().find(game => game.id === this.entry().game)?.name || this.entry().game;}
+    gameTitle():string {return this.gameName() || this.store.games?.().find(game => game.gameId === this.entry().game)?.name || this.entry().game;}
     rarityStars():number[] {return Number.isInteger(this.entry().rarity) && this.entry().rarity > 0 && this.entry().rarity <= 20 ? Array.from({length:this.entry().rarity},(_,index) => index) : [];}
     private headerAttribute(ids:string[]):{id:string;value:string}|null {
         for (const id of ids) {

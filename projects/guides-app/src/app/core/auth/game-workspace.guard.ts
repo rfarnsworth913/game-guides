@@ -15,7 +15,7 @@ export const gameWorkspaceGuard: CanActivateFn = async route => {
         await store.authorizeGameWorkspace(id, route.paramMap.get('page') ?? 'dashboard');
         return true;
     } catch (error) {
-        const game = store.games?.().find(game => game.id === id);
+        const game = store.games?.().find(game => game.gameId === id);
         const fallback = game && (game.visibility === 'public' || store.canEdit()) ? `/games/${id}/dashboard` : '/games';
         return router.parseUrl(error instanceof RequestError && [401, 403, 404].includes(error.status) ? fallback : '/error');
     }

@@ -1,6 +1,6 @@
 # Application type checklist
 
-Inventory date: November 25, 2026. This is a review checklist of existing definitions, not a list of missing features. The five checked contracts from `game-overview.type.ts` have been integrated into storage, validation, editors and workspace access. Other checkboxes remain open for the later domain-type review; they do not mean those types are unimplemented.
+Inventory date: November 25, 2026. This is a review checklist of existing definitions, not a list of missing features. The six checked contracts from `games.type.ts` have been integrated into storage, validation, editors and workspace access. Other checkboxes remain open for the later domain-type review; they do not mean those types are unimplemented.
 
 Scope: **157 named TypeScript type/interface/enum declarations** under `projects`: **150 application/tooling declarations** and **7 test-only declarations**. Counts include private aliases and repeated migration-local names, but not barrel re-exports. Classes, inferred anonymous shapes, generic parameters and external-library types are not counted as separate declarations.
 
@@ -206,9 +206,9 @@ Supporting modules: [image-category.constants.ts](../projects/lib/constants/imag
 - [ ] **GameImage** (type) — Library asset response including URLs, metadata, dimensions, format, size and timestamps.
   Fields: `name`, `url`, `details?`, `thumbnailUrl?`, `width?`, `height?`, `format?`, `fileSize?`, `createdAt?`, `updatedAt?`. Related contracts: `ImageDetails`.
 
-### [game-overview.type.ts](../projects/lib/types/game-overview.type.ts)
+### [games.type.ts](../projects/lib/types/games.type.ts)
 
-Source: `projects/lib/types/game-overview.type.ts`.
+Source: `projects/lib/types/games.type.ts`.
 
 Supporting modules: [game-overview.ts](../projects/common/workspace/game-overview.ts), [workspace.constants.ts](../projects/lib/constants/workspace.constants.ts).
 
@@ -227,12 +227,8 @@ Supporting modules: [game-overview.ts](../projects/common/workspace/game-overvie
 - [x] **GameFeature** (type) — Supported feature IDs used to enable game navigation and capabilities.
   Options: `story`, `characters`, `teams`, `inventory`, `plans`, `events`, `farming`, `achievements`.
 
-### [game-registration.type.ts](../projects/lib/types/game-registration.type.ts)
-
-Source: `projects/lib/types/game-registration.type.ts`.
-
-- [ ] **GameRegistration** (type) — Registry/editor/API projection pairing GameConfiguration with its immutable game ID as id; not a second database configuration.
-  Fields: `id`. Related contracts: `GameConfiguration`.
+- [x] **GameRegistration** (type) — Registry/editor/API projection pairing GameConfiguration with its immutable gameId; not a second database configuration.
+  Fields: `gameId`. Related contracts: `GameConfiguration`.
 
 ### [inventory.type.ts](../projects/lib/types/inventory.type.ts)
 

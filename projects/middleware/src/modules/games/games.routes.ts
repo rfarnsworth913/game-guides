@@ -50,7 +50,7 @@ export async function gameRoutes(request: IncomingMessage, response: ServerRespo
             if (!body || typeof body !== 'object' || !('revision' in body) || !Number.isSafeInteger(body.revision) || Number(body.revision) < 0) {throw new ApiError(400, 'Invalid revision.');}
             respond(response, 200, await repository.archive(id, Number(body.revision)));
         } else {
-            if (!body || typeof body !== 'object' || !('id' in body) || body.id !== id) {throw new ApiError(400, 'Game ID must match the URL.');}
+            if (!body || typeof body !== 'object' || !('gameId' in body) || body.gameId !== id) {throw new ApiError(400, 'Game ID must match the URL.');}
             respond(response, 200, await repository.saveOverview(body));
         }
         return true;

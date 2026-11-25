@@ -8,7 +8,7 @@
         @if (!game()) {
             <select class="events-game-select" aria-label="Filter events by game" [ngModel]="selectedGame()" (ngModelChange)="selectedGame.set($event)">
                 <option value="">All games</option>
-                @for (game of games(); track game.id) { <option [value]="game.id">{{ game.name }}</option> }
+                @for (game of games(); track game.gameId) { <option [value]="game.gameId">{{ game.name }}</option> }
             </select>
         }
         <button type="button" class="events-filters-button" [attr.aria-expanded]="filtersOpen()" aria-controls="events-secondary-filters" (click)="filtersOpen.set(!filtersOpen())">Filters</button>

@@ -2,7 +2,7 @@ import { afterNextRender, Component, ElementRef, inject, Injector, input, OnInit
 import { DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { defaultGameOverview, GAME_FEATURES, gameColorHex, gameOverviewErrors, normalizeGameColor, type GameOverviewField } from '@common/workspace/game-overview';
-import type { GameFeature, GameRegistration, GameVisibility } from '@lib/types/game-registration.type';
+import type { GameFeature, GameRegistration, GameVisibility } from '@lib/types/games.type';
 import { WorkspaceStore } from '../../../../core/state/workspace.store';
 import { DialogFocusDirective } from '../../../../shared/directives/dialog-focus/dialog-focus';
 import { GameImagePicker } from '../../../../shared/components/image-selector/game-image-picker';
@@ -51,7 +51,7 @@ export class GameManager implements OnInit {
             const request = this.request();
             if (request.action === 'add') {this.add();}
             if (request.action === 'edit') {
-                const game = this.registry().find(item => item.id === request.id);
+                const game = this.registry().find(item => item.gameId === request.id);
                 if (game) {this.edit(game);} else {this.error.set('This game is no longer available. Reload the list.');}
             }
         } catch (error) {this.error.set(error instanceof Error ? error.message : 'Could not load games.');}
@@ -82,15 +82,15 @@ export class GameManager implements OnInit {
         this.draft.name = name;
         if (this.creating && !this.idEdited) {
             const slug = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 59).replace(/-$/, '');
-            const id = slug ? (/^[a-z]/.test(slug) ? slug : 'game-' + slug) : name.trim() ? this.draft.id || 'game-' + crypto.randomUUID().slice(0, 8) : '';
+            const id = slug ? (/^[a-z]/.test(slug) ? slug : 'game-' + slug) : name.trim() ? this.draft.gameId || 'game-' + crypto.randomUUID().slice(0, 8) : '';
             this.setId(id);
         }
         if (this.creating && !this.shortEdited) {this.draft.short = name.trim().split(/\s+/).map(word => Array.from(word)[0] ?? '').join('').slice(0, 8).toUpperCase();}
     }
     setId(id: string): void {
         if (!this.draft) {return;}
-        const useDefault = this.draft.color === defaultGameOverview(this.draft.id).color;
-        this.draft.id = id;
+        const useDefault = this.draft.color === defaultGameOverview(this.draft.gameId).color;
+        this.draft.gameId = id;
         if (useDefault) {this.draft.color = defaultGameOverview(id).color;}
     }
     toggleFeature(id: GameFeature): void {
@@ -104,7 +104,7 @@ export class GameManager implements OnInit {
     }
     errors(): Partial<Record<GameOverviewField, string>> {
         const errors = gameOverviewErrors(this.draft);
-        if (this.creating && this.draft && this.registry().some(game => game.id === this.draft!.id)) {errors.id = 'This game ID already exists. Edit that game, or choose another ID in Advanced.';}
+        if (this.creating && this.draft && this.registry().some(game => game.gameId === this.draft!.gameId)) {errors.id = 'This game ID already exists. Edit that game, or choose another ID in Advanced.';}
         return errors;
     }
     errorEntries(): { field: GameOverviewField; message: string }[] {
@@ -140,18 +140,18 @@ export class GameManager implements OnInit {
         const color = this.draft?.color ?? '';
         if (normalizeGameColor(color)) {return color;}
         const variable = /^var\((--[a-z0-9-]+)\)$/.exec(color);
-        if (!variable || color !== defaultGameOverview(this.draft?.id ?? '').color) {return color;}
+        if (!variable || color !== defaultGameOverview(this.draft?.gameId ?? '').color) {return color;}
         const computed = this.document.defaultView?.getComputedStyle(this.document.documentElement).getPropertyValue(variable[1]).trim() ?? '';
         return normalizeGameColor(computed) ?? color;
     }
     colorHex(): string {return gameColorHex(this.colorText()) ?? '#000000';}
     setColor(color: string): void {if (this.draft) {this.draft.color = color; this.touched.add('color');}}
-    resetColor(): void {if (this.draft) {this.draft.color = defaultGameOverview(this.draft.id).color;}}
+    resetColor(): void {if (this.draft) {this.draft.color = defaultGameOverview(this.draft.gameId).color;}}
     previewColor(): string | null {return this.errors().color ? null : this.draft?.color ?? null;}
     close(): void {if (!this.busy()) {this.closed.emit();}}
     cancelEdit(): void {if (!this.busy()) {this.draft = null; this.error.set('');}}
     private rememberSaved(game: GameRegistration): void {
-        this.registry.update(games => [...games.filter(item => item.id !== game.id), game].sort((a, b) => a.name.localeCompare(b.name)));
+        this.registry.update(games => [...games.filter(item => item.gameId !== game.gameId), game].sort((a, b) => a.name.localeCompare(b.name)));
     }
     async save(): Promise<void> {
         if (!this.draft || this.busy() || !this.store.canEdit()) {return;}

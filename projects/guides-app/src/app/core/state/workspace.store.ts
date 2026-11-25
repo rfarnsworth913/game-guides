@@ -29,7 +29,7 @@ import { resolveCharacterReferences, editCharacterStory, migrateStoryCharacters,
 import { resolveEventReferences, editEventStory, migrateStoryEvents } from '@common/events/event-story';
 import { sharedEventState, setEventCompletion } from '@common/events/event-progress';
 import { defaultGameOverview, validGameOverview } from '@common/workspace/game-overview';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 export type { Entry, Kind } from "@lib/types/workspace.type";
 export { GAMES } from "@lib/constants/workspace.constants";
 export { validEntries, parseBackup } from "@common/workspace/workspace";
@@ -61,7 +61,7 @@ export class WorkspaceStore {
     private readonly snapshot = this.catalogClient.snapshot.bind(this.catalogClient);
     private readonly writeCatalog = this.catalogClient.writeCatalog.bind(this.catalogClient);
     private showSnapshots(): void {
-        this.teams.set(Object.fromEntries(this.games().map(game => [game.id, structuredClone(this.player[`${game.id}/${TEAM_PROGRESS_ID}`]?.teams ?? [])])));
+        this.teams.set(Object.fromEntries(this.games().map(game => [game.gameId, structuredClone(this.player[`${game.gameId}/${TEAM_PROGRESS_ID}`]?.teams ?? [])])));
         this.characterRules.set(Object.fromEntries([...this.snapshots.values()].filter(game => game.characterRules).map(game => [game.id, game.characterRules!])));
         this.entries.set(
             [...this.snapshots.values()].flatMap((game) => {
@@ -88,11 +88,11 @@ export class WorkspaceStore {
         if (!validGameOverview(game)) {throw new Error('Complete the required game fields and valid image URLs.');}
         this.saving.set(true);
         try {
-            const data = await this.request(create ? 'games' : `games/${game.id}${remove ? '' : '/overview'}`,
+            const data = await this.request(create ? 'games' : `games/${game.gameId}${remove ? '' : '/overview'}`,
                 remove ? { revision: game.revision } : game, create ? 'POST' : remove ? 'DELETE' : 'PUT');
-            if (!validGameOverview(data) || data.id !== game.id) {throw new Error('Invalid saved game response.');}
-            this.snapshots.set(data.id, this.snapshot(await this.request(`games/${data.id}`)));
-            this.games.set([...this.games().filter(item => item.id !== data.id), data].sort((a, b) => a.name.localeCompare(b.name)));
+            if (!validGameOverview(data) || data.gameId !== game.gameId) {throw new Error('Invalid saved game response.');}
+            this.snapshots.set(data.gameId, this.snapshot(await this.request(`games/${data.gameId}`)));
+            this.games.set([...this.games().filter(item => item.gameId !== data.gameId), data].sort((a, b) => a.name.localeCompare(b.name)));
             this.showSnapshots();
             return data;
         } finally {this.saving.set(false);}
@@ -199,11 +199,11 @@ export class WorkspaceStore {
             this.error.set('Game data is not ready or a save is in progress. Please retry.');
             return false;
         }
-        if (!validEntries(entries, this.games().map(game => game.id))) {
+        if (!validEntries(entries, this.games().map(game => game.gameId))) {
             this.error.set('Invalid workspace entries.');
             return false;
         }
-        if (ruleUpdates && !Object.entries(ruleUpdates).every(([game, rules]) => this.games().some(item => item.id === game) && validCharacterRules(rules))) {
+        if (ruleUpdates && !Object.entries(ruleUpdates).every(([game, rules]) => this.games().some(item => item.gameId === game) && validCharacterRules(rules))) {
             this.error.set('Invalid game character rules.'); return false;
         }
         this.saving.set(true);
@@ -237,21 +237,21 @@ export class WorkspaceStore {
                 this.player = merged;
             }
             for (const game of this.games()) {
-                const snapshot = this.snapshots.get(game.id)!;
+                const snapshot = this.snapshots.get(game.gameId)!;
                 const catalog = entries
-                    .filter((entry) => entry.game === game.id)
+                    .filter((entry) => entry.game === game.gameId)
                     .map(toCatalog)
                     .sort((a, b) => a.id.localeCompare(b.id));
                 const previous = snapshot.entries
                     .map((entry) => toCatalog(fromCatalog(entry)))
                     .sort((a, b) => a.id.localeCompare(b.id));
-                const editedRules = ruleUpdates?.[game.id];
+                const editedRules = ruleUpdates?.[game.gameId];
                 if (JSON.stringify(catalog) === JSON.stringify(previous) && (!editedRules || JSON.stringify(editedRules) === JSON.stringify(snapshot.characterRules))) {
                     continue;
                 }
                 if (!this.canEdit()) {throw new Error('An editor account is required to change guide content.');}
                 const saved = await this.writeCatalog(snapshot, catalog, editedRules);
-                this.snapshots.set(game.id, saved);
+                this.snapshots.set(game.gameId, saved);
                 wroteCatalog = true;
             }
             if (this.auth?.user()) {
@@ -331,12 +331,12 @@ export class WorkspaceStore {
         return this.persistTeams({ [game]: (this.teams()[game] ?? []).filter(team => team.id !== id) });
     }
     async restoreTeams(value: unknown): Promise<boolean> {
-        try { return await this.persistTeams(mergeTeamEdits(value, this.entries(), this.games().map(game => game.id), this.characterRules(), this.teams())); }
+        try { return await this.persistTeams(mergeTeamEdits(value, this.entries(), this.games().map(game => game.gameId), this.characterRules(), this.teams())); }
         catch (error) {this.error.set(error instanceof Error ? error.message : 'Invalid team data.'); return false;}
     }
     private async persistTeams(updates: Record<string, Team[]>): Promise<boolean> {
         if (this.saving() || this.loading() || !this.initialized()) {return false;}
-        if (!Object.entries(updates).every(([game, teams]) => this.games().some(item => item.id === game) && validTeams(teams))) { this.error.set('Invalid team data.'); return false; }
+        if (!Object.entries(updates).every(([game, teams]) => this.games().some(item => item.gameId === game) && validTeams(teams))) { this.error.set('Invalid team data.'); return false; }
         const changes = Object.fromEntries(Object.entries(updates).map(([game, teams]) => [`${game}/${TEAM_PROGRESS_ID}`, { completed: false, quantity: 0, target: 0, teams: structuredClone(teams) }]));
         this.saving.set(true); this.error.set('');
         try {
@@ -379,13 +379,13 @@ export class WorkspaceStore {
             if (collection) {result[key].characterCollection = structuredClone(collection);}
         }
         for (const game of this.games()) {
-            const key = `${game.id}/${TEAM_PROGRESS_ID}`;
+            const key = `${game.gameId}/${TEAM_PROGRESS_ID}`;
             const incoming: Team[] | undefined = guestState[key]?.teams;
             if (!incoming) {continue;}
             const existing = this.player[key]?.teams ?? [];
             const teams = new Map(existing.map(team => [team.id, team]));
             for (const team of incoming) {
-                if (!teams.has(team.id) && team.members.length <= teamSize(this.characterRules()[game.id]) && team.members.every(id => (result[`${game.id}/${id}`] ?? this.player[`${game.id}/${id}`])?.characterCollection?.owned)) {teams.set(team.id, structuredClone(team));}
+                if (!teams.has(team.id) && team.members.length <= teamSize(this.characterRules()[game.gameId]) && team.members.every(id => (result[`${game.gameId}/${id}`] ?? this.player[`${game.gameId}/${id}`])?.characterCollection?.owned)) {teams.set(team.id, structuredClone(team));}
             }
             result[key] = { completed: false, quantity: 0, target: 0, teams: [...teams.values()] };
         }

@@ -1,5 +1,5 @@
 import { GAMES } from '@lib/constants/workspace.constants';
-import type { GameFeature, GameRegistration } from '@lib/types/game-registration.type';
+import type { GameFeature, GameRegistration } from '@lib/types/games.type';
 import { storyImageUrl } from '@common/quests/story-template';
 
 export const GAME_FEATURES: { id: GameFeature; title: string; description: string; icon: string }[] = [
@@ -39,7 +39,7 @@ export function validGameId(value: unknown): value is string {
 }
 export function defaultGameOverview(id: string): GameRegistration {
     const game = GAMES.find(item => item.id === id);
-    return { id, name: game?.name ?? id, short: game?.short ?? id.slice(0, 4).toUpperCase(), subtitle: game?.subtitle ?? '',
+    return { gameId: id, name: game?.name ?? id, short: game?.short ?? id.slice(0, 4).toUpperCase(), subtitle: game?.subtitle ?? '',
         color: game?.color ?? 'var(--color-primary)', description: '', genre: '', icon: '', banner: '',
         features: Object.fromEntries(GAME_FEATURES.map(item => [item.id, { feature: item.id, visibility: 'public' as const }])), visibility: 'public', revision: 0 };
 }
@@ -47,7 +47,7 @@ export function gameOverviewErrors(value: unknown): Partial<Record<GameOverviewF
     if (!value || typeof value !== 'object' || Array.isArray(value)) {return { form: 'Invalid game overview.' };}
     const game = value as GameRegistration;
     const errors: Partial<Record<GameOverviewField, string>> = {};
-    if (!validGameId(game.id)) {errors.id = 'Use a game ID starting with a lowercase letter, followed by lowercase letters, numbers or single hyphens (up to 64 characters). Reserved IDs are unavailable.';}
+    if (!validGameId(game.gameId)) {errors.id = 'Use a game ID starting with a lowercase letter, followed by lowercase letters, numbers or single hyphens (up to 64 characters). Reserved IDs are unavailable.';}
     if (typeof game.name !== 'string' || !game.name.trim() || game.name.length > 120) {errors.name = 'Enter a name of 1–120 characters.';}
     if (typeof game.short !== 'string' || !game.short.trim() || game.short.length > 8) {errors.short = 'Enter a short name of 1–8 characters.';}
     if (typeof game.description !== 'string' || game.description.length > 500) {errors.description = 'Description must be 500 characters or fewer.';}
@@ -60,8 +60,8 @@ export function gameOverviewErrors(value: unknown): Partial<Record<GameOverviewF
         !Object.entries(game.features).every(([key, value]) => GAME_FEATURES.some(feature => feature.id === key) &&
             value && typeof value === 'object' && value.feature === key && ['public', 'editors'].includes(value.visibility) &&
             Object.keys(value).every(field => ['feature', 'visibility'].includes(field)))) {errors.features = 'Choose supported features with matching IDs and public or editor visibility.';}
-    if (typeof game.color !== 'string' || (!normalizeGameColor(game.color) && game.color !== defaultGameOverview(typeof game.id === 'string' ? game.id : '').color)) {errors.color = 'Choose an opaque highlight color or enter #RRGGBB, rgb(r, g, b) or rgba(r, g, b, 1).';}
-    if (!Object.keys(value).every(key => ['id', 'name', 'short', 'subtitle', 'description', 'genre', 'icon', 'banner', 'features', 'visibility', 'revision', 'color'].includes(key)) ||
+    if (typeof game.color !== 'string' || (!normalizeGameColor(game.color) && game.color !== defaultGameOverview(typeof game.gameId === 'string' ? game.gameId : '').color)) {errors.color = 'Choose an opaque highlight color or enter #RRGGBB, rgb(r, g, b) or rgba(r, g, b, 1).';}
+    if (!Object.keys(value).every(key => ['gameId', 'name', 'short', 'subtitle', 'description', 'genre', 'icon', 'banner', 'features', 'visibility', 'revision', 'color'].includes(key)) ||
         typeof game.subtitle !== 'string' || game.subtitle.length > 160 || !['public', 'editors'].includes(game.visibility) || !Number.isSafeInteger(game.revision) || game.revision < 0 || game.revision >= Number.MAX_SAFE_INTEGER) {errors.form = 'Invalid game metadata. Reload the game list and try again.';}
     return errors;
 }

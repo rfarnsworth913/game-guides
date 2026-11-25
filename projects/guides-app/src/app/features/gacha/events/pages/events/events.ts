@@ -69,7 +69,7 @@ export class Events {
     readonly typeLabel = eventTypeLabel;
     readonly games = computed(() => this.store.games().filter(game => gameSupports(game, 'events')).slice().sort((a, b) => a.name.localeCompare(b.name)));
     readonly entries = computed(() => this.store.entries().filter(entry => entry.kind === 'events' &&
-        (this.game() ? entry.game === this.game() : this.games().some(game => game.id === entry.game))).map(entry => {
+        (this.game() ? entry.game === this.game() : this.games().some(game => game.gameId === entry.game))).map(entry => {
             const completed = this.optimistic()[balanceKey(entry)];
             return completed === globalThis.undefined ? entry : { ...entry, ...setEventCompletion(entry, completed, entry) };
         }));
@@ -87,9 +87,9 @@ export class Events {
     readonly visibleEvents = computed(() => this.matching().filter(entry => this.showCompleted() || !entry.completed));
     readonly filtered = computed(() => this.visibleEvents().filter(entry => this.summaryFilter() === 'all' || (this.summaryFilter() === 'completed' ? entry.completed : !!this.plannedDate(entry))));
     readonly listGroups = computed(() => this.games().map(game => {
-        const entries = this.filtered().filter(entry => entry.game === game.id).sort((a, b) =>
+        const entries = this.filtered().filter(entry => entry.game === game.gameId).sort((a, b) =>
             (this.balanceEnabled() ? this.plannedDate(a).localeCompare(this.plannedDate(b)) : 0) || compareAvailableEvents(a, b, this.now()));
-        return { id: game.id, title: game.name, entries, completed: entries.filter(entry => entry.completed).length,
+        return { id: game.gameId, title: game.name, entries, completed: entries.filter(entry => entry.completed).length,
             deadline: Math.min(...entries.map(entry => this.deadlineTime(entry)).filter(time => time > this.now())) };
     }).filter(group => group.entries.length).sort((a, b) => this.listSort() === 'deadline'
         ? a.deadline - b.deadline || a.title.localeCompare(b.title)
@@ -228,7 +228,7 @@ export class Events {
         return ['daily', 'weekly', 'weekly-linked', 'monthly'].includes(eventType(entry)) ? label.replace('Ends in', 'Resets in') : label;
     }
     gameIcon(id: string): string | null {
-        const icon = this.games().find(game => game.id === id)?.icon;
+        const icon = this.games().find(game => game.gameId === id)?.icon;
         return icon && !this.failedImages().has('game:' + id) && (guideUrl(icon) || /^\/?(?:icons|images|assets)\/[\w/.,% -]+$/i.test(icon)) ? icon : null;
     }
     typeIcon(type: string): string {
@@ -248,7 +248,7 @@ export class Events {
         if (status === 'Ended') {return 'Ended ' + (eventDate(entry.endDate, false, entry.eventSchedule)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) ?? '');}
         return eventDate(entry.endDate, true, entry.eventSchedule) ? this.timing(entry).label : status === 'Upcoming' ? this.timing(entry).label : 'No end date';
     }
-    gameColor(id: string): string {return this.games().find(game => game.id === id)?.color || 'var(--muted)';}
+    gameColor(id: string): string {return this.games().find(game => game.gameId === id)?.color || 'var(--muted)';}
     tooltip(entry: Entry): string {
         const progress = this.progress(entry);
         return [entry.name, this.gameName(entry.game), this.plannedDate(entry) ? 'Suggested: ' + this.plannedDateLabel(entry) : 'Dates: ' + this.dateRange(entry),
@@ -301,8 +301,8 @@ export class Events {
             if (!event.composedPath().includes(menu)) {menu.open = false;}
         }
     }
-    gameName(id: string): string {return this.games().find(game => game.id === id)?.name ?? id;}
-    gameShort(id: string): string {return this.games().find(game => game.id === id)?.short ?? id;}
+    gameName(id: string): string {return this.games().find(game => game.gameId === id)?.name ?? id;}
+    gameShort(id: string): string {return this.games().find(game => game.gameId === id)?.short ?? id;}
     dayKey(date: Date): string { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
     dayLabel(date: Date): string { return date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
     changeMonth(offset: number): void { this.month.update(date => new Date(date.getFullYear(), date.getMonth() + offset, 1)); }

@@ -51,3 +51,9 @@ export type GameFeatureConfig = {
 export type GameVisibility = "public" | "editors";
 
 export type GameFeature = "story" | "characters" | "teams" | "inventory" | "plans" | "events" | "farming" | "achievements";
+
+
+/**
+ * Game configuration plus identity, for API responses and UI editing
+ */
+export type GameRegistration = GameConfiguration & { gameId: string };

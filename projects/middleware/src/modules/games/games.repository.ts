@@ -8,7 +8,7 @@ import { normalizeStory } from "../documents/stories/story-document";
 import type { CharacterRules } from "@lib/types/character.type";
 import { characterDefinitionFits, validCharacterRules } from "@common/characters/characters";
 import { characterRulesCompatibility } from '@common/characters/character-rules';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 import { defaultGameOverview, gameOverviewErrors, normalizeGameColor, validGameId, validGameOverview } from '@common/workspace/game-overview';
 import { configurationFields, documentConfiguration, flatGameDocument, GAME_CONTENT_FIELDS, storedGameId } from '../documents/game-configuration-document';
 
@@ -109,11 +109,11 @@ export class GameRepository {
             features: structuredClone(input.features),
             color: normalizeGameColor(input.color) ?? input.color, revision: create ? 0 : input.revision + 1 };
         if (create) {
-            if (GAMES.some(item => item.id === game.id) || await this.collection.findOne({ _gameId: game.id })) {
+            if (GAMES.some(item => item.id === game.gameId) || await this.collection.findOne({ _gameId: game.gameId })) {
                 throw new ApiError(409, 'This game ID is already reserved. Edit or restore the existing game instead.');
             }
             try {
-                const { id, ...gameConfiguration } = game;
+                const { gameId: id, ...gameConfiguration } = game;
                 await this.collection.insertOne({ name: `game:${id}`, _gameId: id, gameId: id, gameConfiguration,
                     version: { title: '', url: '', releaseDate: null }, content: {}, _schemaVersion: 3, _revision: 0 });
             } catch (error) {
@@ -121,8 +121,8 @@ export class GameRepository {
                 throw error;
             }
         } else {
-            const document = await this.document(game.id);
-            const { id: _id, ...gameConfiguration } = game;
+            const document = await this.document(game.gameId);
+            const { gameId: _id, ...gameConfiguration } = game;
             const revisionField = document['gameConfiguration'] ? 'gameConfiguration.revision' : '_gameOverview.revision';
             const result = await this.collection.updateOne({ _id: document['_id'] as import('mongodb').ObjectId, [revisionField]: input.revision }, { $set: { gameConfiguration } });
             if (!result.matchedCount) {throw new ApiError(409, 'This game overview changed in another session. Reload the game list before saving.');}

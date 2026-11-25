@@ -1,8 +1,8 @@
 <div class="game-grid">
-                    @for (game of games; track game.id) {
+                    @for (game of games; track game.gameId) {
                         <a
                             class="game-card panel"
-                            [routerLink]="'/games/' + game.id + '/dashboard'"
+                            [routerLink]="'/games/' + game.gameId + '/dashboard'"
                             [style.--game-color]="game.color"
                             ><div class="game-art">
                                 @if (game.banner) { <img class="game-banner-image" [src]="game.banner" alt="" /> }
@@ -15,17 +15,17 @@
                                 @if (game.genre) { <small>{{ game.genre }}</small> }
                                 @if (game.description || game.subtitle) { <p>{{ game.description || game.subtitle }}</p> }
                                 <p>
-                                    @if (supportsGame(game.id, 'characters')) { {{ gameCount(game.id, 'characters') }} characters }
-                                    @if (supportsGame(game.id, 'plans')) { &middot; {{ gameCount(game.id, 'plans') }} plans }
+                                    @if (supportsGame(game.gameId, 'characters')) { {{ gameCount(game.gameId, 'characters') }} characters }
+                                    @if (supportsGame(game.gameId, 'plans')) { &middot; {{ gameCount(game.gameId, 'plans') }} plans }
                                 </p>
-                                @if (supportsGame(game.id, 'story')) {
-                                <progress max="100" [value]="storyDashboards()[game.id].percent" [attr.aria-label]="game.name + ' story completion'"></progress>
+                                @if (supportsGame(game.gameId, 'story')) {
+                                <progress max="100" [value]="storyDashboards()[game.gameId].percent" [attr.aria-label]="game.name + ' story completion'"></progress>
                                 <div class="section-title">
-                                    <small>{{ storyDashboards()[game.id].percent }}% story complete &middot; {{ storyDashboards()[game.id].completed }} / {{ storyDashboards()[game.id].total }}</small
+                                    <small>{{ storyDashboards()[game.gameId].percent }}% story complete &middot; {{ storyDashboards()[game.gameId].completed }} / {{ storyDashboards()[game.gameId].total }}</small
                                     ><span>Open workspace &#8599;</span>
                                 </div>
-                                @if (storyDashboards()[game.id].lastLocation) {
-                                    <p class="game-last-location">Last visited: {{ storyDashboards()[game.id].lastLocation }}</p>
+                                @if (storyDashboards()[game.gameId].lastLocation) {
+                                    <p class="game-last-location">Last visited: {{ storyDashboards()[game.gameId].lastLocation }}</p>
                                 }
                                 }
                             </div></a

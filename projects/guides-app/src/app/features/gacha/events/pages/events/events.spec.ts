@@ -263,7 +263,7 @@ describe('Event tracking', () => {
         await component.toggle(store.entries().find(entry => entry.game === 'hsr')!);
         expect(store.entries().find(entry => entry.game === 'genshin')?.completed).toBe(false);
         expect(store.entries().find(entry => entry.game === 'hsr')?.completed).toBe(true);
-        store.games.update(games => games.map(game => game.id === 'hsr' ? { ...game, features: Object.fromEntries(Object.entries(game.features).filter(([feature]) => feature !== 'events')) } : game));
+        store.games.update(games => games.map(game => game.gameId === 'hsr' ? { ...game, features: Object.fromEntries(Object.entries(game.features).filter(([feature]) => feature !== 'events')) } : game));
         fixture.detectChanges();
         expect(component.entries().every(entry => entry.game === 'genshin')).toBe(true);
         fixture.componentRef.setInput('game', 'genshin'); fixture.detectChanges();

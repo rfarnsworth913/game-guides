@@ -64,7 +64,7 @@ export class Workspace {
             ? 'Overview'
             : this.nav.find((n) => n.id === this.page())?.label ?? 'Settings',
     );
-    readonly context = computed(() => this.games().find((g) => g.id === this.params()?.get('game')));
+    readonly context = computed(() => this.games().find((g) => g.gameId === this.params()?.get('game')));
     readonly pageAccessible = computed(() => !this.params()?.get('game') || canAccessFeature(this.context(), this.page(), this.store.canEdit()));
     constructor() {
         this.store.initialize().catch(() => this.notice.set('Could not initialize game data.'));
@@ -75,16 +75,16 @@ export class Workspace {
                 return;
             }
             const context = this.context();
-            this.theme.setGame((GAMES.some(item => item.id === context?.id) ? context!.id : 'default') as GameTheme, context?.color);
+            this.theme.setGame((GAMES.some(item => item.id === context?.gameId) ? context!.gameId : 'default') as GameTheme, context?.color);
             if (context && !canAccessGame(context, this.store.canEdit())) {this.navigate('/games');}
-            else if (context && !canAccessFeature(context, this.page(), this.store.canEdit())) {this.navigate(`/games/${context.id}/dashboard`);}
+            else if (context && !canAccessFeature(context, this.page(), this.store.canEdit())) {this.navigate(`/games/${context.gameId}/dashboard`);}
         });
     }
     sectionLink(page: string): string {
-        return this.context() ? `/games/${this.context()!.id}/${page}` : '/games';
+        return this.context() ? `/games/${this.context()!.gameId}/${page}` : '/games';
     }
     readonly scoped = computed(() =>
-        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.id),
+        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.gameId),
     );
     readonly search = signal('');
     readonly category = signal('');
@@ -120,7 +120,7 @@ export class Workspace {
         });
     }
     gameName(id: string): string {
-        return this.games().find((g) => g.id === id)?.name ?? 'All games';
+        return this.games().find((g) => g.gameId === id)?.name ?? 'All games';
     }
     isExisting(id: string): boolean {
         return this.store.entries().some((e) => e.id === id);
@@ -143,7 +143,7 @@ export class Workspace {
             : {
                   id: crypto.randomUUID(),
                   kind: kind as Kind,
-                  game: this.context()?.id ?? 'genshin',
+                  game: this.context()?.gameId ?? 'genshin',
                   name: '',
                   notes: '',
                   quantity: 0,
@@ -223,7 +223,7 @@ export class Workspace {
                 return;
             }
         }
-        if (!this.editor.name || !validEntries([this.editor], this.games().map(game => game.id))) {
+        if (!this.editor.name || !validEntries([this.editor], this.games().map(game => game.gameId))) {
             this.formError = 'Enter a name and valid non-negative numbers.';
             return;
         }

@@ -1,6 +1,5 @@
 import type { Document } from 'mongodb';
-import type { GameDocument, GameConfiguration } from '@lib/types/game-overview.type';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameDocument, GameConfiguration, GameRegistration } from '@lib/types/games.type';
 import { legacyGameRegistration, validGameOverview, validGameId } from '@common/workspace/game-overview';
 import { GAMES } from '@lib/constants/workspace.constants';
 
@@ -17,7 +16,7 @@ export function storedGameId(document: Document): string {
 
 export function documentConfiguration(document: Document, id: string): GameRegistration {
     if (document['gameConfiguration']) {
-        const registration = { ...document['gameConfiguration'] as GameConfiguration, id };
+        const registration = { ...document['gameConfiguration'] as GameConfiguration, gameId: id };
         if (!validGameOverview(registration)) {throw new Error(`Invalid game configuration for ${id}.`);}
         return registration;
     }
@@ -25,7 +24,7 @@ export function documentConfiguration(document: Document, id: string): GameRegis
 }
 
 export function configurationFields(document: Document, id: string): GameDocument {
-    const { id: identity, ...gameConfiguration } = documentConfiguration(document, id);
+    const { gameId: identity, ...gameConfiguration } = documentConfiguration(document, id);
     if (document['content'] !== globalThis.undefined && (!document['content'] || typeof document['content'] !== 'object' || Array.isArray(document['content']))) {throw new Error('Invalid nested game content; original document preserved.');}
     const content = { ...document['content'] as GameDocument['content'] | undefined };
     for (const key of GAME_CONTENT_FIELDS) {

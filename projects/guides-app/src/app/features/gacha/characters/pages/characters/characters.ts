@@ -42,8 +42,8 @@ export class Characters {
     private readonly pending = signal(false);
     private readonly optimisticOwnership = signal<Record<string, boolean>>({});
     private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
-    readonly gameName = computed(() => this.store.games?.().find(game => game.id === this.game())?.name ?? this.game());
-    readonly accent = computed(() => this.store.games?.().find(game => game.id === this.game())?.color ?? 'var(--color-primary)');
+    readonly gameName = computed(() => this.store.games?.().find(game => game.gameId === this.game())?.name ?? this.game());
+    readonly accent = computed(() => this.store.games?.().find(game => game.gameId === this.game())?.color ?? 'var(--color-primary)');
     readonly catalog = computed(() =>
         this.store
             .entries()

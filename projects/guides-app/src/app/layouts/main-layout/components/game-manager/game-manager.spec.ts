@@ -4,7 +4,7 @@ import { AuthStore } from '../../../../core/auth/auth.store';
 import { WorkspaceStore } from '../../../../core/state/workspace.store';
 import { GameManager, type GameManagementRequest } from './game-manager';
 import { defaultGameOverview, GAME_FEATURES, validGameId } from '@common/workspace/game-overview';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 
 describe('Game management editor', () => {
     beforeEach(() => {
@@ -28,7 +28,7 @@ describe('Game management editor', () => {
     }
     it('shows image picker previews and feature icons and puts identifiers in Advanced', async () => {
         const game = { ...defaultGameOverview('genshin'), icon: 'https://example.com/icon.png', banner: 'https://example.com/banner.png', subtitle: 'Legacy tagline' };
-        const { fixture, component, root } = await setup({ action: 'edit', id: game.id }, [game]);
+        const { fixture, component, root } = await setup({ action: 'edit', id: game.gameId }, [game]);
         expect(root.querySelectorAll('gg-game-image-picker')).toHaveLength(2);
         expect([...root.querySelectorAll<HTMLImageElement>('.image-preview')].map(image => image.src)).toEqual([game.icon, game.banner]);
         expect(root.querySelectorAll('.game-feature svg path')).toHaveLength(GAME_FEATURES.length);
@@ -44,19 +44,19 @@ describe('Game management editor', () => {
     it('generates valid IDs without replacing manually edited identifiers or highlight colors', async () => {
         const { component } = await setup();
         component.setTitle('123 RPG');
-        expect(validGameId(component.draft!.id)).toBe(true);
+        expect(validGameId(component.draft!.gameId)).toBe(true);
         component.setColor('#12abef');
         component.setId('manual-rpg');
         component.idEdited = true;
         component.draft!.short = 'CUSTOM';
         component.shortEdited = true;
         component.setTitle('New Title');
-        expect(component.draft).toMatchObject({ id: 'manual-rpg', short: 'CUSTOM', color: '#12abef' });
+        expect(component.draft).toMatchObject({ gameId: 'manual-rpg', short: 'CUSTOM', color: '#12abef' });
         expect(component.valid()).toBe(true);
     });
     it('keeps feature settings in their own tab and preserves drafts across keyboard tab changes', async () => {
         const game = defaultGameOverview('genshin');
-        const { component, fixture, root, store } = await setup({ action: 'edit', id: game.id }, [game]);
+        const { component, fixture, root, store } = await setup({ action: 'edit', id: game.gameId }, [game]);
         expect(root.querySelectorAll('[role=tab]')).toHaveLength(3);
         expect(root.querySelector('#game-overview-panel .game-feature')).toBeNull();
         expect(root.querySelector<HTMLElement>('#game-features-panel')!.hidden).toBe(true);
@@ -98,7 +98,7 @@ describe('Game management editor', () => {
     });
     it('retains edits and the active tab when saving fails', async () => {
         const game = defaultGameOverview('genshin');
-        const { component, store } = await setup({ action: 'edit', id: game.id }, [game]);
+        const { component, store } = await setup({ action: 'edit', id: game.gameId }, [game]);
         component.draft!.description = 'Keep these edits';
         component.selectTab('advanced');
         store.saveGameOverview.mockRejectedValueOnce(new Error('Game changed in another session.'));
@@ -118,7 +118,7 @@ describe('Game management editor', () => {
         await component.save();
         expect(component.creating).toBe(false);
         expect(component.error()).toContain('game was created');
-        expect(component.draft?.id).toBe('new-rpg');
+        expect(component.draft?.gameId).toBe('new-rpg');
         expect(picker.pendingFile()).not.toBeNull();
         await component.save();
         expect(upload).toHaveBeenCalledTimes(2);
@@ -129,7 +129,7 @@ describe('Game management editor', () => {
     });
     it('edits game and feature visibility without an archive action', async () => {
         const game = defaultGameOverview('genshin');
-        const { component, store, root } = await setup({ action: 'edit', id: game.id }, [game]);
+        const { component, store, root } = await setup({ action: 'edit', id: game.gameId }, [game]);
         component.draft!.visibility = 'editors';
         component.draft!.features.story!.visibility = 'editors';
         expect(root.textContent).not.toContain('Remove Game');

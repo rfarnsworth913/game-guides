@@ -3,7 +3,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { GAMES } from '@lib/constants/workspace.constants';
 import { GameNavigationPreferences } from '../../../../core/state/game-navigation-preferences';
 import { defaultGameOverview, canAccessGame, canAccessFeature } from '@common/workspace/game-overview';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 import type { GameManagementRequest } from '../game-manager/game-manager';
 
 export type SidebarLink = { id: string; label: string; icon: string; divider?: boolean };
@@ -36,7 +36,7 @@ export class WorkspaceSidebar {
     readonly searchQuery = signal('');
     readonly switching = signal(false);
     readonly error = signal('');
-    readonly activeGame = computed(() => this.catalog().find(game => game.id === this.activeGameId()));
+    readonly activeGame = computed(() => this.catalog().find(game => game.gameId === this.activeGameId()));
     readonly workspaceLinks = computed(() => this.links().slice(2).filter(link => canAccessFeature(this.activeGame(), link.id, this.canManage())));
     readonly failedImages = signal<string[]>([]);
     readonly filters: { id: GameFilter; label: string; icon: string }[] = [
@@ -49,13 +49,13 @@ export class WorkspaceSidebar {
         const recent = this.preferences.recentGameIds();
         const query = this.searchQuery().trim().toLocaleLowerCase();
         return this.catalog().filter(game => canAccessGame(game, this.canManage()) && (!query || game.name.toLocaleLowerCase().includes(query)) &&
-            (this.filter() === 'all' || (this.filter() === 'favorites' ? favorites.includes(game.id) : recent.includes(game.id))))
-            .sort((a, b) => this.filter() === 'recent' ? recent.indexOf(a.id) - recent.indexOf(b.id) : a.name.localeCompare(b.name));
+            (this.filter() === 'all' || (this.filter() === 'favorites' ? favorites.includes(game.gameId) : recent.includes(game.gameId))))
+            .sort((a, b) => this.filter() === 'recent' ? recent.indexOf(a.gameId) - recent.indexOf(b.gameId) : a.name.localeCompare(b.name));
     });
 
     constructor() {
         effect(() => {
-            const id = this.activeGame()?.id;
+            const id = this.activeGame()?.gameId;
             if (id) {untracked(() => this.preferences.remember(id));}
         });
     }
@@ -91,7 +91,7 @@ export class WorkspaceSidebar {
     }
 
     async selectGame(id: string): Promise<void> {
-        if (this.switching() || !this.catalog().some(game => game.id === id && canAccessGame(game, this.canManage()))) {return;}
+        if (this.switching() || !this.catalog().some(game => game.gameId === id && canAccessGame(game, this.canManage()))) {return;}
         if (id === this.activeGameId()) {this.closeSelector(); return;}
         this.switching.set(true);
         this.error.set('');

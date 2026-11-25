@@ -60,15 +60,15 @@
             <p class="list-status" role="status">{{ games().length }} {{ games().length === 1 ? 'game' : 'games' }}</p>
             @if (error()) { <p class="switch-error" role="alert">{{ error() }}</p> }
             <ul class="game-list" aria-label="Games">
-                @for (game of games(); track game.id) {
-                    <li class="game-list-row" [class.is-current]="activeGameId() === game.id">
-                        <button type="button" class="game-choice" [disabled]="switching()" [attr.aria-current]="activeGameId() === game.id ? 'true' : null" (click)="selectGame(game.id)">
+                @for (game of games(); track game.gameId) {
+                    <li class="game-list-row" [class.is-current]="activeGameId() === game.gameId">
+                        <button type="button" class="game-choice" [disabled]="switching()" [attr.aria-current]="activeGameId() === game.gameId ? 'true' : null" (click)="selectGame(game.gameId)">
                             <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">@if (game.icon && !failedImages().includes(game.icon)) { <img [src]="game.icon" alt="" (error)="imageFailed(game.icon)" /> } @else { {{ game.short }} }</span>
                             <span>{{ game.name }}</span>
-                            @if (activeGameId() === game.id) { <span class="selected-check" aria-label="Current game">&#10003;</span> }
+                            @if (activeGameId() === game.gameId) { <span class="selected-check" aria-label="Current game">&#10003;</span> }
                         </button>
-                        @if (canManage()) { <button type="button" class="game-edit" [attr.aria-label]="'Edit ' + game.name + ' overview'" (click)="manageGame.emit({ action: 'edit', id: game.id })"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z" /></svg></button> }
-                        <button type="button" class="favorite-toggle" [class.is-favorite]="preferences.favoriteGameIds().includes(game.id)" [attr.aria-pressed]="preferences.favoriteGameIds().includes(game.id)" [attr.aria-label]="(preferences.favoriteGameIds().includes(game.id) ? 'Remove ' : 'Add ') + game.name + (preferences.favoriteGameIds().includes(game.id) ? ' from favorites' : ' to favorites')" (click)="preferences.toggleFavorite(game.id)">
+                        @if (canManage()) { <button type="button" class="game-edit" [attr.aria-label]="'Edit ' + game.name + ' overview'" (click)="manageGame.emit({ action: 'edit', id: game.gameId })"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z" /></svg></button> }
+                        <button type="button" class="favorite-toggle" [class.is-favorite]="preferences.favoriteGameIds().includes(game.gameId)" [attr.aria-pressed]="preferences.favoriteGameIds().includes(game.gameId)" [attr.aria-label]="(preferences.favoriteGameIds().includes(game.gameId) ? 'Remove ' : 'Add ') + game.name + (preferences.favoriteGameIds().includes(game.gameId) ? ' from favorites' : ' to favorites')" (click)="preferences.toggleFavorite(game.gameId)">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" /></svg>
                         </button>
                     </li>

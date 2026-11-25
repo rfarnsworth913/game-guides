@@ -12,7 +12,7 @@ Validation checks required text, length limits, safe image URLs, unique/reserved
 
 ## Game document and configuration
 
-The shared contract is `GameDocument` in `projects/lib/types/game-overview.type.ts`:
+The shared contract is `GameDocument` in `projects/lib/types/games.type.ts`:
 
 ```text
 gameId
@@ -28,7 +28,7 @@ content
 
 The content array element types intentionally remain `unknown` pending the separate domain-type refactor. Existing nested achievements/story payloads remain intact. Character rules stay in their existing storage field for now; personal progress remains in the separate account collection or guest localStorage.
 
-`GameRegistration` pairs configuration with `id` for existing registry/editor responses. It is a projection, not a second stored configuration. `GameSnapshot` remains the API's catalog projection during this transition. The middleware adds MongoDB `_id`, `_schemaVersion: 3` and catalog `_revision`; configuration has its own independent `revision`. Legacy `name` and `_gameId` lookup fields remain for parser/image compatibility. Game-title edits do not change identity, image folders or account keys.
+`GameRegistration`, defined alongside the other game contracts in `games.type.ts`, pairs configuration with `gameId` for registry/editor responses and save requests. It is a projection, not a second stored configuration. `GameSnapshot` remains the API's catalog projection during this transition and retains its own `id` field. The middleware adds MongoDB `_id`, `_schemaVersion: 3` and catalog `_revision`; configuration has its own independent `revision`. Legacy `name` and `_gameId` lookup fields remain for parser/image compatibility. Game-title edits do not change identity, image folders or account keys.
 
 ## Workspace visibility and public global data
 

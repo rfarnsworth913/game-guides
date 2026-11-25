@@ -2,7 +2,7 @@ import { RequestError, type WorkspaceApi } from './workspace-api';
 import { mergeUpdates } from '../merge-updates';
 import type { GameSnapshot } from '@lib/types/workspace.type';
 import type { CharacterRules } from '@lib/types/character.type';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 import { GAMES } from '@lib/constants/workspace.constants';
 import { validCatalog } from '@common/workspace/workspace';
 import { validCharacterRules } from '@common/characters/characters';
@@ -42,7 +42,7 @@ export class CatalogClient {
             !('entries' in value) ||
             !validCatalog(value.entries, value.id)
             || ('characterRules' in value && !validCharacterRules(value.characterRules))
-            || ('overview' in value && (!validGameOverview(value.overview) || value.overview.id !== value.id))
+            || ('overview' in value && (!validGameOverview(value.overview) || value.overview.gameId !== value.id))
         ) {
             throw new Error('Invalid game data received from middleware.');
         }

@@ -43,11 +43,11 @@
                         </div>
                         <div class="game-artwork">
                             <div class="game-image-field" data-game-field="icon"><h3>Icon Image <small>(optional)</small></h3>
-                                <gg-game-image-picker #iconPicker [game]="game.id" label="Game Icon" preferredImageType="icon" [selectionOnly]="true" [deferUploads]="true" [libraryAvailable]="!creating" [value]="game.icon" (valueChange)="game.icon = $event; touched.add('icon')" />
+                                <gg-game-image-picker #iconPicker [game]="game.gameId" label="Game Icon" preferredImageType="icon" [selectionOnly]="true" [deferUploads]="true" [libraryAvailable]="!creating" [value]="game.icon" (valueChange)="game.icon = $event; touched.add('icon')" />
                                 <p class="field-error">{{ fieldError('icon') }}</p>
                             </div>
                             <div class="game-image-field" data-game-field="banner"><h3>Banner Image <small>(optional)</small></h3>
-                                <gg-game-image-picker #bannerPicker [game]="game.id" label="Game Banner" [banner]="true" [selectionOnly]="true" [deferUploads]="true" [libraryAvailable]="!creating" [value]="game.banner" (valueChange)="game.banner = $event; touched.add('banner')" />
+                                <gg-game-image-picker #bannerPicker [game]="game.gameId" label="Game Banner" [banner]="true" [selectionOnly]="true" [deferUploads]="true" [libraryAvailable]="!creating" [value]="game.banner" (valueChange)="game.banner = $event; touched.add('banner')" />
                                 <p class="field-error">{{ fieldError('banner') }}</p>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                 </section>
                 <section id="game-advanced-panel" class="game-tab-panel" role="tabpanel" aria-labelledby="game-advanced-tab" [hidden]="tab() !== 'advanced'">
                     <label>Game Visibility<select name="game-visibility" [ngModelOptions]="{standalone:true}" [(ngModel)]="game.visibility"><option value="public">Public</option><option value="editors">Editors only</option></select></label><h3>Advanced Settings</h3><p class="game-field-help">Identifiers stay separate from the game title.</p>
-                    <label>Game ID<input name="game-id" [ngModelOptions]="{standalone:true}" [ngModel]="game.id" (ngModelChange)="idEdited = true; setId($event)" (blur)="touched.add('id')" [readonly]="!creating" aria-describedby="game-id-help game-id-error" [attr.aria-invalid]="!!fieldError('id')" maxlength="64" placeholder="e.g. genshin-impact" /></label>
+                    <label>Game ID<input name="game-id" [ngModelOptions]="{standalone:true}" [ngModel]="game.gameId" (ngModelChange)="idEdited = true; setId($event)" (blur)="touched.add('id')" [readonly]="!creating" aria-describedby="game-id-help game-id-error" [attr.aria-invalid]="!!fieldError('id')" maxlength="64" placeholder="e.g. genshin-impact" /></label>
                     <p class="game-field-help" id="game-id-help">Stable URL and data identifier. Generated from the title for new games; cannot change after creation.</p><p class="field-error" id="game-id-error">{{ fieldError('id') }}</p>
                     <label>Short Name<input name="game-short" [ngModelOptions]="{standalone:true}" [ngModel]="game.short" (ngModelChange)="game.short = $event; shortEdited = true" (blur)="touched.add('short')" aria-describedby="game-short-error" [attr.aria-invalid]="!!fieldError('short')" maxlength="8" placeholder="e.g. GI" /></label>
                     <p class="field-error" id="game-short-error">{{ fieldError('short') }}</p>
@@ -84,7 +84,7 @@
             </form>
         } @else {
             <div class="game-registry-toolbar"><p>Control game and feature visibility without deleting shared content.</p><button type="button" class="primary" [disabled]="busy()" (click)="add()">+ Add Game</button></div>
-            <ul class="game-registry-list">@for (game of registry(); track game.id) {
+            <ul class="game-registry-list">@for (game of registry(); track game.gameId) {
                 <li><div><strong>{{ game.name }}</strong><small>{{ game.genre || 'Type not specified' }} &middot; {{ game.visibility === 'editors' ? 'Editors only' : 'Public' }}</small></div><button type="button" [disabled]="busy()" [attr.aria-label]="'Edit ' + game.name" (click)="edit(game)">{{ 'Edit Configuration' }}</button></li>
             }</ul>
         }

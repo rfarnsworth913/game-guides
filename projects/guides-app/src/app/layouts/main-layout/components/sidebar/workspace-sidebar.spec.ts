@@ -82,19 +82,19 @@ describe('Workspace sidebar game selection', () => {
         expect(router.url).toBe('/games/genshin/story?section=region#quest');
         expect(component.mode()).toBe('game-selection');
         component.filter.set('favorites');
-        expect(component.games().map(game => game.id)).toEqual(['hsr']);
+        expect(component.games().map(game => game.gameId)).toEqual(['hsr']);
         component.filter.set('all');
         const search = root.querySelector<HTMLInputElement>('input')!;
         search.value = '  STAR rail  ';
         search.dispatchEvent(new Event('input'));
         fixture.detectChanges();
-        expect(component.games().map(game => game.id)).toEqual(['hsr']);
+        expect(component.games().map(game => game.gameId)).toEqual(['hsr']);
         component.searchQuery.set('no matching game');
         fixture.detectChanges();
         expect(root.textContent).toContain('No games match your search.');
         component.searchQuery.set('');
         component.filter.set('recent');
-        expect(component.games().map(game => game.id)).toEqual(['genshin']);
+        expect(component.games().map(game => game.gameId)).toEqual(['genshin']);
     });
 
     it('opens with Ctrl+K and closes with Escape while preserving the route', async () => {

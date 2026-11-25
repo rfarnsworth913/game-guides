@@ -42,7 +42,7 @@ export class DashboardPage extends DashboardState {
             return rank(a) - rank(b) || (this.eventStatus(a) === 'Ended' ? date(b) - date(a) : date(a) - date(b)) || a.name.localeCompare(b.name);
         }));
     readonly resumeGuide = computed(() => [...this.dashboardStories()]
-        .filter(guide => guide.resume && this.supportsGame(guide.id, 'story')).sort((a, b) => b.visitedAt - a.visitedAt)[0]);
+        .filter(guide => guide.resume && this.supportsGame(guide.gameId, 'story')).sort((a, b) => b.visitedAt - a.visitedAt)[0]);
     readonly stats = computed(() => [
         { label: 'Games', value: this.context() ? 1 : this.games.length, detail: 'Worlds to explore', link: '/games', icon: 'games' },
         { label: 'Characters', value: this.count('characters'), detail: 'In your collection', link: this.sectionLink('characters'), icon: 'characters' },
@@ -91,8 +91,8 @@ export class DashboardPage extends DashboardState {
     }
     timing(entry: Entry) { return eventTiming(entry, this.now()); }
     typeLabel(entry: Entry): string { return eventTypeLabel(eventType(entry)); }
-    gameShort(id: string): string { return this.games.find(game => game.id === id)?.short ?? id; }
-    gameColor(id: string): string | undefined { return this.games.find(game => game.id === id)?.color; }
+    gameShort(id: string): string { return this.games.find(game => game.gameId === id)?.short ?? id; }
+    gameColor(id: string): string | undefined { return this.games.find(game => game.gameId === id)?.color; }
     dateRange(entry: Entry): string {
         const format = (value?: string) => eventDate(value)?.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
         return [format(entry.startDate), format(entry.endDate)].filter(Boolean).join(' – ') || 'Dates unavailable';

@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { provideRouter } from '@angular/router';
 import { DashboardPage } from './dashboard';
-import { WorkspaceStore, GAMES, type Entry } from '../../../../../core/state/workspace.store';
+import { WorkspaceStore, type Entry } from '../../../../../core/state/workspace.store';
 import { StoryPositionStore } from '../../../../gacha/story-guide/state/story-position.store';
 import { defaultGameOverview } from '@common/workspace/game-overview';
 
@@ -55,7 +55,7 @@ describe('Dashboard feature ownership', () => {
         expect(page.dueSoon()).toBe(1);
         expect(root.querySelector('.dashboard-event')?.textContent).toContain('soon');
         expect(root.querySelector('.dashboard-event-link')?.getAttribute('href')).toBe('/games/hsr/events');
-        fixture.componentRef.setInput('context', GAMES.find(game => game.id === 'genshin'));
+        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
         fixture.detectChanges();
         expect(page.filteredEvents().map(entry => entry.id)).toEqual(['later']);
         expect(page.activeEvents()).toHaveLength(1);
@@ -85,7 +85,7 @@ describe('Dashboard feature ownership', () => {
         const { page, fixture, root } = setupEvents();
         const original = page.store.entries();
         page.store.games.set([{ ...defaultGameOverview('genshin'), features: { events: { feature: 'events', visibility: 'public' } } }]);
-        fixture.componentRef.setInput('context', GAMES.find(game => game.id === 'genshin'));
+        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
         fixture.detectChanges();
         expect(root.querySelector('.summary-characters')).toBeNull();
         expect(root.querySelector('.summary-story')).toBeNull();
@@ -229,10 +229,10 @@ describe('Dashboard feature ownership', () => {
         const fixture = TestBed.createComponent(DashboardPage);
         fixture.detectChanges();
         expect(fixture.componentInstance.count('characters')).toBe(2);
-        fixture.componentRef.setInput('context', GAMES.find(game => game.id === 'genshin'));
+        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
         fixture.detectChanges();
         expect(fixture.componentInstance.count('characters')).toBe(1);
-        expect(fixture.componentInstance.dashboardStories().map(game => game.id)).toEqual(['genshin']);
+        expect(fixture.componentInstance.dashboardStories().map(game => game.gameId)).toEqual(['genshin']);
         let selected: Entry | undefined;
         fixture.componentInstance.editPlan.subscribe(value => { selected = value; });
         ((fixture.nativeElement as HTMLElement) as HTMLElement).querySelector<HTMLButtonElement>('.plan-row')!.click();

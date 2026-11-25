@@ -2,7 +2,7 @@ import type { EventSchedule } from '@lib/types/event-schedule.type';
 import type { PatchOverview } from '@lib/types/story-template.type';
 import type { Team } from '@lib/types/team.type';
 import type { CharacterCollection, CharacterDefinition, CharacterRules } from '@lib/types/character.type';
-import type { GameRegistration } from '@lib/types/game-registration.type';
+import type { GameRegistration } from '@lib/types/games.type';
 import type { EquipmentDefinition, EquipmentInstance } from '@lib/types/equipment.type';
 import type {InventoryMetadata} from '@lib/types/inventory.type';
 

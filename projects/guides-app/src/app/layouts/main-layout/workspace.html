@@ -1,6 +1,6 @@
 <div class="shell">
     <aside class="workspace-nav" [class.open]="mobile">
-        <gg-workspace-sidebar [activeGameId]="context()?.id ?? null" [links]="nav" [planCount]="plans().length" [catalog]="games()" [canManage]="store.canEdit()"
+        <gg-workspace-sidebar [activeGameId]="context()?.gameId ?? null" [links]="nav" [planCount]="plans().length" [catalog]="games()" [canManage]="store.canEdit()"
             (manageGame)="gameManagement = $event"
             (openNavigation)="mobile = true" (navigated)="mobile = false; search.set(''); category.set(''); rarity.set('')" />
     </aside>
@@ -137,22 +137,22 @@
             } @else if (page() === 'games') {
                 @defer (on immediate) { <gg-game-collection /> } @placeholder { <p role="status">Loading games...</p> }
             } @else if (page() === 'farming') {
-                @if (context(); as game) { @defer (on immediate) { <gg-farming [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> } }
+                @if (context(); as game) { @defer (on immediate) { <gg-farming [game]="game.gameId" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'characters') {
-                @if (context(); as game) { @defer (on immediate) { <gg-characters [game]="game.id" [focusId]="settingsParams()?.get('character') ?? ''" /> } @placeholder { <p role="status">Loading...</p> } }
+                @if (context(); as game) { @defer (on immediate) { <gg-characters [game]="game.gameId" [focusId]="settingsParams()?.get('character') ?? ''" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'inventory') {
-                @if (context(); as game) { @defer (on immediate) { <gg-inventory [game]="game.id" (add)="open('inventory')" (edit)="open('inventory', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading...</p> } }
+                @if (context(); as game) { @defer (on immediate) { <gg-inventory [game]="game.gameId" (add)="open('inventory')" (edit)="open('inventory', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'teams') {
-                @if (context(); as game) { @defer (on immediate) { <gg-teams [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> } }
+                @if (context(); as game) { @defer (on immediate) { <gg-teams [game]="game.gameId" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'events') {
-                @defer (on immediate) { <gg-events [game]="context()?.id ?? ''" (edit)="open('events', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading events...</p> }
+                @defer (on immediate) { <gg-events [game]="context()?.gameId ?? ''" (edit)="open('events', $event)" (remove)="pendingDelete = $event" /> } @placeholder { <p role="status">Loading events...</p> }
             } @else if (page() === 'achievements') {
                 @if (context(); as game) {
-                    @defer (on immediate) { <gg-achievements [game]="game.id" /> } @placeholder { <p role="status">Loading...</p> }
+                    @defer (on immediate) { <gg-achievements [game]="game.gameId" /> } @placeholder { <p role="status">Loading...</p> }
                 }
             } @else if (page() === 'story') {
                 @if (context(); as game) {
-                    @defer (on immediate) { <gg-story [game]="game.id" [gameName]="game.name" [updated]="date" /> } @placeholder { <p role="status">Loading...</p> }
+                    @defer (on immediate) { <gg-story [game]="game.gameId" [gameName]="game.name" [updated]="date" /> } @placeholder { <p role="status">Loading...</p> }
                 }
             } @else if (page() === 'settings') {
                 @defer (on immediate) { <gg-settings [settingsTab]="settingsTab()" (notice)="notice.set($event)" /> } @placeholder { <p role="status">Loading settings...</p> }
@@ -201,8 +201,8 @@
                         (ngModelChange)="changeEditorGame()"
                         [disabled]="true"
                     >
-                        @for (g of games(); track g.id) {
-                            <option [value]="g.id">{{ g.name }}</option>
+                        @for (g of games(); track g.gameId) {
+                            <option [value]="g.gameId">{{ g.name }}</option>
                         }
                     </select></label
                 >

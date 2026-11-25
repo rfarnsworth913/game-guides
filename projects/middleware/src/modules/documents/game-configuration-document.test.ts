@@ -10,6 +10,10 @@ await test('legacy game configuration conversion preserves content, IDs, disable
         version: { title: '1.10', url: 'https://example.com/version' } };
     const original = structuredClone(old);
     const converted = configurationFields(old, 'genshin');
+    const registration = documentConfiguration(converted, 'genshin');
+    assert.equal(registration.gameId, 'genshin');
+    assert.equal('id' in registration, false);
+    assert.equal('gameId' in converted.gameConfiguration, false);
     assert.equal(converted.gameConfiguration.genre, 'RPG');
     assert.deepEqual(converted.gameConfiguration.features, { story: { feature: 'story', visibility: 'public' } });
     assert.deepEqual(converted.content.story, old.story);

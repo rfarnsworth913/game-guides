@@ -12,5 +12,4 @@ export type * from "@lib/types/story-template.type";
 export type * from "@lib/types/team.type";
 export type * from "@lib/types/workspace.type";
 export type * from "@lib/types/world-quest.type";
-export type * from "@lib/types/game-overview.type";
-export type * from "@lib/types/game-registration.type";
+export type * from "@lib/types/games.type";
