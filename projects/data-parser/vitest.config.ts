@@ -19,5 +19,12 @@ export default defineConfig({
         include: ["src/**/*.spec.ts"],
         clearMocks: true,
         restoreMocks: true,
+        coverage: {
+            provider: "v8",
+            reportsDirectory: localPath("../../coverage/data-parser"),
+            reporter: ["text-summary", "lcov", "json-summary", "html"],
+            include: ["src/**/*.ts", "../common/**/*.ts"],
+            exclude: ["src/**/*.spec.ts", "src/test/**", "src/main.ts"],
+        },
     },
 });

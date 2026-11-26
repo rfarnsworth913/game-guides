@@ -12,6 +12,7 @@ Use this index to find maintained guides. Deployment proposals describe work to 
 | [Application type checklist](application-type-checklist.md) | Named types/enums, defining fields, supporting modules and compatibility notes |
 | [Middleware](../projects/middleware/README.md) | API, authentication, persistence and migrations |
 | [Browser integration](browser-integration.md) | Isolated E2E setup, coverage and limitations |
+| [Continuous integration](continuous-integration.md) | Required checks, coverage artifacts, dependency maintenance and protected dev-to-main promotion setup |
 | [Data parsers](data-parsers.md) | Active parser pipeline, CLI, reports and unresolved source gaps |
 | [Retained compatibility code](legacy-code.md) | Why particular adapters, migrations and regression implementations remain |
 | [Theme](../THEME.md) | Shared styling and game highlight colors |

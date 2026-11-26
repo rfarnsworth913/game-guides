@@ -4,6 +4,8 @@ on:
     branches: [main, dev, ai]
   push:
     branches: [main, dev, ai]
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,10 +24,10 @@ jobs:
     env:
       PUPPETEER_SKIP_DOWNLOAD: "true"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .node-version
           cache: npm
@@ -33,6 +35,57 @@ jobs:
       - if: matrix.check == 'lint'
         run: npm run lint:ci
       - if: matrix.check == 'test'
-        run: npm test
+        run: npm run test:ci
       - if: matrix.check == 'build'
         run: npm run ui:build
+      - name: Upload coverage reports
+        if: always() && matrix.check == 'test'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: test-coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload production build
+        if: matrix.check == 'build'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: guides-app-${{ github.sha }}
+          path: dist/guides-app/
+          if-no-files-found: error
+          retention-days: 14
+
+  # Workflow validation using actionlint
+  # This workflow checks the GitHub Actions workflow files for syntax errors and best practices using actionlint.
+  workflow-validation:
+    name: workflow-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install verified actionlint
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$archive"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $archive" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+
+  # Dependency review for pull requests
+  # This workflow checks for dependency updates and vulnerabilities in pull requests
+  # It uses the GitHub Dependency Review Action to analyze the dependencies in the pull request and fail if any high-severity issues are found.
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high

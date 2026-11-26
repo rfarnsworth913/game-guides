@@ -80,6 +80,7 @@ Completing a plan removes its farming requirements without consuming inventory.
 | Command | Purpose |
 | --- | --- |
 | `npm test` | Standard suite: middleware type checking, API/security tests, frontend/account-sync tests, and parser tests |
+| `npm run test:ci` | The standard checks with middleware, Angular and parser coverage reports under `coverage/` |
 | `npm run test:security` | Run the backend authentication and authorization security tests alone |
 | `npm start` / `npm run ui:start` | Launch the complete application |
 | `npm run ui:only` | Angular only (requires middleware/database already running) |
@@ -91,6 +92,8 @@ Completing a plan removes its farming requirements without consuming inventory.
 | `npm run middleware:check` | Middleware TypeScript check |
 | `npm run middleware:test` | API validation and security tests |
 | `npm run ui:e2e` | Type-check, build, and run browser integration tests with a disposable database, uploads, and browser profiles |
+
+See [continuous integration](docs/continuous-integration.md) for required branch checks, build/coverage artifacts, dependency auditing and one-time auto-merge setup.
 
 Security tests are mandatory in `npm test`, discovered by the middleware's recursive `*.test.ts` discovery.
 They cover Auth0 token signatures, issuer/audience/expiry and authorized client checks, legacy session regressions, editor permissions,

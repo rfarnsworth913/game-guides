@@ -1,0 +1,39 @@
+name: Enable dev promotion auto-merge
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  enable-auto-merge:
+    if: >-
+      vars.ENABLE_DEV_AUTO_MERGE == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'dev' &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      # Intentionally no checkout: never execute PR code with this privileged token.
+      - name: Require the release gates before enabling auto-merge
+        shell: bash
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/rules/branches/main" > "$RUNNER_TEMP/main-rules.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const rules = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/main-rules.json`, 'utf8'));
+          const checks = new Set(rules.filter(rule => rule.type === 'required_status_checks').flatMap(rule => rule.parameters.required_status_checks.map(check => check.context)));
+          const required = ['lint', 'test', 'build', 'workflow-validation', 'dependency-review', 'browser-integration'];
+          if (!rules.some(rule => rule.type === 'pull_request') || required.some(check => !checks.has(check))) {
+            throw new Error('Configure the protected-main ruleset before enabling automatic promotion.');
+          }
+          NODE
+          gh pr merge "$PR_URL" --auto --merge --match-head-commit "$HEAD_SHA"
