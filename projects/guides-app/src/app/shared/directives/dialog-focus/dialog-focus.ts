@@ -1,4 +1,4 @@
-import { AfterViewInit, DestroyRef, Directive, ElementRef, HostListener, inject } from "@angular/core";
+import { AfterViewInit, DestroyRef, Directive, ElementRef, HostListener, inject, input } from "@angular/core";
 
 
 /** Contains keyboard focus in a modal and returns it to its trigger on close. */
@@ -6,6 +6,8 @@ import { AfterViewInit, DestroyRef, Directive, ElementRef, HostListener, inject 
     selector: "[ggDialogFocus]"
 })
 export class DialogFocusDirective implements AfterViewInit {
+    readonly ggDialogRestoreFocus = input(true);
+    readonly ggDialogInitialFocus = input('');
 
     // Internal Properties ----------------------------------------------------
     private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -16,10 +18,13 @@ export class DialogFocusDirective implements AfterViewInit {
 
     // Angular Lifecycle Hooks ------------------------------------------------
     ngAfterViewInit (): void {
-        queueMicrotask(() => this.controls()[0]?.focus());
+        queueMicrotask(() => {
+            const initial = this.ggDialogInitialFocus() ? this.element.nativeElement.querySelector<HTMLElement>(this.ggDialogInitialFocus()) : null;
+            (initial ?? this.controls()[0])?.focus();
+        });
 
         this.destroyRef.onDestroy(() => {
-            this.previous?.focus();
+            if (this.ggDialogRestoreFocus()) {this.previous?.focus();}
         });
     }
 

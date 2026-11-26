@@ -1,0 +1,21 @@
+
+:host{display:block;min-width:0}article{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);height:100%;box-sizing:border-box}.banner{display:block;aspect-ratio:3/1;background:linear-gradient(125deg,var(--color-bg-secondary),color-mix(in srgb,var(--game-color) 8%,var(--surface)))}.banner img{width:100%;height:100%;object-fit:cover}.card-body{display:flex;align-items:center;flex-wrap:wrap;gap:16px;padding:20px}.game-title{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;flex:1;min-width:0}.game-title>span:last-child{min-width:0}strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}small{display:block;color:var(--muted);font-size:12px;margin-top:5px}.game-icon{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;font-weight:700;font-size:12px;background:var(--color-bg-primary);border-radius:8px}.game-icon img{width:100%;height:100%;object-fit:cover;border-radius:8px}.features{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%;order:3}.features a{color:var(--muted)}svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.menu-toggle{background:transparent;border:1px solid var(--line);color:inherit;border-radius:6px;width:32px;height:32px}.list-card{border-radius:0;border-width:0 0 1px}.list-card .features{flex-basis:auto;order:0}.list-card .card-body{padding:10px 14px}.list-card .game-title{min-width:min(240px,60%)}@media(max-width:650px){.list-card .features{flex-basis:100%;order:3;padding-left:52px}}
+
+.game-title { gap: 14px; }
+:host { height: 100%; }
+.game-title strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; line-height: 1.45; }
+.game-icon { width: 48px; height: 48px; flex-basis: 48px; }
+.features a { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 5px; }
+.features a:hover { color: var(--color-text-primary); background: var(--color-bg-hover); }
+.menu-toggle { display: grid; place-items: center; box-sizing: border-box; flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border-radius: 8px; }
+.menu-toggle svg { display: block; width: 20px; height: 20px; fill: currentColor; stroke: none; }
+.list-card .game-icon { width: 40px; height: 40px; flex-basis: 40px; }
+.list-card .card-body { padding: 9px 16px; gap: 12px; }
+.list-card .game-title strong { display: block; white-space: nowrap; }
+
+.list-card { height: auto; transition: background-color 140ms ease; }
+.list-card:hover, .list-card:focus-within { background: var(--color-bg-hover); }
+.list-card .game-icon { width: 36px; height: 36px; flex-basis: 36px; }
+.list-card .game-title { gap: 12px; }
+.list-card small { margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .list-card { transition: none; } }

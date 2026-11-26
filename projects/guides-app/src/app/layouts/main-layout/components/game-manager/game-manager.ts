@@ -41,6 +41,7 @@ export class GameManager implements OnInit {
     readonly touched = new Set<GameOverviewField>();
 
     ngOnInit(): void {this.retry();}
+    setGenres(value:string):void {if(this.draft) {this.draft.genres=[...new Set(value.split(',').map(genre=>genre.trim()).filter(Boolean))];}}
     retry(): void {this.load().catch(() => this.error.set('Could not load games.'));}
     private async load(): Promise<void> {
         this.loading.set(true);
@@ -128,7 +129,7 @@ export class GameManager implements OnInit {
     focusError(field: GameOverviewField): void {
         this.selectTab(field === 'features' ? 'features' : field === 'id' || field === 'short' ? 'advanced' : 'overview');
         afterNextRender(() => {
-            const names: Partial<Record<GameOverviewField, string>> = { name: 'title', id: 'id', short: 'short', genre: 'type', description: 'description', color: 'color' };
+            const names: Partial<Record<GameOverviewField, string>> = { name: 'title', id: 'id', short: 'short', genres: 'type', description: 'description', color: 'color' };
             const target = field === 'features' ? this.host.nativeElement.querySelector<HTMLElement>('.game-feature input') : names[field] ? this.host.nativeElement.querySelector<HTMLElement>('[name=game-' + names[field] + ']') :
                 this.host.nativeElement.querySelector<HTMLElement>('[data-game-field=' + field + '] input[type=text]');
             const details = target?.closest('details');

@@ -5,7 +5,7 @@ import { canAccessFeature, canAccessGame, defaultGameOverview, validGameOverview
 
 await test('legacy game configuration conversion preserves content, IDs, disabled features and version', () => {
     const old = { name: 'Original parser name', _gameId: 'genshin', _revision: 18, custom: { keep: true },
-        _gameOverview: { ...defaultGameOverview('genshin'), genre: globalThis.undefined, gameType: 'RPG', visibility: globalThis.undefined, features: ['story'], archived: false },
+        _gameOverview: { ...defaultGameOverview('genshin'), genres: globalThis.undefined, gameType: 'RPG', visibility: globalThis.undefined, features: ['story'], archived: false },
         story: [{ id: 'guide', rows: [{ id: 'quest' }] }], characters: [{ id: 'character' }],
         version: { title: '1.10', url: 'https://example.com/version' } };
     const original = structuredClone(old);
@@ -14,7 +14,7 @@ await test('legacy game configuration conversion preserves content, IDs, disable
     assert.equal(registration.gameId, 'genshin');
     assert.equal('id' in registration, false);
     assert.equal('gameId' in converted.gameConfiguration, false);
-    assert.equal(converted.gameConfiguration.genre, 'RPG');
+    assert.deepEqual(converted.gameConfiguration.genres, ['RPG']);
     assert.deepEqual(converted.gameConfiguration.features, { story: { feature: 'story', visibility: 'public' } });
     assert.deepEqual(converted.content.story, old.story);
     assert.deepEqual(converted.content.characters, old.characters);
@@ -39,6 +39,34 @@ await test('game and feature access inherit restrictions without making shared d
     assert.equal(validGameOverview({ ...game, features: { story: { feature: 'events', visibility: 'public' } } }), false);
     assert.equal(validGameOverview({ ...game, features: { story: { feature: 'story', visibility: true } } }), false);
     assert.equal(validGameOverview({ ...game, features: { unsupported: { feature: 'unsupported', visibility: 'public' } } }), false);
+});
+
+await test('stored genre conversion combines classifications and removes aliases without changing content or revision', () => {
+    const {gameId,...configuration}=defaultGameOverview('genshin');
+    const stored={gameId,gameConfiguration:{...configuration,revision:7,genre:'RPG',genres:['Action RPG','RPG'],searchAliases:['Teyvat']},content:{story:[{id:'keep'}]}};
+    const original=structuredClone(stored);
+    const converted=configurationFields(stored,gameId);
+    assert.deepEqual(converted.gameConfiguration.genres,['Action RPG','RPG']);
+    assert.equal(converted.gameConfiguration.revision,7);
+    assert.equal('genre' in converted.gameConfiguration,false);
+    assert.equal('searchAliases' in converted.gameConfiguration,false);
+    assert.deepEqual(converted.content,stored.content);
+    assert.deepEqual(configurationFields({...stored,...converted},gameId),converted);
+    assert.deepEqual(stored,original);
+    const {genres:_genres,...previous}=configuration;
+    assert.deepEqual(documentConfiguration({gameConfiguration:{...previous,genre:'JRPG'}},gameId).genres,['JRPG']);
+    assert.throws(()=>documentConfiguration({gameConfiguration:{...configuration,genres:null}},gameId));
+});
+
+await test('game genre validation accepts empty or multiple classifications and rejects retired fields', () => {
+    const game=defaultGameOverview('genshin');
+    assert.equal(validGameOverview(game),true);
+    assert.equal(validGameOverview({...game,genres:['RPG','Open World']}),true);
+    for(const genres of ['RPG',null,[''],['RPG','RPG'],[42],['x'.repeat(81)]]) {
+        assert.equal(validGameOverview({...game,genres}),false);
+    }
+    assert.equal(validGameOverview({...game,genre:'RPG'}),false);
+    assert.equal(validGameOverview({...game,searchAliases:['Teyvat']}),false);
 });
 
 await test('archived legacy records become editor workspaces, not deleted or archived games', () => {

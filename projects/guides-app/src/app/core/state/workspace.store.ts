@@ -98,16 +98,19 @@ export class WorkspaceStore {
         } finally {this.saving.set(false);}
     }
     /** Fetch definitions once, and migrate old browser catalogs only after a successful server write. */
-    initialize(): Promise<boolean> {
+    private metadataLoad=false;
+    initialize(metadataOnly = false): Promise<boolean> {
         if (this.loadingPromise) {
+            if(!metadataOnly && this.metadataLoad) {return this.loadingPromise.then(()=>this.initialize(false));}
             return this.loadingPromise;
         }
-        this.loadingPromise = this.load().finally(() => {
+        this.metadataLoad=metadataOnly;
+        this.loadingPromise = this.load(metadataOnly).finally(() => {
             this.loadingPromise = null;
         });
         return this.loadingPromise;
     }
-    private async load(): Promise<boolean> {
+    private async load(metadataOnly = false): Promise<boolean> {
         if (this.saving()) {
             return false;
         }
@@ -117,6 +120,11 @@ export class WorkspaceStore {
         this.error.set('');
         try {
             await this.auth?.initialize();
+            if(metadataOnly) {
+                const data=await this.request('games/library');
+                if(!data || typeof data!=='object' || !('games' in data) || !Array.isArray(data.games) || !data.games.every(validGameOverview)) {throw new Error('Invalid game library response.');}
+                this.games.set(data.games);this.initialized.set(true);return true;
+            }
             this.player = {};
             const signedIn = !!this.auth?.user();
             if (!signedIn) {this.player = this.guestStorage.read();}

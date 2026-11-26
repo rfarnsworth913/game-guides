@@ -7,9 +7,10 @@ import { handleApiError } from '../core/errors/error-handler';
 import { imageRoot } from '../modules/images/images.repository';
 import { dispatchRoutes } from './routes';
 import type { AccountProgressRepository, CatalogRepository } from './app.types';
-export function createApi(repository: CatalogRepository, origins: string[], ping: () => Promise<unknown>, assetsRoot = imageRoot, security: Security = lockedSecurity, progress?: AccountProgressRepository) {
+import type { GameLibraryRepository } from '../modules/game-library/game-library.repository';
+export function createApi(repository: CatalogRepository, origins: string[], ping: () => Promise<unknown>, assetsRoot = imageRoot, security: Security = lockedSecurity, progress?: AccountProgressRepository, library?: Pick<GameLibraryRepository,'read'|'save'>) {
     const rateLimit = createRateLimiter();
-    const dependencies = { repository, security, progress, ping, assetsRoot };
+    const dependencies = { repository, security, progress, library, ping, assetsRoot };
     const server = createServer((request, response) => {
         const handle = async () => {
             const url = new URL(request.url ?? '/', 'http://localhost');

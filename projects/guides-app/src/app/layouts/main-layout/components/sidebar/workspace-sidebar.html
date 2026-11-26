@@ -1,79 +1,42 @@
-<a class="brand" routerLink="/dashboard" (click)="onNavigate()">
-    <span class="brand-mark">G<span>G</span></span><span>GAME GUIDES<small>YOUR NEXT OBJECTIVE</small></span>
-</a>
+<a class="brand" routerLink="/dashboard" (click)="onNavigate()"><span class="brand-mark">G<span>G</span></span><span>GAMEGUIDES<small>YOUR NEXT OBJECTIVE</small></span></a>
 <nav aria-label="Main navigation">
-    @for (link of links().slice(0, 2); track link.id) {
-        <a [routerLink]="'/' + link.id" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="onNavigate()">
-            <span class="nav-icon" aria-hidden="true">{{ link.icon }}</span>{{ link.label }}
-        </a>
-    }
-    <a routerLink="/events" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page" (click)="onNavigate()">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2" /></svg></span>Events Calendar
-    </a>
-    <hr class="nav-divider" />
-    @if (mode() === 'workspace') {
-        <button #gameSelector type="button" class="active-game-selector" [attr.aria-label]="activeGame() ? 'Switch game: ' + activeGame()!.name : 'Choose a game'" (click)="openSelector()">
-            @if (activeGame(); as game) {
-                <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">@if (game.icon && !failedImages().includes(game.icon)) { <img [src]="game.icon" alt="" (error)="imageFailed(game.icon)" /> } @else { {{ game.short }} }</span>
-                <strong>{{ game.name }}</strong>
-            } @else { <strong>Choose a game</strong> }
-            <svg class="switch-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-4-4 4 4-4 4M20 17H4m4-4-4 4 4 4" /></svg>
-        </button>
-        @if (activeGame()) {
-            <p class="nav-label">GAME NAVIGATION</p>
-            <a [routerLink]="sectionLink('dashboard')" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="onNavigate()"><span class="nav-icon" aria-hidden="true">&#9672;</span>Overview</a>
-            @for (link of workspaceLinks(); track link.id) {
-                @if (link.divider) { <hr class="nav-divider" /> }
-                <a [routerLink]="sectionLink(link.id)" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="onNavigate()">
-                    <span class="nav-icon" aria-hidden="true">
-                        @if (link.icon === 'calendar') {
-                            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2M8 18h2" /></svg>
-                        } @else { {{ link.icon }} }
-                    </span>{{ link.label }}
-                    @if (link.id === 'plans' && planCount()) { <span class="count">{{ planCount() }}</span> }
-                </a>
+    <section class="nav-section" aria-labelledby="workspace-nav-heading">
+        <h2 id="workspace-nav-heading" class="section-heading">Workspace</h2>
+        <a routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page" class="workspace-link" (click)="onNavigate()"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
+        <a routerLink="/events" routerLinkActive="active" ariaCurrentWhenActive="page" class="workspace-link" (click)="onNavigate()"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6m10-6v6M3 11h18m-13 4h2m4 0h2m-8 3h2m4 0h2"/></svg><span>Events Calendar</span></a>
+    </section>
+    <section class="nav-section" aria-labelledby="games-nav-heading">
+        <h2 id="games-nav-heading" class="section-heading">Games</h2>
+        <button class="game-search" type="button" (click)="openSelector()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><span>Find a game...</span><kbd>Ctrl K</kbd></button>
+        <a routerLink="/library" routerLinkActive="active" [routerLinkActiveOptions]="{exact:false}" ariaCurrentWhenActive="page" class="workspace-link" (click)="onNavigate()"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Game Library</span><span class="count">{{accessible().length}}</span></a>
+    </section>
+    @if(activeGame();as game) {
+        <section class="nav-section game-navigation" aria-labelledby="game-nav-heading">
+            <h2 id="game-nav-heading" class="section-heading">Game Navigation</h2>
+            <button type="button" class="active-game-selector" [attr.aria-label]="'Switch game: '+game.name" (click)="openSelector()"><span class="game-tile" [style.--tile-color]="game.color">@if(game.icon && !failedImages.has(game.icon)) {<img [src]="game.icon" alt="" (error)="failedImages.add(game.icon)"/>} @else {{{game.short}}}</span><strong [title]="game.name">{{game.name}}</strong><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 3-5 5 5 5M3 8h18m-5 3 5 5-5 5M21 16H3"/></svg></button>
+            <a [routerLink]="sectionLink('dashboard')" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="onNavigate()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3Z"/></svg>Overview</a>
+            @for(group of workspaceGroups();track group.id;let first=$first) {
+                @if(!first) {<hr class="game-nav-divider"/>}
+                @for(feature of group.links;track feature.id) {<a [routerLink]="sectionLink(feature.id)" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="onNavigate()"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="feature.icon"/></svg>{{feature.title}}</a>}
+                @if(group.id==='other' && canManage()) {<button class="configuration-action" type="button" [attr.aria-label]="'Edit '+game.name+' overview'" (click)="manageGame.emit({action:'edit',id:game.gameId})">Game Configuration</button>}
             }
-        } @else { <p class="game-nav-hint">Choose a game to open its workspace.</p> }
-    } @else {
-        <section id="game-selection" aria-label="Choose a game" [attr.aria-busy]="switching()">
-            <button type="button" class="back-action" (click)="closeSelector()"><span aria-hidden="true">&#8592;</span> Back to {{ activeGame()?.name ?? 'workspace' }}</button>
-            @if (canManage()) {
-                <div class="game-management-actions"><button type="button" (click)="manageGame.emit({ action: 'add' })">+ Add Game</button><button type="button" (click)="manageGame.emit({ action: 'list' })">Manage Games</button></div>
-            }
-            <p class="nav-label">GAMES</p>
-            <div class="game-filters" role="group" aria-label="Game list">
-                @for (item of filters; track item.id) {
-                    <button type="button" class="filter-action" [class.selected]="filter() === item.id" [attr.aria-pressed]="filter() === item.id" (click)="filter.set(item.id)">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            @if (item.icon === 'grid') { <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" /> }
-                            @else if (item.icon === 'star') { <path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" /> }
-                            @else { <circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /> }
-                        </svg>{{ item.label }}
-                    </button>
-                }
-            </div>
-            <hr class="nav-divider" />
-            <label class="game-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg>
-                <input #gameSearch type="search" aria-label="Search games" placeholder="Search games..." [value]="searchQuery()" (input)="searchQuery.set(gameSearch.value)" />
-                <kbd title="Ctrl+K or Command+K">Ctrl K</kbd>
-            </label>
-            <p class="list-status" role="status">{{ games().length }} {{ games().length === 1 ? 'game' : 'games' }}</p>
-            @if (error()) { <p class="switch-error" role="alert">{{ error() }}</p> }
-            <ul class="game-list" aria-label="Games">
-                @for (game of games(); track game.gameId) {
-                    <li class="game-list-row" [class.is-current]="activeGameId() === game.gameId">
-                        <button type="button" class="game-choice" [disabled]="switching()" [attr.aria-current]="activeGameId() === game.gameId ? 'true' : null" (click)="selectGame(game.gameId)">
-                            <span class="game-tile" [style.--tile-color]="game.color" aria-hidden="true">@if (game.icon && !failedImages().includes(game.icon)) { <img [src]="game.icon" alt="" (error)="imageFailed(game.icon)" /> } @else { {{ game.short }} }</span>
-                            <span>{{ game.name }}</span>
-                            @if (activeGameId() === game.gameId) { <span class="selected-check" aria-label="Current game">&#10003;</span> }
-                        </button>
-                        @if (canManage()) { <button type="button" class="game-edit" [attr.aria-label]="'Edit ' + game.name + ' overview'" (click)="manageGame.emit({ action: 'edit', id: game.gameId })"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z" /></svg></button> }
-                        <button type="button" class="favorite-toggle" [class.is-favorite]="preferences.favoriteGameIds().includes(game.gameId)" [attr.aria-pressed]="preferences.favoriteGameIds().includes(game.gameId)" [attr.aria-label]="(preferences.favoriteGameIds().includes(game.gameId) ? 'Remove ' : 'Add ') + game.name + (preferences.favoriteGameIds().includes(game.gameId) ? ' from favorites' : ' to favorites')" (click)="preferences.toggleFavorite(game.gameId)">
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" /></svg>
-                        </button>
-                    </li>
-                } @empty { <li class="game-list-empty">{{ searchQuery().trim() ? 'No games match your search.' : filter() === 'favorites' ? 'No favorites yet. Star games in All Games to add them here.' : 'No recently used games yet.' }}</li> }
-            </ul>
         </section>
+    } @else {
+        <section class="nav-section" aria-label="Pinned navigation">
+            <button class="section-heading section-toggle" type="button" aria-controls="sidebar-pinned-games" [attr.aria-expanded]="!preferences.library().preferences.collapsedSections.pinnedGames" (click)="toggle('pinnedGames')"><span>Pinned Games</span><svg class="chevron" [class.collapsed]="preferences.library().preferences.collapsedSections.pinnedGames" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            @if(!preferences.library().preferences.collapsedSections.pinnedGames) {
+                <ul id="sidebar-pinned-games" class="compact-games" aria-label="Pinned games">
+                    @for(game of pinned().slice(0,showAllPins()?pinned().length:8);track game.gameId) {<li (dragover)="$event.preventDefault()" (drop)="drop(game.gameId)"><button type="button" class="pin-handle" draggable="true" (dragstart)="dragging=game.gameId; $event.dataTransfer?.setData('text/plain',game.gameId)" (dragend)="dragging=null" [attr.aria-label]="'Reorder '+game.name" title="Drag to reorder. Keyboard: Alt + Up / Down." (keydown.alt.arrowup)="move(game.gameId,-1,$event)" (keydown.alt.arrowdown)="move(game.gameId,1,$event)">⠿</button><a [routerLink]="'/games/'+game.gameId+'/dashboard'" (click)="switchGame($event,game.gameId)" [title]="game.name"><span class="game-tile" [style.--tile-color]="game.color">@if(game.icon && !failedImages.has(game.icon)) {<img [src]="game.icon" alt="" loading="lazy" (error)="failedImages.add(game.icon)"/>} @else {{{game.short}}}</span><span class="game-name">{{game.name}}</span></a></li>}
+                    @empty {<li class="game-nav-hint">Pin games from the library.</li>}
+                </ul>
+                @if(pinned().length>8) {<button type="button" class="show-pins" (click)="showAllPins.set(!showAllPins())">{{showAllPins()?'Show Less':'Show More'}}</button>}
+            }
+        </section>
+        @if(recent().length) {
+            <section class="nav-section" aria-label="Recent navigation">
+                <button class="section-heading section-toggle" type="button" aria-controls="sidebar-recent-games" [attr.aria-expanded]="!preferences.library().preferences.collapsedSections.recentlyUsed" (click)="toggle('recentlyUsed')"><span>Recently Visited</span><svg class="chevron" [class.collapsed]="preferences.library().preferences.collapsedSections.recentlyUsed" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+                @if(!preferences.library().preferences.collapsedSections.recentlyUsed) {<ul id="sidebar-recent-games" class="compact-games" aria-label="Recent games">@for(game of recent();track game.gameId) {<li><a [routerLink]="'/games/'+game.gameId+'/dashboard'" (click)="switchGame($event,game.gameId)" [title]="game.name"><span class="game-tile" [style.--tile-color]="game.color">@if(game.icon && !failedImages.has(game.icon)) {<img [src]="game.icon" alt="" loading="lazy" (error)="failedImages.add(game.icon)"/>} @else {{{game.short}}}</span><span class="game-name">{{game.name}}</span></a></li>}</ul>}
+            </section>
+        }
     }
 </nav>

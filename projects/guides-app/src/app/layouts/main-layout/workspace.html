@@ -77,7 +77,7 @@
                     }}<button (click)="notice.set('')" aria-label="Dismiss notification">×</button>
                 </div>
             }
-            @if (!['story', 'characters', 'inventory'].includes(page()) || !context()) {
+            @if (!['games','library'].includes(page()) && (!['story', 'characters', 'inventory'].includes(page()) || !context())) {
             <div class="page-heading">
                 <div>
                     <div class="eyebrow">
@@ -134,8 +134,8 @@
             }
             @if (page() === 'dashboard') {
                 @defer (on immediate) { <gg-dashboard [context]="context()" (editPlan)="open('plans', $event)" /> } @placeholder { <p role="status">Loading dashboard...</p> }
-            } @else if (page() === 'games') {
-                @defer (on immediate) { <gg-game-collection /> } @placeholder { <p role="status">Loading games...</p> }
+            } @else if (page() === 'games' || page() === 'library') {
+                @defer (on immediate) { <gg-game-library /> } @placeholder { <p role="status">Loading games...</p> }
             } @else if (page() === 'farming') {
                 @if (context(); as game) { @defer (on immediate) { <gg-farming [game]="game.gameId" /> } @placeholder { <p role="status">Loading...</p> } }
             } @else if (page() === 'characters') {

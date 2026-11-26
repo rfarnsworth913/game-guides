@@ -16,6 +16,7 @@ import type { CatalogEntry } from '@lib/types/workspace.type';
 import { emptyPatchOverview } from '@common/quests/story-template';
 import { AUTH0_PUBLIC } from './auth0-config';
 import { defaultGameOverview } from '@common/workspace/game-overview';
+import { GameLibraryRepository, type LibraryDocument } from '../src/modules/game-library/game-library.repository';
 import { migrateStoryCharacters } from '@common/characters/character-story';
 import { migrateStoryEvents } from '@common/events/event-story';
 import { emptyCharacterCollection, emptyCharacterDefinition } from '@common/characters/characters';
@@ -169,6 +170,7 @@ async function checked(page: Page, expected: boolean): Promise<void> {
     await page.waitForFunction(([selector, value]) => (document.querySelector(selector) as HTMLInputElement)?.checked === value, [checkbox,expected] as const, {});
 }
 async function clickButton(page: Page, label: string, scope = 'gg-story'): Promise<void> {
+    await page.waitForFunction(({scope,label})=>[...document.querySelectorAll(`${scope} button`)].some(item=>item.textContent?.trim()===label && (item as HTMLElement).offsetParent!==null),{scope,label},{});
     await page.$$eval(`${scope} button`, (buttons, label) => {
         const button = buttons.find(item => item.textContent?.trim() === label && (item as HTMLElement).offsetParent !== null) as HTMLButtonElement | undefined;
         if (!button) throw new Error(`Missing button: ${label}`);
@@ -191,11 +193,25 @@ try {
     await repository.initialize();
     assert.equal(await db.collection('games_schema_v1_backup').countDocuments({ migration: 'game-configuration-v3' }), GAMES.length, 'Configuration migration must be repeatable without replacing backups.');
     assert.equal(await collection.countDocuments({ _schemaVersion: 3, gameConfiguration: { $exists: true }, content: { $exists: true } }), GAMES.length);
+    await collection.updateOne({_gameId:'genshin'},{$set:{'gameConfiguration.genre':'RPG','gameConfiguration.searchAliases':['Retired alias']},$unset:{'gameConfiguration.genres':''}});
+    const beforeGenres=await collection.findOne({_gameId:'genshin'});
+    await repository.initialize();
+    const afterGenres=await collection.findOne({_gameId:'genshin'});
+    assert.deepEqual(afterGenres?.['gameConfiguration'].genres,['RPG']);
+    assert.equal('genre' in afterGenres!['gameConfiguration'],false);
+    assert.equal('searchAliases' in afterGenres!['gameConfiguration'],false);
+    assert.deepEqual(afterGenres?.['content'],beforeGenres?.['content']);
+    assert.equal(afterGenres?.['gameConfiguration'].revision,beforeGenres?.['gameConfiguration'].revision);
+    const genreBackup=await db.collection('games_schema_v1_backup').findOne({migration:'game-genres-v1',originalId:beforeGenres!['_id']});
+    assert.deepEqual(genreBackup?.['original'],beforeGenres);
+    await repository.initialize();
+    assert.equal(await db.collection('games_schema_v1_backup').countDocuments({migration:'game-genres-v1'}),1);
+    console.log('PASS backed-up genre migration preserves content/revisions, removes retired fields and is idempotent.');
     const progress = new ProgressRepository(db.collection<ProgressDocument>('games_player_progress'));
     origin = await listen(uiServer);
     // Generated key injection is confined to this entry point. Production main.ts is unchanged.
     const security = new Auth0Security({ ...AUTH0_PUBLIC, origin, editors: ['e2e-editor'] }, publicKey.export({ type: 'spki', format: 'pem' }).toString());
-    apiServer = createApi(repository, [origin], () => db.command({ ping: 1 }), assets, security, progress);
+    apiServer = createApi(repository, [origin], () => db.command({ ping: 1 }), assets, security, progress,new GameLibraryRepository(db.collection<LibraryDocument>('game_libraries')));
     apiOrigin = await listen(apiServer);
 
     // Exercise the real startup entry separately, with the same disposable database.
@@ -548,6 +564,7 @@ try {
         window.scrollBy({ top: bounds.top + bounds.height / 2 - (top + (innerHeight - top) / 2), behavior: 'instant' });
     });
     await guest.waitForSelector('.outline-secondary[href$="#story-content-nav-world"][aria-current=location]');
+    assert.equal(await guest.$eval('.outline-secondary.active', target => getComputedStyle(target).boxShadow), 'none');
     await guest.bringToFront();
     // Centering a short section can leave part of the expanded header visible.
     // Verify the compact toolbar only after explicitly moving that header offscreen.
@@ -564,7 +581,6 @@ try {
     assert.equal(await guest.$$eval('.compact-progress-details .story-category-card', cards => cards.length), 6);
     await guest.keyboard.press('Escape');
     await guest.waitForFunction(() => !document.querySelector('.compact-progress-details')!.classList.contains('open'));
-    assert.equal(await guest.$eval('.outline-secondary.active', target => getComputedStyle(target).boxShadow), 'none');
     await (await guest.$('.story-outline'))!.screenshot({ path: join(artifacts, 'story-navigation-desktop.png') });
     await guest.setViewportSize({ width: 390, height: 844 });
     await guest.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
@@ -838,7 +854,7 @@ try {
     // Verify every extracted page can load its own deferred bundle through existing URLs.
     for (const [route, selector] of [
         ['/dashboard', 'gg-dashboard [aria-label="Workspace summary"] .summary-card'],
-        ['/games', 'gg-game-collection .game-card'],
+        ['/games', 'gg-game-library gg-game-card'],
         ['/games/genshin/dashboard', 'gg-dashboard [aria-label="Workspace summary"] .summary-card'],
         ['/settings?tab=data', 'gg-settings .settings'],
         ['/games/genshin/plans', 'gg-progression .collection-empty'],
@@ -1006,62 +1022,100 @@ try {
     await editor.goto(origin + '/games/genshin/achievements', { waitUntil: 'networkidle' });
     console.log('PASS reusable character inventory: catalog ownership, account persistence/isolation, current and target levels, grid/list, pagination, square images and mobile layout.');
 
-    const previousRoute = editor.url();
-    await editor.click('gg-workspace-sidebar .active-game-selector');
-    await editor.waitForSelector('gg-workspace-sidebar #game-selection');
-    assert.equal(editor.url(), previousRoute, 'Browsing games must preserve the current workspace.');
-    await editor.click('[aria-label="Add Honkai: Star Rail to favorites"]');
-    assert.equal(editor.url(), previousRoute, 'Favorites must not switch games.');
-    await editor.type('gg-workspace-sidebar input[type=search]', 'star rail');
-    await editor.waitForFunction(() => document.querySelectorAll('gg-workspace-sidebar .game-choice').length === 1);
-    await editor.screenshot({ path: join(artifacts, 'sidebar-game-search.png') });
-    await editor.keyboard.press('Escape');
-    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
-    assert.equal(editor.url(), previousRoute);
-    await editor.click('gg-workspace-sidebar .active-game-selector');
-    await editor.waitForSelector('gg-workspace-sidebar .is-current .game-choice');
-    await editor.click('gg-workspace-sidebar .is-current .game-choice');
-    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
-    assert.equal(editor.url(), previousRoute, 'Reselecting the current game must preserve the full route.');
-
-    await editor.click('gg-workspace-sidebar .active-game-selector');
-    await editor.waitForSelector('gg-workspace-sidebar .filter-action');
-    await editor.click('gg-workspace-sidebar [aria-label="Game list"] button:nth-child(2)');
-    await editor.waitForFunction(() => document.querySelector('gg-workspace-sidebar .game-choice')?.textContent?.includes('Honkai: Star Rail'));
-    await editor.click('gg-workspace-sidebar .game-choice');
-    await editor.waitForFunction(() => location.pathname === '/games/hsr/dashboard');
+    const libraryRequests: string[] = [];
+    editor.on('request',request=>{if(request.url().startsWith(origin+'/api/')) libraryRequests.push(new URL(request.url()).pathname);});
+    await editor.goto(origin+'/library',{waitUntil:'networkidle'});
+    await editor.waitForSelector('gg-game-library gg-game-card');
+    assert.equal(await editor.$eval('.library-views [aria-current=page]',element=>element.textContent),'All Games');
+    assert.equal(await editor.$$eval('.library-toolbar select',elements=>elements.every(element=>getComputedStyle(element).appearance==='none')),true);
+    assert.equal(await editor.$eval('gg-game-card .menu-toggle',element=>{
+        const button=element.getBoundingClientRect(),icon=element.querySelector('svg')!.getBoundingClientRect();
+        return Math.abs(button.left+button.width/2-icon.left-icon.width/2)<1 && Math.abs(button.top+button.height/2-icon.top-icon.height/2)<1;
+    }),true);
+    await clickButton(editor,'List','gg-game-library .view-buttons');
+    await editor.waitForSelector('gg-game-card article.list-card');
+    await editor.setViewportSize({width:1965,height:1000});
+    await editor.locator('.library-heading h1').hover();
+    assert.equal(await editor.$$eval('gg-game-card article.list-card',elements=>elements.every(element=>element.getBoundingClientRect().height<=76)),true,'Desktop list rows stay compact despite global compact styles.');
+    const rowBackground=await editor.$eval('gg-game-card article.list-card',element=>getComputedStyle(element).backgroundColor);
+    await editor.locator('gg-game-card article.list-card').first().hover();
+    await editor.waitForFunction(initial=>getComputedStyle(document.querySelector('gg-game-card article.list-card')!).backgroundColor!==initial,rowBackground);
+    await editor.screenshot({path:join(artifacts,'game-library-list-desktop.png')});
+    await editor.setViewportSize({width:1440,height:1000});
+    await clickButton(editor,'Grid','gg-game-library .view-buttons');
+    await editor.waitForSelector('gg-game-card article:not(.list-card)');
+    assert.ok(libraryRequests.includes('/api/games/library'));
+    assert.equal(libraryRequests.includes('/api/games'),false,'Library metadata must not load every game catalog.');
+    assert.equal(await editor.$('gg-workspace-sidebar .game-list'),null);
+    await editor.click('[aria-label="Actions for Honkai: Star Rail"]');
+    const favoriteSaved=editor.waitForResponse(response=>response.url().endsWith('/api/me/game-library') && response.request().method()==='PUT');
+    await clickButton(editor,'Add to Favorites','.game-context-menu');
+    await favoriteSaved;
+    await editor.click('[aria-label="Actions for Honkai: Star Rail"]');
+    await clickButton(editor,'Pin to Sidebar','.game-context-menu');
+    await editor.waitForSelector('gg-workspace-sidebar [aria-label="Pinned games"] a');
+    await clickButton(editor,'Manage Collections','gg-game-library');
+    await clickButton(editor,'+ Add Collection','.library-dialog');
+    await editor.locator('[aria-label="Collection name"]').fill('Currently Playing');
+    await clickButton(editor,'Save Collections','.library-dialog');
+    await editor.waitForSelector('.library-dialog',{state:'hidden'});
+    await editor.click('[aria-label="Actions for Honkai: Star Rail"]');
+    await clickButton(editor,'Add to Collection','.game-context-menu');
+    const membershipSaved=editor.waitForResponse(response=>response.url().endsWith('/api/me/game-library') && response.request().method()==='PUT');
+    await editor.locator('.membership-choice input').check();
+    await membershipSaved;
+    await clickButton(editor,'Done','.membership');
+    await editor.waitForFunction(()=>!document.querySelector('.membership'));
+    await editor.screenshot({path:join(artifacts,'game-library-desktop.png')});
+    await editor.reload({waitUntil:'networkidle'});
+    await editor.waitForSelector('gg-workspace-sidebar [aria-label="Pinned games"] a');
+    const personal=await (await api('/api/me/game-library',editorToken)).json();
+    assert.ok(personal.games.some((game:{gameId:string;isFavorite:boolean;isPinned:boolean})=>game.gameId==='hsr'&&game.isFavorite&&game.isPinned));
+    assert.deepEqual(personal.collections[0].gameIds,['hsr']);
+    assert.deepEqual((await (await api('/api/me/game-library',playerToken)).json()).collections,[],'Collections are account isolated.');
+    await editor.goto(origin+'/games/genshin/story',{waitUntil:'networkidle'});
+    await editor.bringToFront();
+    const previousRoute=editor.url();
+    await editor.keyboard.press('Control+k');
+    await editor.waitForSelector('gg-game-switcher input');
+    const switcherLayout=()=>editor.$eval('gg-game-switcher section',element=>{
+        const dialog=element.getBoundingClientRect(),header=element.querySelector('header')!.getBoundingClientRect(),footer=element.querySelector('footer')!.getBoundingClientRect();
+        return {height:dialog.height,top:dialog.top,width:dialog.width,headerTop:header.top,footerBottom:footer.bottom};
+    });
+    const unfilteredLayout=await switcherLayout();
+    await editor.locator('gg-game-switcher input').fill('no-matching-game-xyz');
+    await editor.waitForFunction(()=>document.querySelector('#game-switch-results')?.textContent?.includes('No games found.'));
+    assert.deepEqual(await switcherLayout(),unfilteredLayout,'Filtering to no games keeps the dialog and its header/footer stationary.');
+    await editor.locator('gg-game-switcher input').fill('star rail');
+    await editor.waitForFunction(()=>document.querySelectorAll('gg-game-switcher [role=option]').length===1);
+    assert.deepEqual(await switcherLayout(),unfilteredLayout,'A single result keeps the same dialog dimensions.');
+    await editor.screenshot({path:join(artifacts,'game-switcher-filtered-desktop.png')});
+    await editor.keyboard.press('Escape');assert.equal(editor.url(),previousRoute);
+    await editor.keyboard.press('Control+k');await editor.locator('gg-game-switcher input').fill('hsr');
+    await editor.waitForFunction(()=>document.querySelectorAll('gg-game-switcher [role=option]').length===1);
+    await editor.locator('gg-game-switcher input').press('Enter');await editor.waitForFunction(()=>location.pathname==='/games/hsr/story');
     await editor.waitForSelector('gg-workspace-sidebar a[href="/games/hsr/story"]');
-    await editor.screenshot({ path: join(artifacts, 'sidebar-workspace.png') });
-    await editor.reload({ waitUntil: 'networkidle' });
-    await editor.waitForSelector('gg-workspace-sidebar .active-game-selector');
-    await editor.click('gg-workspace-sidebar .active-game-selector');
-    await editor.waitForSelector('[aria-label="Remove Honkai: Star Rail from favorites"]');
-    await editor.screenshot({ path: join(artifacts, 'sidebar-game-list.png') });
-    await editor.keyboard.press('Escape');
-
-    await editor.setViewportSize({ width: 390, height: 844 });
-    await editor.keyboard.down('Control');
-    await editor.keyboard.press('k');
-    await editor.keyboard.up('Control');
-    await editor.waitForSelector('aside.open gg-workspace-sidebar input[type=search]', { state: 'visible' });
-    await editor.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Search games');
-    await editor.screenshot({ path: join(artifacts, 'sidebar-mobile.png') });
-    await editor.keyboard.press('Escape');
-    await editor.setViewportSize({ width: 1440, height: 1000 });
-    console.log('PASS two-mode sidebar: route preservation, search, favorites persistence, game switching and mobile keyboard access.');
+    await editor.setViewportSize({width:390,height:844});
+    await editor.keyboard.press('Control+k');await editor.waitForSelector('gg-game-switcher input');
+    assert.equal(await editor.$eval('gg-game-switcher section',element=>element.getBoundingClientRect().right<=innerWidth),true);
+    assert.equal(await editor.$eval('gg-game-switcher .modal-backdrop',element=>getComputedStyle(element).position),'fixed');
+    assert.equal(await editor.$eval('gg-game-switcher section',element=>{const bounds=element.getBoundingClientRect();return bounds.top>=0 && bounds.bottom<=innerHeight && getComputedStyle(element).backgroundColor!=='rgba(0, 0, 0, 0)';}),true);
+    await editor.screenshot({path:join(artifacts,'game-switcher-mobile.png')});
+    await editor.locator('gg-game-switcher footer button').press('Enter');
+    await editor.waitForSelector('gg-game-switcher [role=dialog]',{state:'hidden'});
+    await editor.setViewportSize({width:1440,height:1000});
+    console.log('PASS scalable library: lightweight metadata, favorites, pins, collections, account isolation and feature-aware keyboard switching.');
 
     const customId = 'e2e-custom-rpg';
     assert.equal((await api('/api/games/registry')).status, 401);
     assert.equal((await api('/api/games/registry', playerToken)).status, 403);
     assert.equal((await api('/api/games', playerToken, 'POST', defaultGameOverview(customId))).status, 403);
-    await guest.reload({ waitUntil: 'networkidle' });
-    await guest.click('gg-workspace-sidebar .active-game-selector');
-    await guest.waitForSelector('gg-workspace-sidebar #game-selection');
-    assert.equal(await guest.$('.game-management-actions'), null);
-
-    await editor.click('gg-workspace-sidebar .active-game-selector');
-    await editor.waitForSelector('.game-management-actions');
-    await clickButton(editor, '+ Add Game', 'gg-workspace-sidebar');
+    await guest.goto(origin+'/library',{waitUntil:'networkidle'});
+    await guest.waitForSelector('gg-game-library');
+    assert.equal(await guest.$('gg-game-library .library-actions .primary'),null);
+    await editor.goto(origin+'/library/manage',{waitUntil:'networkidle'});
+    await editor.waitForSelector('gg-game-library');
+    await clickButton(editor,'+ Add Game','gg-game-library');
     await editor.waitForSelector('gg-game-manager input[name=game-title]');
     const fillGame = async (name: string, value: string) => editor.$eval(`gg-game-manager [name=${name}]`, (element, value) => {
         const input = element as HTMLInputElement;
@@ -1069,7 +1123,7 @@ try {
         input.dispatchEvent(new Event('input', { bubbles: true }));
     }, value);
     await fillGame('game-title', 'E2E Custom RPG');
-    await fillGame('game-type', 'JRPG');
+    await fillGame('game-type', 'JRPG, RPG');
     await fillGame('game-description', 'A configurable game overview.');
     await clickButton(editor, 'Features', 'gg-game-manager');
     await editor.waitForSelector('#game-features-panel:not([hidden])');
@@ -1118,13 +1172,15 @@ try {
     assert.equal(draftUploads, 2);
     const createdOverview = (await repository.read(customId)).overview!;
     assert.equal(createdOverview.short, 'TEST');
+    assert.deepEqual(createdOverview.genres,['JRPG','RPG']);
     assert.equal(createdOverview.color, 'rgba(51, 153, 255, 1)');
     assert.ok(createdOverview.icon && createdOverview.banner);
     await editor.click('[aria-label="Close game manager"]');
-    await editor.waitForSelector('gg-game-manager', { state: 'hidden' });
+    await editor.waitForSelector('gg-game-manager [role=dialog]', { state: 'hidden' });
     const selectCustom = async () => {
-        await editor.waitForFunction(() => [...document.querySelectorAll('gg-workspace-sidebar .game-choice')].some(button => button.textContent?.includes('E2E')));
-        await editor.$$eval('gg-workspace-sidebar .game-choice', buttons => (buttons.find(button => button.textContent?.includes('E2E')) as HTMLButtonElement).click());
+        await editor.keyboard.press('Control+k');
+        await editor.waitForFunction(() => [...document.querySelectorAll('gg-game-switcher [role=option]')].some(button => button.textContent?.includes('E2E')));
+        await editor.$$eval('gg-game-switcher [role=option]', buttons => (buttons.find(button => button.textContent?.includes('E2E')) as HTMLButtonElement).click());
         await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, customId, {});
         await editor.waitForSelector('gg-dashboard .events-panel');
     };
@@ -1144,7 +1200,6 @@ try {
     await editor.goto(origin + `/games/${customId}/story`, { waitUntil: 'networkidle' });
     await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, customId, {});
     await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
-    await editor.click('gg-workspace-sidebar .active-game-selector');
     await editor.waitForSelector('[aria-label="Edit E2E Custom RPG overview"]');
     await editor.click('[aria-label="Edit E2E Custom RPG overview"]');
     await editor.waitForSelector('gg-game-manager input[name=game-title]');
@@ -1188,7 +1243,7 @@ try {
     assert.equal((await repository.read(customId)).overview?.visibility, 'editors');
     await guest.goto(origin + `/games/${customId}/dashboard`, { waitUntil: 'networkidle' });
     await guest.waitForFunction(() => location.pathname === '/games');
-    assert.equal(await guest.$('gg-game-collection a[href="/games/e2e-custom-rpg/dashboard"]'), null);
+    assert.equal(await guest.$('gg-game-library a[href="/games/e2e-custom-rpg/dashboard"]'), null);
     await editor.click('[aria-label="Edit E2E Renamed RPG"]');
     await editor.waitForSelector('gg-game-manager input[name=game-title]');
     await clickButton(editor, 'Advanced', 'gg-game-manager');
@@ -1233,8 +1288,8 @@ try {
     await expired.waitForFunction(() => document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
     // The SDK swallows its initial checkSession error; the first application request then reports it.
     assert.equal(refreshAttempts, 2, 'Only SDK startup and the first application request should attempt the invalid token.');
-    await expired.click('gg-workspace-sidebar a[href="/games"]');
-    await expired.waitForFunction(() => location.pathname === '/games' && document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
+    await expired.click('gg-workspace-sidebar a[href="/library"]');
+    await expired.waitForFunction(() => location.pathname === '/library' && document.querySelector('gg-workspace .alert')?.textContent?.includes('Sign in again'));
     await expired.waitForLoadState('networkidle', { timeout: 5000 });
     assert.equal(refreshAttempts, 2, 'Navigating after recovery must not retry the invalid token.');
     assert.equal(await expired.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('@@auth0spajs@@'))), false);

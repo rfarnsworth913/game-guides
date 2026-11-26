@@ -1,5 +1,5 @@
 import type { Document } from 'mongodb';
-import type { GameDocument, GameConfiguration, GameRegistration } from '@lib/types/games.type';
+import type { GameDocument, GameRegistration } from '@lib/types/games.type';
 import { legacyGameRegistration, validGameOverview, validGameId } from '@common/workspace/game-overview';
 import { GAMES } from '@lib/constants/workspace.constants';
 
@@ -24,7 +24,12 @@ export function storedGameId(document: Document): string {
 
 export function documentConfiguration(document: Document, id: string): GameRegistration {
     if (document['gameConfiguration']) {
-        const registration = { ...document['gameConfiguration'] as GameConfiguration, gameId: id };
+        const { genre, searchAliases: _removedAliases, ...configuration } = document['gameConfiguration'] as Record<string, unknown>;
+        if (genre !== globalThis.undefined && typeof genre !== 'string') {throw new Error(`Invalid legacy genre for ${id}.`);}
+        const genres: unknown = configuration['genres'] === globalThis.undefined ? [] : configuration['genres'];
+        const registration = { ...configuration, gameId: id, genres: Array.isArray(genres)
+            ? [...new Set([...(genres as unknown[]), ...(typeof genre === 'string' && genre.trim() ? [genre.trim()] : [])])]
+            : genres };
         if (!validGameOverview(registration)) {throw new Error(`Invalid game configuration for ${id}.`);}
         return registration;
     }

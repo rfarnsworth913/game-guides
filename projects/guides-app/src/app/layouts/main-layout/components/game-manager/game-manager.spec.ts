@@ -54,6 +54,15 @@ describe('Game management editor', () => {
         expect(component.draft).toMatchObject({ gameId: 'manual-rpg', short: 'CUSTOM', color: '#12abef' });
         expect(component.valid()).toBe(true);
     });
+    it('edits multiple genres as one array without a search-alias field',async()=>{
+        const {component,root,fixture}=await setup();
+        component.setTitle('Genre Test');component.setGenres(' RPG, Open World, RPG, ');fixture.detectChanges();
+        expect(component.draft!.genres).toEqual(['RPG','Open World']);
+        expect(component.valid()).toBe(true);
+        component.selectTab('advanced');fixture.detectChanges();
+        expect(root.querySelector('[name=game-aliases]')).toBeNull();
+        component.setGenres('');expect(component.draft!.genres).toEqual([]);
+    });
     it('keeps feature settings in their own tab and preserves drafts across keyboard tab changes', async () => {
         const game = defaultGameOverview('genshin');
         const { component, fixture, root, store } = await setup({ action: 'edit', id: game.gameId }, [game]);

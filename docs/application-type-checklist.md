@@ -1,8 +1,8 @@
 # Application type checklist
 
-Inventory date: November 25, 2026. This is a review checklist of existing definitions, not a list of missing features. The six checked contracts from `games.type.ts` have been integrated into storage, validation, editors and workspace access. Other checkboxes remain open for the later domain-type review; they do not mean those types are unimplemented.
+Inventory date: November 26, 2026. This is a review checklist of existing definitions, not a list of missing features. The six checked contracts from `games.type.ts` and the personal game-library contracts have been integrated into storage, validation, editors and workspace access. Other checkboxes remain open for the later domain-type review; they do not mean those types are unimplemented.
 
-Scope: **157 named TypeScript type/interface/enum declarations** under `projects`: **150 application/tooling declarations** and **7 test-only declarations**. Counts include private aliases and repeated migration-local names, but not barrel re-exports. Classes, inferred anonymous shapes, generic parameters and external-library types are not counted as separate declarations.
+Original inventory scope: **157 named TypeScript type/interface/enum declarations** under `projects`: **150 application/tooling declarations** and **7 test-only declarations**. The navigation refactor adds six personal library contracts and one persistence alias, replacing the old browser-only `Preferences` alias. Counts include private aliases and repeated migration-local names, but not barrel re-exports. Classes, inferred anonymous shapes, generic parameters and external-library types are not counted as separate declarations.
 
 Each entry describes its purpose, defining fields/options and named application contracts it depends on. Supporting module links identify the relevant defaults, enums, constants, validation or runtime helpers. These links describe relationships, not proof that every field is displayed by every UI. TypeScript declarations disappear at runtime; validators and API checks enforce stored/input data.
 
@@ -27,7 +27,19 @@ These are values within types rather than additional named TypeScript declaratio
 - [ ] **Progression tracks:** level, ascension, skill, unlock, enhancement, equipment, custom. `ProgressionTrackDefinition` supplies bounds, dependencies and costs.
 - [ ] **Rows and groups:** rowType is quest/heading/note; groupType is quest/content. These organize presentation and tracking without creating a second completion record.
 
-## Shared library contracts (74)
+## Personal game-library contracts
+
+Source: [game-library.type.ts](../projects/lib/types/game-library.type.ts). Supporting modules: [validation and navigation](../projects/common/workspace/game-library.ts), [account state](../projects/guides-app/src/app/core/state/game-navigation-preferences.ts), [repository](../projects/middleware/src/modules/game-library/game-library.repository.ts).
+
+- [x] **GameLibraryView** — Names the all, favorites, pinned, recent, collection and editor management views.
+- [x] **GameLibrarySort** — Name ascending/descending, recent use, recent addition, game type and manual ordering.
+- [x] **GameLibraryPreferences** — Grid/list mode, sorting and collapsed sidebar sections.
+- [x] **UserGamePreference** — Game ID, independent favorite/pin flags, last access time and last visited feature.
+- [x] **UserGameCollection** — Stable collection ID, label, icon, ordered game membership and creation/update timestamps.
+- [x] **UserGameLibrary** — Personal snapshot combining game preferences, pin order, collections, UI preferences and concurrency revision.
+- [x] **LibraryDocument** — Middleware persistence alias adding the authenticated owner's MongoDB `_id` to `UserGameLibrary`; ownership never comes from submitted JSON.
+
+## Shared library contracts (original inventory: 74)
 
 ### [character-display.type.ts](../projects/lib/types/character-display.type.ts)
 
@@ -216,7 +228,7 @@ Supporting modules: [game-overview.ts](../projects/common/workspace/game-overvie
   Fields: `gameId`, `version`, `gameConfiguration`, `content`. Related contracts: `Version`, `GameConfiguration`.
 
 - [x] **GameConfiguration** (type) — Shared game presentation, genre, enabled feature map, configuration revision and public/editor workspace visibility; contains no archive flag or duplicate game ID.
-  Fields: `name`, `short`, `subtitle`, `description`, `genre`, `icon`, `banner`, `color`, `features`, `revision`, `visibility`. Related contracts: `GameFeature`, `GameFeatureConfig`, `GameVisibility`.
+  Fields: `name`, `short`, `subtitle`, `description`, `genres` (string array), `icon`, `banner`, `color`, `features`, `revision`, `visibility`; optional `createdAt`, `updatedAt`. Related contracts: `GameFeature`, `GameFeatureConfig`, `GameVisibility`. The former singular genre and search-alias fields are retired.
 
 - [x] **GameFeatureConfig** (type) — Configuration for one enabled feature. Its feature ID must match the map key; visibility is public or editors. Missing map keys mean the feature is unused.
   Fields: `feature`, `visibility`. Related contracts: `GameFeature`, `GameVisibility`.
@@ -434,7 +446,7 @@ Source: `projects/common/workspace/game-overview.ts`.
 Supporting modules: [workspace.constants.ts](../projects/lib/constants/workspace.constants.ts).
 
 - [ ] **GameOverviewField** (type) — Game editor field names used to associate validation errors with controls, including form-wide errors.
-  Options: `id`, `name`, `short`, `description`, `genre`, `icon`, `banner`, `features`, `color`, `form`.
+  Options: `id`, `name`, `short`, `description`, `genres`, `icon`, `banner`, `features`, `color`, `form`.
 
 ## Angular UI and browser state (23)
 
@@ -445,12 +457,7 @@ Source: `projects/guides-app/src/app/core/auth/auth.store.ts`.
 - [ ] **Account** (type) — Frontend signed-in account summary and editor flag.
   Fields: `id`, `name`, `editor`.
 
-### [game-navigation-preferences.ts](../projects/guides-app/src/app/core/state/game-navigation-preferences.ts)
-
-Source: `projects/guides-app/src/app/core/state/game-navigation-preferences.ts`.
-
-- [ ] **Preferences** (type) — Versioned browser storage for favorite and recently used games.
-  Fields: `version`, `favorites`, `recent`.
+The former browser-only `Preferences` alias was replaced by `UserGameLibrary`, documented below. Existing browser favorites remain available for explicit import into an account.
 
 ### [guest-progress-storage.ts](../projects/guides-app/src/app/core/state/services/guest-progress-storage.ts)
 

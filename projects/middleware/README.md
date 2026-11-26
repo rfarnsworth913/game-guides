@@ -25,7 +25,7 @@ delete pre-existing duplicates. UI IDs map to the parser's canonical game names.
   _id: ObjectId(...),
   name: "Genshin Impact",
   gameId: "genshin",
-  gameConfiguration: { name: "Genshin Impact", genre: "RPG", visibility: "public", revision: 0, ... },
+  gameConfiguration: { name: "Genshin Impact", genres: ["RPG"], visibility: "public", revision: 0, ... },
   version: { title: "3.8.0 Example", releaseDate: "2024-06-01", url: "https://example.com" },
   content: {
   achievements: [{

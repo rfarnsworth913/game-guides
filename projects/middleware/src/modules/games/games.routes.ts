@@ -9,6 +9,11 @@ import { validGameId, canAccessFeature, gameSupports } from '@common/workspace/g
 
 export async function gameRoutes(request: IncomingMessage, response: ServerResponse, url: URL, dependencies: ApiDependencies): Promise<boolean> {
     const repository = dependencies.repository;
+    if(url.pathname==='/api/games/library') {
+        if(request.method!=='GET') {throw new ApiError(405,'Method not allowed.');}
+        if(!repository.list) {throw new ApiError(503,'Game registry unavailable.');}
+        respond(response,200,{games:await repository.list()});return true;
+    }
     const workspace = /^\/api\/games\/([a-z][a-z0-9-]*)\/workspace$/.exec(url.pathname);
     if (workspace) {
         if (request.method !== 'GET') {throw new ApiError(405, 'Method not allowed.');}

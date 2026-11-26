@@ -80,6 +80,20 @@ export class GameRepository {
                 $unset: Object.fromEntries([...GAME_CONTENT_FIELDS, '_gameOverview'].map(key => [key, ''])) });
             if (result.matchedCount !== 1) {throw new Error('Game changed during configuration migration. Restart middleware to retry.');}
         }
+        // Normalize the former genre/aliases fields without rewriting content or revisions.
+        for await (const document of this.collection.find({ _schemaVersion: 3, $or: [
+            { 'gameConfiguration.genre': { $exists: true } },
+            { 'gameConfiguration.searchAliases': { $exists: true } },
+            { 'gameConfiguration.genres': { $exists: false } },
+        ] })) {
+            if (!hasStoredGameIdentity(document)) {continue;}
+            const id = storedGameId(document);
+            const { gameId: _identity, ...gameConfiguration } = documentConfiguration(document, id);
+            await this.backups.updateOne({ migration: 'game-genres-v1', originalId: document['_id'] },
+                { $setOnInsert: { original: document, migration: 'game-genres-v1' } }, { upsert: true });
+            const result = await this.collection.updateOne({ _id: document['_id'], gameConfiguration: document['gameConfiguration'] }, { $set: { gameConfiguration } });
+            if (result.matchedCount !== 1) {throw new Error('Game changed during genre migration. Restart middleware to retry.');}
+        }
         await this.collection.createIndex({ gameId: 1 }, { unique: true, partialFilterExpression: { gameId: { $type: 'string' } } });
     }
     private checkSize(document: Document): void {
@@ -103,17 +117,19 @@ export class GameRepository {
         return documentConfiguration(document, id);
     }
     async list(_includeRestricted = false): Promise<GameRegistration[]> {
-        const documents = await this.collection.find({ _gameId: { $type: 'string' } }).toArray();
+        const documents = await this.collection.find({ _gameId: { $type: 'string' } }, {projection:{_gameId:1,gameConfiguration:1,_gameOverview:1,name:1}}).toArray();
         return documents.map(document => this.overview(String(document['_gameId']), document))
             .sort((a, b) => a.name.localeCompare(b.name));
     }
     async saveOverview(input: unknown, create = false): Promise<GameRegistration> {
         if (!validGameOverview(input)) {throw new ApiError(400, Object.values(gameOverviewErrors(input)).join(' '));}
         const game: GameRegistration = { ...input, name: input.name.trim(), short: input.short.trim(),
-            subtitle: input.subtitle.trim(), description: input.description.trim(), genre: input.genre.trim(),
+            subtitle: input.subtitle.trim(), description: input.description.trim(), genres: [...new Set(input.genres.map(genre=>genre.trim()))],
             features: structuredClone(input.features),
+            updatedAt: new Date().toISOString(),
             color: normalizeGameColor(input.color) ?? input.color, revision: create ? 0 : input.revision + 1 };
         if (create) {
+            game.createdAt=game.updatedAt;
             if (GAMES.some(item => item.id === game.gameId) || await this.collection.findOne({ _gameId: game.gameId })) {
                 throw new ApiError(409, 'This game ID is already reserved. Edit or restore the existing game instead.');
             }
@@ -127,6 +143,8 @@ export class GameRepository {
             }
         } else {
             const document = await this.document(game.gameId);
+            const createdAt=this.overview(game.gameId,document).createdAt;
+            if(createdAt) {game.createdAt=createdAt;} else {delete game.createdAt;}
             const { gameId: _id, ...gameConfiguration } = game;
             const revisionField = document['gameConfiguration'] ? 'gameConfiguration.revision' : '_gameOverview.revision';
             const result = await this.collection.updateOne({ _id: document['_id'] as import('mongodb').ObjectId, [revisionField]: input.revision }, { $set: { gameConfiguration } });

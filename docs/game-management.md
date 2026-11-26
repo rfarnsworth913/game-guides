@@ -1,8 +1,8 @@
 # Shared game management
 
-Editors open the expanded game selector and choose **Add Game**, **Manage Games**, or the edit icon beside a game. The API independently requires editor authorization for creation, configuration updates and the management registry.
+Editors use **Add Game** or **Manage Games** in the [Game Library](game-library.md), a game card's **Edit Game** action, or **Game Configuration** in the selected-game sidebar. All entry points reuse the same dialog. The API independently requires editor authorization for creation, configuration updates and the management registry.
 
-The Overview tab contains title, genre (shown as Game Type), description, highlight color and icon/banner pickers. The Features tab lists modules alphabetically in full-width rows with a checkbox, icon, description and Public/Editors only selector. Visibility controls remain visible but disabled for unused features. The Advanced tab contains the immutable game ID, short name and game visibility. Missing feature keys mean the game does not use that module. Disabling a module preserves its content and personal progress. The dialog keeps its height when switching tabs; arrow keys, Home and End move between tabs without resetting drafts.
+The Overview tab contains title, comma-separated genres, description, highlight color and icon/banner pickers. Genres are stored as one array; an empty array means unclassified. The Features tab lists modules alphabetically in full-width rows with a checkbox, icon, description and Public/Editors only selector. Visibility controls remain visible but disabled for unused features. The Advanced tab contains the immutable game ID, short name and game visibility. Missing feature keys mean the game does not use that module. Disabling a module preserves its content and personal progress. The dialog keeps its height when switching tabs; arrow keys, Home and End move between tabs without resetting drafts.
 
 The editor has a fixed height of 90% of the viewport across all tabs. Its fields scroll independently while the header, tabs and bottom Save/Cancel actions remain visible.
 
@@ -18,7 +18,7 @@ The shared contract is `GameDocument` in `projects/lib/types/games.type.ts`:
 gameId
 version
 gameConfiguration
-  name, short, subtitle, description, genre
+  name, short, subtitle, description, genres: string[]
   icon, banner, color
   features: { story?: { feature: "story", visibility: "public" | "editors" }, ... }
   revision, visibility
@@ -48,10 +48,12 @@ On middleware startup, `GameRepository.initialize()` first performs existing com
 
 1. Determine the stable game ID, including known parser-only game identities.
 2. Save the complete pre-v3 document in `<DB_COLLECTION>_schema_v1_backup`, identified by `migration: "game-configuration-v3"` and `originalId`. Its `original` field contains the backed-up document. Earlier schema backups are retained separately in that collection.
-3. Convert `_gameOverview` into `gameConfiguration`, rename `gameType` to `genre`, and convert the feature array into a keyed map with public visibility.
+3. Convert `_gameOverview` into `gameConfiguration`, convert existing `gameType`/`genre` values to the `genres` array, and convert the feature array into a keyed map with public visibility.
 4. Move existing game arrays into `content`, retaining row IDs, ordering, unknown payload fields and relationships. Only after the backup succeeds are the superseded top-level arrays and `_gameOverview` removed.
 5. Map an old archived game to editor-only visibility; retain all its records and account progress.
 6. Mark schema version 3 and preserve catalog/configuration revisions. Guarded writes reject concurrent changes; subsequent startups skip completed conversions.
+
+Existing v3 configurations also receive an idempotent genre cleanup on startup. The complete original document is backed up with `migration: "game-genres-v1"` before the configuration is updated. Singular `genre` values are merged into `genres`, exact duplicates are removed, and retired `searchAliases` fields are removed. Content, identifiers and revisions remain unchanged. Reads adapt older configurations too; write requests accept only the new shape.
 
 Malformed configurations/content cause conversion to fail instead of silently replacing them with empty data. Take a complete database and uploaded-assets backup before upgrading production; the startup copy supplements it. Validation uses disposable test databases, not the configured application database.
 

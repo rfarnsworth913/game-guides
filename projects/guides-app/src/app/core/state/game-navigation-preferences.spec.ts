@@ -24,7 +24,8 @@ describe('Game navigation preferences', () => {
         expect(restored.recentGameIds()).toEqual(['hsr', 'genshin']);
         restored.toggleFavorite('genshin');
         expect(restored.favoriteGameIds()).toEqual([]);
-        expect(JSON.parse(values.get('gg-game-navigation-v1')!) as unknown).toEqual({ version: 1, favorites: [], recent: ['hsr', 'genshin'] });
+        const saved=JSON.parse(values.get('gg-game-library-v2:guest')!) as {games:{gameId:string;isFavorite:boolean}[]};
+        expect(saved.games.every(game=>!game.isFavorite)).toBe(true);
     });
 
     it.each(['broken json', '{"version":2,"favorites":["genshin"],"recent":[]}', 'null'])('ignores invalid stored preferences: %s', raw => {

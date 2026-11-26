@@ -7,13 +7,13 @@ export class RequestError extends Error {
 /** Shared transport; authentication and server errors stay consistent across clients. */
 export class WorkspaceApi {
     constructor(private readonly auth: AuthStore | null) {}
-    async request(path: string, body?: unknown, method = body ? 'PUT' : 'GET'): Promise<unknown> {
+    async request(path: string, body?: unknown, method = body ? 'PUT' : 'GET', signal?:AbortSignal): Promise<unknown> {
         const init: RequestInit = {
             method,
             ...(body
                 ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
                 : {}),
-            signal: AbortSignal.timeout(10000),
+            signal: signal ? AbortSignal.any([signal,AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000),
         };
         const response = this.auth ? await this.auth.request(`/api/${path}`, init) : await fetch(`/api/${path}`, init);
         const data: unknown = await response.json();

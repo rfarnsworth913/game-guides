@@ -30,11 +30,14 @@ export type GameConfiguration = {
     short: string;                        // Short name or abbreviation for the game
     subtitle: string;                     // Subtitle of the game
     description: string;                  // Description of the game
-    genre: string;                        // Genre of the game
+    genres: Array<string>;                // Genres of the game
 
     icon: string;                         // URL or path to the game's icon
     banner: string;                       // URL or path to the game's banner image
     color: string;                        // Primary color associated with the game
+
+    createdAt?: string;                   // Timestamp when the game was created
+    updatedAt?: string;                   // Timestamp when the game was last updated
 
     features: Partial<Record<GameFeature, GameFeatureConfig>>;   // List of features available in the game
     revision: number;                     // Revision number of the game configuration

@@ -26,8 +26,9 @@
                         <div>
                             <label><span>Name / Title <span aria-hidden="true">*</span></span><input name="game-title" required aria-required="true" maxlength="120" aria-describedby="game-name-error" [attr.aria-invalid]="!!fieldError('name')" [ngModelOptions]="{standalone:true}" [ngModel]="game.name" (ngModelChange)="setTitle($event)" (blur)="touched.add('name')" placeholder="e.g. Genshin Impact" /></label>
                             <p class="field-error" id="game-name-error">{{ fieldError('name') }}</p>
-                            <label>Game Type<input name="game-type" list="game-type-options" aria-describedby="game-type-error" [attr.aria-invalid]="!!fieldError('genre')" [ngModelOptions]="{standalone:true}" [(ngModel)]="game.genre" (blur)="touched.add('genre')" maxlength="80" placeholder="e.g. RPG or JRPG" /></label>
-                            <p class="field-error" id="game-type-error">{{ fieldError('genre') }}</p>
+                            <label>Genres<input name="game-type" list="game-type-options" aria-describedby="game-type-error" [attr.aria-invalid]="!!fieldError('genres')" [ngModelOptions]="{standalone:true}" [ngModel]="game.genres.join(', ')" (ngModelChange)="setGenres($event)" (blur)="touched.add('genres')" maxlength="2458" placeholder="e.g. RPG, JRPG" /></label>
+                            <p class="field-error" id="game-type-error">{{ fieldError('genres') }}</p>
+                            <small>Separate multiple genres with commas, e.g. RPG, Open World.</small>
                             <datalist id="game-type-options">@for (type of gameTypes; track type) { <option [value]="type"></option> }</datalist>
                             <label>Description<textarea name="game-description" [ngModelOptions]="{standalone:true}" [(ngModel)]="game.description" (blur)="touched.add('description')" aria-describedby="game-description-error" [attr.aria-invalid]="!!fieldError('description')" maxlength="500" rows="4" placeholder="About this game"></textarea></label>
                             <p class="field-error" id="game-description-error">{{ fieldError('description') }}</p><small>{{ game.description.length }} / 500</small>
@@ -70,6 +71,7 @@
                     </div>
                 </section>
                 <section id="game-advanced-panel" class="game-tab-panel" role="tabpanel" aria-labelledby="game-advanced-tab" [hidden]="tab() !== 'advanced'">
+
                     <label>Game Visibility<select name="game-visibility" [ngModelOptions]="{standalone:true}" [(ngModel)]="game.visibility"><option value="public">Public</option><option value="editors">Editors only</option></select></label><h3>Advanced Settings</h3><p class="game-field-help">Identifiers stay separate from the game title.</p>
                     <label>Game ID<input name="game-id" [ngModelOptions]="{standalone:true}" [ngModel]="game.gameId" (ngModelChange)="idEdited = true; setId($event)" (blur)="touched.add('id')" [readonly]="!creating" aria-describedby="game-id-help game-id-error" [attr.aria-invalid]="!!fieldError('id')" maxlength="64" placeholder="e.g. genshin-impact" /></label>
                     <p class="game-field-help" id="game-id-help">Stable URL and data identifier. Generated from the title for new games; cannot change after creation.</p><p class="field-error" id="game-id-error">{{ fieldError('id') }}</p>
@@ -85,7 +87,7 @@
         } @else {
             <div class="game-registry-toolbar"><p>Control game and feature visibility without deleting shared content.</p><button type="button" class="primary" [disabled]="busy()" (click)="add()">+ Add Game</button></div>
             <ul class="game-registry-list">@for (game of registry(); track game.gameId) {
-                <li><div><strong>{{ game.name }}</strong><small>{{ game.genre || 'Type not specified' }} &middot; {{ game.visibility === 'editors' ? 'Editors only' : 'Public' }}</small></div><button type="button" [disabled]="busy()" [attr.aria-label]="'Edit ' + game.name" (click)="edit(game)">{{ 'Edit Configuration' }}</button></li>
+                <li><div><strong>{{ game.name }}</strong><small>{{ game.genres.join(', ') || 'Genres not specified' }} &middot; {{ game.visibility === 'editors' ? 'Editors only' : 'Public' }}</small></div><button type="button" [disabled]="busy()" [attr.aria-label]="'Edit ' + game.name" (click)="edit(game)">{{ 'Edit Configuration' }}</button></li>
             }</ul>
         }
     </section>

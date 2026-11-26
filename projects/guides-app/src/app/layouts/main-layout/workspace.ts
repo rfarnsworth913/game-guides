@@ -1,10 +1,9 @@
 import { DashboardPage } from '../../features/global/dashboard/pages/dashboard/dashboard';
-import { GameCollectionPage } from '../../features/global/dashboard/pages/game-collection/game-collection';
 import { SettingsPage } from '../../features/global/settings/pages/settings/settings';
 import { ProgressionPage } from '../../features/gacha/progression/pages/progression/progression';
 import { AccountMenu, accountInitials } from "../../features/global/accounts/components/account-menu/account-menu";
 import { AuthStore } from "../../core/auth/auth.store";
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -27,10 +26,11 @@ import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialo
 import { WorkspaceSidebar } from './components/sidebar/workspace-sidebar';
 import { GameManager, type GameManagementRequest } from './components/game-manager/game-manager';
 import { canAccessGame, canAccessFeature } from '@common/workspace/game-overview';
+import { GameLibraryPage } from '../../features/global/game-library/pages/game-library';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [DashboardPage, GameCollectionPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop, WorkspaceSidebar, GameManager],
+    imports: [DashboardPage, GameLibraryPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop, WorkspaceSidebar, GameManager],
     templateUrl: "./workspace.html",
     styleUrl: "./workspace.scss",
 })
@@ -48,7 +48,7 @@ export class Workspace {
     gameManagement: GameManagementRequest | null = null;
     readonly nav = [
         { id: 'dashboard', label: 'Dashboard', icon: '\u25c8' },
-        { id: 'games', label: 'Games Collection', icon: '\u25a6' },
+        { id: 'games', label: 'Game Library', icon: '\u25a6' },
         { id: 'characters', label: 'Characters', icon: '\u2659', divider: false },
         { id: 'teams', label: 'Teams', icon: '\u2667', divider: false },
         { id: 'inventory', label: 'Inventory', icon: '\u25a3', divider: false },
@@ -60,14 +60,14 @@ export class Workspace {
     ];
     readonly page = computed(() => this.params()?.get('page') ?? 'dashboard');
     readonly title = computed(() =>
-        this.page() === 'events' && !this.context() ? 'Events Calendar' : this.page() === 'dashboard' && this.context()
+        this.page() === 'library' ? 'Game Library' : this.page() === 'events' && !this.context() ? 'Events Calendar' : this.page() === 'dashboard' && this.context()
             ? 'Overview'
             : this.nav.find((n) => n.id === this.page())?.label ?? 'Settings',
     );
     readonly context = computed(() => this.games().find((g) => g.gameId === this.params()?.get('game')));
     readonly pageAccessible = computed(() => !this.params()?.get('game') || canAccessFeature(this.context(), this.page(), this.store.canEdit()));
     constructor() {
-        this.store.initialize().catch(() => this.notice.set('Could not initialize game data.'));
+        effect(()=>{const library=['games','library'].includes(this.page());untracked(()=>{this.store.initialize(library).catch(()=>this.notice.set('Could not initialize game data.'));});});
         effect(() => {
             const game = this.params()?.get('game');
             if (game && !this.context() && this.store.initialized()) {

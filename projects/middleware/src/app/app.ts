@@ -4,6 +4,7 @@ import { ProgressRepository, ProgressDocument } from "../modules/progress/progre
 import { readConfig } from "../config/environment";
 import { GameRepository } from "../modules/games/games.repository";
 import { createApi } from "./server";
+import { GameLibraryRepository, type LibraryDocument } from '../modules/game-library/game-library.repository';
 
 const config = readConfig();
 const client = createDatabaseClient(config.uri);
@@ -17,7 +18,8 @@ try {
     await repository.initialize();
     const auth = new Auth0Security(config.auth0);
     const progress = new ProgressRepository(db.collection<ProgressDocument>(`${config.collection}_player_progress`));
-    const server = createApi(repository, config.origins, () => db.command({ ping: 1 }), globalThis.undefined, auth, progress);
+    const library=new GameLibraryRepository(db.collection<LibraryDocument>(`${config.collection}_game_libraries`));
+    const server = createApi(repository, config.origins, () => db.command({ ping: 1 }), globalThis.undefined, auth, progress, library);
     server.on('error', () => {
         console.error('Middleware could not listen. Check MIDDLEWARE_PORT.');
         client.close().catch(error => console.error('Could not close MongoDB:', error));
