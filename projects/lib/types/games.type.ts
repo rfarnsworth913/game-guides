@@ -1,4 +1,4 @@
-import type { Version } from "./data-collections.type";
+import type { Version } from "./version.type";
 
 
 /**
