@@ -5,10 +5,18 @@ import { GAMES } from '@lib/constants/workspace.constants';
 
 export const GAME_CONTENT_FIELDS = ['achievements', 'characters', 'events', 'inventory', 'plans', 'story', 'teams'] as const;
 
+/** Unidentified records cannot be migrated safely; retain them without assigning a guessed game. */
+export function hasStoredGameIdentity(document: Document): boolean {
+    const legacy = document['_gameOverview'] as Record<string, unknown> | undefined;
+    return [document['gameId'], document['_gameId'], legacy?.['id'], legacy?.['gameId'], document['name']]
+        .some(value => value !== null && value !== globalThis.undefined && value !== '');
+}
+
 export function storedGameId(document: Document): string {
     const name = String(document['name'] ?? '');
     const parserIds: Record<string, string> = { 'Fate Grand Order': 'fgo', 'Fate/Grand Order': 'fgo', 'Girls Frontline 2': 'gf2', "Girls' Frontline 2": 'gf2' };
-    const legacyId: unknown = (document['_gameOverview'] as Record<string, unknown> | undefined)?.['id'];
+    const legacy = document['_gameOverview'] as Record<string, unknown> | undefined;
+    const legacyId: unknown = legacy?.['gameId'] ?? legacy?.['id'];
     const id: unknown = document['gameId'] ?? document['_gameId'] ?? legacyId ?? GAMES.find(game => game.name.replace(':', '') === name.replace(':', ''))?.id ?? parserIds[name] ?? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     if (!validGameId(id)) {throw new Error('Game configuration migration requires a valid stable game ID.');}
     return id;

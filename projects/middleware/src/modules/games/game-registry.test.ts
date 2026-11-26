@@ -35,6 +35,24 @@ function registryRepository() {
     return { repository: new GameRepository(collection, collection), documents };
 }
 
+await test('startup preserves unidentified records without blocking game initialization', async () => {
+    const orphan = { _id: new ObjectId(), name: null, _schemaVersion: 2, story: [{ id: 'retained-story' }] };
+    const original = { ...orphan, story: structuredClone(orphan.story) };
+    const writes: Document[] = [];
+    let backups = 0;
+    const collection = {
+        createIndex: async () => '',
+        find: () => ({ async *[Symbol.asyncIterator]() {yield orphan;} }),
+        updateOne: async (filter: Document) => {writes.push(filter); return {matchedCount: 1};},
+    } as unknown as Collection<Document>;
+    const backupCollection = {updateOne: async () => {backups++;}} as unknown as Collection<Document>;
+    await new GameRepository(collection, backupCollection).initialize();
+    assert.deepEqual(orphan, original);
+    assert.equal(backups, 0);
+    assert.equal(writes.length, GAMES.length * 2);
+    assert.equal(writes.some(filter => filter['_id'] === orphan._id), false);
+});
+
 await test('game overviews validate IDs, images, feature flags and bounded metadata', () => {
     const game = defaultGameOverview('new-rpg');
     assert.equal(validGameOverview(game), true);

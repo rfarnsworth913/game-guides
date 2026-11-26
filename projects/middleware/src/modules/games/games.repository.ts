@@ -10,7 +10,7 @@ import { characterDefinitionFits, validCharacterRules } from "@common/characters
 import { characterRulesCompatibility } from '@common/characters/character-rules';
 import type { GameRegistration } from '@lib/types/games.type';
 import { defaultGameOverview, gameOverviewErrors, normalizeGameColor, validGameId, validGameOverview } from '@common/workspace/game-overview';
-import { configurationFields, documentConfiguration, flatGameDocument, GAME_CONTENT_FIELDS, storedGameId } from '../documents/game-configuration-document';
+import { configurationFields, documentConfiguration, flatGameDocument, GAME_CONTENT_FIELDS, hasStoredGameIdentity, storedGameId } from '../documents/game-configuration-document';
 
 // Match parser source IDs exactly; the UI display name for HSR includes a colon.
 export const gameDocumentName = (id: string) =>
@@ -44,6 +44,7 @@ export class GameRepository {
                 { 'story.kind': 'story' },
             ],
         })) {
+            if (!hasStoredGameIdentity(document)) {continue;}
             await this.backups.updateOne(
                 { _id: document['_id'] },
                 { $setOnInsert: document },
@@ -63,6 +64,10 @@ export class GameRepository {
         }
         // One-time, backed-up transition; content IDs and player progress are unchanged.
         for await (const document of this.collection.find({ _schemaVersion: { $ne: 3 } })) {
+            if (!hasStoredGameIdentity(document)) {
+                console.warn(`Skipped unidentified game record ${String(document['_id'])}; original data preserved.`);
+                continue;
+            }
             const id = storedGameId(document);
             const fields = configurationFields(document, id);
             await this.backups.updateOne({ migration: 'game-configuration-v3', originalId: document['_id'] },
