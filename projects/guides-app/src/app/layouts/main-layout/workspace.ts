@@ -67,7 +67,7 @@ export class Workspace {
     readonly context = computed(() => this.games().find((g) => g.gameId === this.params()?.get('game')));
     readonly pageAccessible = computed(() => !this.params()?.get('game') || canAccessFeature(this.context(), this.page(), this.store.canEdit()));
     constructor() {
-        effect(()=>{const library=['games','library'].includes(this.page());untracked(()=>{this.store.initialize(library).catch(()=>this.notice.set('Could not initialize game data.'));});});
+        effect(()=>{const library=['games','library','dashboard'].includes(this.page());untracked(()=>{this.store.initialize(library).catch(()=>this.notice.set('Could not initialize game data.'));});});
         effect(() => {
             const game = this.params()?.get('game');
             if (game && !this.context() && this.store.initialized()) {

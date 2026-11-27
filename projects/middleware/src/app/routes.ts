@@ -9,9 +9,10 @@ import { gameRoutes } from '../modules/games/games.routes';
 import { characterRoutes } from '../modules/characters/characters.routes';
 import {inventoryRoutes} from '../modules/inventory/inventory.routes';
 import { gameLibraryRoutes } from '../modules/game-library/game-library.routes';
+import { dashboardRoutes } from '../modules/dashboard/dashboard.routes';
 export async function dispatchRoutes(request: IncomingMessage, response: ServerResponse, url: URL, dependencies: ApiDependencies): Promise<void> {
     // Keep original precedence, including security handling before protected domain routes.
-    for (const route of [authRoutes, gameLibraryRoutes, progressRoutes, inventoryRoutes, imageRoutes, healthRoutes, characterRoutes, gameRoutes]) {
+    for (const route of [authRoutes, gameLibraryRoutes, dashboardRoutes, progressRoutes, inventoryRoutes, imageRoutes, healthRoutes, characterRoutes, gameRoutes]) {
         if (await route(request, response, url, dependencies))
             {return;}
     }

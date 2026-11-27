@@ -67,7 +67,9 @@ Use the same frontend origin (hostname and port) to retain the same local player
 
 Choose a game to open `/games/:game/:page`. Each game owns its inventory, characters,
 teams, planner, events, farming, story guide, and achievements. The dashboard summarizes
-progress across games. Material requirements are entered manually and farming shortages
+progress across games. Global and game dashboards share compact widgets, calendar tasks,
+deadline lists, and permission-scoped summaries; see [dashboard design and data flow](docs/dashboard-redesign.md).
+Material requirements are entered manually and farming shortages
 are calculated against owned quantities.
 
 Achievements support categories, reference links, descriptions, icon URLs, reward icons,

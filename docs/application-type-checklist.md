@@ -41,6 +41,19 @@ Source: [game-library.type.ts](../projects/lib/types/game-library.type.ts). Supp
 
 ## Shared library contracts (original inventory: 74)
 
+### Dashboard read models (implemented)
+
+Source: [dashboard.type.ts](../projects/lib/types/dashboard.type.ts). Supporting modules: [summary projections](../projects/common/dashboard/dashboard-summary.ts), [dashboard API](../projects/middleware/src/modules/dashboard/dashboard.routes.ts), [Angular data adapter](../projects/guides-app/src/app/features/global/dashboard/state/dashboard-data.ts).
+
+- [x] **DashboardProgress** - Completed and eligible totals; zero eligible items render an unavailable state.
+- [x] **DashboardLink** - A compact story/patch/activity navigation target with progress and an optional section/fragment.
+- [x] **DashboardPlan** - Personal goal summary, optional existing character portrait and target label, and its existing character/planner destination.
+- [x] **DashboardGame** - Personal progression update timestamp/history eligibility, feature-scoped game metadata and current version number, weighted progress and story-start state, goal-prioritized character portraits, achievement category totals, aggregate material sufficiency/calculation issues, goals and resource links. These optional additions remain derived API data.
+- [x] **DashboardSummary** - Derived game summaries and per-game retrieval errors, with a generation timestamp.
+- [x] **DashboardEvents** - Relevant calendar event definitions with canonical personal progress and per-game errors; uses the existing `Entry` compatibility projection for calendar interoperability.
+
+These contracts are read models, not new database collections. `StoryPosition` also has a pure shared declaration in `common/dashboard/story-dashboard.ts` so server projections do not import Angular services.
+
 ### [character-display.type.ts](../projects/lib/types/character-display.type.ts)
 
 Source: `projects/lib/types/character-display.type.ts`.
@@ -872,3 +885,8 @@ Source: `projects/data-parser/src/test/mocks/chalk.ts`.
 - [ ] **Types are not validation:** consult supporting validators before changing required fields, enum values, IDs or persistence shapes. Preserve account identities and completion keys when changing shared contracts.
 
 For ownership and import rules, see [code organization](code-organization.md). This inventory describes source declarations and supporting code; it is not a database field-usage audit or a guarantee that every optional field is populated.
+
+## Progress activity metadata (implemented)
+
+- [x] **GameProgressDates** (`player-progress.type.ts`) - Per-game ISO timestamps for actual personal progress changes. Server-owned for accounts and device-owned for guests. Supporting helper: `common/player/progress-activity.ts`.
+- [x] **ProgressSnapshot.gameUpdatedAt** - Optional additive metadata alongside `state` and `revision`; saved atomically with progress and returned in personal dashboard projections. Older snapshots remain readable without it.

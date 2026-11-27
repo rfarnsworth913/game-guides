@@ -1,117 +1,64 @@
 @if (context(); as game) {
-    @for (overview of games; track overview.gameId) {
-        @if (overview.gameId === game.gameId && (overview.banner || overview.icon || overview.description || overview.genres.length)) {
-            <section class="game-overview-card" aria-label="Game overview">
-                @if (overview.banner) { <img class="game-overview-banner" [src]="overview.banner" alt="" /> }
-                <div>@if (overview.icon) { <img class="game-overview-icon" [src]="overview.icon" alt="" /> }<span><strong>{{ overview.genres.join(', ') }}</strong>@if (overview.description) { <p>{{ overview.description }}</p> }</span></div>
-            </section>
-        }
-    }
-}
-<section class="dashboard-stats" aria-label="Workspace summary">
-    @for (stat of stats(); track stat.label) {
-        <a [class]="'summary-card summary-' + stat.icon" [routerLink]="stat.icon === 'events' ? [] : stat.link" [fragment]="stat.icon === 'events' ? 'dashboard-events' : undefined" (click)="stat.icon === 'events' && openEvents()">
-            <span class="summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path [attr.d]="icons[stat.icon]" /></svg></span>
-            <span><strong>{{ stat.value }}</strong><b>{{ stat.label }}</b><small>{{ stat.detail }}</small></span>
-            <span class="chevron" aria-hidden="true">&#8250;</span>
+    <gg-game-dashboard [game]="game" [events]="events()" [tasks]="todayTasks()" [now]="now()" (manageGame)="manageGame.emit($event)" />
+} @else {
+<nav class="dashboard-stats" aria-label="Workspace summary" [attr.aria-busy]="data.summaryLoading()">
+    @for (stat of stats(); track stat.icon) {
+        <a [class]="'summary-card summary-' + stat.icon" [routerLink]="stat.link.startsWith('#') ? [] : stat.link" [fragment]="stat.link.startsWith('#') ? stat.link.slice(1) : undefined">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons[stat.icon]" /></svg>
+            <span><strong class="stat-value">@if (statLoading(stat.icon)) {<gg-dashboard-loading [label]="'Loading ' + stat.label" />} @else {<span class="loaded-value">{{ statUnavailable(stat.icon) ? '\u2014' : stat.value }}</span>}</strong><b>{{ stat.label }}</b><small>{{ statLoading(stat.icon) ? 'Loading...' : statUnavailable(stat.icon) ? 'Unavailable' : stat.detail }}</small></span>
         </a>
     }
-</section>
-<div class="dashboard-layout">
-    <section class="dashboard-panel worlds-panel">
-        <header><h2>Your Worlds <small>{{ dashboardStories().length }}</small></h2><a routerLink="/games">View games &#8594;</a></header>
-        <p class="panel-description">Pick up where you left off.</p>
-        @for (game of dashboardStories(); track game.gameId) {
-            <a class="dashboard-world" [routerLink]="'/games/' + game.gameId + '/dashboard'" [style.--game-color]="game.color">
-                <span class="world-tile">{{ game.short }}</span>
-                <span class="row-name"><strong>{{ game.name }}</strong><small>@if (supportsGame(game.gameId, 'characters')) { {{ gameCount(game.gameId, 'characters') }} characters } @if (supportsGame(game.gameId, 'plans')) { &middot; {{ gameCount(game.gameId, 'plans') }} plans }</small></span>
-                @if (supportsGame(game.gameId, 'story')) {
-                <span class="row-progress"><b>{{ game.percent }}%</b><small>{{ game.completed }} / {{ game.total }}</small><progress max="100" [value]="game.percent" [attr.aria-label]="game.name + ' story completion'"></progress></span>
-                }
-                <span class="chevron" aria-hidden="true">&#8250;</span>
-            </a>
-        }
-    </section>
-    @if (supports('events')) {
-    <section class="dashboard-panel events-panel" id="dashboard-events">
-        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['events']" /></svg>Events <small>{{ events().length }}</small></h2><a [routerLink]="context() ? sectionLink('events') : '/events'">View events &#8594;</a></header>
-        <p class="panel-description">Active events ending soonest appear first.</p>
-        <div class="event-filter-bar">
-        <div class="dashboard-tabs" aria-label="Event status">
-            @for (filter of eventFilters; track filter) {
-                <button type="button" [class.selected]="eventFilter() === filter" [attr.aria-pressed]="eventFilter() === filter" (click)="eventFilter.set(filter); showAllEvents.set(false)">{{ filter }}</button>
-            }
-        </div>
-        <details #typePicker class="event-type-filter dropdown" (keydown.escape)="typePicker.open = false; typeSummary.focus(); $event.stopPropagation()">
-            <summary #typeSummary class="dropdown-toggle">Event Type: {{ selectedEventTypes().length ? selectedEventTypes().length + ' selected' : 'All Types' }} <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
-            <div class="event-type-options dropdown-menu" role="group" aria-label="Event types">
-                <label class="dropdown-item"><input #allTypes type="checkbox" [checked]="!selectedEventTypes().length" (change)="selectedEventTypes.set([]); showAllEvents.set(false); allTypes.checked = true" /> All Types</label>
-                <hr class="dropdown-divider" />
-                @for (type of eventTypes(); track type) {
-                    <label class="dropdown-item"><input type="checkbox" [checked]="selectedEventTypes().includes(type)" (change)="toggleEventType(type)" /> {{ eventTypeLabel(type) }}</label>
-                }
-            </div>
-        </details>
-        @if (selectedEventTypes().length || eventFilter() !== 'All Events') { <button class="reset-events" type="button" (click)="resetEventFilters()">Reset filters</button> }
-        </div>
-        @if (eventError()) { <p class="event-feedback event-error" role="alert">{{ eventError() }}</p> }
-        <div class="dashboard-event-list" aria-live="polite">
-            @for (event of filteredEvents().slice(0, showAllEvents() ? filteredEvents().length : 5); track event.id) {
-                <article class="dashboard-event" [class.is-completed]="event.completed" [style.--game-color]="gameColor(event.game)">
-                    <input #completion class="dashboard-event-completion" type="checkbox" [checked]="event.completed" [disabled]="eventBusy()" [attr.aria-label]="'Mark ' + event.name + (event.completed ? ' incomplete' : ' complete')" (change)="toggleEvent(event, completion)" />
-                    <a class="dashboard-event-link" [routerLink]="'/games/' + event.game + '/events'">
-                    <span class="event-thumbnail">@if (image(event); as imageUrl) { <img [src]="imageUrl" alt="" loading="lazy" (error)="imageFailed(event.id)" /> } @else { <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['events']" /></svg> }</span>
-                    <span class="row-name"><strong>{{ event.name }}</strong><span class="event-tags"><span class="game-tag" [title]="gameName(event.game)">{{ gameShort(event.game) }}</span><span>{{ typeLabel(event) }}</span></span></span>
-                    <span class="event-countdown" [class.urgent]="!event.completed && timing(event).urgent"><b>{{ event.completed ? 'Completed' : timing(event).label }}</b><small>{{ dateRange(event) }}</small></span>
-                    <span class="chevron" aria-hidden="true">&#8250;</span>
-                    </a>
+</nav>
+@if (data.summaryError()) {<p class="widget-error" role="alert">{{ data.summaryError() }} <button (click)="data.refreshSummary()">Retry summaries</button></p>}
+@for (error of data.summary().errors; track error.gameId) {<p class="widget-error" role="alert">{{ error.message }} <button (click)="data.refreshSummary()">Retry</button></p>}
+    <gg-dashboard-section id="continue-playing" title="Continue Playing" link="/games" action="Game Library" [loading]="data.summaryLoading() || store.loading()">
+        <div class="continue-games">
+            @for (summary of continueGames(); track summary.game.gameId) {
+                <article class="continue-card" [style.--game-accent]="summary.game.color">
+                    <gg-dashboard-artwork class="continue-art" [src]="summary.game.banner" />
+                    <div class="continue-content"><div class="game-title">@if (summary.game.icon) {<img [src]="summary.game.icon" alt="" loading="lazy" (error)="hideImage($event)" />}<h3 [title]="summary.game.name">{{ summary.game.name }}</h3></div>
+                        @if (summary.story; as story) {<p class="resume-location">{{ story.resume?.name || 'Start your story guide' }}</p><gg-dashboard-progress [value]="story" label="story items complete" />}
+                        @else if (summary.achievements; as achievements) {<gg-dashboard-progress [value]="achievements" label="achievements complete" />}
+                        @else {<p class="resume-location">Pick up where you left off.</p>}
+                        <a class="resume-action" [routerLink]="link(resume(summary).feature, summary.game.gameId)" [queryParams]="resume(summary).feature === 'story' ? storyQuery(summary.story?.resume) : null" [fragment]="resume(summary).feature === 'story' ? summary.story?.resume?.fragment : undefined">{{ resume(summary).label }} <span aria-hidden="true">&rarr;</span></a>
+                    </div>
                 </article>
-            } @empty {
-                <div class="dashboard-empty"><h3>No {{ eventFilter() === 'All Events' ? '' : eventFilter().toLowerCase() }} events</h3><p>{{ events().length ? 'Choose another status or event type to see more events.' : 'Events will appear when available in your games.' }}</p></div>
-            }
+            } @empty {<p class="compact-empty">Games appear here when you update your progress. <a routerLink="/games">Open Game Library &rarr;</a></p>}
         </div>
-        @if (filteredEvents().length > 5) { <button type="button" class="show-events" (click)="showAllEvents.set(!showAllEvents())">{{ showAllEvents() ? 'Show fewer events' : 'Show all ' + filteredEvents().length + ' events' }}</button> }
-    </section>
-    }
-    @if (supports('plans') || supports('farming')) {
-    <section class="dashboard-panel plans-panel">
-        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['plans']" /></svg>{{ supports('plans') ? supports('farming') ? 'Plans & Farming' : 'Plans' : 'Farming' }} <small>{{ plans().length }}</small></h2>@if (supports('plans')) {<div class="panel-actions"><a [routerLink]="sectionLink('plans')">View all plans &#8594;</a><button type="button" class="new-plan" [disabled]="!store.canEdit()" (click)="open('plans')">+ New Plan</button></div>}</header>
-        <p class="panel-description">Material goals, character builds, and farming lists.</p>
-        @if (supports('plans')) {
-        @for (plan of plans().slice(0, 4); track plan.id) {
-            <button type="button" class="plan-row dashboard-plan" [disabled]="!store.canEdit()" (click)="open('plans', plan)" [style.--game-color]="gameColor(plan.game)">
-                <span class="world-tile">{{ gameShort(plan.game) }}</span><span class="row-name"><strong>{{ plan.name }}</strong><small>{{ gameName(plan.game) }} &#183; {{ plan.category || 'Plan' }}</small></span>
-                <progress max="100" [value]="store.progress(plan)" [attr.aria-label]="plan.name + ' progress'"></progress><b>{{ store.progress(plan) }}%</b><span class="chevron" aria-hidden="true">&#8250;</span>
-            </button>
-        } @empty { <p class="dashboard-empty">Create a plan to track your next goal.</p> }
+    </gg-dashboard-section>
+<div class="dashboard-layout">
+    <div class="widget-column">
+        @if (supports('events')) {
+            <gg-dashboard-section class="events-panel" title="Today's Tasks" [link]="link('events')" [query]="{ period: 'today', view: 'list' }" action="View schedule" [count]="todayTasks().length" [loading]="data.eventsLoading() || store.loading()">
+                <div class="today-heading"><span>{{ date() }}</span><strong>{{ todayCompleted() }} / {{ todayTasks().length }} complete</strong></div>
+                @if (data.eventsError()) {<p class="widget-error" role="alert">{{ data.eventsError() }} <button (click)="data.refreshEvents()">Retry tasks</button></p>}
+                @for (error of data.events().errors; track error.gameId) {<p class="widget-error">{{ error.message }} <button (click)="data.refreshEvents()">Retry</button></p>}
+                @if (data.saveError()) {<p role="alert" class="widget-error">{{ data.saveError() }}</p>}
+                @for (group of todayGroups(); track group.game.gameId) {
+                    <gg-dashboard-task-group [game]="group.game" [entries]="group.entries" [showHeader]="!context()" [disabled]="data.saving()" (completion)="toggleEvent($event.entry, $event.checkbox)" />
+                } @empty {@if (!data.eventsError() && !data.events().errors.length) {<p class="compact-empty">You're caught up for today.</p>}}
+            </gg-dashboard-section>
         }
-        @if (supports('farming') && farming().length) {
-            <h3 class="farming-title">Today's farming &#183; {{ today }}</h3>
-            @for (material of farming().slice(0, 4); track material.id) { <a class="dashboard-material" [routerLink]="'/games/' + material.game + '/farming'"><span class="row-name"><strong>{{ material.name }}</strong><small>{{ gameName(material.game) }}</small></span><span>{{ material.own }} / {{ material.need }}<small>{{ material.missing }} remaining</small></span></a> }
+        @if (endingSoon().length) {
+            <gg-dashboard-section class="ending-soon" title="Ending Soon" [link]="link('events')" action="View deadlines" [description]="'Incomplete events ending within ' + deadlineDays() + ' days.'">
+                @for (entry of endingSoon(); track entry.game + '/' + entry.id) {
+                    <a class="detail-row" [routerLink]="link('events', entry.game)" [fragment]="entry.id"><span><strong>{{ entry.name }}</strong>@if (!context()) {<small>{{ gameName(entry.game) }}</small>}</span><span class="deadline">{{ timing(entry) }}</span></a>
+                }
+            </gg-dashboard-section>
         }
-    </section>
-    }
-    <section class="dashboard-panel">
-        <header><h2>Quick Actions</h2></header>
-        <div class="quick-actions">
-            @if (resumeGuide(); as guide) { <a [routerLink]="'/games/' + guide.gameId + '/story'" [queryParams]="guide.section ? { section: guide.section.id } : {}" [fragment]="guide.fragment"><strong>Continue Story &#8594;</strong><small>{{ guide.lastLocation || (guide.resume ? guide.resume.name : '') }}</small></a> }
-            @if (supports('events')) {<a [routerLink]="context() ? sectionLink('events') : '/events'"><strong>All Events &#8594;</strong><small>Check your event schedule</small></a>}
-            @if (supports('plans')) {<a [routerLink]="sectionLink('plans')"><strong>Manage Plans &#8594;</strong><small>Update farming and goals</small></a>}
-            @if (supports('story')) {<a [routerLink]="sectionLink('story')"><strong>Browse Guides &#8594;</strong><small>Quests, characters, and lore</small></a>}
-            @if (!supports('events') && !supports('plans') && !supports('story')) {<a routerLink="/games"><strong>Browse Games &#8594;</strong><small>Explore your game collection</small></a>}
-        </div>
-    </section>
-    @if (supports('story')) {
-    <section class="dashboard-panel story-panel">
-        <header><h2><svg class="heading-icon" viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['story']" /></svg>Story Progress</h2><strong>{{ storyCompletion().percent }}%</strong></header>
-        <p class="panel-description">Your completion and where you left off.</p>
-        <progress class="overall-progress" max="100" [value]="storyCompletion().percent" aria-label="Overall story completion"></progress>
-        <small>{{ storyCompletion().completed }} / {{ storyCompletion().total }} items complete</small>
-        <div class="story-resume-list">
-            @for (guide of storyGames(); track guide.gameId) {
-                <a class="story-resume" [routerLink]="'/games/' + guide.gameId + '/story'" [queryParams]="guide.section ? { section: guide.section.id } : {}" [fragment]="guide.fragment" [style.--game-color]="guide.color"><span class="row-name"><strong>{{ guide.name }} <span>{{ guide.percent }}%</span></strong><small>{{ guide.lastLocation || (guide.resume ? guide.resume.name : '') || 'No story content yet' }}</small></span><span class="chevron" aria-hidden="true">&#8250;</span></a>
-            }
-        </div>
-    </section>
-    }
+    </div>
+    <div class="widget-column">
+        @if (supports('plans') || supports('characters')) {
+            <gg-dashboard-section id="dashboard-plans" class="plans-panel" title="Plans & Farming" [count]="plans().length" [loading]="data.summaryLoading() || store.loading()">
+                <div class="plans-content" [class.is-empty]="!plans().length">
+                @for (plan of plans(); track plan.gameId + '/' + plan.id) {
+                    <a class="plan-row" [routerLink]="link(plan.feature, plan.gameId)"><span><strong>{{ plan.name }}</strong>@if (!context()) {<small>{{ gameName(plan.gameId) }}</small>}</span><gg-dashboard-progress [value]="{ completed: plan.percent, total: 100 }" label="progress" /></a>
+                } @empty {<p class="compact-empty">No active personal plans.</p>}
+                <a class="button new-plan" [routerLink]="context() ? link(supports('plans') ? 'plans' : 'characters') : '/games'">{{ context() ? 'Manage goals' : 'Create plan' }} &rarr;</a>
+                </div>
+            </gg-dashboard-section>
+        }
+    </div>
 </div>
+
+}

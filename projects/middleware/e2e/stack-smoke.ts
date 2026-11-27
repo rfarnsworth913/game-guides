@@ -564,7 +564,10 @@ try {
         window.scrollBy({ top: bounds.top + bounds.height / 2 - (top + (innerHeight - top) / 2), behavior: 'instant' });
     });
     await guest.waitForSelector('.outline-secondary[href$="#story-content-nav-world"][aria-current=location]');
-    assert.equal(await guest.$eval('.outline-secondary.active', target => getComputedStyle(target).boxShadow), 'none');
+    await guest.waitForFunction(() => {
+        const target = document.querySelector('.outline-secondary[href$="#story-content-nav-world"][aria-current=location]');
+        return target?.classList.contains('active') && getComputedStyle(target).boxShadow === 'none';
+    });
     await guest.bringToFront();
     // Centering a short section can leave part of the expanded header visible.
     // Verify the compact toolbar only after explicitly moving that header offscreen.
@@ -855,7 +858,7 @@ try {
     for (const [route, selector] of [
         ['/dashboard', 'gg-dashboard [aria-label="Workspace summary"] .summary-card'],
         ['/games', 'gg-game-library gg-game-card'],
-        ['/games/genshin/dashboard', 'gg-dashboard [aria-label="Workspace summary"] .summary-card'],
+        ['/games/genshin/dashboard', 'gg-game-dashboard [aria-label="Game summary"] .summary-card'],
         ['/settings?tab=data', 'gg-settings .settings'],
         ['/games/genshin/plans', 'gg-progression .collection-empty'],
         ['/games/genshin/characters', 'gg-characters'],
@@ -868,6 +871,75 @@ try {
         await editor.waitForSelector(selector!);
     }
     console.log('PASS global and game feature pages load through their existing routes.');
+
+    const beforeDashboard = await repository.read('genshin');
+    const today = new Date();
+    const dashboardDay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    await repository.write('genshin', [...beforeDashboard.entries, ...Array.from({ length: 24 }, (_, index): CatalogEntry => ({
+        ...baseEntry, id: `dashboard-daily-${index}`, kind: 'events', name: `Dashboard daily ${index + 1}`, category: 'daily',
+        eventType: 'daily', startDate: dashboardDay, endDate: dashboardDay,
+    }))], beforeDashboard.revision);
+    const dashboardRequests: string[] = [];
+    const dashboardRequest = (request: { url(): string }) => {dashboardRequests.push(new URL(request.url()).pathname);};
+    editor.on('request', dashboardRequest);
+    await editor.goto(origin + '/dashboard', { waitUntil: 'networkidle' });
+    await editor.waitForSelector('gg-dashboard .continue-card');
+    assert.equal(await editor.$$eval('gg-dashboard .continue-card', cards => cards.length <= 4), true);
+    assert.equal(await editor.$('gg-dashboard .worlds-panel, gg-dashboard .story-panel, gg-dashboard .quick-actions'), null);
+    assert.equal(dashboardRequests.includes('/api/games'), false, 'Dashboards must not retrieve the full game catalog.');
+    assert.ok(dashboardRequests.includes('/api/dashboard/summary'));
+    assert.ok(dashboardRequests.includes('/api/dashboard/events'));
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), true, 'Desktop dashboard fits the available screen height.');
+    assert.equal(await editor.$eval('gg-dashboard .events-panel', panel => {
+        const content = panel.querySelector('.section-content')!, checkbox = panel.querySelector('input')!;
+        const bounds = content.getBoundingClientRect(), first = checkbox.getBoundingClientRect();
+        return content.scrollHeight > content.clientHeight && first.top >= bounds.top && first.bottom <= bounds.bottom;
+    }), true, 'The task panel scrolls internally and its first task remains visible alongside deadlines.');
+    const requestCount = dashboardRequests.length;
+    await editor.evaluate(async () => {window.dispatchEvent(new Event('focus')); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));});
+    assert.equal(dashboardRequests.length, requestCount, 'Returning to the tab does not reload dashboard widgets.');
+    const gameTaskToggle = 'gg-dashboard .events-panel .task-game-toggle';
+    await editor.click(gameTaskToggle);
+    await editor.waitForFunction(() => {
+        const group = document.querySelector('gg-dashboard .events-panel .task-group-collapse');
+        return group?.hasAttribute('inert') && group.getBoundingClientRect().height < 1;
+    });
+    assert.equal(await editor.getAttribute(gameTaskToggle, 'aria-expanded'), 'false');
+    await editor.click(gameTaskToggle);
+    await editor.waitForFunction(() => document.querySelector('gg-dashboard .events-panel .task-group-collapse')?.getBoundingClientRect().height! > 40);
+    assert.equal(await editor.getAttribute(gameTaskToggle, 'aria-expanded'), 'true');
+    editor.off('request', dashboardRequest);
+    await editor.screenshot({ path: join(artifacts, 'dashboard-global-desktop.png'), fullPage: true });
+    await editor.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    assert.equal(await editor.$eval('.continue-games', target => getComputedStyle(target).gridTemplateColumns.split(' ').length), 1);
+    await editor.screenshot({ path: join(artifacts, 'dashboard-global-mobile.png'), fullPage: true });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
+    await editor.goto(origin + '/games/genshin/dashboard', { waitUntil: 'networkidle' });
+    await editor.waitForSelector('gg-dashboard .game-header');
+    assert.ok(await editor.$('gg-dashboard .continue-story'));
+    assert.equal(await editor.$('gg-dashboard #continue-playing'), null);
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), true, 'Game dashboard uses internal panel scrolling on desktop.');
+    assert.equal(await editor.$eval('gg-game-dashboard .events-panel .section-content', content => content.scrollHeight > content.clientHeight), true, 'Long game task lists scroll inside their widget.');
+    assert.equal(await editor.$eval('gg-game-dashboard .active-events', panel => panel.getBoundingClientRect().bottom <= innerHeight), true, 'Active Events remains visible below long task lists.');
+    assert.ok(await editor.$('gg-game-dashboard .settings-button'));
+    assert.equal(await editor.$eval('gg-game-dashboard .game-header', header => header.getBoundingClientRect().height <= 140), true);
+    assert.equal(await editor.$('gg-game-dashboard [aria-label="Patch Overview"]'), null);
+    assert.equal(await editor.$$eval('gg-game-dashboard .active-events .event-row', rows => rows.length), 0, 'Routine daily tasks are not duplicated in Active Events.');
+    await editor.click('gg-game-dashboard .events-panel .dashboard-event-completion');
+    await editor.waitForFunction(() => document.querySelector('gg-game-dashboard .events-panel details summary')?.textContent?.includes('(1)'));
+    await editor.click('gg-game-dashboard .events-panel details summary');
+    await editor.click('gg-game-dashboard .events-panel details .dashboard-event-completion');
+    await editor.waitForFunction(() => !document.querySelector('gg-game-dashboard .events-panel details'));
+    await editor.evaluate(() => {document.querySelectorAll('gg-game-dashboard .widget-column').forEach(column => {column.scrollTop = 0;});});
+    await editor.screenshot({ path: join(artifacts, 'dashboard-game-desktop.png'), fullPage: true });
+    await editor.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await editor.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Game dashboard fits mobile without horizontal overflow.');
+    await editor.screenshot({ path: join(artifacts, 'dashboard-game-mobile.png'), fullPage: true });
+    await editor.setViewportSize({ width: 1440, height: 1000 });
+    console.log('PASS dashboard scoping, lightweight APIs, bounded Continue Playing cards, and responsive global/game layouts.');
+    const afterDashboard = await repository.read('genshin');
+    await repository.write('genshin', beforeDashboard.entries, afterDashboard.revision);
 
     const beforeInventory = await repository.read('genshin');
     const inventoryRules: CharacterRules = { levelCap: 100, rarities: [5], weaponTypes: ['Sword'], damageTypes: ['Physical'], roles: [], equipmentSlots: [], progressionTracks: [] };
@@ -1199,7 +1271,9 @@ try {
     } })).status, 200);
     await editor.goto(origin + `/games/${customId}/story`, { waitUntil: 'networkidle' });
     await editor.waitForFunction(id => location.pathname === `/games/${id}/dashboard`, customId, {});
-    await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
+    await editor.waitForSelector('gg-game-dashboard .events-panel details summary');
+    await editor.click('gg-game-dashboard .events-panel details summary');
+    await editor.waitForSelector('gg-game-dashboard .dashboard-event-completion:checked');
     await editor.waitForSelector('[aria-label="Edit E2E Custom RPG overview"]');
     await editor.click('[aria-label="Edit E2E Custom RPG overview"]');
     await editor.waitForSelector('gg-game-manager input[name=game-title]');
@@ -1260,7 +1334,9 @@ try {
     await editor.click('[aria-label="Close game manager"]');
     await editor.waitForSelector('gg-game-manager', { state: 'hidden' });
     await editor.goto(origin + `/games/${customId}/dashboard`, { waitUntil: 'networkidle' });
-    await editor.waitForSelector('gg-dashboard .dashboard-event-completion:checked');
+    await editor.waitForSelector('gg-game-dashboard .events-panel details summary');
+    await editor.click('gg-game-dashboard .events-panel details summary');
+    await editor.waitForSelector('gg-game-dashboard .dashboard-event-completion:checked');
     const restoredGame = await repository.read(customId);
     assert.equal(restoredGame.name, 'E2E Renamed RPG');
     assert.ok(restoredGame.overview?.icon.startsWith(`/api/games/${customId}/images/`));

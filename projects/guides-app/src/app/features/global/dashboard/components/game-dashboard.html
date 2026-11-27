@@ -1,0 +1,99 @@
+<div class="game-dashboard" [style.--game-accent]="game().color">
+    <header class="game-header">
+        @if (game().banner) {<gg-dashboard-artwork class="game-banner" [src]="game().banner" />}
+        <div class="game-identity">
+            @if (game().icon) {<img class="game-icon" [src]="game().icon" alt="" (error)="hideImage($event)" />}
+            <div><h1>{{ game().name }}</h1>@if (game().description) {<p>{{ game().description }}</p>}
+                @if (summary()?.version || summary()?.patch) {
+                    @if (supports('story') && summary()?.patch; as patch) {
+                        <a class="version" [routerLink]="link('story')" [queryParams]="query(patch)" [fragment]="patch.fragment">@if (summary()?.versionNumber) {<b>Version {{ summary()!.versionNumber }}</b>} {{ summary()?.version || patch.name }} <span aria-hidden="true">&rarr;</span></a>
+                    } @else {<span class="version">{{ summary()?.versionNumber ? 'Version ' + summary()!.versionNumber : '' }} {{ summary()?.version }}</span>}
+                }
+            </div>
+        </div>
+        @if (store.canEdit()) {<button type="button" class="settings-button" aria-label="Game Configuration" title="Game Configuration" (click)="manageGame.emit(game().gameId)"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons['settings']" /><circle cx="12" cy="12" r="3.25" /></svg></button>}
+    </header>
+    @if (statistics().length) {
+        <nav class="dashboard-stats" aria-label="Game summary">
+            @for (stat of statistics(); track stat.key) {
+                <a [class]="'summary-card summary-' + stat.key" [routerLink]="link(stat.feature)"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icons[stat.key]" /></svg>
+                    <span><strong>@if (stat.key === 'events' ? eventLoading() : loading()) {<gg-dashboard-loading [label]="'Loading ' + stat.label" />} @else { {{ (stat.key === 'events' ? eventsFailed() : summaryFailed()) ? '\u2014' : stat.value }} }</strong><b>{{ stat.label }}</b><small>{{ (stat.key === 'events' ? eventsFailed() : summaryFailed()) ? 'Unavailable' : stat.detail }}</small></span>
+                </a>
+            }
+        </nav>
+    }
+    @if (summaryFailed()) {<p class="widget-error" role="alert">{{ data.summaryError() || 'Game summaries could not be loaded.' }} <button (click)="data.refreshSummary()">Retry summaries</button></p>}
+    @if (supports('story') && summary()?.story?.total) {
+        <gg-dashboard-section class="continue-story" title="Continue Story" [icon]="icons['story']" [link]="link('story')" action="Story Guide" [loading]="loading()" style="--category-color:var(--color-info)">
+            @if (summary()?.story; as story) {
+                <div class="story-resume"><div><h3>{{ story.resume?.name || 'Story complete' }}</h3>@if (story.completed === story.total) {<p class="completed-copy">All story content completed.</p>}</div>
+                    <a [routerLink]="link('story')" [queryParams]="query(story.resume)" [fragment]="story.resume?.fragment">{{ story.completed === story.total ? 'Review Story' : story.started ? 'Resume Story' : 'Start Story' }} &rarr;</a>
+                </div><gg-dashboard-progress [value]="story" label="story items complete" />
+            }
+        </gg-dashboard-section>
+    }
+    <div class="game-columns">
+        <div class="widget-column primary-column">
+            @if (supports('events')) {
+                <gg-dashboard-section class="events-panel" title="Today's Tasks" [icon]="icons['tasks']" [link]="link('events')" [query]="{period:'today',view:'list'}" action="View Schedule" [count]="scopedTasks().length" [loading]="eventLoading()" style="--category-color:var(--color-success)">
+                    <div class="today-heading"><span>{{ date() }}</span><strong>{{ completedTasks().length }} / {{ scopedTasks().length }} complete</strong></div>
+                    @if (eventsFailed()) {<p class="widget-error" role="alert">{{ data.eventsError() || 'Tasks could not be loaded.' }} <button (click)="data.refreshEvents()">Retry tasks</button></p>}
+                    @else {
+                        @if (data.saveError()) {<p class="widget-error" role="alert">{{ data.saveError() }}</p>}
+                        @if (incompleteTasks().length) {<gg-dashboard-task-group [game]="game()" [entries]="incompleteTasks()" [showHeader]="false" [disabled]="data.saving()" (completion)="complete($event.entry,$event.checkbox)" />}
+                        @else {<p class="compact-empty" [class.completed-copy]="scopedTasks().length > 0">{{ scopedTasks().length ? 'All tasks completed.' : 'No tasks scheduled for today.' }}</p>}
+                        @if (completedTasks().length) {<details class="completed-group"><summary>Show completed tasks ({{ completedTasks().length }})</summary><gg-dashboard-task-group [game]="game()" [entries]="completedTasks()" idSuffix="-completed" [showHeader]="false" [disabled]="data.saving()" (completion)="complete($event.entry,$event.checkbox)" /></details>}
+                    }
+                </gg-dashboard-section>
+                <gg-dashboard-section class="active-events" title="Active Events" [icon]="icons['events']" [link]="link('events')" action="View All Events" [loading]="eventLoading()" style="--category-color:var(--color-error)">
+                    @if (eventsFailed()) {<p class="widget-error">Events are unavailable. <button (click)="data.refreshEvents()">Retry events</button></p>}
+                    @else {
+                        @if (upcoming().length) {<div class="segmented" aria-label="Event status"><button [class.active]="eventView() === 'Active'" [attr.aria-pressed]="eventView() === 'Active'" (click)="eventView.set('Active')">Active</button><button [class.active]="eventView() === 'Upcoming'" [attr.aria-pressed]="eventView() === 'Upcoming'" (click)="eventView.set('Upcoming')">Upcoming</button></div>}
+                        @for (entry of eventItems(); track entry.id) {
+                            <div class="event-row"><input #checkbox type="checkbox" class="dashboard-event-completion" [checked]="entry.completed" [disabled]="data.saving()" [attr.aria-label]="'Complete ' + entry.name" (change)="complete(entry,checkbox)" />
+                                <a [routerLink]="link('events')" [fragment]="entry.id"><strong>{{ entry.name }}</strong><small>{{ typeLabel(entry) }}@if (entry.target > 0) { &middot; {{ entry.quantity }} / {{ entry.target }}}</small></a><span class="deadline">{{ timing(entry) }}</span>
+                            </div>
+                        } @empty {<p class="compact-empty">No incomplete {{ eventView() === 'Upcoming' && upcoming().length ? 'upcoming' : 'active' }} events outside today's schedule.</p>}
+                        @if (completedEvents().length) {<details class="completed-group"><summary>Completed events ({{ completedEvents().length }})</summary>@for (entry of completedEvents(); track entry.id) {<a class="detail-row is-completed" [routerLink]="link('events')" [fragment]="entry.id">{{ entry.name }}</a>}</details>}
+                    }
+                </gg-dashboard-section>
+            }
+            @if (activities().length && !summaryFailed()) {
+                <gg-dashboard-section class="activities-panel" title="End-Game Activities" [icon]="icons['activities']" [link]="link('story')" action="View All" style="--category-color:var(--color-warning)">
+                    @for (activity of incompleteActivities(); track activity.id) {<a class="activity-row" [routerLink]="link('story')" [queryParams]="query(activity)" [fragment]="activity.fragment"><strong>{{ activity.name }}</strong><gg-dashboard-progress [value]="activity" label="objectives complete" /></a>}
+                    @if (!incompleteActivities().length) {<p class="completed-copy">All permanent activities completed.</p>}
+                    @if (completedActivities().length) {<details class="completed-group"><summary>{{ completedActivities().length }} completed activities</summary>@for (activity of completedActivities(); track activity.id) {<a class="detail-row" [routerLink]="link('story')" [queryParams]="query(activity)" [fragment]="activity.fragment">{{ activity.name }} <span>{{ activity.completed }} / {{ activity.total }}</span></a>}</details>}
+                </gg-dashboard-section>
+            }
+        </div>
+        <div class="widget-column secondary-column">
+            @if (supports('characters')) {
+                <gg-dashboard-section class="characters-panel" title="Characters" [icon]="icons['characters']" [link]="link('characters')" action="View All Characters" [count]="summary()?.characters?.owned" [loading]="loading()" style="--category-color:var(--color-secondary,var(--color-info))">
+                    @if (!summaryFailed()) {@for (character of summary()?.characters?.entries ?? []; track character.id) {
+                        <a class="detail-row character-row" [routerLink]="link('characters')" [queryParams]="{character:character.id}">@if (character.icon) {<img [src]="character.icon" alt="" loading="lazy" (error)="hideImage($event)" />}<span class="row-copy"><strong>{{ character.name }}</strong><small>@if (character.level !== undefined) {Level {{ character.level }}}@if (character.hasGoal) { &middot; Active goal}</small></span>@if (character.percent !== undefined) {<span>{{ character.percent }}%</span>}</a>
+                    } @empty {<p class="compact-empty">No characters owned. <a [routerLink]="link('characters')">Add to your collection &rarr;</a></p>}}
+                    @else {<p class="widget-error">Collection summary unavailable.</p>}
+                </gg-dashboard-section>
+            }
+            @if (hasPlanning()) {
+                <gg-dashboard-section id="dashboard-plans" class="plans-panel" title="Plans & Farming" [icon]="icons['plans']" [link]="supports('plans') ? link('plans') : supports('characters') ? link('characters') : ''" action="Manage Plans" [loading]="loading()" style="--category-color:var(--color-warning)">
+                    @if (!summaryFailed()) {
+                        @for (plan of plans(); track plan.feature + '/' + plan.id) {<a class="activity-row" [routerLink]="link(plan.feature)" [queryParams]="plan.feature === 'characters' ? {character:plan.id} : null"><strong class="plan-title">@if (plan.icon) {<img [src]="plan.icon" alt="" loading="lazy" (error)="hideImage($event)" />}{{ plan.name }}</strong>@if (plan.target) {<small>{{ plan.target }}</small>}<gg-dashboard-progress [value]="{completed:plan.percent,total:100}" label="goal progress" /></a>}
+                        @if (!plans().length && (supports('plans') || supports('characters'))) {<div class="empty-plan"><p class="compact-empty">No active progression plans.</p><a class="button" [routerLink]="link(supports('plans') ? 'plans' : 'characters')">+ Create Plan</a></div>}
+                        @if (hasMaterials()) {<div class="material-counts"><span><b>{{ summary()!.materials!.sufficient }}</b>Sufficient</span><span><b>{{ summary()!.materials!.partial }}</b>Partial</span><span><b>{{ summary()!.materials!.missing }}</b>Missing</span></div>}
+                        @else if (supports('inventory') && !summary()?.materialIssues?.length) {<p class="compact-empty">{{ summary()?.inventory?.total ?? 0 }} inventory items. No outstanding material requirements.</p>}
+                        @for (issue of summary()?.materialIssues ?? []; track $index) {<p class="widget-error">{{ issue }}</p>}
+                        @if (supports('farming') && !supports('inventory')) {@for (material of summary()?.farming ?? []; track material.id) {<a class="detail-row" [routerLink]="link('farming')">{{ material.name }} <span>{{ material.missing }} missing</span></a>} @empty {@if (!summary()?.materialIssues?.length) {<p class="compact-empty">No outstanding farming requirements.</p>}}}
+                        <div class="feature-links">@if (supports('inventory')) {<a [routerLink]="link('inventory')">Inventory &rarr;</a>}@if (supports('farming')) {<a [routerLink]="link('farming')">Farming Requirements &rarr;</a>}</div>
+                    } @else {<p class="widget-error">Plan and material summaries unavailable.</p>}
+                </gg-dashboard-section>
+            }
+            @if (supports('achievements') && summary()?.achievements?.total && !summaryFailed()) {
+                <gg-dashboard-section class="achievements-panel" title="Achievements" [icon]="icons['achievements']" [link]="link('achievements')" action="View All Achievements" style="--category-color:var(--color-warning)"><gg-dashboard-progress [value]="summary()!.achievements!" label="achievements complete" />
+                    @for (category of summary()?.achievementCategories ?? []; track category.id) {<a class="detail-row" [routerLink]="link('achievements')"><strong>{{ category.name }}</strong><span>{{ category.completed }} / {{ category.total }}</span></a>}
+                </gg-dashboard-section>
+            }
+            @if (summary()?.resources?.length && !summaryFailed()) {<gg-dashboard-section class="resources-panel" title="Game Resources" [icon]="icons['resources']">@for (resource of summary()!.resources!; track resource.url) {<a class="detail-row" [href]="resource.url" target="_blank" rel="noopener noreferrer">{{ resource.title }} <span aria-label="External link">&nearr;</span></a>}</gg-dashboard-section>}
+        </div>
+    </div>
+</div>

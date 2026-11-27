@@ -1,241 +1,151 @@
-import { Injector, runInInjectionContext, signal } from '@angular/core';
-import { AuthStore } from '../../../../../core/auth/auth.store';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-
 import { provideRouter } from '@angular/router';
 import { DashboardPage } from './dashboard';
-import { WorkspaceStore, type Entry } from '../../../../../core/state/workspace.store';
-import { StoryPositionStore } from '../../../../gacha/story-guide/state/story-position.store';
+import { DashboardData } from '../../state/dashboard-data';
+import { WorkspaceStore } from '../../../../../core/state/workspace.store';
+import { AuthStore } from '../../../../../core/auth/auth.store';
+import { GameNavigationPreferences } from '../../../../../core/state/game-navigation-preferences';
+import { emptyGameLibrary } from '@common/workspace/game-library';
 import { defaultGameOverview } from '@common/workspace/game-overview';
+import type { Entry } from '@lib/types/workspace.type';
+import type { DashboardGame, DashboardSummary, DashboardEvents } from '@lib/types/dashboard.type';
+import { eventPlanning } from '../../../../gacha/events/utils/event-planning';
 
-describe('Dashboard feature ownership', () => {
-    const savedValues = new Map<string, string>();
-    const storage = {
-        getItem: vi.fn((key: string) => savedValues.get(key) ?? null),
-        setItem: vi.fn((key: string, value: string) => { savedValues.set(key, value); }),
-    };
-    const originalStorage = Object.getOwnPropertyDescriptor(document.defaultView!, 'localStorage');
-    beforeEach(() => {
-        savedValues.clear();
-        Object.defineProperty(document.defaultView!, 'localStorage', { configurable: true, value: storage });
-    });
-    afterEach(() => {
-        if (originalStorage) { Object.defineProperty(document.defaultView!, 'localStorage', originalStorage); }
-    });
-    function createEventDashboard() {
-        const fixture = TestBed.createComponent(DashboardPage);
-        fixture.componentInstance.now.set(new Date(2026, 10, 12, 12).getTime());
-        fixture.detectChanges();
-        return fixture;
+describe('Scoped dashboard projections', () => {
+    beforeEach(() => {const values = new Map<string, string>(); vi.stubGlobal('localStorage', { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) });});
+    afterEach(() => vi.unstubAllGlobals());
+    function setup() {
+        const games = ['genshin', 'hsr', 'endfield', 'ffxiv', 'wuwa'].map(defaultGameOverview);
+        const summaries: DashboardGame[] = games.map((game, index) => ({ game, story: { completed: index === 0 ? 1 : 0, total: index === 0 ? 2 : index === 1 ? 8 : 0 },
+            progressUpdatedAt: new Date(2026, 10, 26, 12 - index).toISOString(), hasProgress: true, planCount: 0, plans: [], achievements: { total: 0, completed: 0 } }));
+        const data = { summary: signal<DashboardSummary>({ games: summaries, errors: [], generatedAt: '' }), events: signal<DashboardEvents>({ entries: [], errors: [] }),
+            summaryLoading: signal(false), eventsLoading: signal(false), summaryError: signal(''), eventsError: signal(''), saving: signal(false), saveError: signal(''),
+            load: vi.fn(), refreshSummary: vi.fn(), refreshEvents: vi.fn(), toggle: vi.fn() };
+        const library = signal(emptyGameLibrary());
+        const preferences = { library, pinnedGameIds: signal(['hsr', 'genshin']), recentGameIds: signal(['genshin', 'endfield', 'ffxiv', 'wuwa']) };
+        const store = { games: signal(games), canEdit: signal(false), loading: signal(false), initialized: signal(true) };
+        TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: store },
+            { provide: AuthStore, useValue: { user: signal(null) } }, { provide: GameNavigationPreferences, useValue: preferences }] });
+        TestBed.overrideComponent(DashboardPage, { set: { providers: [{ provide: DashboardData, useValue: data }] } });
+        const fixture = TestBed.createComponent(DashboardPage), page = fixture.componentInstance;
+        page.now.set(new Date(2026, 10, 26, 12).getTime()); fixture.detectChanges();
+        return { fixture, page, data, store, preferences, root: fixture.nativeElement as HTMLElement };
     }
-    function setupEvents() {
-        const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
-        const event = (id: string, startDate: string, endDate: string, game = 'genshin'): Entry => ({
-            id, name: id, game, kind: 'events', startDate, endDate, category: 'temporary', notes: '',
-            order: 0, rarity: 1, day: '', members: [], requirements: [], quantity: 0, target: 1, completed: false,
-        });
-        store.entries.set([
-            event('later', '2026-11-01', '2026-11-20'),
-            event('ended', '2026-11-01', '2026-11-10'),
-            event('upcoming', '2026-11-14', '2026-11-16'),
-            event('soon', '2026-11-01', '2026-11-12', 'hsr'),
-            event('undated', '', ''),
-            event('invalid', '2026-11-25', '2026-11-01'),
-        ]);
-        TestBed.configureTestingModule({ providers: [provideRouter([]),
-            { provide: WorkspaceStore, useValue: store },
-            { provide: StoryPositionStore, useValue: { positions: signal({}) } },
-        ] });
-        const fixture = createEventDashboard();
-        return { fixture, page: fixture.componentInstance, root: fixture.nativeElement as HTMLElement };
-    }
-    it('prioritizes active events by their inclusive ending dates and scopes game dashboards', () => {
-        const { fixture, page, root } = setupEvents();
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['soon', 'later']);
-        expect(page.dueSoon()).toBe(1);
-        expect(root.querySelector('.dashboard-event')?.textContent).toContain('soon');
-        expect(root.querySelector('.dashboard-event-link')?.getAttribute('href')).toBe('/games/hsr/events');
-        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
-        fixture.detectChanges();
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['later']);
-        expect(page.activeEvents()).toHaveLength(1);
-        expect(page.dueSoon()).toBe(0);
+    const event = (id: string, end = '2026-11-27', completed = false): Entry => ({ id, game: 'genshin', kind: 'events', name: id,
+        startDate: '2026-11-01', endDate: end, completed, category: 'temporary', eventType: 'temporary', order: 0, quantity: 0, target: 0,
+        rarity: 1, day: '', notes: '', members: [], requirements: [] });
+    it('uses weighted eligible totals, N/A for empty progress, and a compact statistics bar', () => {
+        const { page, data, fixture, root } = setup();
+        expect(page.storyProgress()).toEqual({ completed: 1, total: 10 });
+        expect(page.stats().find(stat => stat.icon === 'story')?.value).toBe('10%');
+        expect(root.querySelectorAll('[aria-label="Workspace summary"]')).toHaveLength(1);
+        data.summary.update(value => ({ ...value, games: value.games.map(game => ({ ...game, story: { completed: 0, total: 0 } })) })); fixture.detectChanges();
+        expect(page.stats().find(stat => stat.icon === 'story')?.value).toBe('N/A');
+        expect(root.querySelector('.worlds-panel,.story-panel,.quick-actions')).toBeNull();
     });
-    it('filters upcoming and ended events, keeps undated events out of active counts, and updates over time', () => {
-        const { page } = setupEvents();
-        page.eventFilter.set('Upcoming');
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['upcoming']);
-        page.eventFilter.set('Ended');
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['ended']);
-        page.eventFilter.set('All Events');
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['soon', 'later', 'upcoming', 'invalid', 'undated', 'ended']);
-        page.now.set(new Date(2026, 10, 13).getTime());
-        expect(page.activeEvents().map(entry => entry.id)).toEqual(['later']);
-        expect(page.eventStatus(page.events().find(entry => entry.id === 'soon')!)).toBe('Ended');
+    it('orders actual progress changes newest first and ignores pins and navigation recency', () => {
+        const { page, preferences, fixture, root, data } = setup();
+        expect(page.continueGames().map(summary => summary.game.gameId)).toEqual(['genshin', 'hsr', 'endfield', 'ffxiv']);
+        expect(root.querySelectorAll('.continue-card')).toHaveLength(4);
+        preferences.pinnedGameIds.set(['wuwa']); preferences.recentGameIds.set(['wuwa']); fixture.detectChanges();
+        expect(page.continueGames()[0].game.gameId).toBe('genshin');
+        data.summary.update(value => ({ ...value, games: value.games.map(summary => ({ ...summary, progressUpdatedAt: globalThis.undefined, hasProgress: false })) })); fixture.detectChanges();
+        expect(root.textContent).toContain('Games appear here when you update your progress');
     });
-    it('falls back for unsafe or broken event thumbnails', () => {
-        const { page } = setupEvents();
-        const event = page.events()[0];
-        expect(page.image({ ...event, icon: 'data:text/html,unsafe' })).toBeNull();
-        expect(page.image({ ...event, icon: 'icons/genshin-impact/event.svg' })).toBe('/icons/genshin-impact/event.svg');
-        page.imageFailed(event.id);
-        expect(page.image({ ...event, icon: 'https://example.com/image.webp' })).toBeNull();
+    it('does not reload or replace content when focus returns to the browser tab', () => {
+        const { data, root, fixture } = setup();
+        const card = root.querySelector('.continue-card'); data.load.mockClear();
+        window.dispatchEvent(new Event('focus')); fixture.detectChanges();
+        expect(data.load).not.toHaveBeenCalled(); expect(data.refreshSummary).not.toHaveBeenCalled(); expect(data.refreshEvents).not.toHaveBeenCalled();
+        expect(root.querySelector('.continue-card')).toBe(card);
     });
-    it('hides disabled feature cards and panels without removing their data', () => {
-        const { page, fixture, root } = setupEvents();
-        const original = page.store.entries();
-        page.store.games.set([{ ...defaultGameOverview('genshin'), features: { events: { feature: 'events', visibility: 'public' } } }]);
-        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
-        fixture.detectChanges();
+    it('chooses the last accessible meaningful feature without assuming a story guide', () => {
+        const { page, preferences, store } = setup();
+        const summary = page.summaries()[0];
+        preferences.library.update(library => ({ ...library, games: [{ gameId: summary.game.gameId, isPinned: false, isFavorite: false, lastVisitedFeatureId: 'characters' }] }));
+        expect(page.resume(summary).feature).toBe('characters');
+        store.games.update(games => games.map(game => game.gameId === summary.game.gameId ? { ...game, features: {} } : game));
+        expect(page.resume(summary)).toEqual({ feature: 'dashboard', label: 'Open Game' });
+    });
+    it('scopes game data and hides disabled/editor-only widgets', () => {
+        const { page, fixture, data, store, root } = setup();
+        const game = { ...defaultGameOverview('genshin'), features: { events: { feature: 'events' as const, visibility: 'public' as const }, story: { feature: 'story' as const, visibility: 'editors' as const } } };
+        store.games.set([game]); fixture.componentRef.setInput('context', game);
+        data.events.set({ entries: [event('ours'), { ...event('other'), game: 'hsr' }], errors: [] }); fixture.detectChanges();
+        expect(page.events().map(entry => entry.id)).toEqual(['ours']);
+        expect(root.querySelector('.continue-story')).toBeNull();
         expect(root.querySelector('.summary-characters')).toBeNull();
-        expect(root.querySelector('.summary-story')).toBeNull();
-        expect(root.querySelector('.story-panel')).toBeNull();
-        expect(root.querySelector('.plans-panel')).toBeNull();
         expect(root.querySelector('.events-panel')).not.toBeNull();
-        page.store.games.set([{ ...defaultGameOverview('genshin'), features: {} }]);
-        fixture.detectChanges();
-        expect(root.querySelector('.events-panel')).toBeNull();
-        expect(page.store.entries()).toEqual(original);
-        page.store.games.set([defaultGameOverview('genshin')]);
-        fixture.detectChanges();
-        expect(root.querySelector('.story-panel')).not.toBeNull();
-        expect(root.querySelector('.events-panel')).not.toBeNull();
+        expect(root.textContent).not.toContain('Inventory');
     });
-    it('restores saved status and multiple types after recreating the dashboard and persists resets', () => {
-        const { page, fixture } = setupEvents();
-        page.eventFilter.set('Upcoming');
-        page.toggleEventType('temporary');
-        page.toggleEventType('daily');
-        fixture.detectChanges();
-        fixture.destroy();
-        const refreshed = createEventDashboard();
-        expect(refreshed.componentInstance.eventFilter()).toBe('Upcoming');
-        expect(refreshed.componentInstance.selectedEventTypes()).toEqual(['temporary', 'daily']);
-        expect(refreshed.componentInstance.filteredEvents().map(entry => entry.id)).toEqual(['upcoming']);
-        refreshed.componentInstance.resetEventFilters();
-        refreshed.detectChanges();
-        refreshed.destroy();
-        const reset = createEventDashboard();
-        expect(reset.componentInstance.eventFilter()).toBe('All Events');
-        expect(reset.componentInstance.selectedEventTypes()).toEqual([]);
+    it('uses actual expiration dates for Ending Soon and excludes completed, expired and upcoming events', () => {
+        const { page, data } = setup();
+        data.events.set({ entries: [event('later', '2026-11-28'), event('soon', '2026-11-26'), event('done', '2026-11-26', true), event('expired', '2026-11-25'),
+            { ...event('upcoming'), startDate: '2026-11-27' }], errors: [] });
+        expect(page.endingSoon().map(entry => entry.id)).toEqual(['soon', 'later']);
+        page.now.set(new Date(2026, 10, 27).getTime());
+        expect(page.endingSoon().some(entry => entry.id === 'soon')).toBe(false);
     });
-    it.each(['invalid json', '{"version":1,"status":"invalid","types":[]}', '{"version":1,"status":"Active","types":[5]}'])('ignores invalid saved event filters: %s', raw => {
-        storage.setItem('gg-dashboard-event-filters-v1', raw);
-        const { page } = setupEvents();
-        expect(page.eventFilter()).toBe('Active');
-        expect(page.selectedEventTypes()).toEqual([]);
+    it('reuses calendar assignments and keeps completed tasks in place', async () => {
+        const { page, fixture, data, root } = setup();
+        const entries = [event('one', '2026-12-20'), event('two', '2026-12-20'), event('three', '2026-12-20')];
+        localStorage.setItem('gg-event-view-v1:guest:global', JSON.stringify({ version: 1, balanceEnabled: true }));
+        const plan = eventPlanning(entries, new Date(page.now()), 'guest', '', {}).resolve();
+        data.events.set({ entries, errors: [] }); fixture.detectChanges();
+        const expected = entries.filter(entry => plan.assignments['genshin/' + entry.id] === '2026-11-26');
+        expect(page.todayTasks().map(entry => entry.id)).toEqual(expected.map(entry => entry.id));
+        expect(page.todayTasks().length).toBeLessThan(entries.length);
+        const original = [...root.querySelectorAll('.task-row')];
+        data.toggle.mockImplementation(async (entry: Entry) => {data.events.update(value => ({ ...value, entries: value.entries.map(item => item.id === entry.id ? { ...item, completed: true } : item) }));});
+        root.querySelector<HTMLInputElement>('.dashboard-event-completion')!.click(); await fixture.whenStable(); fixture.detectChanges();
+        expect([...root.querySelectorAll('.task-row')]).toEqual(original);
+        expect(page.todayCompleted()).toBe(1);
+        expect(root.querySelector('.task-row.is-completed')).not.toBeNull();
     });
-    it('keeps filters usable when localStorage reads and writes are blocked', () => {
-        const read = vi.spyOn(storage, 'getItem').mockImplementation(() => { throw new Error('Storage unavailable'); });
-        const write = vi.spyOn(storage, 'setItem').mockImplementation(() => { throw new Error('Storage unavailable'); });
-        const { page, fixture } = setupEvents();
-        page.eventFilter.set('Upcoming');
-        page.toggleEventType('temporary');
-        expect(() => fixture.detectChanges()).not.toThrow();
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['upcoming']);
-        read.mockRestore();
-        write.mockRestore();
+    it('keeps summary widgets available when event loading fails and exposes a local retry', () => {
+        const { root, data, fixture } = setup();
+        data.eventsError.set('Calendar unavailable'); fixture.detectChanges();
+        expect(root.textContent).toContain('Calendar unavailable');
+        expect(root.querySelectorAll('.continue-card')).toHaveLength(4);
+        const retry = [...root.querySelectorAll('button')].find(button => button.textContent === 'Retry tasks')!;
+        retry.click(); expect(data.refreshEvents).toHaveBeenCalled();
     });
-    it('closes the type dropdown on outside clicks while preserving multi-select choices', () => {
-        const { root, page } = setupEvents();
-        const picker = root.querySelector<HTMLDetailsElement>('.event-type-filter')!;
-        picker.querySelector('summary')!.click();
-        expect(picker.open).toBe(true);
-        picker.querySelectorAll<HTMLInputElement>('input')[1].click();
-        expect(picker.open).toBe(true);
-        expect(page.selectedEventTypes()).toEqual(['temporary']);
-        document.body.click();
-        expect(picker.open).toBe(false);
-        expect(page.selectedEventTypes()).toEqual(['temporary']);
+    it('shows independent loading indicators while preserving mounted widget content', () => {
+        const { fixture, root, data } = setup();
+        const card = root.querySelector('.continue-card');
+        data.summaryLoading.set(true); data.eventsLoading.set(true); fixture.detectChanges();
+        expect(root.querySelectorAll('.summary-card gg-dashboard-loading').length).toBeGreaterThan(0);
+        expect(root.querySelector('#continue-playing .section-body')?.hasAttribute('inert')).toBe(true);
+        expect(root.querySelector('.events-panel .loading-layer')?.classList.contains('visible')).toBe(true);
+        data.summaryLoading.set(false); fixture.detectChanges();
+        expect(root.querySelector('.continue-card')).toBe(card);
+        expect(root.querySelector('#continue-playing .section-body')?.hasAttribute('inert')).toBe(false);
+        expect(root.querySelector('.events-panel .loading-layer')?.classList.contains('visible')).toBe(true);
+        data.eventsLoading.set(false); fixture.detectChanges();
+        expect(root.querySelector('.events-panel .loading-layer')?.classList.contains('visible')).toBe(false);
     });
-    it('combines event type and status filters and resets both', () => {
-        const { page, fixture, root } = setupEvents();
-        page.store.entries.update(entries => entries.map(entry => entry.id === 'soon' ? { ...entry, eventType: 'daily' } : entry));
+    it('collapses each game independently while retaining rows and current completion counts', () => {
+        const { fixture, root, data, page } = setup();
+        data.events.set({ entries: [event('one'), event('two', '2026-11-27', true), { ...event('other'), game: 'hsr' }], errors: [] });
         fixture.detectChanges();
-        const daily = [...root.querySelectorAll<HTMLLabelElement>('.event-type-options label')].find(label => label.textContent?.includes('Daily'))!.querySelector('input')!;
-        daily.click();
+        const groups = [...root.querySelectorAll('gg-dashboard-task-group')];
+        const group = groups.find(item => item.textContent?.includes('Genshin Impact'))!;
+        const toggle = group.querySelector<HTMLButtonElement>('.task-game-toggle')!;
+        const rows = [...group.querySelectorAll('.task-row')];
+        expect(group.querySelector('.group-count')?.textContent).toContain('1 / 2');
+        toggle.click(); fixture.detectChanges();
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
+        expect(group.querySelector('.task-group-collapse')?.hasAttribute('inert')).toBe(true);
+        expect(groups.find(item => item !== group)?.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
+        data.events.update(value => ({ ...value, entries: value.entries.map(item => item.id === 'one' ? { ...item, completed: true } : item) }));
         fixture.detectChanges();
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['soon']);
-        const temporary = [...root.querySelectorAll<HTMLLabelElement>('.event-type-options label')].find(label => label.textContent?.includes('Limited-time'))!.querySelector('input')!;
-        temporary.click();
-        fixture.detectChanges();
-        expect(page.selectedEventTypes()).toEqual(['daily', 'temporary']);
-        expect(page.filteredEvents().map(entry => entry.id)).toEqual(['soon', 'later']);
-        temporary.click();
-        fixture.detectChanges();
-        page.eventFilter.set('Upcoming');
-        expect(page.filteredEvents()).toEqual([]);
-        root.querySelector<HTMLButtonElement>('.reset-events')!.click();
-        expect(page.selectedEventTypes()).toEqual([]);
-        expect(page.eventFilter()).toBe('All Events');
-        expect(page.filteredEvents()).toHaveLength(6);
-    });
-    it('saves checkbox completion without navigating and highlights completed rows', async () => {
-        const { page, fixture, root } = setupEvents();
-        page.store.initialized.set(true);
-        const save = vi.spyOn(page.store, 'save').mockImplementation(async entry => {
-            page.store.entries.update(entries => entries.map(value => value.id === entry.id ? entry : value));
-            return true;
-        });
-        fixture.detectChanges();
-        const checkbox = root.querySelector<HTMLInputElement>('.dashboard-event-completion')!;
-        const originalRows = [...root.querySelectorAll('.dashboard-event')];
-        const originalTags = originalRows[0].querySelectorAll('.event-tags > span').length;
-        expect(checkbox.closest('a')).toBeNull();
-        checkbox.click();
-        await fixture.whenStable();
-        fixture.detectChanges();
-        expect(save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: 'soon', completed: true }));
-        expect(root.querySelector('.dashboard-event.is-completed .event-countdown')?.textContent).toContain('Completed');
-        expect([...root.querySelectorAll('.dashboard-event')]).toEqual(originalRows);
-        expect(originalRows[0].querySelectorAll('.event-tags > span')).toHaveLength(originalTags);
-        expect(root.textContent).not.toContain('marked complete');
-        expect(checkbox.checked).toBe(true);
-        checkbox.click();
-        await fixture.whenStable();
-        fixture.detectChanges();
-        expect(checkbox.checked).toBe(false);
-    });
-    it('reports failed saves and prevents completion writes while busy', async () => {
-        const { page, fixture, root } = setupEvents();
-        page.store.initialized.set(true);
-        const save = vi.spyOn(page.store, 'save').mockResolvedValue(false);
-        page.store.error.set('Could not sync progress');
-        fixture.detectChanges();
-        const checkbox = root.querySelector<HTMLInputElement>('.dashboard-event-completion')!;
-        checkbox.click();
-        await fixture.whenStable();
-        fixture.detectChanges();
-        expect(checkbox.checked).toBe(false);
-        expect(page.eventError()).toBe('Could not sync progress');
-        expect(page.events()[0].completed).toBe(false);
-        page.store.saving.set(true);
-        await page.toggleEvent(page.events()[0]);
-        expect(save).toHaveBeenCalledTimes(1);
-    });
-    it('scopes summaries to the selected game and emits plan editing to the shell', () => {
-        const store = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: null }] }), () => new WorkspaceStore());
-        const entry = (id: string, game: string, kind: Entry['kind']): Entry => ({
-            id, game, kind, name: id, category: '', notes: '', order: 0, rarity: 1, day: '',
-            members: [], requirements: [], quantity: 0, target: 1, completed: false,
-            ...(kind === 'characters' ? { characterCollection: { owned: true, level: 1, gear: {}, progression: {}, notes: '' } } : {}),
-        });
-        const plan = entry('Plan', 'genshin', 'plans');
-        store.entries.set([entry('One', 'genshin', 'characters'), entry('Two', 'hsr', 'characters'), plan]);
-        TestBed.configureTestingModule({ providers: [provideRouter([]),
-            { provide: WorkspaceStore, useValue: store },
-            { provide: StoryPositionStore, useValue: { positions: signal({}) } },
-        ] });
-        const fixture = TestBed.createComponent(DashboardPage);
-        fixture.detectChanges();
-        expect(fixture.componentInstance.count('characters')).toBe(2);
-        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
-        fixture.detectChanges();
-        expect(fixture.componentInstance.count('characters')).toBe(1);
-        expect(fixture.componentInstance.dashboardStories().map(game => game.gameId)).toEqual(['genshin']);
-        let selected: Entry | undefined;
-        fixture.componentInstance.editPlan.subscribe(value => { selected = value; });
-        ((fixture.nativeElement as HTMLElement) as HTMLElement).querySelector<HTMLButtonElement>('.plan-row')!.click();
-        expect(selected).toBe(plan);
+        expect(group.querySelector('.group-count')?.textContent).toContain('2 / 2');
+        toggle.click(); fixture.detectChanges();
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        expect(group.querySelector('.task-group-collapse')?.hasAttribute('inert')).toBe(false);
+        expect([...group.querySelectorAll('.task-row')]).toEqual(rows);
+        expect(page.todayCompleted()).toBe(2);
+        expect(data.toggle).not.toHaveBeenCalled();
     });
 });

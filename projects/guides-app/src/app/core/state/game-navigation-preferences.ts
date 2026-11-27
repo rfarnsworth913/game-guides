@@ -98,6 +98,8 @@ export class GameNavigationPreferences {
     toggleFavorite(id:string):void {if(validGameId(id)) {this.change(draft=>{const game=this.game(draft,id);game.isFavorite=!game.isFavorite;});}}
     togglePin(id:string):void {if(validGameId(id)) {this.change(draft=>{const game=this.game(draft,id);game.isPinned=!game.isPinned;draft.pinnedOrder=game.isPinned?[...draft.pinnedOrder,id]:draft.pinnedOrder.filter(value=>value!==id);});}}
     remember(id:string,feature='dashboard'):void {
+        // Visiting the overview updates recency without erasing the last actionable feature.
+        if(feature==='dashboard') {feature=this.library().games.find(game=>game.gameId===id)?.lastVisitedFeatureId??feature;}
         if(!validGameId(id) || this.library().games.find(game=>game.gameId===id)?.lastVisitedFeatureId===feature && this.recentGameIds()[0]===id) {return;}
         this.change(draft=>{const game=this.game(draft,id);const latest=Math.max(0,...draft.games.map(item=>Date.parse(item.lastAccessedAt??'')||0));game.lastAccessedAt=new Date(Math.max(Date.now(),latest+1)).toISOString();game.lastVisitedFeatureId=feature;});
     }

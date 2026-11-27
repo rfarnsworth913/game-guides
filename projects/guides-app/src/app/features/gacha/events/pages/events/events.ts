@@ -1,15 +1,16 @@
 import { Component, computed, DestroyRef, effect, ElementRef, inject, input, output, signal, untracked, viewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { DialogFocusDirective } from '../../../../../shared/directives/dialog-focus/dialog-focus';
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
 import { guideUrl } from "@common/characters/characters";
 import { eventDate, eventRange, eventStatus, eventTiming, eventType, eventTypeLabel, monthDays, occursBetween, occursOn, type EventDateRange } from "../../utils/event-calendar";
-import { gameSupports } from '@common/workspace/game-overview';
-import { balanceDay, balanceEvents, balanceKey, type BalancedEvents } from '../../utils/event-balance';
+import { canAccessFeature } from '@common/workspace/game-overview';
+import { balanceDay, balanceKey, type BalancedEvents } from '../../utils/event-balance';
 import { readEventSchedule } from '../../utils/event-schedule-preferences';
 import { readEventView } from '../../utils/event-view-preferences';
-import { readEventPlan, writeEventPlan } from '../../utils/event-plan-preferences';
+import { eventPlanning } from '../../utils/event-planning';
 import { eventProgress, setEventCompletion } from '@common/events/event-progress';
 import { compareAvailableEvents } from '../../utils/event-list';
 
@@ -23,6 +24,7 @@ const EVENT_GROUPS_KEY = 'gg-events-groups-v1';
     host: { '(document:click)': 'closeGroups($event)' },
 })
 export class Events {
+    private readonly route = inject(ActivatedRoute, { optional: true });
     readonly game = input('');
     readonly selectedGame = signal('');
     readonly selectedGroups = signal<string[]>(this.readGroups());
@@ -67,7 +69,7 @@ export class Events {
     readonly weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     readonly eventType = eventType;
     readonly typeLabel = eventTypeLabel;
-    readonly games = computed(() => this.store.games().filter(game => gameSupports(game, 'events')).slice().sort((a, b) => a.name.localeCompare(b.name)));
+    readonly games = computed(() => this.store.games().filter(game => canAccessFeature(game, 'events', this.store.canEdit())).slice().sort((a, b) => a.name.localeCompare(b.name)));
     readonly entries = computed(() => this.store.entries().filter(entry => entry.kind === 'events' &&
         (this.game() ? entry.game === this.game() : this.games().some(game => game.gameId === entry.game))).map(entry => {
             const completed = this.optimistic()[balanceKey(entry)];
@@ -111,14 +113,8 @@ export class Events {
         const today = new Date(this.now());
         return { start: new Date(today.getFullYear(), today.getMonth(), today.getDate()), end: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30) };
     });
-    private readonly planStorageKey = computed(() => `gg-event-plan-v1:${this.store.auth?.user()?.id ?? 'guest'}:${this.game() || 'global'}`);
-    private readonly balanceInputs = computed(() => JSON.stringify({
-        datePolicy: 'local-calendar-end-2359-v1',
-        account: this.store.auth?.user()?.id ?? 'guest',
-        pins: this.manualPins(), capacity: this.maxPerDay(),
-        today: balanceDay(new Date(this.now())), scope: this.game(),
-        entries: this.entries().map(entry => ({ key: balanceKey(entry), start: entry.startDate, end: entry.endDate, schedule: entry.eventSchedule, expired: (eventDate(entry.endDate, true, entry.eventSchedule)?.getTime() ?? Infinity) <= this.now() })).sort((a, b) => a.key.localeCompare(b.key)),
-    }));
+    private planning() {return eventPlanning(this.entries(), new Date(this.now()), this.store.auth?.user()?.id ?? 'guest', this.game(), { maxPerDay: this.maxPerDay(), pins: this.manualPins() });}
+    private readonly balanceInputs = computed(() => this.planning().signature);
     readonly days = computed(() => monthDays(this.month()).map(date => ({ date,
         key: this.dayKey(date), currentMonth: date.getMonth() === this.month().getMonth(),
         today: this.dayKey(date) === this.dayKey(new Date(this.now())),
@@ -151,7 +147,7 @@ export class Events {
                 const saved = readEventView(scope, { view: game ? 'list' : 'calendar', selectedGame: '', groups: this.readGroups(), type: '', status: 'all', period: 'all', search: '',
                     showCompleted: true, balanceEnabled: false, filtersOpen: false, month: balanceDay(today).slice(0, 7), backlogSort: 'deadline', settingsOpen: false, summaryFilter: 'all', collapsedGroups: [], listSort: 'game' });
                 this.selectedGame.set(game ? '' : saved.selectedGame); this.selectedGroups.set(saved.groups); this.type.set(saved.type);
-                this.status.set(saved.status); this.period.set(saved.period); this.view.set(saved.view); this.search.set(saved.search);
+                this.status.set(saved.status); this.period.set(this.route?.snapshot.queryParamMap.get('period') === 'today' ? 'today' : saved.period); this.view.set(this.route?.snapshot.queryParamMap.get('view') === 'list' ? 'list' : saved.view); this.search.set(saved.search);
                 this.showCompleted.set(saved.showCompleted); this.balanceEnabled.set(saved.balanceEnabled); this.filtersOpen.set(saved.filtersOpen); this.backlogSort.set(saved.backlogSort);
                 this.settingsOpen.set(saved.settingsOpen); this.summaryFilter.set(saved.summaryFilter); this.collapsedGroups.set(saved.collapsedGroups);
                 this.listSort.set(saved.listSort);
@@ -184,19 +180,13 @@ export class Events {
             const key = this.balanceInputs();
             if (key === this.lastBalanceKey) {return;}
             this.lastBalanceKey = key;
-            untracked(() => {
-                const range = this.planningRange();
-                const saved = readEventPlan(this.planStorageKey(), key, balanceDay(range.start), balanceDay(range.end));
-                if (saved) {this.balancePlan.set(saved);} else {this.rebalance();}
-            });
+            untracked(() => this.balancePlan.set(this.planning().resolve()));
         });
     }
     setBalance(enabled: boolean): void {this.balanceEnabled.set(enabled);}
     rebalance(): void {
-        const plan = balanceEvents(this.entries(), new Date(this.now()), this.planningRange(), { maxPerDay: this.maxPerDay(), pins: this.manualPins() });
-        this.balancePlan.set(plan);
+        this.balancePlan.set(this.planning().resolve(true));
         this.lastBalanceKey = this.balanceInputs();
-        writeEventPlan(this.planStorageKey(), this.lastBalanceKey, plan);
     }
     inDisplayedRange(entry: Entry): boolean {
         const range = this.periodBounds();

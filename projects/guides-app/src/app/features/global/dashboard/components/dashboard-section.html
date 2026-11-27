@@ -1,0 +1,10 @@
+<section [attr.aria-label]="title()" [attr.aria-busy]="loading()">
+        <header><h2>@if (icon()) {<svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="icon()" /></svg>}{{ title() }} @if (count() !== undefined && !loading()) {<span>{{ count() }}</span>}</h2>
+            @if (link()) {<a [routerLink]="link()" [queryParams]="query()">{{ action() }} <span aria-hidden="true">→</span></a>}
+        </header>
+        @if (description()) {<p class="description">{{ description() }}</p>}
+        <div class="section-content" [class.is-loading]="loading()">
+            <div class="section-body" [attr.inert]="loading() ? '' : null"><ng-content /></div>
+            <div class="loading-layer" [class.visible]="loading()" [attr.aria-hidden]="!loading()"><gg-dashboard-loading [label]="'Loading ' + title()" /></div>
+        </div>
+    </section>

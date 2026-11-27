@@ -18,4 +18,18 @@ describe('GuestProgressStorage', () => {
         expect(() => storage.merge(base, base)).toThrow('not been overwritten');
         expect(data.get('gg-player-v1')).toBe(corrupted);
     });
+    it('records game activity only for changed progress and preserves it on a no-op save', () => {
+        const data = new Map<string, string>();
+        vi.stubGlobal('localStorage', { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value) });
+        const storage = new GuestProgressStorage();
+        const initial = { completed: false, quantity: 0, target: 90 };
+        storage.write({ 'genshin/one': initial }); expect(storage.activity()).toEqual({});
+        const state = { 'genshin/one': { ...initial, completed: true } };
+        storage.write(state); const activity = storage.activity();
+        expect(activity['genshin']).toBeTruthy();
+        storage.write(state); expect(storage.activity()).toEqual(activity);
+        storage.write({ ...state, 'hsr/two': { ...initial, quantity: 5 } });
+        expect(Date.parse(storage.activity()['hsr'])).toBeGreaterThan(Date.parse(activity['genshin']));
+        expect(storage.activity()['genshin']).toBe(activity['genshin']);
+    });
 });
