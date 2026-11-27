@@ -1,0 +1,59 @@
+:host {
+    display: block;
+    color: var(--color-text-primary);
+}
+main {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    padding: 24px;
+    box-sizing: border-box;
+}
+section {
+    width: 100%;
+    max-width: 560px;
+    padding: clamp(24px, 5vw, 48px);
+    box-sizing: border-box;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-bg-secondary);
+}
+.eyebrow {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 1.5px;
+}
+h1 {
+    margin: 16px 0;
+    font-size: clamp(26px, 5vw, 36px);
+    line-height: 1.2;
+}
+p {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+}
+a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 8px 14px;
+    box-sizing: border-box;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-primary);
+    text-decoration: none;
+}
+a:hover {
+    background: var(--color-bg-hover);
+}
+a:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+}

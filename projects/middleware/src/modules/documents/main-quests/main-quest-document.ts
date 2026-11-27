@@ -1,12 +1,14 @@
+import { flatGameDocument } from '../game-configuration-document';
 import assert from 'node:assert/strict';
 import { BSON } from 'mongodb';
 import type { StoredStory, StoredQuestEntry } from '../stored-document.types';
 type Document = Record<string, unknown>;
-import { mainQuestRecords, reworkMainQuestTemplate } from "../../../../../common/quests/main-quest";
-import { validPatchOverview } from "../../../../../common/quests/story-template";
+import { mainQuestRecords, reworkMainQuestTemplate } from "@common/quests/main-quest";
+import { validPatchOverview } from "@common/quests/story-template";
 
 /** Replaces only the requested quest payload; parser and unrelated fields are retained. */
 export function reworkMainQuestDocument(document: Document, categories: readonly ('main-story' | 'side-stories')[] = ['main-story']) {
+    document = flatGameDocument(document);
     let promoted = 0;
     let normalized = 0;
     let guides = 0;

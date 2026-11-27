@@ -1,0 +1,20 @@
+<section class="today-game-group">
+        @if (showHeader()) {
+            <h3><button type="button" class="task-game-toggle" [attr.aria-expanded]="expanded()" [attr.aria-controls]="'today-tasks-' + game().gameId + idSuffix()" (click)="collapsed.set(!collapsed())">
+                @if (game().icon) {<img [src]="game().icon" alt="" loading="lazy" (error)="hideImage($event)" />}
+                <span class="game-name">{{ game().name }}</span><span class="group-count">{{ completed() }} / {{ entries().length }}</span>
+                <svg [class.collapsed]="!expanded()" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button></h3>
+        }
+        <div class="task-group-collapse" [class.expanded]="expanded()" [attr.inert]="expanded() ? null : ''" [id]="'today-tasks-' + game().gameId + idSuffix()">
+            <div class="task-group-rows">
+                @for (entry of entries(); track entry.game + '/' + entry.id) {
+                    <div class="dashboard-event task-row" [class.is-completed]="entry.completed">
+                        <input #checkbox class="dashboard-event-completion" type="checkbox" [checked]="entry.completed" [disabled]="disabled()" [attr.aria-label]="'Mark ' + entry.name + (entry.completed ? ' incomplete' : ' complete')" (change)="change(entry, checkbox)" />
+                        <a class="dashboard-event-link" [routerLink]="'/games/' + entry.game + '/events'" [fragment]="entry.id">{{ entry.name }}</a>
+                        <span class="type-badge">{{ typeLabel(entry) }}</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>

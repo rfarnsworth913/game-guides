@@ -9,9 +9,9 @@ import { AuthService, safeReturnTo } from '../../core/auth/auth.service';
 import type { LoginDocument, SessionDocument } from '../../core/auth/auth.types';
 import { ProgressDocument, ProgressRepository } from "../../modules/progress/progress.repository";
 import { createApi } from "../../app/server";
-import { validProgressState } from "../../../../common/player/player-progress";
-import type { CatalogEntry } from "../../../../lib/types/workspace.type";
-import { StoryTrackingMode } from "../../../../lib/enums/story-tracking.enum";
+import { validProgressState } from "@common/player/player-progress";
+import type { CatalogEntry } from "@lib/types/workspace.type";
+import { StoryTrackingMode } from "@lib/enums/story-tracking.enum";
 
 function memory<T extends Document>() {
     const docs = new Map<string, T>();
@@ -159,6 +159,8 @@ await test('progress repository isolates accounts and rejects stale revisions in
     const db = memory<ProgressDocument>();
     const progress = new ProgressRepository(db.collection);
     await progress.patch('alice', 0, { 'genshin/quest': playerState });
+    const changedAt = (await progress.read('alice')).gameUpdatedAt?.['genshin'];
+    assert.ok(changedAt, 'Successful progress changes record server-owned game activity.');
     assert.deepEqual(await progress.read('bob'), { revision: 0, state: {} });
     await assert.rejects(progress.patch('alice', 0, {}), { status: 409 });
     const results = await Promise.allSettled([
@@ -167,6 +169,8 @@ await test('progress repository isolates accounts and rejects stale revisions in
     ]);
     assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
     assert.equal((await progress.read('alice')).state['genshin/quest'].completed, true);
+    await progress.patch('alice', 1, { 'genshin/quest': playerState });
+    assert.equal((await progress.read('alice')).gameUpdatedAt?.['genshin'], changedAt, 'No-op saves do not change progression recency.');
 });
 
 await test('HTTP API denies anonymous edits, isolates progress, validates references and rejects CSRF', async (t) => {

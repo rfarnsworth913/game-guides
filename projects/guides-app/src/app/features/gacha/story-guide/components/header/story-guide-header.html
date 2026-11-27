@@ -1,0 +1,109 @@
+<div #expandedHeader class="story-header-expanded" [inert]="compact()">
+    @if (background(); as image) {
+        @if (failedBackground() !== image) { <img class="region-artwork" [src]="image" alt="" (error)="failedBackground.set(image)" /> }
+    }
+    <div class="story-guide-hero">
+        <div class="guide-title-icon" aria-hidden="true"><ng-container *ngTemplateOutlet="book" /></div>
+        <div class="guide-title"><p class="guide-game-name">{{ gameName() }}</p><h1>Story Guide</h1><p>Keep your next objective in sight.</p></div>
+        @if (updated()) { <span class="guide-last-updated"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 5h18v16H3Zm4-3v6m10-6v6M3 11h18m-13 4h2m4 0h2" /></svg>Last Updated: {{ updated() }}</span> }
+    </div>
+    <div class="region-navigation">
+        <div class="story-tabs" role="tablist" aria-label="Story guide sections" (keydown)="regionKey.emit($event)">
+            @for (section of regions(); track section.id) {
+                <button type="button" role="tab" [id]="'story-tab-' + section.id" [attr.aria-selected]="region()?.id === section.id" aria-controls="story-section-content"
+                    [tabIndex]="region()?.id === section.id ? 0 : -1" [class.active]="region()?.id === section.id" (click)="regionSelected.emit(section.id)">
+                    <ng-container *ngTemplateOutlet="regionIcon; context: { $implicit: section }" />{{ section.name }}
+                </button>
+            }
+        </div>
+        <label class="mobile-region-select"><span class="sr-only">Story region</span><select aria-label="Choose story region" [ngModel]="region()?.id ?? ''" (ngModelChange)="regionSelected.emit($event)">
+            @for (section of regions(); track section.id) { <option [value]="section.id">{{ section.name }}</option> }
+        </select></label>
+        @if (editing()) { <button type="button" class="add-region" [disabled]="busy()" (click)="addRegion.emit()">+ Add section</button> }
+        <ng-container *ngTemplateOutlet="editSwitch" />
+    </div>
+    @if (region(); as section) {
+        <div class="story-overview" [class.collapsed]="!statisticsExpanded()">
+            <div class="region-overview-heading">
+                <div class="story-overview-identity"><span class="region-emblem"><ng-container *ngTemplateOutlet="regionIcon; context: { $implicit: section }" /></span>
+                    <div><h2 id="story-region-title">{{ section.name }}</h2><p>{{ subsectionCount() }} subsections &middot; {{ overall().total }} tracked items</p></div>
+                </div>
+                <div class="story-overall-progress"><div class="story-progress-ring" role="progressbar" aria-label="Overall completion" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="overall().percent" [style.--progress]="overall().percent + '%'"><span>{{ overall().percent }}%</span></div>
+                    <div><h3>Overall Progress</h3><p>{{ overall().completed }} / {{ overall().total }} complete</p><progress [value]="overall().completed" [max]="overall().total || 1" aria-label="Overall progress"></progress></div>
+                </div>
+                <button type="button" class="story-category-toggle" [attr.aria-expanded]="statisticsExpanded()" aria-controls="story-category-progress"
+                    [attr.aria-label]="statisticsExpanded() ? 'Collapse category progress' : 'Expand category progress'" (click)="statisticsExpanded.set(!statisticsExpanded())">
+                    <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.expanded]="statisticsExpanded()"><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+            </div>
+            <div id="story-category-progress" class="category-progress-panel" [class.expanded]="statisticsExpanded()" [inert]="!statisticsExpanded()" [attr.aria-hidden]="!statisticsExpanded() ? 'true' : null"><div class="category-progress-inner">
+                <ng-container *ngTemplateOutlet="categoryCards" />
+            </div></div>
+        </div>
+        <ng-container *ngTemplateOutlet="filters; context: { compact: false }" />
+    }
+    @if (editing()) { <div class="header-editor"><ng-content select="[story-editor-actions]" /></div> }
+</div>
+<div class="compact-toolbar-slot">
+    <div #toolbar class="story-sticky-header compact-story-toolbar" [class.visible]="compact()" [class.search-open]="mobileSearch()" [inert]="!compact()" [attr.aria-hidden]="!compact() ? 'true' : null">
+        <label class="compact-region"><ng-container *ngTemplateOutlet="regionIcon; context: { $implicit: region() }" /><span class="sr-only">Story region</span>
+            <select aria-label="Choose story region" [ngModel]="region()?.id ?? ''" (ngModelChange)="regionSelected.emit($event)">
+                @for (section of regions(); track section.id) { <option [value]="section.id">{{ section.name }}</option> }
+            </select>
+        </label>
+        <div #progressArea class="compact-progress-area">
+            <button #progressToggle type="button" class="compact-progress" [attr.aria-expanded]="compactProgressExpanded()" aria-controls="compact-progress-details" [attr.aria-label]="compactProgressExpanded() ? 'Hide progress details' : 'Show progress details'" (click)="compactProgressExpanded.set(!compactProgressExpanded())">
+                <strong>{{ overall().percent }}%</strong><small>{{ overall().completed }} / {{ overall().total }}</small>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" [class.expanded]="compactProgressExpanded()"><path d="m6 9 6 6 6-6" /></svg>
+                <progress [value]="overall().completed" [max]="overall().total || 1" aria-label="Overall progress"></progress>
+            </button>
+            <section id="compact-progress-details" class="compact-progress-details" [class.open]="compactProgressExpanded()" [inert]="!compactProgressExpanded()" [attr.aria-hidden]="!compactProgressExpanded() ? 'true' : null" aria-labelledby="compact-progress-title">
+                <div class="compact-progress-summary"><h3 id="compact-progress-title">{{ region()?.name }} Progress</h3><strong>{{ overall().percent }}%</strong><p>{{ overall().completed }} / {{ overall().total }} complete &middot; {{ subsectionCount() }} subsections</p><progress [value]="overall().completed" [max]="overall().total || 1" aria-label="Overall completion details"></progress></div>
+                <ng-container *ngTemplateOutlet="categoryCards" />
+            </section>
+        </div>
+        <button type="button" class="compact-search-trigger" aria-label="Search and filters" [attr.aria-expanded]="mobileSearch()" aria-controls="compact-story-filters" (click)="mobileSearch.set(!mobileSearch())"><ng-container *ngTemplateOutlet="searchIcon" /></button>
+        <div id="compact-story-filters" class="compact-filters"><ng-container *ngTemplateOutlet="filters; context: { compact: true }" /></div>
+        @if (canEdit() && editing() && region()) {
+            <div class="compact-editor-actions">
+                <button type="button" class="primary compact-add-subsection" [disabled]="busy() || editorOpen()" (click)="addSubsection.emit()">+ Add Sub-Section</button>
+                <ng-container *ngTemplateOutlet="editSwitch" />
+            </div>
+        } @else {
+            <ng-container *ngTemplateOutlet="editSwitch" />
+        }
+    </div>
+</div>
+
+<ng-template #categoryCards>
+    <div class="story-category-cards">
+        @for (category of progress().slice(1); track category.id) {
+            <div class="story-category-card" [attr.data-story-topic]="category.id"><div><span class="category-type-icon" aria-hidden="true">{{ categoryIcon()(category.id) }}</span><strong>{{ category.title }}</strong><span>{{ category.percent }}%</span></div>
+                <progress [value]="category.completed" [max]="category.total || 1" [attr.aria-label]="category.title + ' completion'"></progress><small>{{ category.completed }} / {{ category.total }}</small>
+            </div>
+        }
+    </div>
+</ng-template>
+
+<ng-template #filters let-small="compact">
+    <div class="story-overview-toolbar" [class.compact]="small">
+        <div class="story-search"><label class="story-search-input"><ng-container *ngTemplateOutlet="searchIcon" /><input type="search" aria-label="Search all story guides for the current game" placeholder="Search guide..." [ngModel]="query()" (ngModelChange)="query.set($event)" (keydown.escape)="query.set(''); $event.stopPropagation()" /></label>
+            @if (query().trim() && !(small && compactProgressExpanded())) {
+                <div class="story-search-results" aria-label="Story guide search results"><div class="story-search-results-heading"><span role="status">{{ searchResults().length }} results in this game</span><button type="button" (click)="query.set('')">Clear</button></div>
+                    @for (result of searchResults(); track result.id) { <button type="button" class="story-search-result" (click)="resultSelected.emit(result)"><strong>{{ result.title }}</strong><small>{{ result.context }}</small>@if (result.excerpt) { <span>{{ result.excerpt }}</span> }</button> }
+                    @empty { <p>No matching content. Try another title, note, link, or patch.</p> }
+                </div>
+            }
+        </div>
+        <label class="incomplete-filter"><input type="checkbox" role="switch" [checked]="incompleteOnly()" [disabled]="editing()" (change)="incompleteOnly.set(!incompleteOnly())" />Show incomplete only</label>
+        @if (!small) { <button type="button" class="reset-progress" [disabled]="busy() || resetting()" (click)="resetRequested.emit()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2 7M3 3v8h8" /></svg>Reset progress</button> }
+    </div>
+</ng-template>
+<ng-template #editSwitch>
+    @if (canEdit()) { <button type="button" class="story-mode-toggle" role="switch" aria-label="Edit mode" [attr.aria-checked]="editing()" [class.active]="editing()" [disabled]="busy() || editorOpen()" (click)="editToggled.emit()">Edit mode<span class="story-switch-track" aria-hidden="true"><span class="story-switch-thumb"></span></span></button> }
+</ng-template>
+<ng-template #regionIcon let-section>
+    <span class="story-nav-icon" aria-hidden="true">@if (imageUrl(section?.icon ?? ''); as image) { <img [src]="image" alt="" /> } @else if (section?.icon) { {{ section.icon }} } @else { <ng-container *ngTemplateOutlet="book" /> }</span>
+</ng-template>
+<ng-template #book><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1Zm0 0v15" /></svg></ng-template>
+<ng-template #searchIcon><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="m15 15 6 6" /></svg></ng-template>

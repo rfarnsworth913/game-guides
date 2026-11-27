@@ -1,3 +1,4 @@
+/* Legacy feature compatibility styles. Move remaining rules beside feature components as they are maintained. */
 gg-workspace {
     .achievement-search {
         margin-bottom: 22px;
@@ -267,7 +268,7 @@ gg-workspace {
         font-size: 12px;
         padding: 12px;
     }
-    aside {
+    .workspace-nav {
         overflow-y: auto;
         width: 238px;
         position: fixed;
@@ -279,70 +280,17 @@ gg-workspace {
         padding: 30px 19px;
         z-index: 20;
     }
-    .brand {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        font-weight: 750;
-        letter-spacing: 1.4px;
-        font-size: 13px;
-    }
-    .brand small {
-        display: block;
-        font-size: 8px;
-        letter-spacing: 1.7px;
-        margin-top: 6px;
-    }
-    .brand-mark {
-        font-size: 26px;
-        letter-spacing: -7px;
-        padding-right: 9px;
-        color: var(--color-primary);
-    }
-    .brand-mark span {
-        color: var(--color-text-primary);
-    }
-    aside nav {
-        margin-top: 28px;
-    }
-    nav a,
-    .sidebar-bottom > a {
-        display: flex;
-        align-items: center;
-        gap: 13px;
-        padding: 12px;
-        border-radius: 6px;
-        color: var(--muted);
-        margin: 3px 0;
-    }
-    nav a:hover,
-    nav a.active,
-    .sidebar-bottom > a.active {
-        background: var(--color-bg-hover);
-        color: var(--color-primary);
-    }
-    nav a.active {
-        box-shadow: inset 2px 0 var(--color-primary);
-    }
-    .nav-icon {
-        font-size: 19px;
-        width: 21px;
-        text-align: center;
-    }
-    .game-nav-title {
-        margin: 25px 12px 12px;
-        color: var(--color-primary);
-        font-size: 17px;
-        font-weight: 600;
-        line-height: 1.4;
-    }
-    .nav-label {
-        font-size: 9px;
-        letter-spacing: 1.7px;
-        color: var(--color-text-muted);
-        margin: 27px 12px 10px;
-        display: block;
-    }
+
+
+
+
+
+
+
+
+
+
+
     .count {
         margin-left: auto;
         background: var(--color-bg-primary);
@@ -350,16 +298,9 @@ gg-workspace {
         border-radius: 4px;
         font-size: 11px;
     }
-    .sidebar-bottom {
-        margin-top: auto;
-        padding-top: 24px;
-    }
-    .sidebar-bottom select {
-        font-size: 12px;
-    }
-    .sidebar-bottom > a {
-        margin: 16px 0;
-    }
+
+
+
     .local-profile {
         border-top: 1px solid var(--line);
         padding: 23px 5px 0;
@@ -396,7 +337,7 @@ gg-workspace {
         margin-left: 238px;
         width: calc(100% - 238px);
     }
-    header {
+    .shell-header {
         height: 77px;
         padding: 0 40px;
         border-bottom: 1px solid var(--line);
@@ -1019,7 +960,7 @@ gg-workspace {
         }
     }
     @media (max-width: 900px) {
-        aside {
+        .workspace-nav {
             width: 205px;
             padding: 25px 12px;
         }
@@ -1052,24 +993,24 @@ gg-workspace {
         .game-grid {
             grid-template-columns: 1fr;
         }
-        header {
+        .shell-header {
             padding: 0 25px;
         }
     }
     @media (max-width: 650px) {
-        aside {
+        .workspace-nav {
             display: none;
             width: 238px;
             top: 65px;
         }
-        aside.open {
+        .workspace-nav.open {
             display: flex;
         }
         .main-shell {
             margin: 0;
             width: 100%;
         }
-        header {
+        .shell-header {
             height: 65px;
             padding: 0 18px;
         }
@@ -1153,7 +1094,6 @@ gg-workspace {
     .device-status > svg { color: var(--color-success); }
     .device-status small { display: block; color: var(--color-success); font-size: 10px; }
     .device-status.offline > svg, .device-status.offline small { color: var(--muted); }
-    .sync-status { color: var(--muted); font-size: 11px; }
     .profile-menu {
         position: fixed;
         inset: 65px 24px auto auto;
@@ -1175,7 +1115,6 @@ gg-workspace {
         .device-status { padding: 6px; }
         .profile-menu { right: 12px; }
         .breadcrumb { display: none; }
-        .sync-status { display: none; }
     }
 }
 

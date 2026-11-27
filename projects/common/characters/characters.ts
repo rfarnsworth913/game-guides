@@ -1,5 +1,8 @@
-import { validFarmingConfig, validRecipes } from '../farming/farming-config';
-import type { CharacterSkill, CharacterDefinition, CharacterRules, CharacterCollection } from '../../lib/types/character.type';
+import { validFarmingConfig, validRecipes } from '@common/farming/farming-config';
+import {validInventoryConfig} from '@common/inventory/inventory-config';
+import type { CharacterSkill, CharacterDefinition, CharacterRules, CharacterCollection } from '@lib/types/character.type';
+import { validCharacterExtension, validCharacterAttributes, validProgressionProfiles } from '@common/characters/character-extension';
+import { characterExtensionFits, characterProgressIssues } from '@common/characters/character-progression';
 
 const record = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
@@ -34,7 +37,7 @@ export function guideUrl(value: string): boolean {
 export function validCharacterDefinition(value: unknown): value is CharacterDefinition {
     if (
         !record(value) ||
-        !only(value, ['weaponType', 'damageType', 'roles', 'skills', 'passiveSkills', 'guides', 'recipes'])
+        !only(value, ['weaponType', 'damageType', 'roles', 'skills', 'passiveSkills', 'guides', 'recipes', 'schemaVersion', 'attributes', 'abilities', 'resources', 'progressionProfileId', 'progressionOverrides', 'headshot', 'banner', 'alternateNames']) || !validCharacterExtension(value)
     )
         {return false;}
     const skills = (items: unknown) =>
@@ -81,12 +84,14 @@ export function validCharacterDefinition(value: unknown): value is CharacterDefi
     );
 }
 export function validCharacterRules(value: unknown): value is CharacterRules {
+    if (record(value) && value['inventory'] !== globalThis.undefined && !validInventoryConfig(value['inventory'])) {return false;}
     if (
         !record(value) ||
         !only(value, [
             'levelCap',
             'teamSize',
             'farming',
+            'inventory',
             'ascensionRanks',
             'rarities',
             'weaponTypes',
@@ -95,6 +100,8 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
             'equipmentSlots',
             'enhancementCategories',
             'progressionTracks',
+            'attributes', 'resourceCategories', 'progressionProfiles',
+            'rarityLabels', 'configurationVersion', 'description', 'defaultProgressionProfileId',
         ])
     )
         {return false;}
@@ -106,8 +113,9 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
                 record(item) &&
                 only(
                     item,
-                    field === 'limit' ? ['id', 'label', field, 'category'] : ['id', 'label', field],
+                    field === 'limit' ? ['id', 'label', field, 'category', 'system', 'allowedTypes'] : ['id', 'label', field],
                 ) &&
+                (field !== 'limit' || ((item['system'] === globalThis.undefined || item['system'] === 'weapon' || item['system'] === 'equipment') && (item['allowedTypes'] === globalThis.undefined || labels(item['allowedTypes'])))) &&
                 (field !== 'limit' ||
                     typeof item['category'] === 'undefined' ||
                     item['category'] === '' ||
@@ -121,6 +129,13 @@ export function validCharacterRules(value: unknown): value is CharacterRules {
         ) &&
         new Set(items.map((item: Record<string, unknown>) => item['id'])).size === items.length;
     return (
+        (value['configurationVersion'] === globalThis.undefined || integer(value['configurationVersion'], 1, 1000000) || (label(value['configurationVersion']) && value['configurationVersion'].length <= 64)) &&
+        (value['description'] === globalThis.undefined || text(value['description'])) &&
+        (value['defaultProgressionProfileId'] === globalThis.undefined || (typeof value['defaultProgressionProfileId'] === 'string' && characterKey(value['defaultProgressionProfileId']) && Array.isArray(value['progressionProfiles']) && value['progressionProfiles'].some((profile: Record<string, unknown>) => profile['id'] === value['defaultProgressionProfileId']))) &&
+        (value['rarityLabels'] === globalThis.undefined || (record(value['rarityLabels']) && Object.keys(value['rarityLabels']).length <= 20 && Object.entries(value['rarityLabels']).every(([rarity, display]) => /^\d+$/.test(rarity) && Array.isArray(value['rarities']) && value['rarities'].includes(Number(rarity)) && label(display)))) &&
+        (value['attributes'] === globalThis.undefined || validCharacterAttributes(value['attributes'])) &&
+        (value['resourceCategories'] === globalThis.undefined || labels(value['resourceCategories'])) &&
+        (value['progressionProfiles'] === globalThis.undefined || validProgressionProfiles(value['progressionProfiles'])) &&
         integer(value['levelCap'], 1, 1000) &&
         (typeof value['farming'] === 'undefined' || validFarmingConfig(value['farming'])) &&
         (typeof value['teamSize'] === 'undefined' || integer(value['teamSize'], 1, 12)) &&
@@ -166,7 +181,12 @@ export function validCharacterCollection(value: unknown): value is CharacterColl
             'target',
             'notes',
             'personalGuides',
+            'favorite', 'trackValues', 'nodeStates', 'completedGoals',
         ]) &&
+        (value['favorite'] === globalThis.undefined || typeof value['favorite'] === 'boolean') &&
+        (value['completedGoals'] === globalThis.undefined || (record(value['completedGoals']) && Object.keys(value['completedGoals']).length <= 200 && Object.entries(value['completedGoals']).every(([id, done]) => characterKey(id) && typeof done === 'boolean'))) &&
+        (value['trackValues'] === globalThis.undefined || (record(value['trackValues']) && Object.keys(value['trackValues']).length <= 200 && Object.entries(value['trackValues']).every(([id, amount]) => characterKey(id) && integer(amount, 0, 1000000)))) &&
+        (value['nodeStates'] === globalThis.undefined || (record(value['nodeStates']) && Object.keys(value['nodeStates']).length <= 200 && Object.entries(value['nodeStates']).every(([id, state]) => characterKey(id) && record(state) && only(state, ['unlocked']) && typeof state['unlocked'] === 'boolean'))) &&
         (typeof value['notes'] === 'undefined' || text(value['notes'])) &&
         (typeof value['personalGuides'] === 'undefined' ||
             (Array.isArray(value['personalGuides']) &&
@@ -187,6 +207,7 @@ export function validCharacterCollection(value: unknown): value is CharacterColl
                     'progression',
                     'ascensionRank',
                     'skillLevels',
+                    'trackValues', 'nodeStates',
                 ]) &&
                 validCharacterCollection({ ...value['target'], owned: true }))) &&
         (typeof value['ascensionRank'] === 'undefined' || integer(value['ascensionRank'], 0, 29)) &&
@@ -218,6 +239,7 @@ export function characterCollectionFits(
     value: CharacterCollection,
     rules: CharacterRules,
     definition?: CharacterDefinition,
+    previous?: CharacterCollection,
 ): boolean {
     const ranks = rules.ascensionRanks ?? [];
     const rank = ranks[value.ascensionRank ?? 0];
@@ -234,8 +256,9 @@ export function characterCollectionFits(
           ]
         : [];
     return (
+        characterProgressIssues(value, rules, definition, previous).length === 0 &&
         (!value.target ||
-            (characterCollectionFits({ ...value.target, owned: true }, rules, definition) &&
+            (characterCollectionFits({ ...value.target, owned: true, trackValues: globalThis.undefined, nodeStates: globalThis.undefined }, {...rules,defaultProgressionProfileId:globalThis.undefined,progressionProfiles:[]}, definition ? { ...definition, progressionProfileId: globalThis.undefined, progressionOverrides: globalThis.undefined, abilities:[] } : definition) &&
                 value.target.level >= value.level &&
                 (value.target.ascensionRank ?? 0) >= (value.ascensionRank ?? 0) &&
                 skills.every(
@@ -274,7 +297,7 @@ export function characterDefinitionFits(
     rules: CharacterRules,
 ): boolean {
     return (
-        rules.rarities.includes(rarity) &&
+        characterExtensionFits(value, rules) && rules.rarities.includes(rarity) &&
         (!rules.weaponTypes.length || rules.weaponTypes.includes(value.weaponType)) &&
         (!rules.damageTypes.length || rules.damageTypes.includes(value.damageType)) &&
         (!rules.roles.length || value.roles.every((role) => rules.roles.includes(role)))

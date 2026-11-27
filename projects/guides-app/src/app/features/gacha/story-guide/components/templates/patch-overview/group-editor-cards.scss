@@ -1,0 +1,21 @@
+.group-settings-panel, .group-rows-panel { border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg-primary); min-width: 0; }
+.group-settings-panel { overflow: hidden; margin-bottom: 20px; }
+.editor-card-heading { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 10px 16px; border-bottom: 1px solid var(--color-border); border-radius: 10px 10px 0 0; background: var(--color-bg-tertiary); color: var(--color-text-primary); h3, h4 { margin: 0; font-size: 16px; line-height: 1.4; } > svg { flex: 0 0 20px; } }
+.group-settings-body { padding: 16px; min-width: 0; }
+.section-editor-main .group-settings-body .compact-group-header { padding: 0; margin: 0; border: 0; grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr); &.has-group-organization { grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr) minmax(140px, 1fr); } }
+.editor-settings-help { margin: 12px 0 0; color: var(--color-text-secondary); font-size: 11px; line-height: 1.5; }
+.editor-count-badge { display: inline-block; padding: 3px 9px; border-radius: 14px; background: var(--color-bg-hover); font-size: 11px; white-space: nowrap; }
+.group-rows-panel .patch-row-heading { margin: 0; justify-content: start; }
+.row-add-actions { display: flex; align-items: stretch; margin-inline-start: auto; > button { border-radius: 7px 0 0 7px; border-color: var(--story-content-link); padding: 7px 12px; font-size: 12px; } }
+.row-add-menu { position: relative; > summary { list-style: none; display: grid; place-items: center; height: 100%; padding: 7px; cursor: pointer; border: 1px solid var(--story-content-link); border-inline-start: 0; border-radius: 0 7px 7px 0; } > summary::-webkit-details-marker { display: none; } > div { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; min-width: 180px; padding: 6px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-secondary); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); } button { width: 100%; border: 0; text-align: start; font-size: 12px; } }
+.group-rows-panel > .guide-help, .group-rows-panel > p { margin: 0; padding: 16px; font-size: 12px; color: var(--color-text-secondary); }
+.group-rows-panel .patch-row-add { display: flex; gap: 8px; flex-wrap: wrap; margin: 0; padding: 12px 16px; border-top: 1px solid var(--color-border); button { font-size: 12px; } }
+.editor-group-title-icon { flex: 0 0 28px; margin-top: 2px; }
+.editor-panel-heading > .editor-delete-group { display: inline-flex; align-items: center; gap: 8px; svg { flex: 0 0 16px; } }
+@media (max-width: 760px) {
+    .section-editor-main .group-settings-body .compact-group-header { &, &.has-group-organization { grid-template-columns: minmax(0, 1fr); } }
+    .group-settings-body { padding: 12px; }
+    .editor-card-heading { padding: 10px 12px; flex-wrap: wrap; }
+    .row-add-actions { flex-shrink: 0; }
+    .editor-group-title-icon { display: none; }
+}

@@ -1,0 +1,34 @@
+:host {display:block;min-width:0;container-type:inline-size}
+.game-dashboard {display:flex;flex-direction:column;gap:14px;min-width:0}
+a {color:inherit;text-decoration:none} a:hover {color:var(--color-info)}
+h1,h3,p {margin:0} h3 {font-size:15px;line-height:1.4} p,small {line-height:1.5}
+svg {width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.game-header {position:relative;isolation:isolate;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:140px;padding:20px 20px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;flex-shrink:0}
+.game-banner {position:absolute;inset:0;z-index:-2}
+.game-header:has(.game-banner)::before {content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.86),rgba(0,0,0,.55));z-index:-1}
+.game-header:has(.game-banner) {color:white}
+.game-identity {display:flex;gap:14px;align-items:center;min-width:0}
+.game-icon {width:54px;height:54px;object-fit:cover;border-radius:10px;flex-shrink:0}
+h1 {font-size:26px;line-height:1.25}.game-header p {font-size:13px;margin-top:4px;max-width:800px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.version {display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;margin-top:7px;color:inherit}
+.version b {font-weight:600}.settings-button {display:grid;place-items:center;flex-shrink:0;width:40px;height:40px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--color-text-primary)}
+.dashboard-stats {display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:8px 0;flex-shrink:0}
+.summary-card {display:flex;flex:1 1 140px;align-items:center;justify-content:center;gap:10px;padding:5px 12px;border-right:1px solid var(--line);min-width:0}.summary-card:last-child {border:0}
+.summary-card svg {color:var(--game-accent)}.summary-card>span {display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:center}.summary-card strong {grid-row:1/3;font-size:23px;display:flex;align-items:center;min-height:30px}.summary-card b {font-size:12px}.summary-card small {font-size:11px;color:var(--muted)}
+.game-columns {display:grid;grid-template-columns:minmax(0,1.22fr) minmax(0,1fr);gap:16px;align-items:start;min-height:0}.widget-column {display:flex;flex-direction:column;gap:14px;min-width:0}
+.story-resume {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}.story-resume a {font-size:13px;white-space:nowrap;color:var(--game-accent)}
+.today-heading {display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--muted);margin-bottom:12px}
+.detail-row,.event-row {display:flex;align-items:center;gap:12px;min-width:0;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.detail-row:last-child,.event-row:last-child {border:0}
+.detail-row {justify-content:space-between}.row-copy,.event-row>a {flex:1;min-width:0}.event-row strong {font-size:13px;line-height:1.45}.detail-row small,.event-row small {display:block;color:var(--muted);font-size:11px;margin-top:3px}.deadline {font-size:11px;text-align:right;max-width:100px;color:var(--color-warning)}
+.event-row input {width:18px;height:18px;flex-shrink:0;accent-color:var(--color-success)}
+.character-row img {width:38px;height:38px;object-fit:cover;border-radius:8px;flex-shrink:0}.character-row img[hidden] {display:none}
+.activity-row>.plan-title {display:flex;align-items:center;gap:9px}.plan-title img {width:30px;height:30px;object-fit:cover;border-radius:6px}.plan-title img[hidden] {display:none}
+.activity-row {display:block;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.activity-row:last-child {border:0}.activity-row>strong {display:block;margin-bottom:8px}.activity-row>small {display:block;margin:-3px 0 8px;color:var(--muted)}
+.compact-empty {font-size:13px;color:var(--muted)}.completed-copy {font-size:13px;color:var(--color-success);margin-top:4px}.widget-error {font-size:13px;color:var(--color-error);padding:8px 0}.widget-error button {font-size:12px;padding:5px 8px;margin-left:6px}
+.completed-group {margin-top:12px;font-size:12px}.completed-group summary {cursor:pointer;color:var(--muted);padding:8px 0}.is-completed {text-decoration:line-through;color:var(--muted)}
+.segmented {display:flex;gap:4px;margin-bottom:6px}.segmented button,.button {border:1px solid var(--line);border-radius:7px;background:var(--surface);color:inherit;padding:7px 10px;font-size:12px}.segmented button.active {border-color:var(--game-accent);color:var(--game-accent);background:var(--color-bg-hover)}
+.empty-plan {display:flex;align-items:center;justify-content:space-between;gap:12px}.button {white-space:nowrap}.material-counts {display:flex;gap:16px;padding:12px 0}.material-counts span {flex:1;font-size:12px;color:var(--muted)}.material-counts b {display:block;font-size:21px;color:var(--color-text-primary);margin-bottom:3px}
+.feature-links {display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;margin-top:10px;color:var(--color-info)}.feature-links:empty {display:none}
+.detail-row:hover,.event-row:hover,.activity-row:hover {background:var(--color-bg-hover)}
+@media (min-width:1100px) and (min-height:700px) {:host {flex:1;min-height:0;overflow:hidden;display:flex}.game-dashboard {flex:1;min-height:0;gap:12px}.continue-story {flex-shrink:0}.game-columns {flex:1;overflow:hidden;align-items:stretch;grid-template-rows:minmax(0,1fr)}.widget-column {overflow:auto;gap:12px;padding-bottom:2px}.widget-column>gg-dashboard-section {flex-shrink:0}.widget-column>.events-panel {flex:0 1 auto;max-height:62%;min-height:0}}
+@container (max-width:767px) {.game-columns {grid-template-columns:1fr}.game-header {padding:14px;min-height:110px}h1 {font-size:23px}.game-icon {width:44px;height:44px}.summary-card {flex-basis:120px;padding:8px}.story-resume {align-items:start;flex-direction:column}.story-resume a {align-self:flex-end}.event-row {gap:8px}.deadline {max-width:85px}.secondary-column {display:contents}.primary-column {display:contents}.plans-panel {order:4}.characters-panel {order:5}.activities-panel {order:6}.achievements-panel {order:7}.resources-panel {order:8}}

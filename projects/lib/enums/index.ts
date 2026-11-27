@@ -1,2 +1,2 @@
-export * from "./event-types.enum";
-export * from "./story-tracking.enum";
+export * from "@lib/enums/event-types.enum";
+export * from "@lib/enums/story-tracking.enum";

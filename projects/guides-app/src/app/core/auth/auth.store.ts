@@ -6,13 +6,36 @@ export type Account = { id: string; name: string; editor: boolean };
 export class AuthStore {
     private readonly sdk = inject(Auth0Service, { optional: true });
     constructor() {
-        this.sdk?.error$.subscribe((error) => this.error.set(error.message || 'Authentication failed. Please sign in again.'));
+        this.sdk?.error$.subscribe((error) => {
+            if (this.requiresNewLogin(error)) {this.expireSession().catch(() => this.error.set(this.expiredMessage));}
+            else {this.error.set(error.message || 'Authentication failed. Please sign in again.');}
+        });
     }
     get usesAuth0(): boolean { return this.sdk !== null; }
     readonly user = signal<Account | null>(null);
     readonly configured = signal(false);
     readonly error = signal('');
+    readonly reauthenticationRequired = signal(false);
+    private readonly expiredMessage = 'Your sign-in has expired. Sign in again to reconnect your account.';
+    private recovery: Promise<void> | null = null;
     private csrf: string | null = null;
+    private requiresNewLogin(error: unknown): boolean {
+        return !!error && typeof error === 'object' && 'error' in error &&
+            typeof error.error === 'string' && ['invalid_grant', 'missing_refresh_token', 'login_required'].includes(error.error);
+    }
+    private expireSession(): Promise<void> {
+        this.reauthenticationRequired.set(true);
+        this.error.set(this.expiredMessage);
+        this.user.set(null);
+        this.csrf = null;
+        const sdk = this.sdk;
+        this.recovery ??= Promise.resolve().then(async () => {
+            if (sdk) {await firstValueFrom(sdk.logout({ openUrl: false }));}
+        }).catch(() => {
+            this.error.set('Your sign-in has expired. Sign in again; if this persists, close other app tabs and retry.');
+        });
+        return this.recovery;
+    }
     async initialize(): Promise<void> {
         if (this.sdk) {
             this.configured.set(true);
@@ -86,14 +109,24 @@ export class AuthStore {
         if (resolved.origin !== 'https://api.invalid' || !resolved.pathname.startsWith('/api/')) {
             throw new Error('Invalid API path.');
         }
+        if (this.reauthenticationRequired()) {throw new Error(this.expiredMessage);}
         const headers = new Headers(init.headers);
         if (this.sdk) {
             headers.delete('Authorization');
             if (await firstValueFrom(this.sdk.isAuthenticated$)) {
-                const token = await firstValueFrom(this.sdk.getAccessTokenSilently());
-                headers.set('Authorization', `Bearer ${token}`);
+                try {
+                    const token = await firstValueFrom(this.sdk.getAccessTokenSilently());
+                    headers.set('Authorization', `Bearer ${token}`);
+                } catch (error) {
+                    if (this.requiresNewLogin(error)) {
+                        await this.expireSession();
+                        throw new Error(this.expiredMessage, { cause: error });
+                    }
+                    throw error;
+                }
             }
         }
+        if (this.reauthenticationRequired()) {throw new Error(this.expiredMessage);}
         if (this.csrf && !['GET', 'HEAD'].includes(init.method ?? 'GET')) {
             headers.set('X-CSRF-Token', this.csrf);
         }

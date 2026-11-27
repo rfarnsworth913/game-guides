@@ -1,12 +1,11 @@
 import { DashboardPage } from '../../features/global/dashboard/pages/dashboard/dashboard';
-import { GameCollectionPage } from '../../features/global/dashboard/pages/game-collection/game-collection';
 import { SettingsPage } from '../../features/global/settings/pages/settings/settings';
 import { ProgressionPage } from '../../features/gacha/progression/pages/progression/progression';
 import { AccountMenu, accountInitials } from "../../features/global/accounts/components/account-menu/account-menu";
 import { AuthStore } from "../../core/auth/auth.store";
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ThemeService } from "../../core/theme/theme.service";
 import { GameTheme } from "../../models/types/index";
@@ -19,15 +18,19 @@ import { Teams } from "../../features/gacha/teams/pages/teams/teams";
 import { Inventory } from "../../features/gacha/inventory/pages/inventory/inventory";
 import { Farming } from "../../features/gacha/farming/pages/farming/farming";
 import { GameImagePicker } from "../../shared/components/image-selector/game-image-picker";
-import { EventType } from "../../../../../lib/enums/event-types.enum";
-import { guideUrl } from "../../../../../common/characters/characters";
+import { EventType } from "@lib/enums/event-types.enum";
+import { guideUrl } from "@common/characters/characters";
 import { eventDate } from "../../features/gacha/events/utils/event-calendar";
 import { BackToTop } from "../../shared/components/back-to-top/back-to-top";
 import { DialogFocusDirective } from "../../shared/directives/dialog-focus/dialog-focus";
+import { WorkspaceSidebar } from './components/sidebar/workspace-sidebar';
+import { GameManager, type GameManagementRequest } from './components/game-manager/game-manager';
+import { canAccessGame, canAccessFeature } from '@common/workspace/game-overview';
+import { GameLibraryPage } from '../../features/global/game-library/pages/game-library';
 
 @Component({
     selector: 'gg-workspace',
-    imports: [DashboardPage, GameCollectionPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, RouterLink, RouterLinkActive, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop],
+    imports: [DashboardPage, GameLibraryPage, SettingsPage, ProgressionPage, AccountMenu, FormsModule, DialogFocusDirective, Achievements, Story, Characters, Events, Teams, Inventory, Farming, GameImagePicker, BackToTop, WorkspaceSidebar, GameManager],
     templateUrl: "./workspace.html",
     styleUrl: "./workspace.scss",
 })
@@ -41,10 +44,11 @@ export class Workspace {
     readonly params = toSignal(inject(ActivatedRoute).paramMap);
     readonly settingsParams = toSignal(inject(ActivatedRoute).queryParamMap);
     readonly settingsTab = computed(() => this.settingsParams()?.get('tab'));
-    readonly games = [...GAMES].sort((a, b) => a.name.localeCompare(b.name));
+    readonly games = computed(() => this.store.games().slice().sort((a, b) => a.name.localeCompare(b.name)));
+    gameManagement: GameManagementRequest | null = null;
     readonly nav = [
         { id: 'dashboard', label: 'Dashboard', icon: '\u25c8' },
-        { id: 'games', label: 'Games Collection', icon: '\u25a6' },
+        { id: 'games', label: 'Game Library', icon: '\u25a6' },
         { id: 'characters', label: 'Characters', icon: '\u2659', divider: false },
         { id: 'teams', label: 'Teams', icon: '\u2667', divider: false },
         { id: 'inventory', label: 'Inventory', icon: '\u25a3', divider: false },
@@ -56,27 +60,31 @@ export class Workspace {
     ];
     readonly page = computed(() => this.params()?.get('page') ?? 'dashboard');
     readonly title = computed(() =>
-        this.page() === 'dashboard' && this.context()
+        this.page() === 'library' ? 'Game Library' : this.page() === 'events' && !this.context() ? 'Events Calendar' : this.page() === 'dashboard' && this.context()
             ? 'Overview'
             : this.nav.find((n) => n.id === this.page())?.label ?? 'Settings',
     );
-    readonly context = computed(() => this.games.find((g) => g.id === this.params()?.get('game')));
+    readonly context = computed(() => this.games().find((g) => g.gameId === this.params()?.get('game')));
+    readonly pageAccessible = computed(() => !this.params()?.get('game') || canAccessFeature(this.context(), this.page(), this.store.canEdit()));
     constructor() {
-        this.store.initialize().catch(() => this.notice.set('Could not initialize game data.'));
+        effect(()=>{const library=['games','library','dashboard'].includes(this.page());untracked(()=>{this.store.initialize(library).catch(()=>this.notice.set('Could not initialize game data.'));});});
         effect(() => {
             const game = this.params()?.get('game');
-            if (game && !this.context()) {
+            if (game && !this.context() && this.store.initialized()) {
                 this.navigate('/games');
                 return;
             }
-            this.theme.setGame((this.context()?.id ?? 'default') as GameTheme);
+            const context = this.context();
+            this.theme.setGame((GAMES.some(item => item.id === context?.gameId) ? context!.gameId : 'default') as GameTheme, context?.color);
+            if (context && !canAccessGame(context, this.store.canEdit())) {this.navigate('/games');}
+            else if (context && !canAccessFeature(context, this.page(), this.store.canEdit())) {this.navigate(`/games/${context.gameId}/dashboard`);}
         });
     }
     sectionLink(page: string): string {
-        return this.context() ? `/games/${this.context()!.id}/${page}` : '/games';
+        return this.context() ? `/games/${this.context()!.gameId}/${page}` : '/games';
     }
     readonly scoped = computed(() =>
-        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.id),
+        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.gameId),
     );
     readonly search = signal('');
     readonly category = signal('');
@@ -111,27 +119,8 @@ export class Workspace {
             this.notice.set('Could not open this page. Please try again.');
         });
     }
-    setGame(value: string): void {
-        const page = [
-            'dashboard',
-            'inventory',
-            'characters',
-            'teams',
-            'plans',
-            'story',
-            'farming',
-            'events',
-            'achievements',
-        ].includes(this.page())
-            ? this.page()
-            : 'dashboard';
-        this.navigate(value === 'default' ? '/dashboard' : `/games/${value}/${page}`);
-        this.search.set('');
-        this.category.set('');
-        this.rarity.set('');
-    }
     gameName(id: string): string {
-        return this.games.find((g) => g.id === id)?.name ?? 'All games';
+        return this.games().find((g) => g.gameId === id)?.name ?? 'All games';
     }
     isExisting(id: string): boolean {
         return this.store.entries().some((e) => e.id === id);
@@ -143,7 +132,7 @@ export class Workspace {
         return this.store.entries().find((e) => e.id === id)?.name ?? 'Unknown';
     }
     open(kind: string, entry?: Entry): void {
-        if (!this.context()) {
+        if (!this.context() && entry?.kind !== 'events') {
             this.navigate(entry ? `/games/${entry.game}/${kind}` : '/games');
             return;
         }
@@ -154,7 +143,7 @@ export class Workspace {
             : {
                   id: crypto.randomUUID(),
                   kind: kind as Kind,
-                  game: this.context()?.id ?? 'genshin',
+                  game: this.context()?.gameId ?? 'genshin',
                   name: '',
                   notes: '',
                   quantity: 0,
@@ -167,6 +156,15 @@ export class Workspace {
                   order: this.count('story') + 1,
                   day: 'Any day',
               };
+    }
+    inventoryMetadataText(field:'aliases'|'tags'|'categoryIds', value:string):void {
+        if (!this.editor) {return;}
+        const metadata = this.editor.inventoryMetadata ??= {aliases:[],tags:[],categoryIds:[],enabled:true};
+        metadata[field] = [...new Set(value.split(',').map(value => value.trim()).filter(Boolean))];
+    }
+    setInventoryEnabled(enabled:boolean):void {
+        if (!this.editor) {return;}
+        (this.editor.inventoryMetadata ??= {aliases:[],tags:[],categoryIds:[],enabled:true}).enabled = enabled;
     }
     options(kind: string): Entry[] {
         return this.store.entries().filter((e) => e.kind === kind && e.game === this.editor?.game);
@@ -218,14 +216,14 @@ export class Workspace {
         if (this.editor.kind === 'events') {
             const entry = this.editor;
             if ((entry.wikiUrl && !guideUrl(entry.wikiUrl)) ||
-                (entry.startDate && !eventDate(entry.startDate)) ||
-                (entry.endDate && !eventDate(entry.endDate, true)) ||
-                (entry.startDate && entry.endDate && eventDate(entry.endDate, true)! <= eventDate(entry.startDate)!)) {
+                (entry.startDate && !eventDate(entry.startDate, false, entry.eventSchedule)) ||
+                (entry.endDate && !eventDate(entry.endDate, true, entry.eventSchedule)) ||
+                (entry.startDate && entry.endDate && eventDate(entry.endDate, true, entry.eventSchedule)! <= eventDate(entry.startDate, false, entry.eventSchedule)!)) {
                 this.formError = 'Use an HTTP(S) event URL and valid dates, with the end on or after the start.';
                 return;
             }
         }
-        if (!this.editor.name || !validEntries([this.editor])) {
+        if (!this.editor.name || !validEntries([this.editor], this.games().map(game => game.gameId))) {
             this.formError = 'Enter a name and valid non-negative numbers.';
             return;
         }

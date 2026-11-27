@@ -25,6 +25,9 @@ MIDDLEWARE_PORT=3001
 UI_PORT=4200
 ```
 
+See the [environment configuration reference](docs/environment.md) for all supported fields,
+Auth0 editor access, defaults, parser overrides and troubleshooting. Do not commit your `.env`.
+
 MongoDB is launched from `projects/database/mongod.exe` on Windows when present, otherwise
 from `MONGOD_PATH` or `mongod` on PATH. The launcher uses the existing
 `projects/database/mongod.cfg`; if absent, it uses `projects/database/db`. A configured
@@ -34,9 +37,10 @@ reports configuration/startup failures rather than silently launching a partial 
 ## Data storage
 
 Each game has one document in the same MongoDB collection used by the parsers. The
-middleware stores `version`, nested achievement categories, and the characters, events,
-inventory, plans, story and teams arrays at the document root. Existing catalog documents
+middleware stores `gameId`, `version`, `gameConfiguration`, and a `content` object containing
+the achievement, character, event, inventory, plan, story and team arrays. Existing catalog documents
 migrate automatically at startup, with originals retained in `<DB_COLLECTION>_schema_v1_backup`.
+See [game management](docs/game-management.md) for schema-v3 backups, workspace visibility and public shared-data behavior.
 Parser events and version information are preserved. Honkai: Star Rail uses the parser's
 existing document name, `Honkai Star Rail`.
 
@@ -63,7 +67,9 @@ Use the same frontend origin (hostname and port) to retain the same local player
 
 Choose a game to open `/games/:game/:page`. Each game owns its inventory, characters,
 teams, planner, events, farming, story guide, and achievements. The dashboard summarizes
-progress across games. Material requirements are entered manually and farming shortages
+progress across games. Global and game dashboards share compact widgets, calendar tasks,
+deadline lists, and permission-scoped summaries; see [dashboard design and data flow](docs/dashboard-redesign.md).
+Material requirements are entered manually and farming shortages
 are calculated against owned quantities.
 
 Achievements support categories, reference links, descriptions, icon URLs, reward icons,
@@ -76,6 +82,7 @@ Completing a plan removes its farming requirements without consuming inventory.
 | Command | Purpose |
 | --- | --- |
 | `npm test` | Standard suite: middleware type checking, API/security tests, frontend/account-sync tests, and parser tests |
+| `npm run test:ci` | The standard checks with middleware, Angular and parser coverage reports under `coverage/` |
 | `npm run test:security` | Run the backend authentication and authorization security tests alone |
 | `npm start` / `npm run ui:start` | Launch the complete application |
 | `npm run ui:only` | Angular only (requires middleware/database already running) |
@@ -87,6 +94,8 @@ Completing a plan removes its farming requirements without consuming inventory.
 | `npm run middleware:check` | Middleware TypeScript check |
 | `npm run middleware:test` | API validation and security tests |
 | `npm run ui:e2e` | Type-check, build, and run browser integration tests with a disposable database, uploads, and browser profiles |
+
+See [continuous integration](docs/continuous-integration.md) for required branch checks, build/coverage artifacts, dependency auditing and one-time auto-merge setup.
 
 Security tests are mandatory in `npm test`, discovered by the middleware's recursive `*.test.ts` discovery.
 They cover Auth0 token signatures, issuer/audience/expiry and authorized client checks, legacy session regressions, editor permissions,
@@ -108,4 +117,6 @@ by the normal middleware/parser tests.
 
 See [middleware documentation](projects/middleware/README.md) for the document schema and API.
 
-See the [implementation guide](docs/implementation-guide.md) for branch reconciliation, CodeRabbit, CI, release rules, and local deployment setup.
+See the [documentation index](docs/README.md) for maintained feature and operations guides.
+
+Use the [deployment roadmap](docs/deployment-roadmap-2026-11-24.md) for protected dev-to-main promotion, private NAS deployment, parser scheduling, friend review and eventual cloud launch. Its [Todoist CSV](docs/deployment-roadmap-todoist-2026-11-24.csv) contains the matching implementation checklist. These are planned steps, not claims that deployment automation is already configured.

@@ -1,5 +1,6 @@
-import type { CatalogEntry } from '../../../../lib/types/workspace.type';
-import type { PatchOverview } from '../../../../lib/types/story-template.type';
+import type { CatalogEntry } from '@lib/types/workspace.type';
+import type { PatchOverview } from '@lib/types/story-template.type';
+import type { GameDocument } from '@lib/types/games.type';
 
 /** Legacy database fields remain open so migrations preserve unrecognized data. */
 export type StoredAchievementRow = {
@@ -43,6 +44,9 @@ export type StoredEvent = Record<string, unknown> & {
 };
 
 export type StoredGameDocument = Record<string, unknown> & {
+    gameId?: GameDocument['gameId'];
+    gameConfiguration?: GameDocument['gameConfiguration'];
+    content?: GameDocument['content'];
     story?: Array<StoredStory>;
     achievements?: Array<StoredAchievement>;
     events?: Array<StoredEvent>;

@@ -1,8 +1,24 @@
 import * as dotenv from "dotenv";
 import * as mongoDB from "mongodb";
 
-import type { Event, RootDocument, Version } from '@shared-lib/types';
+import type { Event, RootDocument, Version } from '@lib/types';
 import { Logger } from "./logger";
+import { EventType } from '@lib/enums';
+
+// Retain limited-time history. Only explicit reset-based activities can expire out of storage.
+const repeatingTypes = [EventType.Daily, EventType.Weekly, EventType.WeeklyLinked, EventType.Monthly, EventType.EndGame];
+const mongoEventIdentity = (variable: string) => [
+    { $ifNull: [`${variable}.title`, `${variable}.name`] },
+    ...['startDate', 'endDate'].map(field => ({ $convert: { input: `${variable}.${field}`, to: 'date', onError: null, onNull: null } })),
+];
+function eventIdentity(record: { title: string }): string {
+    const fields = record as { title?: string; name?: string; startDate?: string | Date | null; endDate?: string | Date | null };
+    const date = (value?: string | Date | null) => {
+        const time = value ? new Date(value).getTime() : NaN;
+        return Number.isFinite(time) ? new Date(time).toISOString() : null;
+    };
+    return JSON.stringify([fields.title ?? fields.name, date(fields.startDate), date(fields.endDate)]);
+}
 
 
 export class DataService {
@@ -13,18 +29,20 @@ export class DataService {
 
 
     // Constructor ------------------------------------------------------------
-    constructor () {
+    constructor (private readonly gameId?: string) {
         dotenv.config();
         this.dbConnection = new mongoDB.MongoClient(process.env["DB_CONN_STRING"] ?? "");
         this.db = this.dbConnection.db(process.env["DB_NAME"]);
 
-        this.connect().catch((err) => {
-            Logger.error("Failed to connect to the database:", err);
-        });
+
     }
 
 
     // Generic DB Methods -----------------------------------------------------
+    /** Modern jobs target the registered game ID, including games with editor-defined names. */
+    private documentFilter(name: string): {name: string} | {_gameId: string} {
+        return this.gameId ? { _gameId: this.gameId } : { name };
+    }
 
     /**
      * Establishes the database connection and prepares it for usage.
@@ -61,9 +79,10 @@ export class DataService {
      */
     private async getRootDocument (rootDocumentName: string, subDocumentName?: string): Promise<RootDocument> {
         const collection = this.db.collection(process.env["DB_COLLECTION"] ?? "");
-        let rootDocument = await collection.findOne<RootDocument>({ name: rootDocumentName });
+        let rootDocument = await collection.findOne<RootDocument>(this.documentFilter(rootDocumentName));
 
         if (!rootDocument) {
+            if (this.gameId) {throw new Error(`Game '${this.gameId}' is not registered. Create or restore the game before importing; no duplicate document was created.`);}
             Logger.info(`Root document '${rootDocumentName}' does not exist. Creating it.`);
 
             rootDocument = {
@@ -78,7 +97,7 @@ export class DataService {
             await collection.insertOne(rootDocument);
         }
 
-        return rootDocument;
+        return { ...rootDocument, ...(rootDocument['content'] as Record<string, unknown> | undefined) };
     }
 
     /**
@@ -113,7 +132,7 @@ export class DataService {
 
             // Get document to be cleaned -------------------------------------
             const collection = this.db.collection(process.env["DB_COLLECTION"] ?? "");
-            const document = await collection.findOne({ name: documentName });
+            const document = await collection.findOne(this.documentFilter(documentName));
 
             if (!document) {
                 Logger.warn(`No document found for '${documentName}'.`);
@@ -121,15 +140,16 @@ export class DataService {
             }
 
             // Extract topic data ---------------------------------------------
-            const items: Array<Event> = (document[topic] as Array<Event>) ?? [];
-            const removedItems = items.filter(item => !("kind" in item) && !filterFn(item));
+            const path = document['content'] ? `content.${topic}` : topic;
+            const items: Array<Event> = ((document['content'] as Record<string, unknown> | undefined)?.[topic] ?? document[topic] ?? []) as Array<Event>;
+            const removedItems = items.filter(item => !("kind" in item) && repeatingTypes.includes(item.eventType) && !filterFn(item));
 
             // Update database if any items were removed ----------------------
             if (removedItems.length > 0) {
                 await collection.updateOne(
-                    { name: documentName },
+                    this.documentFilter(documentName),
                     {
-                        $pull: { [topic]: { title: { $in: removedItems.map(item => item.title) }, kind: { $exists: false } } } as mongoDB.PullOperator<mongoDB.Document>,
+                        $pull: { [path]: { kind: { $exists: false }, $or: removedItems.map(item => ({ title: item.title, eventType: item.eventType, startDate: item.startDate, endDate: item.endDate })) } } as mongoDB.PullOperator<mongoDB.Document>,
                         $inc: { _revision: 1 },
                     }
                 );
@@ -166,38 +186,42 @@ export class DataService {
             const collection = this.db.collection(process.env["DB_COLLECTION"] ?? "");
             let rootDocument = await this.getRootDocument(rootDocumentName, subDocumentName);
             rootDocument = this.getSubDocument(rootDocument, subDocumentName);
+            const path = rootDocument['content'] ? `content.${subDocumentName}` : subDocumentName;
 
             // Add only new records to the sub-document -----------------------
             const existingRecords: Array<T> = rootDocument[subDocumentName] as Array<T>;
             const newRecords: Array<T> = [];
-            const knownTitles = new Set(existingRecords.map(record => record.title));
+            const identity = (record: T) => subDocumentName === 'events' ? eventIdentity(record) : record.title;
+            const knownRecords = new Set(existingRecords.map(identity));
 
             records.forEach((record: T) => {
-                const exists = existingRecords.some(
-                    (existing: T) => existing.title === record.title
-                );
-
-                if (!exists && !newRecords.some(item => item.title === record.title)) {
+                if (!knownRecords.has(identity(record))) {
+                    knownRecords.add(identity(record));
                     newRecords.push(record);
                     Logger.info(`Added new record: ${record.title}`);
                 }
             });
 
+            // A Monday rerun with identical occurrences must not invalidate editors' revisions.
+            if (!newRecords.length) {
+                return;
+            }
+
             // Update the database with the new records -----------------------
             await collection.updateOne(
-                { name: rootDocumentName },
+                this.documentFilter(rootDocumentName),
                 [
                     { $set: {
-                        [subDocumentName]: { $concatArrays: [
-                            { $ifNull: [`$${subDocumentName}`, []] },
+                        [path]: { $concatArrays: [
+                            { $ifNull: [`$${path}`, []] },
                             { $filter: {
                                 input: { $literal: newRecords.map(record => {
                                     const { completed, quantity, target, ...shared } = record as T & { completed?: boolean; quantity?: number; target?: number };
                                     return shared;
                                 }) },
                                 as: "record",
-                                cond: { $not: [{ $in: ["$$record.title", { $map: {
-                                    input: { $ifNull: [`$${subDocumentName}`, []] }, as: "existing", in: "$$existing.title",
+                                cond: { $not: [{ $in: [subDocumentName === 'events' ? mongoEventIdentity('$$record') : "$$record.title", { $map: {
+                                    input: { $ifNull: [`$${path}`, []] }, as: "existing", in: subDocumentName === 'events' ? mongoEventIdentity('$$existing') : "$$existing.title",
                                 } }] }] },
                             } },
                         ] },
@@ -228,19 +252,20 @@ export class DataService {
 
             const storedVersion = rootDocument["version"] as Version | undefined;
             const isNewVersion = storedVersion?.title !== version.title;
+            const nextVersion = isNewVersion ? version : { ...storedVersion, ...version };
 
-            if (!isNewVersion) {
+            if (JSON.stringify(storedVersion) === JSON.stringify(nextVersion)) {
                 Logger.info(`Version unchanged: ${version.title}`);
                 return false;
             }
 
             await collection.updateOne(
-                { name: rootDocumentName },
-                { $set: { version } }
+                this.documentFilter(rootDocumentName),
+                { $set: { version: nextVersion }, $inc: { _revision: 1 } }
             );
 
             Logger.info(`Updated version: ${version.title}`);
-            return true;
+            return isNewVersion;
 
         } catch (err) {
             Logger.error("Error updating version: ", err);

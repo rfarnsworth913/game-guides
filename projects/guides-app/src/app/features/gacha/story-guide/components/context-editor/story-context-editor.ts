@@ -1,26 +1,40 @@
-import { Component, input } from '@angular/core';
+import { Component, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import type { StoryContext } from "../../../../../../../../lib/types/story-context.type";
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from "../../../../../../../../lib/enums/story-tracking.enum";
-import { worldQuestPrerequisites } from "../../../../../../../../common/quests/world-quest";
-import { WORLD_QUEST_SUBTYPES } from "../../../../../../../../lib/constants/world-quest.constants";
+import { NgTemplateOutlet } from '@angular/common';
+import type { StoryContext } from "@lib/types/story-context.type";
+import { StoryAvailability, StoryRequirementType } from "@lib/enums/story-tracking.enum";
+import { worldQuestPrerequisites } from "@common/quests/world-quest";
+import { StorySubtypeEditor } from './story-subtype-editor';
+
+import { RequirementPicker } from './requirement-picker';
+import type { Entry } from '../../../../../core/state/workspace.store';
 
 @Component({
     selector: 'gg-story-context-editor',
-    imports: [FormsModule],
+    imports: [FormsModule, NgTemplateOutlet, RequirementPicker, StorySubtypeEditor],
     templateUrl: "./story-context-editor.html",
+    styleUrls: ["./story-context-editor.scss", "./story-context-panels.scss"],
 })
 export class StoryContextEditor {
     readonly context = input.required<StoryContext>();
     readonly row = input(false);
+    readonly inline = input(false);
+    readonly showSubtype = input(true);
+    readonly showAvailabilityFields = input(true);
+    readonly showRequirements = input(true);
+    readonly panels = input(false);
+    readonly requirementsExpanded = signal(false);
+    readonly relatedExpanded = signal(false);
+    readonly panelId = 'context-panels-' + crypto.randomUUID();
+    readonly toggleExpanded = (value: boolean) => !value;
+    requirementCount(): number {return (this.context().prerequisites?.length ?? 0) + (this.context().requirements?.length ?? 0);}
     readonly worldQuest = input(false);
     readonly standalone = { standalone: true };
-    readonly trackingModes = Object.values(StoryTrackingMode);
+    readonly game = input('');
+    readonly entries = input<Entry[]>([]);
     readonly availabilities = Object.values(StoryAvailability);
     readonly requirementTypes = Object.values(StoryRequirementType);
     readonly gateTypes = [StoryRequirementType.Prerequisite, StoryRequirementType.Unlock, StoryRequirementType.TimeGate, StoryRequirementType.Location];
-    readonly subtypeListId = 'world-subtypes-' + crypto.randomUUID();
-    readonly worldSubtypes = [...WORLD_QUEST_SUBTYPES.keys()];
     readonly prerequisites = () => worldQuestPrerequisites(this.context());
     requirementStatus(): string {
         const gates = this.prerequisites();

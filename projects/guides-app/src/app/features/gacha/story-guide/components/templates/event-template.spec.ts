@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from "./patch-overview/patch-overview";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
-import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "../../../../../../../../common/quests/story-template";
-import type { PatchOverview } from "../../../../../../../../lib/types/story-template.type";
-import { StoryAvailability, StoryRequirementType } from "../../../../../../../../lib/enums/story-tracking.enum";
+import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "@common/quests/story-template";
+import type { PatchOverview } from "@lib/types/story-template.type";
+import { StoryAvailability, StoryRequirementType } from "@lib/enums/story-tracking.enum";
 
 describe('Event banner, metadata bar and content groups', () => {
     function setup() {
@@ -28,19 +28,27 @@ describe('Event banner, metadata bar and content groups', () => {
         const bar = root.querySelector('.guide-event-info')!;
         expect(bar.nextElementSibling?.tagName).toBe('GG-STORY-CONTENT-LIST');
         expect(root.querySelector('.guide-event-overview')).toBeNull();
+        expect(root.querySelector('.guide-reading-view')?.classList.contains('patch-reading-view')).toBe(true);
+        expect(root.querySelector('.patch-group-heading .guide-group-progress small')?.textContent).toBe('33%');
+        expect(root.querySelector('.patch-group-heading .patch-type-icon')).not.toBeNull();
         expect(root.querySelector('.guide-row-heading h5')?.textContent?.trim()).toBe('Challenge Stages');
-        expect(root.querySelector('.guide-linked-heading > span')?.textContent).toBe('1 / 3');
+        expect(root.querySelector('.patch-group-heading .guide-group-progress strong')?.textContent).toBe('1 / 3');
         expect(root.querySelectorAll('gg-story-content-list .guide-patch-badge')).toHaveLength(3);
         expect(root.querySelector('.guide-event-info .guide-patch-badge')?.textContent).toBe('Patch 1.0');
         expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
         expect(root.querySelector('#story-row-event-guide-stages input')).toBeNull();
-        expect(root.querySelector('#story-row-event-guide-stage-1 .guide-row-details .notes-markdown')?.textContent).toContain('Challenge stage 2');
+        const stage = root.querySelector('#story-row-event-guide-stage-1')!;
+        expect(stage.querySelector('.guide-row-title')?.textContent).toBe('Melting Point of Flesh');
+        expect(stage.querySelector('.patch-row-description .notes-markdown')?.textContent).toContain('Challenge stage 2');
+        expect(stage.querySelector('.guide-row-details')).toBeNull();
+        expect(stage.firstElementChild?.classList.contains('guide-row-tracking')).toBe(true);
+        expect(stage.lastElementChild?.tagName).toBe('GG-PATCH-BADGE');
         expect(root.querySelector('.guide-event-stage-heading')).toBeNull();
     });
     it('separates group links, collapse controls and ID-based completion', () => {
         const { fixture, root, save, entry } = setup();
-        const link = root.querySelector<HTMLAnchorElement>('.guide-linked-heading h4 a')!;
-        const button = root.querySelector<HTMLButtonElement>('.guide-linked-heading button')!;
+        const link = root.querySelector<HTMLAnchorElement>('.patch-group-heading h4 a')!;
+        const button = root.querySelector<HTMLButtonElement>('.patch-group-heading button')!;
         expect(link.href).toBe('https://example.com/event');
         expect(link.target).toBe('_blank');
         expect(link.rel).toBe('noopener noreferrer');
@@ -70,7 +78,7 @@ describe('Event banner, metadata bar and content groups', () => {
         fixture.componentRef.setInput('incompleteOnly', true);
         fixture.detectChanges();
         expect(root.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
-        expect(root.querySelector('.guide-linked-heading > span')?.textContent).toBe('1 / 3');
+        expect(root.querySelector('.patch-group-heading .guide-group-progress strong')?.textContent).toBe('1 / 3');
         expect([...root.querySelectorAll('.guide-event-facts dd')].at(-1)?.textContent).toBe('1 / 3');
         expect(data.rows.map(row => row.id)).toEqual(['stages', 'stage-0', 'stage-1', 'stage-2']);
     });

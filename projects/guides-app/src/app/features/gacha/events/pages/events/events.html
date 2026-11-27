@@ -1,264 +1,185 @@
-<section class="events-tracker" aria-label="Event tracking">
+<section class="events-tracker" aria-label="Event tracking" [class.compact-calendar]="compact()">
     <div class="events-toolbar">
         <div class="event-view-switch" aria-label="Event view">
-            <button
-                type="button"
-                [class.active]="view() === 'list'"
-                [attr.aria-pressed]="view() === 'list'"
-                (click)="view.set('list')"
-            >
-                List
-            </button>
-            <button
-                type="button"
-                [class.active]="view() === 'calendar'"
-                [attr.aria-pressed]="view() === 'calendar'"
-                (click)="view.set('calendar')"
-            >
-                Calendar
-            </button>
+            <button type="button" [class.active]="view() === 'list'" [attr.aria-pressed]="view() === 'list'" (click)="view.set('list')">List</button>
+            <button type="button" [class.active]="view() === 'calendar'" [attr.aria-pressed]="view() === 'calendar'" (click)="view.set('calendar')">Calendar</button>
         </div>
-        <input
-            type="search"
-            aria-label="Search events"
-            placeholder="Search events…"
-            [ngModel]="search()"
-            (ngModelChange)="search.set($event)"
-        />
-        <label class="events-completed-filter"
-            ><input
-                type="checkbox"
-                [ngModel]="showCompleted()"
-                (ngModelChange)="showCompleted.set($event)"
-            />
-            Show completed</label
-        >
-    </div>
-    <div class="event-type-tabs" aria-label="Filter event type">
-        <button
-            type="button"
-            [class.active]="!type()"
-            [attr.aria-pressed]="!type()"
-            (click)="type.set('')"
-        >
-            All <span>{{ entries().length }}</span>
-        </button>
-        @for (eventType of types(); track eventType) {
-            <button
-                type="button"
-                [class.active]="type() === eventType"
-                [attr.aria-pressed]="type() === eventType"
-                (click)="type.set(eventType)"
-            >
-                {{ typeLabel(eventType) }}
-            </button>
+        <input type="search" aria-label="Search events" placeholder="Search events..." [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        @if (!game()) {
+            <select class="events-game-select" aria-label="Filter events by game" [ngModel]="selectedGame()" (ngModelChange)="selectedGame.set($event)">
+                <option value="">All games</option>
+                @for (game of games(); track game.gameId) { <option [value]="game.gameId">{{ game.name }}</option> }
+            </select>
         }
+        <button type="button" class="events-filters-button" [attr.aria-expanded]="filtersOpen()" aria-controls="events-secondary-filters" (click)="filtersOpen.set(!filtersOpen())">Filters</button>
+        <button type="button" class="events-backlog-button" [attr.aria-expanded]="backlogOpen()" (click)="backlogOpen.set(true)">Backlog <span>{{ backlog().length }}</span></button>
     </div>
-    <p class="events-help">
-        {{
-            store.auth?.user()
-                ? 'Completion syncs to your account.'
-                : 'Completion is saved in this browser. Sign in to sync across devices.'
-        }}
-        Select an event to open its linked page.
-    </p>
-    @if (error()) {
-        <p class="alert" role="alert">{{ error() }}</p>
-    }
-    @if (message()) {
-        <p class="event-message" role="status">{{ message() }}</p>
-    }
-    @if (store.loading() || !store.initialized()) {
-        <p class="events-empty" role="status">Loading events…</p>
-    } @else {
-        @if (view() === 'calendar') {
-            <div class="event-calendar-toolbar">
-                <h2 aria-live="polite">{{ monthLabel() }}</h2>
-                <div class="event-month-actions">
-                    <button type="button" aria-label="Previous month" (click)="changeMonth(-1)">
-                        &#8249;
-                    </button>
-                    <button type="button" (click)="today()">Today</button>
-                    <button type="button" aria-label="Next month" (click)="changeMonth(1)">
-                        &#8250;
-                    </button>
+    <section class="events-secondary-filters" id="events-secondary-filters" aria-label="Event filters" [hidden]="!filtersOpen()">
+        @if (!game()) {
+            <div class="events-select-field"><span id="events-groups-label">Groups</span>
+            <details #groupPicker class="event-type-filter dropdown" (keydown.escape)="groupPicker.open = false; groupSummary.focus(); $event.stopPropagation()">
+                <summary #groupSummary class="dropdown-toggle" aria-describedby="events-groups-label">{{ selectedGroups().includes('__none__') ? 'No groups' : selectedGroups().length ? selectedGroups().length + ' selected' : 'All groups' }}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+                <div class="dropdown-menu" role="group" aria-label="Filter event groups">
+                    <label class="dropdown-item"><input #allGroups type="checkbox" [checked]="!selectedGroups().length" (change)="selectedGroups.set([]); allGroups.checked = true" />All groups</label>
+                    <hr class="dropdown-divider" />
+                    @for (group of types(); track group) { <label class="dropdown-item"><input type="checkbox" [checked]="selectedGroups().includes(group)" (change)="toggleGroup(group)" />{{ typeLabel(group) }}</label> }
                 </div>
+            </details>
             </div>
-            <p class="events-help">
-                Events span their scheduled dates. Events without dates appear below the calendar.
-            </p>
-            <table class="event-calendar">
-                <caption class="visually-hidden">
-                    Events for
-                    {{
-                        monthLabel()
-                    }}
-                </caption>
-                <thead>
-                    <tr>
-                        @for (weekday of weekdays; track weekday) {
-                            <th scope="col">{{ weekday }}</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (week of weeks(); track $index) {
-                        <tr>
-                            @for (day of week; track day.key) {
-                                <td
-                                    [class.outside-month]="!day.currentMonth"
-                                    [class.today]="day.today"
-                                    [attr.aria-label]="dayLabel(day.date)"
-                                >
-                                    <time
-                                        [attr.datetime]="day.key"
-                                        [attr.aria-current]="day.today ? 'date' : null"
-                                        >{{ day.date.getDate() }}</time
-                                    >
-                                    @for (entry of day.events; track entry.id) {
-                                        <div
-                                            class="calendar-event"
-                                            [class.is-completed]="entry.completed"
-                                            [title]="
-                                                entry.name + ' · ' + typeLabel(eventType(entry))
-                                            "
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                [checked]="entry.completed"
-                                                [disabled]="busy()"
-                                                [attr.aria-label]="
-                                                    'Mark ' +
-                                                    entry.name +
-                                                    (entry.completed ? ' incomplete' : ' complete')
-                                                "
-                                                (change)="toggle(entry)"
-                                            />
-                                            <a
-                                                [attr.href]="url(entry)"
-                                                [attr.target]="url(entry) ? '_blank' : null"
-                                                rel="noopener noreferrer"
-                                                [attr.aria-disabled]="url(entry) ? null : 'true'"
-                                                [attr.aria-label]="
-                                                    entry.name +
-                                                    (url(entry)
-                                                        ? ' (opens in a new tab)'
-                                                        : ' (no event link)')
-                                                "
-                                                >{{ entry.name }}</a
-                                            >
-                                        </div>
-                                    }
-                                </td>
-                            }
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            @if (undated().length) {
-                <h3 class="undated-title">Events without dates</h3>
-            }
+        } @else {
+            <label>Event type<select aria-label="Filter event type" [ngModel]="type()" (ngModelChange)="type.set($event)"><option value="">All types</option>@for (eventType of types(); track eventType) { <option [value]="eventType">{{ typeLabel(eventType) }}</option> }</select></label>
         }
-        @if (view() === 'list' || undated().length) {
-            <div class="event-list" role="list" aria-label="Events">
-                @for (entry of view() === 'list' ? filtered() : undated(); track entry.id) {
-                    <article
-                        class="event-row"
-                        role="listitem"
-                        [class.is-completed]="entry.completed"
-                        [class.is-urgent]="!entry.completed && timing(entry).urgent"
-                    >
-                        <label
-                            class="event-completion"
-                            [title]="entry.completed ? 'Completed' : 'Mark complete'"
-                        >
-                            <input
-                                type="checkbox"
-                                [checked]="entry.completed"
-                                [disabled]="busy()"
-                                [attr.aria-label]="
-                                    'Mark ' +
-                                    entry.name +
-                                    (entry.completed ? ' incomplete' : ' complete')
-                                "
-                                (change)="toggle(entry)"
-                            />
-                        </label>
-                        <a
-                            class="event-body"
-                            [attr.href]="url(entry)"
-                            [attr.target]="url(entry) ? '_blank' : null"
-                            rel="noopener noreferrer"
-                            [attr.aria-disabled]="url(entry) ? null : 'true'"
-                            [attr.aria-label]="
-                                entry.name +
-                                (url(entry) ? ' (opens in a new tab)' : ' (no event link)')
-                            "
-                        >
-                            <span class="event-icon">
-                                @if (image(entry); as icon) {
-                                    <img
-                                        [src]="icon"
-                                        alt=""
-                                        loading="lazy"
-                                        (error)="imageFailed(entry.id)"
-                                    />
-                                } @else {
-                                    <span aria-hidden="true">{{ entry.name.slice(0, 1) }}</span>
-                                }
-                            </span>
-                            <span class="event-title"
-                                ><span class="event-type-badge">{{
-                                    typeLabel(eventType(entry))
-                                }}</span
-                                ><strong>{{ entry.name }}</strong>
-                                @if (entry.completed) {
-                                    <small>Completed</small>
-                                }
-                                @if (!url(entry)) {
-                                    <small>No event link</small>
-                                }
-                            </span>
-                            <span class="event-deadline" [title]="dateRange(entry)"
-                                ><span aria-hidden="true">&#9719;</span>
-                                {{ timing(entry).label }}</span
-                            >
-                        </a>
-                        @if (store.canEdit() && !entry.id.startsWith('parsed-event-')) {
-                            <div class="event-admin-actions">
-                                <button
-                                    type="button"
-                                    (click)="edit.emit(entry)"
-                                    [disabled]="busy()"
-                                    [attr.aria-label]="'Edit ' + entry.name"
-                                >
-                                    Edit
-                                </button>
-                                <button
-                                    type="button"
-                                    (click)="remove.emit(entry)"
-                                    [disabled]="busy()"
-                                    [attr.aria-label]="'Delete ' + entry.name"
-                                >
-                                    Delete
-                                </button>
+        <label>Date range<select aria-label="Filter events by date range" [ngModel]="period()" (ngModelChange)="selectPeriod($event)">
+            <option value="all">All dates</option><option value="today">Today</option><option value="week">Current week</option><option value="next-7-days">Next 7 days</option><option value="month">Current month</option><option value="next-month">Next month</option><option value="year">Current year</option>
+        </select></label>
+        <label>Status<select aria-label="Filter events by status" [ngModel]="status()" (ngModelChange)="status.set($event)"><option value="all">All events</option><option value="not-expired">Hide expired</option><option value="active">Active only</option></select></label>
+        <label class="events-check-filter"><input type="checkbox" [ngModel]="showCompleted()" (ngModelChange)="showCompleted.set($event)" />Show completed</label>
+    </section>
+    <section class="events-secondary-filters events-scheduling-settings" id="events-scheduling-settings" aria-label="Scheduling settings" [hidden]="!settingsOpen()">
+        <div class="event-settings-heading"><h2>Scheduling settings</h2><button type="button" aria-label="Close scheduling settings" (click)="settingsOpen.set(false)">&times;</button></div>
+        <label class="events-check-filter"><input type="checkbox" [ngModel]="balanceEnabled()" (ngModelChange)="setBalance($event)" />Balance events</label>
+        @if (view() === 'calendar') { <label class="events-check-filter"><input type="checkbox" [ngModel]="compact()" (ngModelChange)="compact.set($event)" />Compact calendar</label> }
+        <label>Maximum tasks/day<input type="number" aria-label="Maximum tasks per day" min="1" max="1000" placeholder="Auto" [ngModel]="maxPerDay() || null" (ngModelChange)="setDailyLimit($event)" /></label>
+        <p class="events-help">Plans cover the next 30 days {{ game() ? 'for this game' : 'across all enabled games' }}. Filters only change what you see. Change pinned dates in a row's Schedule menu, day details, or Backlog.</p>
+        @if (pinnedEvents().length) { <ul class="event-pinned-list" aria-label="Manually pinned events">@for (entry of pinnedEvents(); track eventKey(entry)) { <li><span>{{ entry.name }}</span><time [attr.datetime]="manualPins()[eventKey(entry)]">{{ manualPins()[eventKey(entry)] }}</time><button type="button" [disabled]="busy()" [attr.aria-label]="'Unpin ' + entry.name" (click)="unpin(entry)">Unpin</button></li> }</ul> }
+    </section>
+    @if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
+    @if (store.loading() || !store.initialized()) { <p class="events-empty" role="status">Loading events...</p> }
+    @else {
+        @if (view() === 'list') {
+            <section class="event-list-overview" aria-label="Event overview">
+                <div class="event-overview-title"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/></svg><div><h2>{{ listHeading() }}</h2><p>{{ listDescription() }}</p></div></div>
+                <div class="event-overview-stat"><span>Total</span><strong>{{ listStats().total }}</strong></div>
+                <button type="button" class="event-overview-stat is-success" [attr.aria-pressed]="summaryFilter() === 'completed'" (click)="showSummary('completed')"><span>Completed</span><strong>{{ listStats().completed }}</strong></button>
+                <div class="event-overview-stat event-overview-progress"><span class="event-progress-ring" [style.--progress]="listStats().percent + '%'" aria-hidden="true"></span><div><span>Progress</span><strong>{{ listStats().percent }}%</strong></div></div>
+                <div class="event-overview-stat"><span>Remaining</span><strong>{{ listStats().remaining }}</strong></div>
+                <div class="event-overview-stat" [class.is-overdue]="listStats().overdue > 0"><span>Overdue</span><strong>{{ listStats().overdue }}</strong></div>
+            </section>
+        } @else {
+        <section class="event-balance-summary" aria-label="Balanced event plan">
+            <div class="event-summary-stats">
+                <button type="button" [attr.aria-pressed]="summaryFilter() === 'scheduled'" (click)="showSummary('scheduled')"><span>Scheduled</span><strong>{{ scheduledCount() }}</strong><small>{{ remainingCount() }} remaining tasks</small></button>
+                <button type="button" (click)="backlogOpen.set(true)"><span>Unscheduled</span><strong>{{ backlog().length }}</strong><small>Open backlog</small></button>
+                <button type="button" [attr.aria-pressed]="summaryFilter() === 'completed'" (click)="showSummary('completed')"><span>Completed</span><strong>{{ completedCount() }}</strong><small>Review completed events</small></button>
+                <button type="button" aria-controls="events-scheduling-settings" [attr.aria-expanded]="settingsOpen()" (click)="settingsOpen.set(true)"><span>Tasks per day</span><strong>{{ maxPerDay() || (balanceEnabled() ? balancePlan().dailyLimit : 'Auto') }}</strong><small>{{ maxPerDay() ? 'Configured daily limit' : 'Automatic capacity' }}</small></button>
+            </div>
+            <button type="button" [disabled]="busy()" (click)="setBalance(true); rebalance()">Rebalance</button>
+        </section>
+        }
+        @if (summaryFilter() !== 'all') { <div class="events-summary-filter" role="status">Showing {{ summaryFilter() }} events <button type="button" (click)="summaryFilter.set('all')">Show all events</button></div> }
+        @if (balanceEnabled()) {
+            <p class="events-help">Balanced plan · Next 30 days · Up to {{ maxPerDay() || balancePlan().dailyLimit }} tasks/day. The date range shows assigned days. Manual dates are kept; checking off events does not move other tasks.</p>
+            @for (conflict of balancePlan().conflicts; track conflict) { <p class="alert" role="alert">{{ conflict }}</p> }
+        }
+        @if (view() === 'calendar') {
+            <div class="event-calendar-toolbar"><h2 aria-live="polite">{{ monthLabel() }}</h2><div class="event-month-actions"><button type="button" aria-label="Previous month" (click)="changeMonth(-1)">&#8249;</button><button type="button" (click)="today()">Today</button><button type="button" aria-label="Next month" (click)="changeMonth(1)">&#8250;</button></div></div>
+            <table class="event-calendar"><caption class="visually-hidden">Events for {{ monthLabel() }}</caption>
+                <thead><tr>@for (weekday of weekdays; track weekday) { <th scope="col">{{ weekday }}</th> }</tr></thead>
+                <tbody>@for (week of weeks(); track $index) { <tr>@for (day of week; track day.key) {
+                    <td [class.outside-month]="!day.currentMonth" [class.today]="day.today" [attr.aria-label]="dayLabel(day.date)">
+                        <div class="event-day-heading"><button type="button" class="event-day-button" [attr.aria-label]="'View events for ' + dayLabel(day.date)" (click)="selectedDay.set(day.key)"><time [attr.datetime]="day.key" [attr.aria-current]="day.today ? 'date' : null">{{ day.date.getDate() }}</time></button>
+                        @if (balanceEnabled() && day.events.length) { <span class="event-day-count" [attr.title]="remaining(day.events) + ' remaining / ' + (maxPerDay() || balancePlan().dailyLimit) + ' daily capacity'">{{ remaining(day.events) }} / {{ maxPerDay() || balancePlan().dailyLimit }}</span> }</div>
+                        @for (entry of day.events; track eventKey(entry)) {
+                            <div class="calendar-event" [class.is-completed]="entry.completed" [class.is-pinned]="!!manualPins()[eventKey(entry)]" [style.--event-game-color]="gameColor(entry.game)" [title]="tooltip(entry)">
+                                <input type="checkbox" [checked]="entry.completed" [indeterminate]="progress(entry).completed > 0 && !entry.completed" [disabled]="busy()" [attr.aria-label]="'Mark ' + entry.name + (entry.completed ? ' incomplete' : ' complete')" (click)="$event.stopPropagation()" (change)="toggle(entry, $event)" />
+                                <span class="event-game-badge" [title]="gameName(entry.game)" [attr.aria-label]="gameName(entry.game)">{{ gameShort(entry.game) }}</span>
+                                <a [attr.href]="url(entry)" [attr.target]="external(entry) ? '_blank' : null" rel="noopener noreferrer" [attr.aria-disabled]="url(entry) ? null : 'true'" [attr.aria-describedby]="'event-tooltip-' + eventKey(entry) + '-' + day.key">{{ entry.name }}</a>
+                                <span role="tooltip" class="event-focus-tooltip" [id]="'event-tooltip-' + eventKey(entry) + '-' + day.key">{{ tooltip(entry) }}</span>
+                                @if (timing(entry).urgent && !entry.completed) { <span class="event-deadline-warning" [attr.aria-label]="timing(entry).label">!</span> }
+                                @if (manualPins()[eventKey(entry)]) { <span class="event-pinned-mark" aria-label="Manually scheduled">&#9670;</span> }
                             </div>
                         }
-                    </article>
-                }
+                    </td>
+                }</tr> }</tbody>
+            </table>
+        } @else {
+            <div class="event-list-layout">
+            <section class="event-list-main" aria-label="Events by game">
+                <div class="event-list-controls">
+                    <label>Sort:<select aria-label="Sort event groups" [ngModel]="listSort()" (ngModelChange)="listSort.set($event)"><option value="game">Game (A–Z)</option><option value="deadline">Next deadline</option></select></label>
+                    <div class="event-list-tools"><button type="button" aria-controls="events-scheduling-settings" [attr.aria-expanded]="settingsOpen()" (click)="settingsOpen.set(!settingsOpen())">Scheduling</button><button type="button" [disabled]="busy()" (click)="setBalance(true); rebalance()">Rebalance</button><button type="button" (click)="expandGroups()">Expand All</button><button type="button" (click)="collapseGroups()">Collapse All</button></div>
+                </div>
+                <div class="event-list-planning">
+                    <label><input type="checkbox" [ngModel]="balanceEnabled()" (ngModelChange)="setBalance($event)" />Balance events</label>
+                    @if (balanceEnabled()) {
+                        <span>{{ remainingCount() }} scheduled tasks remaining in view</span>
+                        <button type="button" [attr.aria-pressed]="period() === 'today'" (click)="selectPeriod('today')">Today's tasks</button>
+                        <button type="button" [attr.aria-pressed]="period() === 'all'" (click)="selectPeriod('all')">Full plan</button>
+                    }
+                </div>
+            <div class="event-groups" aria-label="Events">@for (group of listGroups(); track group.id) {
+                <details class="event-list-group" [attr.data-group]="group.id" [open]="!collapsedGroups().includes(group.id)" (toggle)="setGroupOpen(group.id, $event)">
+                    <summary>
+                        <span class="event-group-icon" [style.--event-game-color]="gameColor(group.id)">@if (gameIcon(group.id); as icon) {<img [src]="icon" alt="" (error)="imageFailed('game:' + group.id)" />} @else { {{ gameShort(group.id) }} }</span>
+                        <h2>{{ group.title }}</h2><span class="event-group-count">{{ group.entries.length }} {{ group.entries.length === 1 ? 'item' : 'items' }}</span>
+                        <span class="event-group-completed">{{ group.completed }} / {{ group.entries.length }} <span>Completed</span></span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+                    </summary>
+                    <div class="event-list" role="list" [attr.aria-label]="group.title">@for (entry of group.entries; track eventKey(entry)) { <ng-container *ngTemplateOutlet="eventRow; context: { $implicit: entry, schedule: true }" /> }</div>
+                </details>
+            }</div>
+            </section>
+            <div class="event-list-sidebar" role="complementary" aria-label="Event insights">
+                <section class="event-insight-panel"><h2><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 5-10 5L2 8Zm-10 9 10 5 10-5M2 16l10 5 10-5"/></svg>Event Types {{ period() === 'today' ? '(Today)' : '' }}</h2>
+                    <div class="event-type-options">@for (item of typeCounts(); track item.type) {
+                        <label><input type="checkbox" [checked]="typeSelected(item.type)" (change)="toggleListType(item.type)" /><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="typeIcon(item.type)"/></svg><span>{{ typeLabel(item.type) }}</span><span class="event-type-count">{{ item.count }}</span></label>
+                    } @empty {<p class="events-help">No event types in this range.</p>}</div>
+                    @if (selectedGroups().length || type()) {<button type="button" class="event-clear-types" (click)="selectedGroups.set([]); type.set('')">Show all types</button>}
+                </section>
+                <section class="event-insight-panel"><h2><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></svg>{{ period() === 'today' ? 'Today at a Glance' : 'Coming Up' }}</h2>
+                    <ol class="event-deadline-timeline">@for (entry of nextDeadlines(); track eventKey(entry)) {
+                        <li><strong>{{ deadlineLabel(entry) }}</strong><span>{{ gameShort(entry.game) }} · {{ entry.name }}</span></li>
+                    } @empty {<li class="event-no-deadlines">No upcoming deadlines in this view.</li>}</ol>
+                </section>
+            </div>
             </div>
         }
-        @if (!filtered().length) {
-            <div class="events-empty">
-                <h2>{{ entries().length ? 'No matching events' : 'No events yet' }}</h2>
-                <p>
-                    {{
-                        entries().length
-                            ? 'Try another event type or search, or show completed events.'
-                            : 'Events will appear here when they are available in this game’s database.'
-                    }}
-                </p>
-            </div>
-        }
+        @if (!filtered().length) { <div class="events-empty"><h2>{{ entries().length ? balanceEnabled() ? 'No scheduled tasks in this view' : 'No matching events' : 'No events yet' }}</h2><p>{{ balanceEnabled() ? 'Change the date range or filters. Unscheduled events are available in Backlog.' : 'Try another game, group, date range, or status.' }}</p></div> }
     }
 </section>
+
+<ng-template #eventRow let-entry let-schedule="schedule">
+    <article class="event-row" role="listitem" [class.has-scheduling]="balanceEnabled() && schedule" [class.is-completed]="entry.completed" [style.--event-game-color]="gameColor(entry.game)" [title]="tooltip(entry)">
+        <label class="event-completion"><input type="checkbox" [checked]="entry.completed" [indeterminate]="progress(entry).completed > 0 && !entry.completed" [disabled]="busy()" [attr.aria-label]="'Mark ' + entry.name + (entry.completed ? ' incomplete' : ' complete')" (click)="$event.stopPropagation()" (change)="toggle(entry, $event)" /></label>
+        <span class="event-game-badge" [title]="gameName(entry.game)">{{ gameShort(entry.game) }}</span>
+        <a class="event-body" [attr.href]="url(entry)" [attr.target]="external(entry) ? '_blank' : null" rel="noopener noreferrer" [attr.aria-disabled]="url(entry) ? null : 'true'" [attr.aria-description]="tooltip(entry)" [title]="entry.name"><span class="event-title"><strong>{{ entry.name }}</strong>@if (balanceEnabled() && plannedDate(entry)) {<small class="event-suggested">{{ manualPins()[eventKey(entry)] ? 'Pinned:' : 'Scheduled:' }} {{ plannedDateLabel(entry) }}</small>}</span></a>
+        <span class="event-objectives">@if (progress(entry).total) {<span>{{ progress(entry).completed }} / {{ progress(entry).total }}</span><span class="event-objective-track" role="progressbar" [attr.aria-label]="entry.name + ' objectives'" [attr.aria-valuenow]="progress(entry).completed" [attr.aria-valuemax]="progress(entry).total" aria-valuemin="0"><span [style.width.%]="progress(entry).completed / progress(entry).total * 100"></span></span>}</span>
+        <span class="event-deadline" [class.urgent]="timing(entry).urgent && !entry.completed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4ZM8 2v6m8-6v6M4 11h16m-12 4h2m4 0h2"/></svg><span>{{ deadlineLabel(entry) }}</span></span>
+        @if (balanceEnabled() && schedule) {
+            <details #scheduler class="event-schedule-actions" (keydown.escape)="scheduler.open = false; scheduleSummary.focus(); $event.stopPropagation()">
+                <summary #scheduleSummary [attr.aria-label]="'Schedule ' + entry.name"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4ZM8 2v6m8-6v6M4 11h16m-8 3v5m-3-2h6"/></svg></summary>
+                <div class="event-schedule-menu"><strong>{{ entry.name }}</strong><ng-container *ngTemplateOutlet="pinControls; context: { $implicit: entry }" /></div>
+            </details>
+        }
+        @if (store.canEdit() && (!entry.id.startsWith('parsed-event-') || entry.eventStory)) { <details #actions class="event-admin-actions" (keydown.escape)="actions.open = false; actionsSummary.focus(); $event.stopPropagation()"><summary #actionsSummary [attr.aria-label]="'Actions for ' + entry.name">&hellip;</summary><div class="event-actions-menu"><button type="button" [attr.aria-label]="'Edit ' + entry.name" [disabled]="busy()" (click)="actions.open = false; edit.emit(entry)">Edit</button><button type="button" class="event-delete-action" [attr.aria-label]="'Delete ' + entry.name" [disabled]="busy()" (click)="actions.open = false; remove.emit(entry)">Delete</button></div></details> }
+    </article>
+</ng-template>
+<ng-template #pinControls let-entry>
+    <div class="event-pin-controls"><label>Suggested day<input type="date" [attr.aria-label]="'Scheduled date for ' + entry.name" [ngModel]="pinInput(entry)" (ngModelChange)="setPinDraft(entry, $event)" [disabled]="busy() || entry.completed" /></label><button type="button" (click)="pinEvent(entry)" [disabled]="busy() || entry.completed">Pin date</button>@if (manualPins()[eventKey(entry)]) { <button type="button" (click)="unpin(entry)" [disabled]="busy()">Unpin</button> }</div>
+</ng-template>
+@if (backlogOpen()) {
+    <button type="button" class="event-panel-backdrop" aria-label="Close backlog" (click)="backlogOpen.set(false)"></button>
+    <aside class="event-backlog" role="dialog" aria-modal="true" aria-labelledby="event-backlog-title" [attr.inert]="completionConfirmation() ? '' : null" ggDialogFocus (keydown.escape)="backlogOpen.set(false); $event.stopPropagation()">
+        <div class="event-panel-heading"><h2 id="event-backlog-title">Unscheduled events <small>{{ backlog().length }}</small></h2><button type="button" aria-label="Close backlog" (click)="backlogOpen.set(false)">&times;</button></div>
+        <label class="event-backlog-sort">Sort by<select [ngModel]="backlogSort()" (ngModelChange)="backlogSort.set($event)"><option value="deadline">Deadline</option><option value="game">Game</option><option value="completion">Completion</option></select></label>
+        @if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
+        @if (balanceEnabled()) {<p class="events-help">Unscheduled tasks across the planning window. The display date range does not hide Backlog items.</p>}
+        <div class="event-list" role="list">@for (entry of backlog(); track eventKey(entry)) {
+            <section class="event-backlog-item"><ng-container *ngTemplateOutlet="eventRow; context: { $implicit: entry }" /><p class="events-help">{{ entry.completed ? 'Completed event. Uncheck to return it to the workload.' : balanceEnabled() ? balanceReason(entry) : 'No suggested completion day assigned. Enable Balance events or pin a date.' }}</p><p class="events-help">Deadline: {{ entry.endDate || 'Not specified' }}</p><ng-container *ngTemplateOutlet="pinControls; context: { $implicit: entry }" /></section>
+        } @empty { <p class="events-empty">No unscheduled events match your filters.</p> }</div>
+    </aside>
+}
+@if (selectedDay() && !completionConfirmation()) {
+    <button type="button" class="event-panel-backdrop" aria-label="Close day details" (click)="selectedDay.set('')"></button>
+    <section class="event-day-dialog" role="dialog" aria-modal="true" aria-labelledby="event-day-title" ggDialogFocus (keydown.escape)="selectedDay.set(''); $event.stopPropagation()">
+        <div class="event-panel-heading"><h2 id="event-day-title">Events for {{ selectedDay() }}</h2><button type="button" aria-label="Close day details" (click)="selectedDay.set('')">&times;</button></div>
+        @if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
+        <div class="event-list" role="list">@for (entry of dayEvents(); track eventKey(entry)) { <div><ng-container *ngTemplateOutlet="eventRow; context: { $implicit: entry }" /><ng-container *ngTemplateOutlet="pinControls; context: { $implicit: entry }" /></div> } @empty { <p class="events-empty">No events on this day.</p> }</div>
+    </section>
+}
+@if (completionConfirmation(); as entry) {
+    <div class="event-confirm-backdrop"><section class="event-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="event-confirm-title" ggDialogFocus (keydown.escape)="completionConfirmation.set(null); $event.stopPropagation()">
+        <h2 id="event-confirm-title">{{ entry.completed ? 'Reset' : 'Complete' }} all required objectives?</h2><p>{{ entry.name }} has {{ progress(entry).total }} required objectives ({{ progress(entry).completed }} complete). {{ entry.completed ? 'All required objectives will become incomplete.' : 'All required objectives will be marked complete.' }} Optional objectives stay unchanged.</p>
+        <div class="event-confirm-actions"><button type="button" (click)="completionConfirmation.set(null)">Cancel</button><button type="button" class="primary" [disabled]="busy()" (click)="confirmCompletion()">{{ entry.completed ? 'Reset objectives' : 'Complete objectives' }}</button></div>
+    </section></div>
+}

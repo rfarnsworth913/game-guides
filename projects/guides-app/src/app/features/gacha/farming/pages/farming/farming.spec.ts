@@ -4,9 +4,9 @@ import { provideRouter } from '@angular/router';
 import { Farming } from "./farming";
 import { FarmingDataEditor } from "../../components/farming-data-editor/farming-data-editor";
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import type { CharacterRules } from "../../../../../../../../lib/types/character.type";
-import { emptyCharacterCollection, emptyCharacterDefinition } from "../../../../../../../../common/characters/characters";
-import type { FarmingConfig } from "../../../../../../../../lib/types/farming-config.type";
+import type { CharacterRules } from "@lib/types/character.type";
+import { emptyCharacterCollection, emptyCharacterDefinition } from "@common/characters/characters";
+import type { FarmingConfig } from "@lib/types/farming-config.type";
 
 const item: Entry = {
     id: 'book',

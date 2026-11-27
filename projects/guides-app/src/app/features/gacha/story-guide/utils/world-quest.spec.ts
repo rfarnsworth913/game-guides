@@ -4,11 +4,11 @@ import { StoryContentList } from "../components/content-list/story-content-list"
 import { StoryContextEditor } from "../components/context-editor/story-context-editor";
 import { PatchOverviewTemplate } from "../components/templates/patch-overview/patch-overview";
 import { Entry, WorkspaceStore } from "../../../../core/state/workspace.store";
-import { emptyPatchOverview, validPatchOverview } from "../../../../../../../common/quests/story-template";
-import type { PatchOverview, StoryTableRow } from "../../../../../../../lib/types/story-template.type";
-import { validStoryContext } from "../../../../../../../common/quests/story-guide";
-import { StoryRequirementType } from "../../../../../../../lib/enums/story-tracking.enum";
-import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "../../../../../../../common/quests/world-quest";
+import { emptyPatchOverview, validPatchOverview } from "@common/quests/story-template";
+import type { PatchOverview, StoryTableRow } from "@lib/types/story-template.type";
+import { validStoryContext } from "@common/quests/story-guide";
+import { StoryRequirementType, StoryAvailability } from "@lib/enums/story-tracking.enum";
+import { worldQuestGroups, worldQuestObjectives, worldQuestPrerequisites } from "@common/quests/world-quest";
 import { storyProgress } from "./story-progress";
 import { searchStoryGuides } from "./story-search";
 
@@ -35,6 +35,108 @@ describe('World Quest hierarchy', () => {
         fixture.detectChanges();
         return { fixture, data, root: (fixture.nativeElement as HTMLElement) as HTMLElement };
     }
+    it('allows adding requirements directly when prerequisites are unknown or explicitly empty', async () => {
+        const fixture = TestBed.createComponent(StoryContextEditor);
+        const context: NonNullable<StoryTableRow['context']> = {};
+        fixture.componentRef.setInput('context', context); fixture.componentRef.setInput('row', true); fixture.componentRef.setInput('worldQuest', true);
+        fixture.detectChanges(); await fixture.whenStable();
+        const root = fixture.nativeElement as HTMLElement;
+        const add = [...root.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent?.trim() === '+ Add requirement')!;
+        expect(add).toBeDefined(); expect(root.querySelector('.guide-requirement-editor')).toBeNull();
+        add.click(); fixture.detectChanges(); await fixture.whenStable();
+        expect(fixture.componentInstance.requirementStatus()).toBe('documented');
+        const description = root.querySelector<HTMLTextAreaElement>('.guide-requirement-editor textarea')!;
+        description.value = 'Reach level 20'; description.dispatchEvent(new Event('input')); fixture.detectChanges();
+        expect(context.prerequisites?.[0].text).toBe('Reach level 20');
+        expect(context.prerequisites?.[0].targetId).toBeUndefined();
+        const status = [...root.querySelectorAll('select')].find(select => [...select.options].some(option => option.value === 'none'))!;
+        status.value = 'none'; status.dispatchEvent(new Event('change')); fixture.detectChanges(); await fixture.whenStable();
+        expect(root.querySelector('.guide-requirement-editor')).toBeNull();
+        add.click(); fixture.detectChanges();
+        expect(fixture.componentInstance.requirementStatus()).toBe('documented');
+        expect(context.prerequisites).toHaveLength(1);
+    });
+    it('uses a compact text heading and shared cards with progress, without artwork or a hero banner', () => {
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { saving: () => false, loading: () => false } }] });
+        const data = fixtureData(); data.imageUrl = 'https://example.com/old-banner.webp'; data.patchVersion = '1.0'; data.summary = 'Explore the **region**.';
+        data.groups![0].contentUrl = 'https://example.com/region';
+        const before = structuredClone(data);
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        fixture.componentRef.setInput('entry', entryFor(data)); fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('.world-quest-title h3')?.textContent).toBe('World quests');
+        expect(root.querySelector('.world-quest-title .guide-patch-badge')?.textContent).toBe('Patch 1.0');
+        expect(root.querySelector('.world-quest-title .notes-markdown strong')?.textContent).toBe('region');
+        expect(root.querySelector('.patch-hero')).toBeNull(); expect(root.querySelector('.patch-banner')).toBeNull();
+        const title = root.querySelector('.world-quest-title')!;
+        expect(title.classList.contains('has-background')).toBe(true);
+        expect(title.querySelector('.world-quest-background')?.getAttribute('src')).toBe(data.imageUrl);
+        const header = root.querySelector('#patch-group-guide-region > header')!;
+        expect(header.classList.contains('patch-group-heading')).toBe(true);
+        expect(header.querySelector('h4 a')?.getAttribute('href')).toBe('https://example.com/region');
+        expect(header.querySelector('.guide-group-progress strong')?.textContent).toBe('1 / 3');
+        expect(header.querySelector('.guide-group-progress small')?.textContent).toBe('33%');
+        expect(getComputedStyle(header.querySelector('.guide-group-progress')!).flexDirection).toBe('row');
+        expect(root.querySelector('.patch-reading-view.guide-world-quests')).not.toBeNull();
+        expect(data).toEqual(before);
+        title.querySelector('img')!.dispatchEvent(new Event('error')); fixture.detectChanges();
+        expect(title.classList.contains('has-background')).toBe(false);
+        expect(title.querySelector('img')).toBeNull(); expect(title.querySelector('h3')?.textContent).toBe('World quests');
+    });
+    it('offers a header image preview in Template Details and hides scheduling fields without discarding their data', async () => {
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { saving: () => false, loading: () => false } }] });
+        const data = fixtureData(); data.imageUrl = 'https://example.com/background.webp'; data.sourceName = 'Official artwork'; data.sourceUrl = 'https://example.com/source';
+        data.context = { availability: StoryAvailability.Limited, startDate: '2026-01-01', endDate: '2026-02-01' };
+        const context = structuredClone(data.context);
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        fixture.componentRef.setInput('entry', entryFor(data)); fixture.componentRef.setInput('editing', true); fixture.detectChanges();
+        fixture.componentInstance.selectTemplateDetails(); fixture.detectChanges(); await fixture.whenStable();
+        const root = fixture.nativeElement as HTMLElement;
+        const details = root.querySelector('.section-editor-template-details')!;
+        expect(details.querySelector('.world-header-image-editor legend')?.textContent).toBe('Header Background');
+        expect(details.querySelector('.world-header-image-editor img.image-preview')?.getAttribute('src')).toBe(data.imageUrl);
+        const labels = [...details.querySelectorAll('label')].map(label => label.textContent?.trim());
+        expect(labels.some(label => /^(Availability|Start date|End date)/.test(label ?? ''))).toBe(false);
+        expect(details.querySelector('input[type="date"]')).toBeNull();
+        expect(data.context).toEqual(context);
+        fixture.componentRef.setInput('editing', false); fixture.detectChanges();
+        expect(root.querySelector('.world-quest-background')?.getAttribute('src')).toBe(data.imageUrl);
+        expect(root.querySelector('.patch-source a')?.getAttribute('href')).toBe(data.sourceUrl);
+    });
+    it('supports all three group types with distinct icons and subtypes directly below objective titles', () => {
+        const { fixture, data, root } = setup();
+        const changed = structuredClone(data);
+        changed.groups!.push({ id: 'collection', title: 'Collectibles', worldQuestMode: 'collectionChecklist', objectiveIds: ['second'] });
+        fixture.componentRef.setInput('data', changed); fixture.detectChanges();
+        const headers = [...root.querySelectorAll('.world-group-heading')];
+        expect(headers.map(header => header.querySelector('h4 small')?.textContent)).toEqual(['Area Exploration', 'Quest Chain', 'Collection Checklist']);
+        expect(new Set(headers.map(header => header.querySelector('.patch-type-icon')?.innerHTML)).size).toBe(3);
+        const objective = root.querySelector('#story-row-guide-second')!;
+        const title = objective.querySelector('.guide-row-title')!;
+        const subtype = objective.querySelector('.guide-activity-subtype')!;
+        expect(title.nextElementSibling).toBe(subtype); expect(subtype.textContent).toBe('Daily Gated');
+        expect(getComputedStyle(subtype).display).toBe('block');
+        expect(root.querySelector('#story-row-guide-third .guide-activity-subtype')).toBeNull();
+        expect(root.querySelector('#patch-group-guide-collection .guide-group-progress strong')?.textContent).toBe('0 / 1');
+        expect(validPatchOverview(changed)).toBe(true);
+        expect(validPatchOverview({ ...changed, groups: [{ id: 'invalid', title: 'Invalid', worldQuestMode: 'unknown' }] })).toBe(false);
+        expect(data.groups).toHaveLength(2);
+    });
+    it('lets editors change the group type without modifying its objectives or completion', async () => {
+        TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { saving: () => false, loading: () => false } }] });
+        const data = fixtureData();
+        const entry = entryFor(data); const progress = structuredClone(entry.storyRowCompletion);
+        const fixture = TestBed.createComponent(PatchOverviewTemplate);
+        fixture.componentRef.setInput('entry', entry); fixture.componentRef.setInput('editing', true); fixture.detectChanges();
+        fixture.componentInstance.selectEditorPanel('region'); fixture.detectChanges(); await fixture.whenStable();
+        const rows = structuredClone(data.rows);
+        const root = fixture.nativeElement as HTMLElement;
+        const select = [...root.querySelectorAll('.patch-edit-group:not([hidden]) label')].find(label => label.textContent?.startsWith('Group Type'))!.querySelector('select')!;
+        expect([...select.options].map(option => option.text)).toEqual(['Area Exploration', 'Quest Chain', 'Collection Checklist']);
+        select.value = 'collectionChecklist'; select.dispatchEvent(new Event('change')); fixture.detectChanges(); await fixture.whenStable();
+        expect(data.groups![0].worldQuestMode).toBe('collectionChecklist');
+        expect(data.rows).toEqual(rows); expect(entry.storyRowCompletion).toEqual(progress);
+    });
     it('adapts legacy headings without mutating content, IDs or release versions', () => {
         const data = fixtureData();
         const before = structuredClone(data);
@@ -48,17 +150,23 @@ describe('World Quest hierarchy', () => {
         expect(data).toEqual(before);
         expect(worldQuestObjectives([...groups[0].rows, ...groups[1].rows])).toHaveLength(3);
     });
-    it('shows compact requirements and initially collapsed notes beneath the quest title', () => {
+    it('places requirements beside quest details and retains collapsed notes beneath the title', () => {
         const { root, fixture } = setup();
         expect(root.querySelectorAll('.guide-content-row input')).toHaveLength(5);
         expect(root.querySelectorAll('.guide-patch-badge')).toHaveLength(5);
         expect(root.querySelector('#story-row-guide-first .guide-patch-badge')?.textContent).toBe('Patch 1.0');
         expect(root.querySelector('#story-row-guide-second .guide-patch-badge')?.textContent).toBe('Patch 1.1');
         expect(root.querySelector('#story-row-guide-third .guide-patch-badge')?.textContent).toBe('Patch unknown');
-        expect(root.querySelectorAll('.guide-objective-requirements')).toHaveLength(4);
-        expect(root.querySelector('#story-row-guide-first .guide-objective-requirements')?.textContent).toContain('Requirements: None');
+        expect(root.querySelectorAll('.guide-objective-requirements')).toHaveLength(2);
+        expect(root.querySelector('#story-row-guide-first .guide-objective-requirements')).toBeNull();
         expect(root.querySelector('#story-row-guide-third .guide-objective-requirements')).toBeNull();
         expect(root.querySelector('#story-row-guide-second .guide-objective-requirements')?.textContent).toContain('A verified gate');
+        const body = root.querySelector('#story-row-guide-second .guide-row-body')!;
+        expect(body.classList.contains('guide-row-with-requirements')).toBe(true);
+        expect(body.querySelector(':scope > .guide-objective-details > .guide-objective-requirements')).not.toBeNull();
+        expect(body.querySelector('.guide-row-main .guide-objective-requirements')).toBeNull();
+        expect(getComputedStyle(body).display).toBe('grid');
+        expect(root.querySelector('#story-row-guide-third .guide-row-body')?.classList.contains('guide-row-with-requirements')).toBe(false);
         expect(root.querySelector('#story-row-guide-first .guide-objective-notes strong')?.textContent).toBe('advice');
         const notes = root.querySelector('#story-row-guide-first .guide-row-main > .guide-objective-notes')!;
         const toggle = notes.querySelector<HTMLButtonElement>('button')!;
@@ -97,9 +205,9 @@ describe('World Quest hierarchy', () => {
         fixture.detectChanges();
         expect(root.querySelector<HTMLInputElement>('#story-row-guide-second input')!.checked).toBe(true);
         expect(root.querySelector<HTMLInputElement>('#story-row-guide-second-membership-chain input')!.checked).toBe(true);
-        expect(root.querySelector('#patch-group-guide-region > header button > span')?.textContent).toBe('2 / 3');
-        expect(root.querySelector('#patch-group-guide-chain > header button > span')?.textContent).toBe('2 / 2');
-        expect(root.querySelector('#patch-group-guide-region .guide-secondary-heading button > span')?.textContent).toBe('1 / 2');
+        expect(root.querySelector('#patch-group-guide-region > header .guide-group-progress strong')?.textContent).toBe('2 / 3');
+        expect(root.querySelector('#patch-group-guide-chain > header .guide-group-progress strong')?.textContent).toBe('2 / 2');
+        expect(root.querySelector('#patch-group-guide-region .guide-secondary-heading .guide-group-progress strong')?.textContent).toBe('1 / 2');
         expect(fixture.componentInstance.count(data.rows)).toBe(3);
         expect(storyProgress([fixture.componentInstance.entry()])).toEqual({ total: 3, completed: 2, percent: 67 });
         fixture.componentRef.setInput('incompleteOnly', true);
@@ -122,7 +230,7 @@ describe('World Quest hierarchy', () => {
         await fixture.whenStable();
         fixture.detectChanges();
         expect(checkbox.checked).toBe(false);
-        expect(root.querySelector('#patch-group-guide-region > header button > span')?.textContent).toBe('1 / 3');
+        expect(root.querySelector('#patch-group-guide-region > header .guide-group-progress strong')?.textContent).toBe('1 / 3');
         expect(root.querySelector('[role="alert"]')?.textContent).toBe('Could not sync account progress.');
         save.mockImplementationOnce(async updated => {
             fixture.componentRef.setInput('entry', updated);
@@ -133,15 +241,15 @@ describe('World Quest hierarchy', () => {
         fixture.detectChanges();
         expect(checkbox.checked).toBe(true);
         expect(root.querySelector<HTMLInputElement>('#story-row-guide-second-membership-chain input')?.checked).toBe(true);
-        expect(root.querySelector('#patch-group-guide-region > header button > span')?.textContent).toBe('2 / 3');
-        expect(root.querySelector('#patch-group-guide-region .guide-secondary-heading button > span')?.textContent).toBe('1 / 2');
+        expect(root.querySelector('#patch-group-guide-region > header .guide-group-progress strong')?.textContent).toBe('2 / 3');
+        expect(root.querySelector('#patch-group-guide-region .guide-secondary-heading .guide-group-progress strong')?.textContent).toBe('1 / 2');
         expect(root.querySelector('[role="alert"]')).toBeNull();
         save.mockRejectedValueOnce(new Error('Network unavailable.'));
         checkbox.click();
         await fixture.whenStable();
         fixture.detectChanges();
         expect(checkbox.checked).toBe(true);
-        expect(root.querySelector('#patch-group-guide-region > header button > span')?.textContent).toBe('2 / 3');
+        expect(root.querySelector('#patch-group-guide-region > header .guide-group-progress strong')?.textContent).toBe('2 / 3');
         expect(root.querySelector('[role="alert"]')?.textContent).toBe('Network unavailable.');
     });
     it('links secondary headings independently of collapse and retains linked single-objective headings', () => {
@@ -182,7 +290,7 @@ describe('World Quest hierarchy', () => {
         fixture.detectChanges();
         expect(secondary.getAttribute('aria-expanded')).toBe('false');
         expect(root.querySelector('.guide-section-content')?.hasAttribute('inert')).toBe(true);
-        expect(requirements.textContent).toContain('Requirements: None');
+        expect(requirements.textContent).toContain('A verified gate');
         document.dispatchEvent(new CustomEvent('story-guide-reveal', { detail: 'story-row-guide-second' }));
         fixture.detectChanges();
         expect(secondary.getAttribute('aria-expanded')).toBe('true');
@@ -212,6 +320,35 @@ describe('World Quest hierarchy', () => {
         expect(requirements.textContent).toContain('Meet any');
         expect(requirements.querySelectorAll('li')).toHaveLength(2);
         expect(requirements.querySelector('a')?.getAttribute('href')).toContain('/games/genshin/story?section=chapter#story-content-required-entry');
+    });
+    it('omits empty requirements, whitespace notes and empty groups while retaining resolvable quest links', () => {
+        const { fixture, root, data } = setup();
+        const changed = structuredClone(data);
+        changed.groups!.push({ id: 'empty', title: 'Empty group' });
+        changed.rows.push(row('empty-heading', { rowType: 'heading', content: 'Empty section' }));
+        changed.rows[1].notes = ' \n '; changed.rows[1].notesRight = ' ';
+        changed.rows[1].context = { prerequisites: [], requirements: [{ type: StoryRequirementType.Recommendation, text: ' ' }] };
+        const target = { ...entryFor(data), id: 'required-entry', name: 'Previous quest' };
+        changed.rows[3].context = { prerequisites: [
+            { type: StoryRequirementType.Prerequisite, text: ' ', targetId: 'missing' },
+            { type: StoryRequirementType.Prerequisite, text: '', targetId: target.id },
+        ] };
+        changed.rows[4].context = { prerequisites: [{ type: StoryRequirementType.Prerequisite, text: ' ' }] };
+        changed.rows[4].notes = '\t';
+        const before = structuredClone(changed);
+        fixture.componentRef.setInput('data', changed); fixture.componentRef.setInput('relatedEntries', [target]); fixture.detectChanges();
+        expect(root.textContent).not.toContain('Empty group'); expect(root.textContent).not.toContain('Empty section');
+        for (const id of ['first', 'third']) {
+            const objective = root.querySelector('#story-row-guide-' + id)!;
+            expect(objective.querySelector('.guide-objective-notes')).toBeNull();
+            expect(objective.querySelector('.guide-objective-requirements')).toBeNull();
+            expect(objective.querySelector('.guide-row-with-requirements')).toBeNull();
+        }
+        const requirements = root.querySelector('#story-row-guide-second .guide-objective-requirements')!;
+        expect(requirements.querySelector('a')?.textContent).toBe('Previous quest');
+        expect(requirements.querySelector('ul')).toBeNull();
+        expect(requirements.querySelector('span')).toBeNull();
+        expect(changed).toEqual(before);
     });
     it('validates additive metadata and rejects dangling memberships and malformed gates', () => {
         const data = fixtureData();
@@ -261,7 +398,7 @@ describe('World Quest hierarchy', () => {
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
-        expect(root.textContent).toContain('Organize by');
+        expect(root.textContent).toContain('Group Type');
         expect(root.textContent).toContain('Include existing objectives');
         expect(root.textContent).toContain('Secondary Heading Link');
         fixture.componentInstance.removeRow('first');

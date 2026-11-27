@@ -14,6 +14,8 @@ $story-topics: (
 );
 
 :root {
+  --story-main-story-navigation-accent: rgba(34, 211, 238, 1);
+  --story-lore-navigation-accent: rgba(167, 139, 250, 1);
   @each $topic, $colors in $story-topics {
     --story-#{$topic}-accent: #{map.get($colors, accent)};
     --story-#{$topic}-background-light: #{map.get($colors, light)};
@@ -41,6 +43,7 @@ $story-topics: (
 @each $topic, $colors in $story-topics {
   [data-story-topic="#{$topic}"] {
     --story-topic-accent: var(--story-#{$topic}-accent);
+    --story-navigation-icon: var(--story-#{$topic}-navigation-accent, var(--story-#{$topic}-accent));
     --story-topic-background: var(--story-#{$topic}-background);
   }
 }

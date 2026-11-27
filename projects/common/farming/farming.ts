@@ -1,7 +1,9 @@
-import type { CharacterCollection, CharacterDefinition } from '../../lib/types/character.type';
-import type { Entry } from '../../lib/types/workspace.type';
-import type { FarmingConfig, FarmingServer, FarmingSource, UpgradeRecipe } from '../../lib/types/farming-config.type';
-import type { CostIssue, CharacterCost, FarmingMaterial, FarmingGroup } from '../../lib/types/farming.type';
+import type { CharacterCollection, CharacterDefinition, CharacterRules } from '@lib/types/character.type';
+import {characterMaterialCosts,progressionMaterialCosts} from '@common/characters/character-materials';
+import {hasEquipmentGoal} from '@common/characters/character-equipment';
+import type { Entry } from '@lib/types/workspace.type';
+import type { FarmingConfig, FarmingServer, FarmingSource, UpgradeRecipe } from '@lib/types/farming-config.type';
+import type { CostIssue, CharacterCost, FarmingMaterial, FarmingGroup } from '@lib/types/farming.type';
 
 const gearChanged = (collection: CharacterCollection) =>
     [
@@ -19,6 +21,8 @@ export function hasCharacterGoal(collection?: CharacterCollection): boolean {
     if (!collection || !target) {return false;}
     return (
         target.level !== collection.level ||
+        Object.entries(target.trackValues ?? {}).some(([id,value]) => value !== collection.trackValues?.[id]) ||
+        Object.entries(target.nodeStates ?? {}).some(([id,value]) => value.unlocked !== collection.nodeStates?.[id]?.unlocked) ||
         (target.ascensionRank ?? 0) !== (collection.ascensionRank ?? 0) ||
         [
             ...new Set([
@@ -41,7 +45,9 @@ export function hasCharacterGoal(collection?: CharacterCollection): boolean {
 export function characterCosts(
     definition: CharacterDefinition | undefined,
     collection: CharacterCollection | undefined,
+    rules?: CharacterRules,
 ): CharacterCost {
+    if (rules && collection) {return characterMaterialCosts(definition,collection,rules);}
     const costs = new Map<string, number>(),
         issues: string[] = [];
     if (!collection?.target) {return { costs, issues: ['No development goal set.'] };}
@@ -140,6 +146,7 @@ export function farmingRequirements(
     selected: string[],
     mode: 'characters' | 'plans',
     includeUnassigned = false,
+    rules?: CharacterRules,
 ): { materials: FarmingMaterial[]; issues: CostIssue[] } {
     const totals = new Map<
         string,
@@ -162,15 +169,27 @@ export function farmingRequirements(
             (entry) =>
                 entry.game === game &&
                 entry.kind === 'characters' &&
-                entry.characterCollection?.owned &&
+                (entry.characterCollection?.owned || entry.characterCollection?.target) &&
                 selected.includes(entry.id),
         )) {
-            const result = characterCosts(
+            const result = !character.characterCollection?.target && hasEquipmentGoal(character,entries) ? {costs:new Map<string,number>(),issues:[]} : characterCosts(
                 character.characterDefinition,
                 character.characterCollection,
+                rules,
             );
             result.costs.forEach((amount, id) => add(id, amount, [character.id], []));
             result.issues.forEach((message) => issues.push({ characterId: character.id, message }));
+            const equipped = new Set(Object.values(character.characterCollection?.gear ?? {}).flat());
+            for (const item of entries.filter(item => item.game === game && item.kind === 'inventory')) {
+                for (const instance of item.equipmentInstances ?? []) {
+                    if (!equipped.has(instance.id) || !instance.target) {continue;}
+                    const tracks = item.equipmentDefinition?.progressionTracks ?? [];
+                    if (!tracks.length) {issues.push({characterId:character.id,message:`${item.name}: upgrade rules unavailable.`});continue;}
+                    const equipment = progressionMaterialCosts(tracks,instance.current,instance.target);
+                    equipment.costs.forEach((amount,id) => add(id,amount,[character.id],[]));
+                    equipment.issues.forEach(message => issues.push({characterId:character.id,message:`${item.name}: ${message}`}));
+                }
+            }
         }
     } else {
         for (const plan of entries.filter(

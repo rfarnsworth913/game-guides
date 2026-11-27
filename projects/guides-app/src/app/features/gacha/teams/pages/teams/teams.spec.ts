@@ -3,8 +3,8 @@ import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { Teams } from "./teams";
 import { WorkspaceStore, Entry } from "../../../../../core/state/workspace.store";
-import type { Team } from "../../../../../../../../lib/types/team.type";
-import { emptyCharacterCollection } from "../../../../../../../../common/characters/characters";
+import type { Team } from "@lib/types/team.type";
+import { emptyCharacterCollection } from "@common/characters/characters";
 
 const character: Entry = {
     id: 'one',

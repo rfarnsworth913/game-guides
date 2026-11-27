@@ -1,0 +1,34 @@
+@if (section() !== 'resources') {
+<fieldset><legend>Progression profile &amp; attributes</legend>
+    <label>Progression profile<select [ngModel]="definition().progressionProfileId ?? ''" (ngModelChange)="setProfile($event)" [ngModelOptions]="standalone"><option value="">Use game default / existing rules</option>@for (profile of rules()?.progressionProfiles ?? []; track profile.id) { <option [value]="profile.id">{{profile.id}}</option> }</select></label>
+    <p>Character-specific overrides and existing identifiers are preserved.</p>
+    <div class="catalog-fields">@for (attribute of attributes(); track attribute.id) { <label>{{attribute.label}} {{attribute.required ? '*' : ''}}
+        @switch (attribute.type) {
+            @case ('boolean') { <select [ngModel]="value(attribute.id)" (ngModelChange)="setAttribute(attribute.id,$event)" [ngModelOptions]="standalone"><option [ngValue]="null">Not set</option><option [ngValue]="true">Yes</option><option [ngValue]="false">No</option></select> }
+            @case ('number') { <input type="number" [ngModel]="value(attribute.id)" (ngModelChange)="setAttribute(attribute.id,$event)" [ngModelOptions]="standalone" /> }
+            @case ('enum') { <select [ngModel]="value(attribute.id)" (ngModelChange)="setAttribute(attribute.id,$event)" [ngModelOptions]="standalone"><option [ngValue]="null">Not set</option>@for (option of attribute.options ?? []; track option) { <option [ngValue]="option">{{option}}</option> }</select> }
+            @case ('multi-select') { <select multiple [ngModel]="value(attribute.id)" (ngModelChange)="setAttribute(attribute.id,$event)" [ngModelOptions]="standalone">@for (option of attribute.options ?? []; track option) { <option [ngValue]="option">{{option}}</option> }</select> }
+            @default { <input maxlength="160" [ngModel]="value(attribute.id)" (ngModelChange)="setAttribute(attribute.id,$event)" [ngModelOptions]="standalone" /> }
+        }
+    </label> }</div>
+</fieldset>
+}
+@if (section() !== 'attributes') {
+<fieldset><legend>Grouped character resources</legend>
+    <p>Shared resources appear in expandable groups in Character Details. Curated legacy guide links below remain supported.</p>
+    @for (resource of definition().resources ?? []; track resource.id; let index = $index) {
+        <details><summary>{{resource.title || 'New resource'}}</summary><div class="resource-fields">
+            <label>Title<input [(ngModel)]="resource.title" [ngModelOptions]="standalone" maxlength="160" /></label>
+            <label>Category<input [(ngModel)]="resource.category" [ngModelOptions]="standalone" list="character-resource-categories" maxlength="160" /></label>
+            <label>Destination<select [ngModel]="resource.sourceType" (ngModelChange)="setSource(resource,$event)" [ngModelOptions]="standalone"><option value="external">External site</option><option value="internal">Story Guide content</option></select></label>
+            @if (resource.sourceType === 'external') { <label>URL<input type="url" [(ngModel)]="resource.url" [ngModelOptions]="standalone" maxlength="2000" /></label> }
+            @else { <label>Related Story Guide content<select [(ngModel)]="resource.contentId" [ngModelOptions]="standalone"><option value="">Select content</option>@for (entry of related(); track entry.id) { <option [value]="entry.id">{{entry.name}}</option> }</select></label> }
+            <label>Description<textarea rows="2" [(ngModel)]="resource.description" [ngModelOptions]="standalone" maxlength="5000"></textarea></label>
+            <label>Creator / source name<input [(ngModel)]="resource.creator" (blur)="cleanCreator(resource)" [ngModelOptions]="standalone" maxlength="160" /></label>
+            <button type="button" (click)="definition().resources!.splice(index,1)">Remove resource</button>
+        </div></details>
+    }
+    <datalist id="character-resource-categories">@for (category of ['official-lore','build-guides','videos','fanworks','related-content']; track category) { <option [value]="category"></option> }@for (category of rules()?.resourceCategories ?? []; track category) { <option [value]="category"></option> }</datalist>
+    <button type="button" (click)="addResource()">+ Add grouped resource</button>
+</fieldset>
+}

@@ -1,10 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Entry } from "../../../../../lib/types/workspace.type";
-import { fromCatalog, toCatalog, validCatalog } from "../../../../../common/workspace/workspace";
-import { emptyPatchOverview, validPatchOverview } from "../../../../../common/quests/story-template";
-import { storyCompletionKey, storyRowDone, validStoryContext } from "../../../../../common/quests/story-guide";
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from "../../../../../lib/enums/story-tracking.enum";
+import type { Entry } from "@lib/types/workspace.type";
+import { fromCatalog, toCatalog, validCatalog } from "@common/workspace/workspace";
+import { emptyPatchOverview, validPatchOverview } from "@common/quests/story-template";
+import { storyCompletionKey, storyRowDone, validStoryContext } from "@common/quests/story-guide";
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from "@lib/enums/story-tracking.enum";
+import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '@lib/constants/story-requirements.constants';
+
+await test('main quest requirement links accept composite identifiers without relaxing ordinary content identifier limits',()=>{
+    const targetId=`quest:${'a'.repeat(95)}:${'b'.repeat(90)}`;
+    const context={prerequisites:[{type:StoryRequirementType.Prerequisite,text:'Complete the main story quest',targetId}]};
+    assert.equal(validStoryContext(context),true);
+    assert.equal(validStoryContext({...context,relatedContentIds:['valid-id']}),true);
+    assert.equal(validStoryContext({...context,relatedContentIds:['a'.repeat(101)]}),false);
+    assert.equal(validStoryContext({prerequisites:[{...context.prerequisites[0],targetId:'a'.repeat(STORY_REQUIREMENT_TARGET_MAX_LENGTH+1)}]}),false);
+    for(const unsafe of ['__proto__','bad.$reference','bad\u0000reference']){assert.equal(validStoryContext({prerequisites:[{...context.prerequisites[0],targetId:unsafe}]}),false);}
+    const source={...emptyPatchOverview(),rows:[{id:'quest',content:'Another quest',contentType:'',patch:'',notes:'',context}]};
+    assert.equal(validPatchOverview(source),true);
+});
 import { decodeStory, encodeStory, mergeStory } from "./story-document";
 
 const section: Entry = { id: 'region', game: 'genshin', kind: 'story-category', name: 'Existing region',
@@ -68,6 +81,7 @@ await test('world quest organization, memberships and explicit prerequisites rou
     const enriched = structuredClone(guide);
     const data = enriched.worldQuests!;
     data.groups!.push({ id: 'chain-view', title: 'Quest chain', worldQuestMode: 'questChain', objectiveIds: ['old-row-id'] });
+    data.groups!.push({ id: 'collection-view', title: 'Collection', worldQuestMode: 'collectionChecklist', objectiveIds: ['old-row-id'] });
     data.groups![0].worldQuestMode = 'region';
     data.rows[1].context = { chapter: 'Chapter one', subtype: 'hiddenExploration', prerequisites: [
         { type: StoryRequirementType.Prerequisite, text: 'Verified prerequisite', targetId: 'another-quest' },

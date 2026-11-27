@@ -1,9 +1,0 @@
-import { Component } from "@angular/core";
-
-@Component({
-    selector: "gg-gacha-overview",
-    imports: [],
-    templateUrl: "./overview.html",
-    styleUrl: "./overview.scss",
-})
-export class Overview {}

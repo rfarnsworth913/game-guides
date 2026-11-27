@@ -2,10 +2,11 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 
 import { WorkspaceStore, GAMES, Entry } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
-import type { CharacterRules } from "../../../../../../../lib/types/character.type";
-import { emptyCharacterCollection, emptyCharacterDefinition } from "../../../../../../../common/characters/characters";
-import type { GameSnapshot, PlayerState } from "../../../../../../../lib/types/workspace.type";
-import { toCatalog, parseBackup } from "../../../../../../../common/workspace/workspace";
+import type { CharacterRules } from "@lib/types/character.type";
+import { emptyCharacterCollection, emptyCharacterDefinition } from "@common/characters/characters";
+import type { GameSnapshot, PlayerState } from "@lib/types/workspace.type";
+import { toCatalog, parseBackup } from "@common/workspace/workspace";
+import { emptyPatchOverview } from '@common/quests/story-template';
 
 const rules: CharacterRules = {
     levelCap: 90,
@@ -98,6 +99,35 @@ describe('Character collection persistence', () => {
         );
     });
     afterEach(() => vi.unstubAllGlobals());
+    it('edits one shared character through its guide reference and keeps private completion/builds independent', async () => {
+        const game = snapshots.find(item => item.id === 'genshin')!;
+        game.entries[0].characterInformation = { ...emptyPatchOverview(), rows: [{ id: 'profile-row', content: 'Profile', contentType: '', patch: '1.0', notes: 'Original' }] };
+        game.entries.push(toCatalog({ ...character, id: 'section', kind: 'story-category', name: 'Region', characterDefinition: globalThis.undefined, characterInformation: globalThis.undefined }),
+            toCatalog({ ...character, id: 'placement', kind: 'story', category: 'character-information', storySection: 'section', characterId: 'vesna', name: 'A guide placement', characterDefinition: globalThis.undefined }));
+        const editor = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('editor', true) }] }), () => new WorkspaceStore());
+        await editor.initialize();
+        await editor.saveCharacterCollection('vesna', { ...emptyCharacterCollection(), level: 30 });
+        const draft = structuredClone(editor.entries().find(item => item.id === 'placement')!);
+        draft.characterInformation!.characterName = 'Vesna Revised';
+        draft.characterInformation!.summary = 'Shared description';
+        draft.characterInformation!.rows[0].notes = 'Shared updated note';
+        expect(await editor.save(draft)).toBe(true);
+        const canonical = game.entries.find(item => item.id === 'vesna')!;
+        expect(canonical.name).toBe('Vesna Revised'); expect(canonical.notes).toBe('Shared description');
+        expect(canonical.characterInformation!.rows[0].notes).toBe('Shared updated note');
+        expect(game.entries.find(item => item.id === 'placement')!.characterInformation).toBeUndefined();
+        expect(editor.entries().find(item => item.id === 'vesna')!.characterCollection?.level).toBe(30);
+        expect(await editor.remove('vesna')).toBe(false);
+        const reader = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('reader') }] }), () => new WorkspaceStore());
+        await reader.initialize();
+        const placement = reader.entries().find(item => item.id === 'placement')!;
+        expect(placement.characterInformation!.characterName).toBe('Vesna Revised');
+        expect(reader.entries().find(item => item.id === 'vesna')!.characterCollection).toBeUndefined();
+        const writes = requests.filter(item => item.method === 'PUT').length;
+        expect(await reader.save({ ...placement, storyRowCompletion: { 'profile-row': true } })).toBe(true);
+        expect(requests.filter(item => item.method === 'PUT')).toHaveLength(writes);
+        expect(reader.entries().find(item => item.id === 'placement')!.completed).toBe(true);
+    });
     it('saves personal teams for non-editors, reloads them privately, and preserves characters on deletion', async () => {
         const alice = runInInjectionContext(Injector.create({ providers: [{ provide: AuthStore, useValue: auth('alice') }] }), () => new WorkspaceStore()); await alice.initialize();
         const team = { id: 'my-team', name: 'My team', members: ['vesna'], notes: 'Rotation' };

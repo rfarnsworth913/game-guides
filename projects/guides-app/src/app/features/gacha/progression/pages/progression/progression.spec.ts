@@ -2,7 +2,8 @@ import { Injector, runInInjectionContext } from '@angular/core';
 import { AuthStore } from '../../../../../core/auth/auth.store';
 import { TestBed } from '@angular/core/testing';
 import { ProgressionPage } from './progression';
-import { WorkspaceStore, GAMES, type Entry } from '../../../../../core/state/workspace.store';
+import { WorkspaceStore, type Entry } from '../../../../../core/state/workspace.store';
+import { defaultGameOverview } from '@common/workspace/game-overview';
 
 describe('Progression feature', () => {
     it('keeps plan filtering and edit/delete actions scoped to the current game', () => {
@@ -12,7 +13,7 @@ describe('Progression feature', () => {
         store.entries.set([plan, { ...plan, id: 'other', game: 'hsr' }]);
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: store }] });
         const fixture = TestBed.createComponent(ProgressionPage);
-        fixture.componentRef.setInput('context', GAMES.find(game => game.id === 'genshin'));
+        fixture.componentRef.setInput('context', defaultGameOverview('genshin'));
         fixture.detectChanges();
         expect(fixture.componentInstance.rows()).toEqual([plan]);
         let edited: Entry | undefined;

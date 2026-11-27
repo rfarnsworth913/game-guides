@@ -1,4 +1,4 @@
-import type { MaterialCost, UpgradeRecipe, FarmingSource, FarmingServer, FarmingConfig } from '../../lib/types/farming-config.type';
+import type { MaterialCost, UpgradeRecipe, FarmingSource, FarmingServer, FarmingConfig } from '@lib/types/farming-config.type';
 
 const record = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);

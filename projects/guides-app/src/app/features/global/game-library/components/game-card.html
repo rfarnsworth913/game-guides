@@ -1,0 +1,8 @@
+
+<article [class.list-card]="mode()==='list'" [style.--game-color]="game().color">
+ @if(mode()==='grid') {<a class="banner" [routerLink]="'/games/'+game().gameId+'/dashboard'" [attr.aria-label]="'Open '+game().name">@if(game().banner && !failed().includes(game().banner)) {<img [src]="game().banner" alt="" loading="lazy" (error)="fail(game().banner)"/>}</a>}
+ <div class="card-body"><a class="game-title" [routerLink]="'/games/'+game().gameId+'/dashboard'">
+ <span class="game-icon">@if(game().icon && !failed().includes(game().icon)) {<img [src]="game().icon" alt="" loading="lazy" (error)="fail(game().icon)"/>} @else {{{game().short}}}</span><span><strong [title]="game().name">{{game().name}}</strong><small>{{game().genres.join(', ') || 'Unclassified'}}@if(preferences.favoriteGameIds().includes(game().gameId)) { · ★}@if(preferences.pinnedGameIds().includes(game().gameId)) { · Pinned}</small></span></a>
+ <div class="features">@for(feature of features();track feature.id) {<a [routerLink]="'/games/'+game().gameId+'/'+feature.id" [title]="feature.title" [attr.aria-label]="game().name+' '+feature.title"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="feature.icon"/></svg></a>}</div>
+ <button class="menu-toggle" type="button" [attr.aria-label]="'Actions for '+game().name" (click)="menu.emit($event)"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>
+</article>

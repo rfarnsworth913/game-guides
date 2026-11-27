@@ -1,13 +1,14 @@
 {
-  "id": "Zenless Zone Zero",
-  "sourceList": [
-    {
-      "id": "Version",
-      "url": "https://zenless-zone-zero.fandom.com/wiki/Version"
-    },
-    {
-      "id": "Events",
-      "url": "https://zenless-zone-zero.fandom.com/wiki/Event"
-    }
-  ]
+    "id": "Zenless Zone Zero",
+    "sourceList": [
+        {
+            "id": "Version",
+            "url": "https://zenless-zone-zero.fandom.com/wiki/Version"
+        },
+        {
+            "id": "Events",
+            "url": "https://zenless-zone-zero.fandom.com/wiki/Event"
+        }
+    ],
+    "gameId": "zzz"
 }

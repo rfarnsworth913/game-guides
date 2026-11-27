@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { CatalogEntry } from "../../../../../lib/types/workspace.type";
-import { validCatalog } from "../../../../../common/workspace/workspace";
+import type { CatalogEntry } from "@lib/types/workspace.type";
+import { validCatalog } from "@common/workspace/workspace";
 import { decodeEntries, encodeEntries, mergeEntries, migrateDocument } from "../game-document";
 
 const section: CatalogEntry = {
@@ -27,6 +27,18 @@ const step: CatalogEntry = {
     storySection: section.id,
     notes: 'Follow the wind.',
 };
+
+await test('unnamed dividers keep their IDs and ordering through database round trips without relaxing quest titles', () => {
+    const divider: CatalogEntry = { ...step, id: 'break-1', category: 'divider', name: '', notes: '', order: 2 };
+    const next = { ...step, id: 'next-quest', order: 3 };
+    const catalog = [section, step, divider, next];
+    assert.ok(validCatalog(catalog, 'genshin'));
+    assert.deepEqual(decodeEntries(encodeEntries(catalog), 'genshin'), catalog);
+    assert.equal(validCatalog([section, { ...step, name: '' }], 'genshin'), false);
+    assert.equal(validCatalog([{ ...section, name: '' }, divider], 'genshin'), false);
+    assert.equal(validCatalog([section, { ...divider, id: step.id }, step], 'genshin'), false);
+    assert.equal(validCatalog([section, { ...divider, storySection: 'missing' }], 'genshin'), false);
+});
 
 await test('section overview images persist separately from navigation icons and can be cleared', () => {
     const withImage = { ...section, sectionImageUrl: '/api/games/genshin/images/mondstadt.png' };

@@ -1,0 +1,25 @@
+.modal.create-subsection-modal .section-overview-identity > label { margin-top: 18px; &:first-child { margin-top: 0; } }
+.modal.story-guide-dialog.patch-modal {
+    width: min(1280px, calc(100vw - 40px));
+    height: min(900px, calc(100dvh - 40px));
+    max-height: calc(100dvh - 40px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    border-radius: 18px;
+    .story-dialog-header { flex-shrink: 0; padding: 20px 24px; margin: 0; h2 { font-size: 21px; } }
+    form { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    form > gg-patch-overview { flex: 1; min-height: 0; }
+    .section-overview-identity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; > label { margin-top: 0; } > label:last-of-type { grid-column: 1 / -1; } }
+    .modal-actions { flex-shrink: 0; padding: 16px 24px; border-top: 1px solid var(--color-border); margin: 0; background: var(--color-bg-secondary); }
+    form > .error { flex-shrink: 0; margin: 0; padding: 10px 24px; border-top: 1px solid var(--color-border); }
+    @media (max-width: 760px) {
+        width: calc(100vw - 20px);
+        height: calc(100dvh - 20px);
+        max-height: calc(100dvh - 20px);
+        .story-dialog-header { padding: 16px; h2 { font-size: 18px; } }
+        .modal-actions { padding: 12px 16px; }
+        .section-overview-identity { grid-template-columns: minmax(0, 1fr); }
+    }
+}

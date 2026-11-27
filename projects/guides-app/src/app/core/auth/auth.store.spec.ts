@@ -1,5 +1,5 @@
 import { Injector, runInInjectionContext } from '@angular/core';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { AuthService } from '@auth0/auth0-angular';
 import { AuthStore } from "./auth.store";
 
@@ -33,5 +33,48 @@ describe('Auth0 integration', () => {
         expect(auth.configured()).toBe(true);
         expect(auth.user()).toBeNull();
         expect(client.getAccessTokenSilently).not.toHaveBeenCalled();
+    });
+    it('clears only the SDK session after an invalid refresh token and blocks request retries', async () => {
+        const client = sdk();
+        const failure = Object.assign(new Error('Unknown or invalid refresh token.'), { error: 'invalid_grant' });
+        client.getAccessTokenSilently.mockImplementation(() => throwError(() => failure));
+        vi.stubGlobal('fetch', vi.fn());
+        const auth = runInInjectionContext(Injector.create({ providers: [{ provide: AuthService, useValue: client as unknown as AuthService }] }), () => new AuthStore());
+        auth.user.set({ id: 'alice', name: 'Alice', editor: true });
+        await Promise.all([
+            expect(auth.request('/api/games')).rejects.toThrow('Sign in again'),
+            expect(auth.request('/api/me/progress', { method: 'PATCH', body: '{}' })).rejects.toThrow('Sign in again'),
+        ]);
+        expect(client.logout).toHaveBeenCalledExactlyOnceWith({ openUrl: false });
+        expect(auth.reauthenticationRequired()).toBe(true);
+        expect(auth.user()).toBeNull();
+        expect(fetch).not.toHaveBeenCalled();
+        const attempts = client.getAccessTokenSilently.mock.calls.length;
+        await expect(auth.request('/api/games')).rejects.toThrow('Sign in again');
+        expect(client.getAccessTokenSilently).toHaveBeenCalledTimes(attempts);
+        await auth.login();
+        expect(client.loginWithRedirect).toHaveBeenCalledWith(expect.objectContaining({ appState: { target: window.location.pathname + window.location.search + window.location.hash } }));
+    });
+    it('handles an invalid refresh token reported during SDK startup', async () => {
+        const client = sdk(false);
+        const auth = runInInjectionContext(Injector.create({ providers: [{ provide: AuthService, useValue: client as unknown as AuthService }] }), () => new AuthStore());
+        client.error$.next(Object.assign(new Error('Unknown or invalid refresh token.'), { error: 'invalid_grant' }));
+        await auth.initialize();
+        expect(auth.reauthenticationRequired()).toBe(true);
+        expect(auth.error()).toContain('Sign in again');
+        expect(client.logout).toHaveBeenCalledWith({ openUrl: false });
+        expect(client.getAccessTokenSilently).not.toHaveBeenCalled();
+    });
+    it('does not sign out on a network error or an API permission denial', async () => {
+        const client = sdk();
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'An editor account is required.' }), { status: 403 })));
+        const auth = runInInjectionContext(Injector.create({ providers: [{ provide: AuthService, useValue: client as unknown as AuthService }] }), () => new AuthStore());
+        auth.user.set({ id: 'alice', name: 'Alice', editor: false });
+        expect((await auth.request('/api/games/registry')).status).toBe(403);
+        client.getAccessTokenSilently.mockImplementation(() => throwError(() => new Error('Network unavailable')));
+        await expect(auth.request('/api/me/progress')).rejects.toThrow('Network unavailable');
+        expect(auth.reauthenticationRequired()).toBe(false);
+        expect(auth.user()?.id).toBe('alice');
+        expect(client.logout).not.toHaveBeenCalled();
     });
 });

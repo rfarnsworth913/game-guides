@@ -3,7 +3,12 @@
     "sourceList": [
         {
             "id": "Version",
-            "url": "https://endfield.wiki.gg/"
+            "url": "https://endfield.wiki.gg/wiki/Version"
+        },
+        {
+            "id": "Events",
+            "url": "https://endfield.wiki.gg/wiki/Event/{year}"
         }
-    ]
+    ],
+    "gameId": "endfield"
 }

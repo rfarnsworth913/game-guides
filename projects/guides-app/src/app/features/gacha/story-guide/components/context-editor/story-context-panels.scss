@@ -1,0 +1,10 @@
+.guide-panel-context { margin-top: 0; }
+.context-panel { border: 1px solid var(--color-border); border-radius: 9px; overflow: hidden; min-width: 0; }
+.context-panel-toggle { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; min-height: 46px; border: 0; border-radius: 0; text-align: start; background: var(--color-bg-tertiary); color: var(--color-text-primary); strong { font-size: 14px; } svg { flex-shrink: 0; } }
+.context-panel-count { font-size: 11px; border-radius: 16px; padding: 3px 9px; background: var(--color-bg-hover); white-space: nowrap; }
+.context-panel-chevron { margin-inline-start: auto; transition: transform 180ms ease; &.expanded { transform: rotate(90deg); } }
+.context-panel-body { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 220ms ease, opacity 180ms ease; &.expanded { grid-template-rows: 1fr; opacity: 1; } }
+.context-panel-clip { min-height: 0; overflow: hidden; }
+.context-panel-content { display: grid; gap: 16px; padding: 16px; .guide-help { margin: 0; } > label { margin: 0; } > button { justify-self: start; } }
+@media (max-width: 650px) { .context-panel-content { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .context-panel-body, .context-panel-chevron { transition: none; } }

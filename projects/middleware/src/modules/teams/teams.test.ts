@@ -4,11 +4,11 @@ import { AddressInfo } from 'node:net';
 import { createApi } from "../../app/server";
 import { ApiError } from '../../core/errors/app-error';
 import type { Security } from '../../core/auth/auth.types';
-import type { CatalogEntry, PlayerState } from "../../../../lib/types/workspace.type";
-import { validProgressState } from "../../../../common/player/player-progress";
-import type { Team } from "../../../../lib/types/team.type";
-import { validTeams } from "../../../../common/player/teams";
-import { emptyCharacterCollection, emptyCharacterDefinition, validCharacterRules } from "../../../../common/characters/characters";
+import type { CatalogEntry, PlayerState } from "@lib/types/workspace.type";
+import { validProgressState } from "@common/player/player-progress";
+import type { Team } from "@lib/types/team.type";
+import { validTeams } from "@common/player/teams";
+import { emptyCharacterCollection, emptyCharacterDefinition, validCharacterRules } from "@common/characters/characters";
 
 const team: Team = { id: 'test', name: 'My team', members: ['one'], notes: '' };
 const rules = {

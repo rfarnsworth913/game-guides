@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mainQuestRecords, reworkMainQuestTemplate } from "../../../../../common/quests/main-quest";
-import { emptyPatchOverview, validPatchOverview } from "../../../../../common/quests/story-template";
-import type { PatchOverview } from "../../../../../lib/types/story-template.type";
-import type { Entry } from "../../../../../lib/types/workspace.type";
-import { fromCatalog, toCatalog } from "../../../../../common/workspace/workspace";
+import { mainQuestRecords, reworkMainQuestTemplate } from "@common/quests/main-quest";
+import { emptyPatchOverview, validPatchOverview } from "@common/quests/story-template";
+import type { PatchOverview } from "@lib/types/story-template.type";
+import type { Entry } from "@lib/types/workspace.type";
+import { fromCatalog, toCatalog } from "@common/workspace/workspace";
 import { reworkMainQuestDocument } from "./main-quest-document";
 
 const template = (): PatchOverview => ({ ...emptyPatchOverview(), groups: [{ id: 'group', title: 'Everwinter Without Mercy' }], rows: [

@@ -1,4 +1,4 @@
-import type { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../enums/story-tracking.enum';
+import type { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '@lib/enums/story-tracking.enum';
 
 /** Optional additions to the existing records. Legacy IDs and completion keys stay unchanged. */
 export type StoryContext = {

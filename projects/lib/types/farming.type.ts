@@ -1,5 +1,5 @@
-import type { Entry } from './workspace.type';
-import type { FarmingSource } from './farming-config.type';
+import type { Entry } from '@lib/types/workspace.type';
+import type { FarmingSource } from '@lib/types/farming-config.type';
 
 export type CostIssue = { characterId: string; message: string };
 export type CharacterCost = { costs: Map<string, number>; issues: string[] };

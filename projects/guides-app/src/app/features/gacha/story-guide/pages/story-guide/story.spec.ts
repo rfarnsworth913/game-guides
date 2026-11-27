@@ -6,9 +6,66 @@ import { By } from '@angular/platform-browser';
 import { GameImagePicker } from "../../../../../shared/components/image-selector/game-image-picker";
 import { Story } from "./story";
 import { Entry, WorkspaceStore } from "../../../../../core/state/workspace.store";
-import { emptyPatchOverview } from "../../../../../../../../common/quests/story-template";
+import { emptyPatchOverview } from "@common/quests/story-template";
 
 describe('Story incomplete filter', () => {
+    afterEach(() => vi.unstubAllGlobals());
+    it('creates, reorders and deletes an unnamed divider without tracking or navigating to it', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+        const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt',
+            notes: '', quantity: 0, target: 0, rarity: 1, category: '', members: [], requirements: [], completed: false, order: 0, day: '' };
+        const quest: Entry = { ...section, id: 'quest', kind: 'story', storySection: section.id, name: 'Prologue', category: 'main-story' };
+        const entries = signal([section, quest]);
+        const save = vi.fn(async (entry: Entry) => { entries.update(all => [...all.filter(item => item.id !== entry.id), entry]); return true; });
+        const replace = vi.fn(async (next: Entry[]) => { entries.set(next); return true; });
+        const remove = vi.fn(async (id: string) => { entries.update(all => all.filter(item => item.id !== id)); return true; });
+        TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
+            entries, initialized: signal(true), loading: signal(false), saving: signal(false), error: signal(''), save, replace, remove,
+        } }] });
+        vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+        const fixture = TestBed.createComponent(Story);
+        fixture.componentRef.setInput('game', 'genshin');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        const root = fixture.nativeElement as HTMLElement;
+        component.editMode.set(true);
+        component.open('story');
+        component.setTopic(component.editor!, 'divider');
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(root.querySelector('[name=title]')).toBeNull();
+        expect(root.querySelector('#story-editor-title')?.textContent).toContain('Create Divider');
+        expect(component.validNewSubsection()).toBe(true);
+        const id = component.editor!.id;
+        await component.save();
+        fixture.detectChanges();
+        expect(save).toHaveBeenCalledWith(expect.objectContaining({ id, name: '', category: 'divider', storySection: section.id }));
+        const divider = entries().find(entry => entry.id === id)!;
+        const header = root.querySelector<HTMLElement>('.story-divider-section .story-section-header')!;
+        header.scrollIntoView = vi.fn();
+        await component.reorderEntry(id, quest.id, false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(component.subsections()[0].id).toBe(id);
+        expect(header.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
+        expect(root.querySelector('.story-divider-section input[type=checkbox]')).toBeNull();
+        expect(root.querySelector('.story-divider-section .story-drag-handle')).not.toBeNull();
+        component.editMode.set(false);
+        fixture.detectChanges();
+        expect(root.querySelector('.story-divider-section [role=separator]')).not.toBeNull();
+        expect(root.querySelector('.story-divider-section .story-section-header')).toBeNull();
+        expect(component.outlineChapters().flatMap(chapter => [chapter.entry, ...chapter.children]).some(entry => entry?.id === id)).toBe(false);
+        expect(component.readableSubsections().map(entry => entry.id)).toEqual([quest.id]);
+        expect(root.querySelector('.guide-directories')).toBeNull();
+        component.incompleteOnly.set(true);
+        expect(component.showEntry(divider)).toBe(false);
+        component.editMode.set(true);
+        component.deleting = divider;
+        await component.remove();
+        expect(remove).toHaveBeenCalledWith(id);
+        expect(entries().map(entry => entry.id)).toEqual([section.id, quest.id]);
+    });
     it('edits a navigation icon with the compact picker and renders uploaded icons after saving', async () => {
         const section: Entry = { id: 'section', game: 'genshin', kind: 'story-category', name: 'Mondstadt', icon: '*',
             notes: '', quantity: 0, target: 0, rarity: 1, category: '', members: [], requirements: [], completed: false, order: 0, day: '' };
@@ -28,6 +85,14 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
+        expect(root.querySelector('.navigation-group-modal')?.getAttribute('aria-describedby')).toBe('story-navigation-description');
+        expect(root.querySelector('#story-editor-title')?.textContent).toBe('Edit Navigation Group');
+        const banner = fixture.debugElement.query(By.css('.navigation-group-banner gg-game-image-picker')).componentInstance as GameImagePicker;
+        expect(banner.banner()).toBe(true);
+        expect(banner.selectionOnly()).toBe(true);
+        banner.value.set('/api/games/genshin/images/mondstadt-banner.webp');
+        expect(component.editor?.sectionImageUrl).toBe('/api/games/genshin/images/mondstadt-banner.webp');
+        expect(section.sectionImageUrl).toBeUndefined();
         expect(root.querySelector('.navigation-category-icon > span')?.textContent).toBe('Icon or Icon URL');
         expect(root.querySelector('.navigation-category-icon .compact-icon-button')).not.toBeNull();
         const picker = fixture.debugElement.query(By.css('.navigation-category-icon gg-game-image-picker')).componentInstance as GameImagePicker;
@@ -41,7 +106,7 @@ describe('Story incomplete filter', () => {
         expect(save).not.toHaveBeenCalled();
         await component.save();
         fixture.detectChanges();
-        expect(save).toHaveBeenCalledWith(expect.objectContaining({ icon: '/api/games/genshin/images/mondstadt.webp' }));
+        expect(save).toHaveBeenCalledWith(expect.objectContaining({ icon: '/api/games/genshin/images/mondstadt.webp', sectionImageUrl: '/api/games/genshin/images/mondstadt-banner.webp' }));
         expect(root.querySelector('#story-tab-section img')?.getAttribute('src')).toBe('/api/games/genshin/images/mondstadt.webp');
         expect(component.iconUrl('https://example.com/icon.png')).toBe('https://example.com/icon.png');
         expect(component.iconUrl('*')).toBeNull();
@@ -57,7 +122,7 @@ describe('Story incomplete filter', () => {
             ...section, id, name: id, kind: 'story', storySection: section.id, category, order,
         });
         const entries = signal([section, entry('patch', 'patch-overview', 0),
-            entry('event', 'events', 1), entry('main', 'main-story', 2),
+            entry('event', 'events', 1), entry('side-story', 'side-stories', 1.5), entry('main', 'main-story', 2),
             entry('world', 'world-quests', 3), entry('character', 'character-information', 4),
             entry('later-event', 'events', 5), entry('later-world', 'world-quests', 6)]);
         TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: WorkspaceStore, useValue: {
@@ -68,10 +133,11 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         const component = fixture.componentInstance;
         expect(component.outlineChapters().map(chapter => [chapter.id, chapter.children.map(child => child.id)]))
-            .toEqual([['patch', ['event']], ['main', ['world', 'character', 'later-event', 'later-world']]]);
+            .toEqual([['patch', ['event', 'side-story']], ['main', ['world', 'character', 'later-event', 'later-world']]]);
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.querySelectorAll('.outline-chapter').length).toBe(2);
-        expect(root.querySelector('.outline-group')).toBeNull();
+        expect([...root.querySelectorAll<HTMLElement>('.outline-children')].every(children => children.inert && children.getAttribute('aria-hidden') === 'true')).toBe(true);
+        expect(root.querySelector('.guide-directories')).toBeNull();
         expect(root.querySelector('.story-outline h3')?.textContent).toBe('Story Navigation');
         expect(root.querySelector('.outline-number')).toBeNull();
         expect(root.querySelector('.outline-chapter-heading small')).toBeNull();
@@ -83,29 +149,36 @@ describe('Story incomplete filter', () => {
         expect(navigate).toHaveBeenCalledWith(expect.any(Event), 'story-content-patch');
         expect(component.outlineCollapsed('patch')).toBe(false);
         navigate.mockRestore();
-        component.expandOutline();
+        root.querySelector<HTMLButtonElement>('[aria-controls="outline-children-main"]')!.click();
         fixture.detectChanges();
-        expect(root.querySelector('.outline-group a[href="#story-content-world"]')).not.toBeNull();
+        expect(component.outlineCollapsed('patch')).toBe(true);
+        expect(component.outlineCollapsed('main')).toBe(false);
+        expect(root.querySelector<HTMLElement>('#outline-children-patch')?.inert).toBe(true);
+        expect(root.querySelector<HTMLElement>('#outline-children-main')?.inert).toBe(false);
+        expect(root.querySelectorAll('.outline-children.expanded')).toHaveLength(1);
+        expect(root.querySelector('.outline-group a[href$="#story-content-world"]')).not.toBeNull();
         expect(root.querySelector('#story-content-world')).not.toBeNull();
         const operator = root.querySelector('.outline-group[data-story-topic="character-information"] .outline-secondary');
         expect(operator?.textContent).toContain('character');
-        expect(operator?.querySelector('.story-category-icon')).not.toBeNull();
+        expect(operator?.querySelector('.outline-type-icon')?.getAttribute('data-story-topic')).toBe('character-information');
         expect(root.querySelector('.outline-group[data-story-topic="character-information"] button')).toBeNull();
         expect(root.querySelector('.outline-group button')).toBeNull();
-        expect(root.querySelectorAll('.outline-secondary').length).toBe(5);
+        expect(root.querySelectorAll('.outline-secondary').length).toBe(6);
         const contentOrder = [...root.querySelectorAll('.story-subsections [id^="story-content-"]')].map(element => '#' + element.id);
-        const navigationOrder = [...root.querySelectorAll('.story-outline a')].map(element => element.getAttribute('href'));
+        const navigationOrder = [...root.querySelectorAll<HTMLAnchorElement>('.story-outline a')].map(element => new URL(element.href).hash);
         expect(navigationOrder).toEqual(contentOrder);
-        expect([...root.querySelectorAll('.outline-secondary')].every(link => link.querySelector('.story-category-icon'))).toBe(true);
-        root.querySelector<HTMLButtonElement>('.outline-toggle')!.click();
+        expect([...root.querySelectorAll('.outline-secondary')].every(link => link.querySelector('.outline-type-icon'))).toBe(true);
+        expect(root.querySelectorAll('.outline-chapter-heading .outline-type-icon').length).toBe(2);
+        root.querySelector<HTMLButtonElement>('[aria-controls="outline-children-main"]')!.click();
         fixture.detectChanges();
-        expect(root.querySelector('.outline-chapter')?.querySelector('.outline-group')).toBeNull();
+        expect(root.querySelectorAll('.outline-children.expanded')).toHaveLength(0);
+        expect(component.expandedOutline()).toBe('');
         entries.set([section, entry('world-only', 'world-quests', 0)]);
-        fixture.detectChanges();
-        component.expandOutline();
         fixture.detectChanges();
         expect(component.outlineChapters()[0].entry).toBeNull();
         expect(root.querySelector('.outline-group a')?.textContent).toContain('world-only');
+        expect(root.querySelector('.outline-chapter-heading')).toBeNull();
+        expect(root.querySelector<HTMLElement>('.outline-children')?.inert).toBe(false);
         entries.set([section, entry('main-only', 'main-story', 0)]);
         fixture.detectChanges();
         expect(root.querySelector('.outline-toggle')).toBeNull();
@@ -126,6 +199,7 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         const rect = (top: number, bottom: number) => ({ top, bottom } as DOMRect);
+        fixture.componentInstance.header()!.compact.set(true);
         vi.spyOn(root.querySelector<HTMLElement>('.story-sticky-header')!, 'getBoundingClientRect').mockReturnValue(rect(0, 100));
         const parent = root.querySelector<HTMLElement>('#story-content-first')!;
         const child = root.querySelector<HTMLElement>('#story-content-second')!;
@@ -140,11 +214,13 @@ describe('Story incomplete filter', () => {
         expect(fixture.componentInstance.activeOutline()).toBe(child.id);
         fixture.detectChanges();
         expect(root.querySelector('.outline-chapter-heading a.active')).not.toBeNull();
-        fixture.componentInstance.expandOutline();
+        fixture.componentInstance.toggleOutline(first.id);
         fixture.detectChanges();
-        expect(root.querySelector('.outline-group a.active')?.getAttribute('href')).toBe('#story-content-second');
+        expect(root.querySelector('.outline-group a.active')?.getAttribute('href')).toBe('/genshin/story/mondstadt#story-content-second');
+        expect(root.querySelector('.outline-group a.active')?.getAttribute('aria-current')).toBe('location');
+        expect(root.querySelector('.outline-chapter-heading.active')).toBeNull();
         fixture.componentInstance.collapseOutline();
-        expect(fixture.componentInstance.expandedOutline()).toEqual([]);
+        expect(fixture.componentInstance.expandedOutline()).toBe('');
         viewportHeight.mockRestore();
     });
     it('shows a compact creation form and requires valid fields before creation', async () => {
@@ -167,7 +243,7 @@ describe('Story incomplete filter', () => {
         await fixture.whenStable();
         const modal = (fixture.nativeElement as HTMLElement).querySelector('.create-subsection-modal') as HTMLElement;
         expect(modal.querySelector('h2')?.textContent).toContain('Create Subsection');
-        expect([...modal.querySelectorAll('form > label')].map((label) => label.firstChild?.textContent?.trim())).toEqual(['Content Template', 'Navigation Category', 'Section Title']);
+        expect([...modal.querySelectorAll('form label')].map((label) => label.firstChild?.textContent?.trim())).toEqual(['Content Template', 'Navigation Category', 'Section Title']);
         expect(modal.querySelector('gg-patch-overview')).toBeNull();
         expect((modal.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true);
         component.editor!.name = '   ';
@@ -181,7 +257,8 @@ describe('Story incomplete filter', () => {
         component.editor!.category = 'invalid';
         expect(component.validNewSubsection()).toBe(false);
     });
-    it('collapses content during reordering and saves only the current section order', async () => {
+    it.each([true, false])('centers a reordered section after expanding content (reduced motion: %s)', async reducedMotion => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: reducedMotion }));
         const section: Entry = { id: 'section', game: 'endfield', kind: 'story-category', name: 'Region',
             notes: '', quantity: 0, target: 0, rarity: 0, category: '', members: [], requirements: [],
             completed: false, order: 0, day: '' };
@@ -207,13 +284,35 @@ describe('Story incomplete filter', () => {
         fixture.detectChanges();
         expect(replace).not.toHaveBeenCalled();
         expect((fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.story-entry-body')!.hidden).toBe(false);
-        await fixture.componentInstance.reorderEntry(first.id, second.id, true);
+        const root = fixture.nativeElement as HTMLElement;
+        const movedHeader = root.querySelector<HTMLElement>('#story-content-first .story-section-header')!;
+        const movedHandle = movedHeader.querySelector<HTMLButtonElement>('.story-drag-handle')!;
+        movedHeader.scrollIntoView = vi.fn();
+        const focus = vi.spyOn(movedHandle, 'focus');
+        fixture.componentInstance.startReorder({ button: 0, pointerId: 2, preventDefault() {},
+            currentTarget: { setPointerCapture() {}, hasPointerCapture: () => false } } as unknown as PointerEvent, first);
+        fixture.componentInstance.dropId.set(second.id);
+        fixture.componentInstance.dropAfter.set(true);
+        fixture.detectChanges();
+        await fixture.componentInstance.finishReorder({ pointerId: 2 } as PointerEvent);
+        fixture.detectChanges();
+        await fixture.whenStable();
         expect(entries().find((entry) => entry.id === first.id)?.order).toBe(1);
         expect(entries().find((entry) => entry.id === second.id)?.order).toBe(0);
         expect(entries().find((entry) => entry.id === other.id)).toEqual(other);
+        expect(root.querySelectorAll('.story-subsections > article')[1]?.getAttribute('data-story-entry')).toBe(first.id);
+        expect(root.querySelector<HTMLElement>('.story-entry-body')!.hidden).toBe(false);
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(movedHeader.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+        vi.mocked(movedHeader.scrollIntoView).mockClear();
+        replace.mockResolvedValueOnce(false);
+        await fixture.componentInstance.reorderEntry(first.id, second.id, false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(movedHeader.scrollIntoView).not.toHaveBeenCalled();
         fixture.componentInstance.editMode.set(false);
         await fixture.componentInstance.reorderEntry(second.id, first.id, true);
-        expect(replace).toHaveBeenCalledTimes(1);
+        expect(replace).toHaveBeenCalledTimes(2);
     });
     it('requires confirmation before deleting a navigation section and lets the user cancel', async () => {
         const section: Entry = { id: 'section', game: 'endfield', kind: 'story-category', name: 'Valley IV',
@@ -311,6 +410,24 @@ describe('Story tab persistence', () => {
         quantity: 0, target: 0, rarity: 0, members: [], requirements: [], completed: false, day: '',
     });
 
+    it('does not overwrite another tab reading a different section when positions or catalog data change', () => {
+        const first = section('first');
+        const second = section('second', 'zzz', 1);
+        const chapter = (id: string, parent: string): Entry => ({ ...section(id), kind: 'story', storySection: parent });
+        const data = [first, second, chapter('first-quest', first.id), chapter('second-quest', second.id)];
+        const { fixture, entries } = setup(data);
+        const positions = fixture.componentInstance.positions;
+        expect(positions.positions()['zzz'].entryId).toBe('first-quest');
+        positions.remember('zzz', 'second-quest', 'other-tab-row');
+        const remember = vi.spyOn(positions, 'remember');
+        fixture.detectChanges();
+        expect(positions.positions()['zzz']).toMatchObject({ entryId: 'second-quest', rowId: 'other-tab-row' });
+        entries.set([...data]);
+        fixture.detectChanges();
+        expect(positions.positions()['zzz']).toMatchObject({ entryId: 'second-quest', rowId: 'other-tab-row' });
+        expect(remember).not.toHaveBeenCalled();
+    });
+
     it('opens and remembers the row targeted by a dashboard resume link', async () => {
         const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region',
             mainStory: { ...emptyPatchOverview(), rows: [{ id: 'quest', content: 'Next quest', contentType: '', patch: '1.0', notes: '' }] } };
@@ -323,6 +440,100 @@ describe('Story tab persistence', () => {
         await new Promise<void>(resolve => { requestAnimationFrame(() => resolve()); });
         expect(target.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
         expect(fixture.componentInstance.positions.positions()['zzz']).toMatchObject({ entryId: 'chapter', rowId: 'quest' });
+    });
+
+    it('provides complete native link URLs before a click, preserving filters and the selected region', async () => {
+        const first = section('first');
+        const second = {...section('second', 'zzz', 1), name: 'Inazuma'};
+        const chapter: Entry = {...section('chapter'), kind: 'story', category: 'main-story', storySection: second.id};
+        const child: Entry = {...chapter, id: 'child', category: 'world-quests', order: 1};
+        localStorage.setItem('gg-story-tab-v1:zzz', second.id);
+        const {fixture} = setup([first, second, chapter, child]);
+        const route = TestBed.inject(ActivatedRoute);
+        (route.queryParamMap as BehaviorSubject<ReturnType<typeof convertToParamMap>>).next(convertToParamMap({
+            section: second.id, filter: ['a', 'b'],
+        }));
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const links = [...root.querySelectorAll<HTMLAnchorElement>('.story-outline a')];
+        expect(links.map(link => link.getAttribute('href'))).toEqual([
+            '/zzz/story/inazuma?filter=a&filter=b#story-content-chapter',
+            '/zzz/story/inazuma?filter=a&filter=b#story-content-child',
+        ]);
+        const nativeLink = links[0];
+        const contextMenu = new MouseEvent('contextmenu', {bubbles: true, cancelable: true, button: 2});
+        nativeLink.dispatchEvent(contextMenu);
+        expect(contextMenu.defaultPrevented).toBe(false);
+        const modified = new MouseEvent('click', {cancelable: true, ctrlKey: true});
+        fixture.componentInstance.openOutlineChapter(modified, chapter.id, true);
+        expect(modified.defaultPrevented).toBe(false);
+        expect(fixture.componentInstance.expandedOutline()).toBe('');
+    });
+
+    it('restores a natively opened link in a fresh component regardless of saved region', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({matches: true}));
+        const chapter: Entry = {...section('chapter'), kind: 'story', category: 'main-story', storySection: 'second'};
+        const child: Entry = {...chapter, id: 'child', category: 'world-quests', order: 1};
+        const {fixture, params, fragment} = setup([section('first'), section('second', 'zzz', 1), chapter, child]);
+        fixture.destroy();
+        localStorage.setItem('gg-story-tab-v1:zzz', 'first');
+        params.next(convertToParamMap({section: 'second'}));
+        fragment.next('story-content-child');
+        const opened = TestBed.createComponent(Story);
+        opened.componentRef.setInput('game', 'zzz');
+        opened.detectChanges();
+        const target = (opened.nativeElement as HTMLElement).querySelector<HTMLElement>('#story-content-child')!;
+        target.scrollIntoView = vi.fn();
+        await opened.whenStable();
+        await new Promise<void>(resolve => {requestAnimationFrame(() => resolve());});
+        expect(opened.componentInstance.active()?.id).toBe('second');
+        expect(opened.componentInstance.activeOutline()).toBe(target.id);
+        expect(opened.componentInstance.expandedOutline()).toBe('chapter');
+        expect(target.scrollIntoView).toHaveBeenCalledWith({block: 'start', behavior: 'instant'});
+    });
+
+    it('adds a shareable section URL and hashtag when clicking the story outline', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+        const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region' };
+        const child: Entry = { ...chapter, id: 'child', category: 'world-quests', order: 1 };
+        const {fixture} = setup([section('region'), chapter, child]);
+        const root = fixture.nativeElement as HTMLElement;
+        const target = root.querySelector<HTMLElement>('#story-content-child')!;
+        target.scrollIntoView = vi.fn();
+        const focus = vi.spyOn(target, 'focus');
+        const event = new MouseEvent('click', {cancelable: true});
+        fixture.componentInstance.jumpTo(event, target.id);
+        expect(event.defaultPrevented).toBe(true);
+        expect(target.scrollIntoView).toHaveBeenCalledWith({block: 'start', behavior: 'instant'});
+        expect(focus).toHaveBeenCalledWith({preventScroll: true});
+        expect(fixture.componentInstance.expandedOutline()).toBe('chapter');
+        expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/', 'zzz', 'story', 'region'], {
+            relativeTo: TestBed.inject(ActivatedRoute), queryParams: {section: null}, queryParamsHandling: 'merge', fragment: target.id,
+        });
+        await fixture.whenStable();
+        const modified = new MouseEvent('click', {ctrlKey: true, cancelable: true});
+        vi.mocked(TestBed.inject(Router).navigate).mockClear();
+        fixture.componentInstance.jumpTo(modified, target.id);
+        expect(modified.defaultPrevented).toBe(false);
+        expect(TestBed.inject(Router).navigate).not.toHaveBeenCalled();
+    });
+
+    it('restores a hashtag target and its expanded parent after returning through history', async () => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+        const chapter: Entry = { ...section('chapter'), kind: 'story', category: 'main-story', storySection: 'region' };
+        const child: Entry = { ...chapter, id: 'child', category: 'world-quests', order: 1 };
+        const {fixture, fragment} = setup([section('region'), chapter, child]);
+        const target = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('#story-content-child')!;
+        target.scrollIntoView = vi.fn();
+        for (let visit = 0; visit < 2; visit++) {
+            fragment.next(target.id); fixture.detectChanges(); await fixture.whenStable();
+            await new Promise<void>(resolve => {requestAnimationFrame(() => resolve());});
+            expect(fixture.componentInstance.activeOutline()).toBe(target.id);
+            expect(fixture.componentInstance.expandedOutline()).toBe('chapter');
+            fragment.next(null); fixture.detectChanges();
+            fixture.componentInstance.expandedOutline.set('');
+        }
+        expect(target.scrollIntoView).toHaveBeenCalledTimes(2);
     });
 
     it('remembers clicked tabs after recreation and keeps each game independent', () => {

@@ -1,15 +1,17 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore } from '../../../../../core/state/workspace.store';
-import type { Entry } from '../../../../../../../../lib/types/workspace.type';
-import { GAMES } from '../../../../../../../../lib/constants/workspace.constants';
+import type { Entry } from '@lib/types/workspace.type';
+import type { GameRegistration } from '@lib/types/games.type';
+import { GAMES } from '@lib/constants/workspace.constants';
+import { defaultGameOverview } from '@common/workspace/game-overview';
 
 @Component({ selector: 'gg-progression', imports: [FormsModule], templateUrl: './progression.html', styles: [':host { display: block; }'] })
 export class ProgressionPage {
-    readonly context = input<(typeof GAMES)[number]>();
+    readonly context = input<GameRegistration>();
     readonly page = input('plans');
     readonly title = input('Planner');
-    readonly games = [...GAMES].sort((a, b) => a.name.localeCompare(b.name));
+    get games() {return (this.store.games?.() ?? GAMES.map(game => defaultGameOverview(game.id))).slice().sort((a, b) => a.name.localeCompare(b.name));}
     readonly store = inject(WorkspaceStore);
     readonly editEntry = output<{ kind: string; entry?: Entry }>();
     readonly removeEntry = output<Entry>();
@@ -19,7 +21,7 @@ export class ProgressionPage {
     }
     open(kind: string, entry?: Entry): void { this.editEntry.emit({ kind, entry }); }
     readonly scoped = computed(() =>
-        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.id),
+        this.store.entries().filter((e) => !this.context() || e.game === this.context()!.gameId),
     );
     readonly search = signal('');
     readonly category = signal('');
@@ -43,7 +45,7 @@ export class ProgressionPage {
         ),
     ]);
     gameName(id: string): string {
-        return this.games.find((g) => g.id === id)?.name ?? 'All games';
+        return this.games.find((g) => g.gameId === id)?.name ?? 'All games';
     }
     nameOf(id: string): string {
         return this.store.entries().find((e) => e.id === id)?.name ?? 'Unknown';

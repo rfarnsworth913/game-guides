@@ -1,0 +1,18 @@
+{
+    "id": "Girls Frontline 2",
+    "sourceList": [
+        {
+            "id": "Version",
+            "url": "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=3347400&count=100&maxlength=0&format=json"
+        },
+        {
+            "id": "Events",
+            "url": "https://iopwiki.com/wiki/GFL2_Events"
+        },
+        {
+            "id": "Banners",
+            "url": "https://iopwiki.com/wiki/GFL2_Banners"
+        }
+    ],
+    "gameId": "gf2"
+}

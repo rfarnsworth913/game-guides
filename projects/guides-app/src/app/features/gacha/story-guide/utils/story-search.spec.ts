@@ -1,6 +1,6 @@
 import { searchStoryGuides } from "./story-search";
 import { Entry } from "../../../../core/state/workspace.store";
-import { emptyPatchOverview } from "../../../../../../../common/quests/story-template";
+import { emptyPatchOverview } from "@common/quests/story-template";
 
 describe('game-wide story search', () => {
     const section: Entry = { id: 'valley', game: 'endfield', kind: 'story-category', name: 'Valley IV',
@@ -19,6 +19,9 @@ describe('game-wide story search', () => {
             expect(searchStoryGuides([section, info], 'endfield', query).length).toBeGreaterThan(0);
         }
         expect(searchStoryGuides([section, info], 'endfield', ' FRIENDSHIP ')[0].target).toBe('story-row-info-operator');
+    });
+    it('does not return decorative dividers, even if converted from a previously named template', () => {
+        expect(searchStoryGuides([section, { ...info, category: 'divider' }], 'endfield', 'operator')).toEqual([]);
     });
     it('searches other navigation categories, limits results to the game and requires all search terms', () => {
         const foreignSection = { ...section, id: 'foreign', game: 'genshin' };

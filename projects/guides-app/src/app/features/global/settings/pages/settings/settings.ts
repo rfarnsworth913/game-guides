@@ -2,7 +2,7 @@ import { Component, inject, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceStore } from '../../../../../core/state/workspace.store';
 import { ThemeService } from '../../../../../core/theme/theme.service';
-import { parseBackup } from '../../../../../../../../common/workspace/workspace';
+import { parseBackup } from '@common/workspace/workspace';
 
 @Component({ selector: 'gg-settings', imports: [FormsModule], templateUrl: './settings.html', styles: [':host { display: block; }'] })
 export class SettingsPage {
@@ -33,7 +33,7 @@ export class SettingsPage {
                 throw new Error();
             }
             const raw = await file.text();
-            const entries = parseBackup(raw);
+            const entries = parseBackup(raw, this.store.games().map(game => game.gameId));
             const backup = JSON.parse(raw) as { characterRules?: Parameters<WorkspaceStore['replace']>[1]; personalTeams?: unknown };
             const rules = backup.characterRules;
             const merged = new Map(this.store.entries().map((e) => [e.id, e]));

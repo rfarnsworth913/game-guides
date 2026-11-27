@@ -1,0 +1,20 @@
+.image-library { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-content: start; gap: 16px; }
+.image-card { position: relative; border: 1px solid transparent; border-radius: 9px; min-width: 0; }
+.image-card:hover { border-color: var(--color-border); }
+.image-card.selected { border-color: var(--image-library-accent); box-shadow: 0 0 0 1px var(--image-library-accent); }
+.image-select { display: block; width: 100%; height: 100%; padding: 5px; border: 0; text-align: left; background: transparent; }
+.thumbnail { position: relative; aspect-ratio: 4 / 3; border-radius: 6px; overflow: hidden; background: var(--color-bg-primary); }
+.thumbnail img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.thumbnail img.cover { object-fit: cover; }
+[data-category=banner] .thumbnail { aspect-ratio: 3 / 1; }
+[data-category=headshot] .thumbnail, [data-category=icon] .thumbnail { aspect-ratio: 1; }
+[data-category=character] .thumbnail { aspect-ratio: 3 / 4; }
+.selected-check, .ratio-warning { position: absolute; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-weight: 700; }
+.selected-check { top: 6px; left: 6px; background: var(--image-library-accent); color: var(--color-bg-primary); }
+.ratio-warning { left: 6px; bottom: 6px; background: rgba(0, 0, 0, .75); color: rgba(255, 255, 255, 1); }
+.image-card strong, .image-card small { display: block; margin: 8px 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.image-card small { margin-top: 4px; margin-bottom: 5px; color: var(--color-text-secondary); font-size: 11px; }
+.image-preview-action { position: absolute; right: 10px; top: 10px; padding: 6px; min-height: 30px; background: rgba(0, 0, 0, .7); color: rgba(255, 255, 255, 1); border-color: rgba(255, 255, 255, .25); }
+.image-preview-action svg { display: block; width: 16px; height: 16px; }
+.library-notice { grid-column: 1 / -1; padding: 16px 0; color: var(--color-text-secondary); }
+.library-load-more { display: block; margin: 18px auto 0; }

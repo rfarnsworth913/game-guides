@@ -1,0 +1,15 @@
+
+@if(nav.opened()) {
+<div class="modal-backdrop" (click)="nav.close()"><section class="switcher" data-game-switcher role="dialog" aria-modal="true" aria-labelledby="game-switcher-title" ggDialogFocus [ggDialogRestoreFocus]="false" ggDialogInitialFocus="input[type=search]" (click)="$event.stopPropagation()" (keydown)="key($event)">
+ <header><div><h2 id="game-switcher-title">Find a game</h2><p>Switch between your games.</p></div><button type="button" (click)="nav.close()" aria-label="Close game switcher"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+ <div class="switcher-body">
+ <input #search type="search" aria-label="Search games" placeholder="Name, abbreviation or genre…" [value]="nav.query()" (input)="nav.query.set(search.value); nav.selected.set(0)" role="combobox" aria-autocomplete="list" aria-controls="game-switch-results" [attr.aria-expanded]="true" [attr.aria-activedescendant]="nav.results().length ? 'switch-game-'+nav.selected() : null" />
+ <p class="muted">{{nav.query() ? 'Search results' : 'Recent and pinned games'}}</p>
+ <div id="game-switch-results" role="listbox">@for(game of nav.results();track game.gameId;let index=$index) {
+ <button type="button" role="option" [id]="'switch-game-'+index" [attr.aria-selected]="index===nav.selected()" (click)="nav.select(game.gameId)" [disabled]="nav.switching()">
+ <span class="tile">@if(game.icon && !failed.has(game.icon)) {<img [src]="game.icon" alt="" (error)="failed.add(game.icon)" />} @else {{{game.short}}}</span><span><strong>{{game.name}}</strong><small>{{game.genres.join(', ') || 'Unclassified'}}</small></span></button>
+ } @empty {<p>No games found.</p>}</div>
+ @if(nav.error()) {<p role="alert">{{nav.error()}}</p>}
+ </div>
+ <footer><p><kbd>↑</kbd><kbd>↓</kbd> Navigate <span>·</span> <kbd>Enter</kbd> Open game <span>·</span> <kbd>Esc</kbd> Close</p><button class="close-action" type="button" (click)="nav.close()">Close</button></footer>
+</section></div>}

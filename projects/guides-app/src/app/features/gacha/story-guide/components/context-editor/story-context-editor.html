@@ -1,31 +1,46 @@
-<details class="guide-context-editor">
-    <summary>{{ row() ? 'Requirements, location & tracking' : 'Guide details & tracking' }}</summary>
+@if (row() || inline()) {
+    <div class="guide-inline-context" [class.guide-template-context]="inline() && !row()" [class.guide-panel-context]="panels()"><ng-container *ngTemplateOutlet="fields" /></div>
+} @else {
+    <details class="guide-context-editor"><summary>Guide details</summary><ng-container *ngTemplateOutlet="fields" /></details>
+}
+<ng-template #fields>
+    @if (!row()) {
+    @if (showAvailabilityFields()) {
     <div class="patch-fields">
-        <label>Tracking mode<select [ngModelOptions]="standalone" [(ngModel)]="context().trackingMode">
-            <option [ngValue]="undefined">{{ row() ? 'Inherit guide setting' : 'Template default' }}</option>
-            @for (mode of trackingModes; track mode) { <option [value]="mode">{{ mode }}</option> }
-        </select></label>
         <label>Availability<select [ngModelOptions]="standalone" [(ngModel)]="context().availability">
             <option [ngValue]="undefined">Not specified</option>
             @for (availability of availabilities; track availability) { <option [value]="availability">{{ availability }}</option> }
         </select></label>
-        <label>Start date<input type="date" [ngModelOptions]="standalone" [(ngModel)]="context().startDate" /></label>
-        <label>End date<input type="date" [ngModelOptions]="standalone" [(ngModel)]="context().endDate" /></label>
-        <label>Region<input [ngModelOptions]="standalone" [(ngModel)]="context().region" /></label>
-        <label>Area<input [ngModelOptions]="standalone" [(ngModel)]="context().area" /></label>
-        <label>Quest chain<input [ngModelOptions]="standalone" [(ngModel)]="context().chain" /></label>
-        <label>{{ row() ? 'Quest / activity subtype' : 'Chapter / act' }}<input [attr.list]="worldQuest() && row() ? subtypeListId : null" [ngModelOptions]="standalone" [ngModel]="row() ? context().subtype : context().chapter" (ngModelChange)="row() ? context().subtype = $event : context().chapter = $event" placeholder="e.g. Hidden Exploration Objective" /></label>
-        @if (worldQuest() && row()) { <datalist [id]="subtypeListId">@for (subtype of worldSubtypes; track subtype) { <option [value]="subtype"></option> }</datalist> }
-        <label>Current cycle ID<input [ngModelOptions]="standalone" [(ngModel)]="context().cycleId" placeholder="e.g. season-2026-10" maxlength="100" /></label>
-        <label>Reset schedule<input [ngModelOptions]="standalone" [(ngModel)]="context().resetSchedule" placeholder="e.g. Every Monday at server reset" /></label>
-        @if (row()) { <label>Difficulty / tier<input [ngModelOptions]="standalone" [(ngModel)]="context().difficulty" /></label> }
-        @if (worldQuest() && row()) {
-            <label>Chapter / main quest<input [ngModelOptions]="standalone" [(ngModel)]="context().chapter" placeholder="Optional secondary group in quest-chain mode" /></label>
-        }
+        <label>Start date<input type="date" [ngModelOptions]="standalone" [ngModel]="context().startDate?.slice(0, 10)" (ngModelChange)="context().startDate = $event" /></label>
+        <label>End date<input type="date" [ngModelOptions]="standalone" [ngModel]="context().endDate?.slice(0, 10)" (ngModelChange)="context().endDate = $event" /></label>
     </div>
-    <p class="guide-help">Recurring rows require a cycle ID. Changing it starts a separate cycle and preserves earlier progress. Leave one-time milestones on completed.</p>
+    }
+    } @else if (showSubtype()) {
+        <gg-story-subtype-editor [context]="context()" [worldQuest]="worldQuest()" />
+    }
+    @if (panels()) {
+        @if (showRequirements()) {
+        <section class="context-panel">
+            <button type="button" class="context-panel-toggle" [attr.aria-expanded]="requirementsExpanded()" [attr.aria-controls]="panelId + '-requirements'" (click)="requirementsExpanded.update(toggleExpanded)">
+                <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 10 5-10 5L2 8Zm-10 10 10 5 10-5M2 18l10 5 10-5" /></svg><strong>Requirements</strong><span class="context-panel-count">{{ requirementCount() }}</span><svg class="context-panel-chevron" [class.expanded]="requirementsExpanded()" width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
+            </button>
+            <div class="context-panel-body" [class.expanded]="requirementsExpanded()" [id]="panelId + '-requirements'" [attr.aria-hidden]="!requirementsExpanded()" [attr.inert]="!requirementsExpanded() ? '' : null"><div class="context-panel-clip"><div class="context-panel-content"><ng-container *ngTemplateOutlet="requirementsFields" /></div></div></div>
+        </section>
+        }
+        <section class="context-panel">
+            <button type="button" class="context-panel-toggle" [attr.aria-expanded]="relatedExpanded()" [attr.aria-controls]="panelId + '-related'" (click)="relatedExpanded.update(toggleExpanded)">
+                <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 15 6-6M8 12l-2 2a3 3 0 0 0 4 4l2-2m0-8 2-2a3 3 0 0 1 4 4l-2 2" /></svg><strong>Related Content</strong><span class="context-panel-count">{{ (context().relatedContentIds?.length ?? 0) + ' linked' }}</span><svg class="context-panel-chevron" [class.expanded]="relatedExpanded()" width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
+            </button>
+            <div class="context-panel-body" [class.expanded]="relatedExpanded()" [id]="panelId + '-related'" [attr.aria-hidden]="!relatedExpanded()" [attr.inert]="!relatedExpanded() ? '' : null"><div class="context-panel-clip"><div class="context-panel-content"><ng-container *ngTemplateOutlet="relatedFields" /></div></div></div>
+        </section>
+    } @else {
+        @if (showRequirements()) { <h4>Requirements</h4><ng-container *ngTemplateOutlet="requirementsFields" /> }
+        <ng-container *ngTemplateOutlet="relatedFields" />
+    }
+</ng-template>
+<ng-template #requirementsFields>
+    <p class="guide-help">Enter plain-text requirements. Linking existing content is optional.</p>
     @if (worldQuest() && row()) {
-        <h4>Requirements</h4>
         <label>Prerequisite status<select [ngModelOptions]="standalone" [ngModel]="requirementStatus()" (ngModelChange)="setRequirementStatus($event)">
             <option value="unknown">Requirements not documented</option>
             <option value="none">No prerequisites (verified)</option>
@@ -37,32 +52,33 @@
             </select></label>
             @for (gate of prerequisites(); track $index; let index = $index) {
                 <div class="guide-requirement-editor">
-                    <label>Gate type<select [ngModelOptions]="standalone" [ngModel]="gate.type" (ngModelChange)="setPrerequisite(index, 'type', $event)">
+                    <label>Type<select [ngModelOptions]="standalone" [ngModel]="gate.type" (ngModelChange)="setPrerequisite(index, 'type', $event)">
                         @for (type of gateTypes; track type) { <option [value]="type">{{ type }}</option> }
                     </select></label>
-                    <label>Verified requirement<textarea rows="2" [ngModelOptions]="standalone" [ngModel]="gate.text" (ngModelChange)="setPrerequisite(index, 'text', $event)"></textarea></label>
-                    <label>Related record ID<input [ngModelOptions]="standalone" [ngModel]="gate.targetId" (ngModelChange)="setPrerequisite(index, 'targetId', $event)" /></label>
-                    <button type="button" (click)="removePrerequisite(index)" aria-label="Remove prerequisite">Remove</button>
+                    <label>Description<textarea rows="1" placeholder="e.g. Reach Adventure Rank 25" [ngModelOptions]="standalone" [ngModel]="gate.text" (ngModelChange)="setPrerequisite(index, 'text', $event)"></textarea></label>
+                    <button type="button" class="requirement-remove" (click)="removePrerequisite(index)" aria-label="Remove prerequisite">Remove</button>
+                    <div class="requirement-link-options"><gg-requirement-picker [game]="game()" [entries]="entries()" [value]="gate.targetId || ''" (valueChange)="setPrerequisite(index, 'targetId', $event)" /></div>
                 </div>
             }
-            <button type="button" (click)="addPrerequisite()">+ Add prerequisite</button>
         }
+        <button type="button" (click)="addPrerequisite()">+ Add requirement</button>
         <p class="guide-help">Only record verified access conditions here. Keep advice, rewards and spoilers in Notes. Empty source data does not mean there are no prerequisites.</p>
     }
     @if (!worldQuest() || !row() || context().requirements?.length) {
-    <h4>{{ worldQuest() ? 'Legacy requirements & contextual information' : 'Requirements & contextual information' }}</h4>
+    @if (worldQuest() && row() && context().requirements?.length) { <p class="guide-help">Additional requirements</p> }
     @for (requirement of context().requirements; track $index; let index = $index) {
         <div class="guide-requirement-editor">
             <label>Type<select [ngModelOptions]="standalone" [(ngModel)]="requirement.type">
                 @for (type of requirementTypes; track type) { <option [value]="type">{{ type }}</option> }
             </select></label>
-            <label>Description<textarea rows="2" [ngModelOptions]="standalone" [(ngModel)]="requirement.text"></textarea></label>
-            <label>Related record ID<input [ngModelOptions]="standalone" [(ngModel)]="requirement.targetId" /></label>
-            <button type="button" (click)="context().requirements!.splice(index, 1)" aria-label="Remove requirement">Remove</button>
+            <label>Description<textarea rows="1" placeholder="e.g. Reach Adventure Rank 25" [ngModelOptions]="standalone" [(ngModel)]="requirement.text"></textarea></label>
+            <button type="button" class="requirement-remove" (click)="context().requirements!.splice(index, 1)" aria-label="Remove requirement">Remove</button>
+            <div class="requirement-link-options"><gg-requirement-picker [game]="game()" [entries]="entries()" [value]="requirement.targetId || ''" (valueChange)="requirement.targetId = $event" /></div>
         </div>
     }
     @if (!worldQuest() || !row()) { <button type="button" (click)="addRequirement()">+ Add requirement</button> }
     }
-    <label>Related content IDs<input [ngModelOptions]="{standalone:true, updateOn:'blur'}" [ngModel]="context().relatedContentIds?.join(', ') ?? ''" (ngModelChange)="relatedIds($event)" placeholder="Comma-separated IDs from this game" /></label>
+</ng-template>
+<ng-template #relatedFields>    <label>Related content IDs<input [ngModelOptions]="{standalone:true, updateOn:'blur'}" [ngModel]="context().relatedContentIds?.join(', ') ?? ''" (ngModelChange)="relatedIds($event)" placeholder="Comma-separated IDs from this game" /></label>
     <p class="guide-help">Links point to existing records. Linking a quest or achievement does not create a second completion record.</p>
-</details>
+</ng-template>

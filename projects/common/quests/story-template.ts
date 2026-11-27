@@ -1,6 +1,6 @@
-import { trimStoryContext, validStoryContext } from './story-guide';
-import type { StoryGroup } from '../../lib/types/story-group.type';
-import type { StoryTableRow, PatchOverview } from '../../lib/types/story-template.type';
+import { trimStoryContext, validStoryContext } from '@common/quests/story-guide';
+import type { StoryGroup } from '@lib/types/story-group.type';
+import type { StoryTableRow, PatchOverview } from '@lib/types/story-template.type';
 export function httpUrl(value: string): string | null {
     try {
         const url = new URL(value);
@@ -11,6 +11,11 @@ export function httpUrl(value: string): string | null {
 }
 
 
+export function storyImageUrl(value: string): string | null {
+    return /^\/api\/games\/[a-z][a-z0-9-]*\/images\/[a-z0-9][a-z0-9-]*\.(png|jpg|webp|gif)$/.test(value)
+        ? value
+        : httpUrl(value);
+}
 export function validStoryTableRow(value: unknown): value is StoryTableRow {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {return false;}
     const row = value as StoryTableRow;
@@ -20,6 +25,7 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                         'context',
                         'id',
                         'subQuest',
+                        'optional',
                         'rowType',
                         'contentType',
                         'content',
@@ -28,12 +34,15 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                         'notesRight',
                         'groupId',
                         'contentUrl',
+                        'thumbnailUrl',
+                        'duration',
                     ].includes(key),
                 ) &&
                 validStoryContext(row.context) &&
                 (row.rowType === globalThis.undefined || ['quest', 'heading', 'note'].includes(row.rowType)) &&
                 typeof row.id === 'string' &&
                 (row.subQuest === globalThis.undefined || typeof row.subQuest === 'boolean') &&
+                (row.optional === globalThis.undefined || typeof row.optional === 'boolean') &&
                 !!row.id &&
                 [row.contentType, row.content, row.patch, row.notes].every(
                     (item) => typeof item === 'string',
@@ -42,13 +51,15 @@ export function validStoryTableRow(value: unknown): value is StoryTableRow {
                 (row.contentUrl === globalThis.undefined ||
                     (typeof row.contentUrl === 'string' &&
                         (!row.contentUrl || !!httpUrl(row.contentUrl)))) &&
+                (row.thumbnailUrl === globalThis.undefined || (typeof row.thumbnailUrl === 'string' && row.thumbnailUrl.length <= 2048 && (!row.thumbnailUrl || !!storyImageUrl(row.thumbnailUrl)))) &&
+                (row.duration === globalThis.undefined || (typeof row.duration === 'string' && (!row.duration || /^(?:\d{1,3}:[0-5]\d|\d{1,3}:[0-5]\d:[0-5]\d)$/.test(row.duration)))) &&
                 (row.groupId === globalThis.undefined || typeof row.groupId === 'string')
     );
 }
 
 function trimStoryRow(row: StoryTableRow): void {
     trimStoryContext(row.context);
-    for (const key of ['contentType', 'content', 'contentUrl', 'patch', 'notes', 'notesRight'] as const) {
+    for (const key of ['contentType', 'content', 'contentUrl', 'thumbnailUrl', 'duration', 'patch', 'notes', 'notesRight'] as const) {
         const value = row[key];
         if (typeof value === 'string') {row[key] = value.trim();}
     }
@@ -67,7 +78,7 @@ export const emptyPatchOverview = (): PatchOverview => ({
 /** Trim user-entered text without changing identifiers or internal formatting. */
 export function trimPatchOverviewText(patch: PatchOverview): void {
     trimStoryContext(patch.context);
-    const fields = ['imageUrl', 'imageAlt', 'sourceName', 'sourceUrl', 'versionImageUrl',
+    const fields = ['title', 'imageUrl', 'imageAlt', 'sourceName', 'sourceUrl', 'versionImageUrl',
         'patchVersion', 'patchTitle', 'releaseDate', 'summary', 'region', 'subtitle', 'characterName', 'damageType', 'damageTypeIcon', 'faction', 'factionIcon'] as const;
     for (const key of fields) {
         const value = patch[key];
@@ -117,11 +128,6 @@ export function preparePatchGroups(patch: PatchOverview): void {
         if (group.id) {for (const row of group.rows) {row.groupId = group.id;}}
     }
 }
-export function storyImageUrl(value: string): string | null {
-    return /^\/api\/games\/[a-z]+\/images\/[a-z0-9][a-z0-9-]*\.(png|jpg|webp|gif)$/.test(value)
-        ? value
-        : httpUrl(value);
-}
 export function validRowCompletion(value: unknown): value is Record<string, boolean> | undefined {
     return (
         value === globalThis.undefined ||
@@ -138,6 +144,8 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
     return (
         Object.keys(patch).every((key) =>
             [
+                'title',
+                'preservedTemplates',
                 'context',
                 'characterName',
                 'damageType',
@@ -162,6 +170,9 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
             ].includes(key),
         ) &&
         validStoryContext(patch.context) &&
+        (patch.preservedTemplates === globalThis.undefined || (Array.isArray(patch.preservedTemplates) && patch.preservedTemplates.length <= 32 && patch.preservedTemplates.every(item =>
+            !!item && typeof item === 'object' && Object.keys(item).every(key => ['template', 'content'].includes(key)) &&
+            typeof item.template === 'string' && item.template.length <= 80 && !!item.content && !Object.hasOwn(item.content, 'preservedTemplates') && validPatchOverview(item.content)))) &&
         [patch.imageUrl, patch.imageAlt, patch.sourceName, patch.sourceUrl].every(
             (item) => typeof item === 'string',
         ) &&
@@ -171,7 +182,7 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
             (typeof patch.versionImageUrl === 'string' &&
                 (!patch.versionImageUrl || !!storyImageUrl(patch.versionImageUrl)))) &&
         (!patch.sourceUrl || !!httpUrl(patch.sourceUrl)) &&
-        [patch.patchVersion, patch.patchTitle, patch.releaseDate, patch.summary, patch.region, patch.subtitle, patch.characterName, patch.damageType, patch.damageTypeIcon, patch.faction, patch.factionIcon].every(
+        [patch.title, patch.patchVersion, patch.patchTitle, patch.releaseDate, patch.summary, patch.region, patch.subtitle, patch.characterName, patch.damageType, patch.damageTypeIcon, patch.faction, patch.factionIcon].every(
             (value) => value === globalThis.undefined || typeof value === 'string',
         ) &&
         (!patch.releaseDate ||
@@ -182,11 +193,12 @@ export function validPatchOverview(value: unknown): value is PatchOverview | und
                 patch.groups.every(
                     (group) =>
                         group &&
-                        Object.keys(group).every((key) => ['id', 'title', 'defaultPatch', 'mainQuest', 'worldQuestMode', 'objectiveIds', 'groupType', 'contentUrl'].includes(key)) &&
+                        Object.keys(group).every((key) => ['id', 'title', 'icon', 'description', 'defaultPatch', 'mainQuest', 'worldQuestMode', 'objectiveIds', 'groupType', 'contentUrl'].includes(key)) &&
+                        [group.icon, group.description].every(value => value === globalThis.undefined || (typeof value === 'string' && value.length <= 4000)) &&
                         (group.contentUrl === globalThis.undefined || (typeof group.contentUrl === 'string' && (!group.contentUrl || !!httpUrl(group.contentUrl)))) &&
                         (group.groupType === globalThis.undefined || ['quest', 'content'].includes(group.groupType)) &&
                         (group.groupType !== 'content' || group.mainQuest === globalThis.undefined) &&
-                        (group.worldQuestMode === globalThis.undefined || ['region', 'questChain'].includes(group.worldQuestMode)) &&
+                        (group.worldQuestMode === globalThis.undefined || ['region', 'questChain', 'collectionChecklist'].includes(group.worldQuestMode)) &&
                         (group.objectiveIds === globalThis.undefined || (Array.isArray(patch.rows) && Array.isArray(group.objectiveIds) && group.objectiveIds.length <= 1000 && new Set(group.objectiveIds).size === group.objectiveIds.length && group.objectiveIds.every(id => patch.rows.some(row => row && row.id === id && (!row.rowType || row.rowType === 'quest'))))) &&
                         (group.mainQuest === globalThis.undefined || (validStoryTableRow(group.mainQuest) && (!group.mainQuest.rowType || group.mainQuest.rowType === 'quest') && (!group.mainQuest.groupId || group.mainQuest.groupId === group.id))) &&
                         (group.defaultPatch === globalThis.undefined || typeof group.defaultPatch === 'string') &&

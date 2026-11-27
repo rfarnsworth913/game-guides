@@ -3,9 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { WorkspaceStore } from "../../../../../core/state/workspace.store";
 import { DialogFocusDirective } from "../../../../../shared/directives/dialog-focus/dialog-focus";
-import type { Team } from "../../../../../../../../lib/types/team.type";
-import { teamSize, validTeams } from "../../../../../../../../common/player/teams";
-import { storyImageUrl } from "../../../../../../../../common/quests/story-template";
+import type { Team } from "@lib/types/team.type";
+import { teamSize, validTeams } from "@common/player/teams";
+import { storyImageUrl } from "@common/quests/story-template";
 
 @Component({
     selector: 'gg-teams',

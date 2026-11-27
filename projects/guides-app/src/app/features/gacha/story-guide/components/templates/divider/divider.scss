@@ -1,0 +1,6 @@
+:host { display: block; }
+.story-divider { display: flex; align-items: center; gap: 4px; padding: 20px 0; color: var(--color-primary); }
+.story-divider::before, .story-divider::after { content: ''; flex: 1; height: 1px; background: linear-gradient(to right, transparent, currentColor); }
+.story-divider::after { transform: scaleX(-1); }
+svg { flex: 0 0 96px; width: 96px; height: 40px; }
+.divider-dots { fill: currentColor; stroke: none; }

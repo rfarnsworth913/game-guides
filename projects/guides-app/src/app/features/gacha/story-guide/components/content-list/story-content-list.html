@@ -1,24 +1,36 @@
-<div class="guide-reading-view" [class.guide-world-quests]="worldQuest()" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
+<div class="guide-reading-view" [class.patch-reading-view]="patchOverview() || questTemplate() || characterProfile() || worldQuest() || eventTemplate() || activity()" [class.primary-quest-reading]="questTemplate()" [class.guide-world-quests]="worldQuest()" [class.guide-reference]="reference()" [class.guide-activity]="activity()">
     @if (worldQuest()) {
         <ng-container *ngTemplateOutlet="worldGroupsView" />
 
     } @else {
     @for (group of groups(); track group.id) {
-        <section class="guide-content-section" [id]="'patch-group-' + entry().id + '-' + (group.id || 'overview')">
-            @if (questTemplate() && group.mainQuest; as mainQuest) {
+        <ng-container *ngTemplateOutlet="contentGroup; context: { $implicit: group }" />
+    } @empty { <p class="guide-empty" role="status">No matching items in this guide.</p> }
+    }
+</div>
+
+<ng-template #contentGroup let-group>
+        <section class="guide-content-section" [class.patch-media-group]="patchOverview() && mediaGroup(group)" [id]="'patch-group-' + entry().id + '-' + (group.id || 'overview')">
+            @if (patchOverview() || characterProfile() || eventTemplate() || activity() || (questTemplate() && !group.mainQuest)) {
+                <header class="guide-section-heading patch-group-heading">
+                    @if (group.icon) { <span class="custom-group-icon" aria-hidden="true">@if (iconUrl(group.icon); as icon) { <img [src]="icon" alt="" /> } @else { {{ group.icon }} }</span> } @else { <ng-container *ngTemplateOutlet="patchIcon; context: { $implicit: groupIcon(group) }" /> }
+                    <h4>@if (httpUrl(group.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ groupTitle(group) }}</a> } @else { {{ groupTitle(group) }} }</h4>
+                    <span class="patch-group-count guide-group-progress" aria-label="Group completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: groupProgress(group.id) }" /></span>
+                    <button type="button" [attr.aria-label]="'Toggle ' + group.title" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-group-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
+                        <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
+                    </button>
+                </header>
+            } @else if (questTemplate() && group.mainQuest; as mainQuest) {
             <header class="guide-section-heading guide-main-quest-heading story-search-target" [id]="anchor(mainQuest)" [attr.data-story-row]="mainQuest.id" tabindex="-1">
+                @if (questTemplate()) { <svg class="quest-heading-icon" width="24" height="24" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5C8 2 4 3 2 4v16c3-2 7-2 10 0 3-2 7-2 10 0V4c-3-1-7-2-10 1Zm0 0v15" /></svg> }
                 <button type="button" [attr.aria-label]="'Toggle ' + (mainQuest.content || group.title)" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-group-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
                     <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
                 </button>
                 <div class="guide-main-quest-title">
-                    <h4>@if (httpUrl(mainQuest.contentUrl || mainQuest.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ mainQuest.content || group.title }}</a> } @else { {{ mainQuest.content || group.title }} }</h4>
-                    <p><span>{{ mainQuestName() }}</span>@if (mainQuest.patch || group.defaultPatch || sharedPatch(); as version) { <gg-patch-badge [version]="version" /> }</p>
+                    <h4>@if (httpUrl(mainQuest.contentUrl || group.contentUrl || mainQuest.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ mainQuest.content || group.title }}</a> } @else { {{ mainQuest.content || group.title }} }</h4>
                 </div>
                 @let progress = groupProgress(group.id);
-                <div class="guide-main-quest-progress" aria-label="Quest completion">
-                    <strong>{{ progress.completed }} / {{ progress.total }}</strong>
-                    <small>{{ progress.percent }}%</small>
-                </div>
+                <div class="guide-main-quest-progress guide-group-progress" aria-label="Quest completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: progress }" /></div>
             </header>
             } @else if (httpUrl(group.contentUrl || ''); as groupUrl) {
             <header class="guide-section-heading guide-linked-heading">
@@ -43,12 +55,13 @@
                 [attr.inert]="collapsed().includes(group.id) ? '' : null">
             <div class="guide-section-clip">
             <div class="guide-row-list">
+                @if (group.description) { <div class="guide-group-description notes-markdown" [innerHTML]="group.description | ggMarkdown"></div> }
                 @if (group.mainQuest; as mainQuest) {
                     @if (mainQuest.notes || mainQuest.notesRight || mainQuest.context?.requirements?.length) {
                         <div class="guide-main-quest-details">
                             <div class="notes-markdown" [innerHTML]="mainQuest.notes | ggMarkdown"></div>
                             @if (mainQuest.notesRight) { <div class="notes-markdown" [innerHTML]="mainQuest.notesRight | ggMarkdown"></div> }
-                            @for (requirement of mainQuest.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
+                            @for (requirement of mainQuest.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }} @if (requirementTarget(requirement.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</p> }
                         </div>
                     }
                 }
@@ -59,52 +72,36 @@
             </div>
             </div>
         </section>
-    } @empty { <p class="guide-empty" role="status">No matching items in this guide.</p> }
-    }
-</div>
-
+</ng-template>
+<ng-template #completionCount let-progress><strong>{{ progress.completed }} / {{ progress.total }}</strong><small>{{ progress.percent }}%</small></ng-template>
+<ng-template #patchIcon let-kind>
+    <svg class="patch-type-icon" width="28" height="28" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+        @if (kind === 'music') { <path d="M9 18V5l11-2v13M9 8l11-2" /><ellipse cx="6" cy="18" rx="3" ry="2" /><ellipse cx="17" cy="16" rx="3" ry="2" /> }
+        @else if (kind === 'play') { <circle cx="12" cy="12" r="9" /><path d="m10 8 6 4-6 4Z" /> }
+        @else if (kind === 'event') { <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 11h18M7 15h3M14 15h3M7 18h3" /> }
+        @else { <path d="M14 2H5v20h14V7Zm0 0v5h5M8 11h8M8 15h8M8 18h5" /> }
+    </svg>
+</ng-template>
 <ng-template #objective let-row let-rowAnchor="rowAnchor">
-    <article class="guide-content-row story-search-target" [class.guide-row-done]="done(row)" [class.guide-subquest]="row.subQuest && !questTemplate() && !worldQuest() && !eventTemplate()" [class.guide-row-heading]="row.rowType === 'heading'" [id]="rowAnchor || anchor(row)" [attr.data-story-row]="row.id" tabindex="-1">
-        @if (row.rowType === 'heading') { <h5>@if (httpUrl(row.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content }} <span aria-hidden="true">&#8599;</span></a> } @else { {{ row.content }} }</h5> }
+    <article class="guide-content-row story-search-target" [class.patch-media-row]="mediaRow(row)" [class.guide-row-done]="done(row)" [class.guide-row-heading]="row.rowType === 'heading'" [id]="rowAnchor || anchor(row)" [attr.data-story-row]="row.id" tabindex="-1">
+        @if (row.rowType === 'heading') { <h5>@if (httpUrl(row.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content }}</a> } @else { {{ row.content }} }</h5> }
         @else if (row.rowType === 'note') { <div class="notes-markdown guide-global-note" [innerHTML]="row.notes | ggMarkdown"></div> }
         @else {
             <label class="guide-row-tracking"><input type="checkbox" [checked]="done(row)" [disabled]="disabled() || !canTrack(row)" [attr.aria-label]="label(row) + ': ' + (row.content || 'Untitled content')" (change)="toggleRow($event, row)" /></label>
-            <div class="guide-row-body">
+            <div class="guide-row-body" [class.guide-row-with-requirements]="(worldQuest() || questTemplate() || activity()) && visiblePrerequisites(row.context).length > 0">
                 <div class="guide-row-main">
                 <div class="guide-row-title">
-                    @if (httpUrl(row.contentUrl || row.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content || url }} <span aria-hidden="true">↗</span></a> }
+                    @if (httpUrl(row.contentUrl || row.content); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ row.content || url }}</a> }
                     @else { <strong>{{ row.content || 'Untitled content' }}</strong> }
                     @if (row.context?.difficulty) { <span class="guide-meta-badge">{{ row.context.difficulty }}</span> }
+                    @if (eventTemplate() && row.optional) { <span class="guide-meta-badge">Optional</span> }
                 </div>
-                @if (worldQuest() && row.context?.subtype) { <span class="guide-meta-badge">{{ subtype(row.context.subtype) }}</span> }
+                @if (row.context?.subtype?.trim()) { <span class="guide-meta-badge guide-activity-subtype">{{ subtype(row.context.subtype) }}</span> }
                 @if (!worldQuest() && contextText(row.context)) { <p class="guide-row-context">{{ contextText(row.context) }}</p> }
                 @if (row.context?.availability) { <span class="guide-meta-badge">{{ row.context.availability }}</span> }
                 @if (!canTrack(row)) { <p class="guide-warning">An editor must set a cycle ID before current-cycle progress can be tracked.</p> }
-                @if (worldQuest()) {
-                    @let gates = prerequisites(row.context);
-                    <div class="guide-objective-details">
-                        @if (gates !== null) {
-                            <div class="guide-objective-requirements">
-                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>
-                                <div><strong>Requirements:</strong>
-                                    @if (!gates.length) { <span> None</span> }
-                                    @else if (gates.length === 1) {
-                                        <span> {{ gates[0].text }}</span>
-                                        @if (requirementTarget(gates[0].targetId); as target) { <a [href]="relatedUrl(target)">{{ target.name }}</a> }
-                                    } @else {
-                                        <span> {{ row.context?.requirementsOperator === 'anyOf' ? 'Meet any of the following:' : 'Meet all of the following:' }}</span>
-                                        <ul>
-                                            @for (gate of gates; track $index) {
-                                                <li>{{ gate.text }} @if (requirementTarget(gate.targetId); as target) { <a [href]="relatedUrl(target)">{{ target.name }}</a> }</li>
-                                            }
-                                        </ul>
-                                    }
-                                </div>
-                            </div>
-                        }
-
-                    </div>
-                        @if (row.notes || row.notesRight || worldNotes(row).length) {
+                @if (worldQuest() || questTemplate() || activity()) {
+                        @if (hasWorldNotes(row)) {
                             @let notesId = (rowAnchor || anchor(row)) + '-notes';
                             @let notesOpen = expandedNotes().includes(notesId);
                             <div class="guide-row-details guide-objective-notes">
@@ -114,9 +111,9 @@
                                 </button>
                                 <div class="guide-section-content" [class.collapsed]="!notesOpen" [id]="notesId" [attr.aria-hidden]="!notesOpen" [attr.inert]="!notesOpen ? '' : null">
                                 <div class="guide-section-clip"><div class="guide-notes-content">
-                                <div [class.guide-split-notes]="row.notesRight !== undefined">
-                                    @if (row.notes) { <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div> }
-                                    @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
+                                <div [class.guide-split-notes]="!!row.notes.trim() && !!row.notesRight?.trim()">
+                                    @if (row.notes.trim()) { <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div> }
+                                    @if (row.notesRight?.trim()) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
                                 </div>
                                 @for (item of worldNotes(row); track $index) { <p class="guide-requirement"><strong>{{ item.type }}:</strong> {{ item.text }}</p> }
                                 </div></div></div>
@@ -127,38 +124,71 @@
                 @for (requirement of row.context?.requirements; track $index) {
                     @if (['missable', 'unlock', 'time-gate'].includes(requirement.type)) { <p class="guide-warning"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
                 }
-                @if (row.notes || row.notesRight || row.context?.requirements?.length || row.context?.relatedContentIds?.length) {
+                @if ((patchOverview() || eventTemplate()) && (row.notes.trim() || row.notesRight?.trim())) {
+                    <div class="patch-row-description" [class.guide-split-notes]="!!row.notes.trim() && !!row.notesRight?.trim()">
+                        @if (row.notes.trim()) { <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div> }
+                        @if (row.notesRight?.trim()) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
+                    </div>
+                }
+                @if ((!patchOverview() && !eventTemplate() && (row.notes || row.notesRight)) || row.context?.requirements?.length || row.context?.relatedContentIds?.length) {
                     <details class="guide-row-details">
                         <summary>{{ reference() ? 'Reference details' : 'Notes & requirements' }}</summary>
-                        <div [class.guide-split-notes]="row.notesRight !== undefined">
+                        <div [hidden]="patchOverview() || eventTemplate()" [class.guide-split-notes]="row.notesRight !== undefined">
                             <div class="notes-markdown" [innerHTML]="row.notes | ggMarkdown"></div>
                             @if (row.notesRight) { <div class="notes-markdown" [innerHTML]="row.notesRight | ggMarkdown"></div> }
                         </div>
-                        @for (requirement of row.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }}</p> }
+                        @for (requirement of row.context?.requirements; track $index) { <p class="guide-requirement"><strong>{{ requirement.type }}:</strong> {{ requirement.text }} @if (requirementTarget(requirement.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</p> }
                         @for (entry of related(row.context?.relatedContentIds); track entry.id) { <a class="guide-related" [href]="relatedUrl(entry)">Related: {{ entry.name }}</a> }
                     </details>
                 }
                 }
                 </div>
-
+                @if ((worldQuest() || questTemplate() || activity()) && visiblePrerequisites(row.context).length > 0) { <ng-container *ngTemplateOutlet="worldRequirements; context: { $implicit: row }" /> }
             </div>
-            @if (worldQuest() || eventTemplate() || (row.patch && row.patch !== sharedPatch())) { <gg-patch-badge [version]="row.patch" /> }
+            @if (mediaRow(row)) { @if (mediaProvider(row); as provider) { <span class="patch-media-provider" [class.youtube]="provider.kind === 'youtube'" [class.bilibili]="provider.kind === 'bilibili'"><span aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 11 7-11 7Z" /></svg></span>{{ provider.name }}</span> } }
+            @if (worldQuest() || eventTemplate() || activity() || (row.patch && row.patch !== sharedPatch())) { <gg-patch-badge [version]="row.patch" /> }
         }
     </article>
+</ng-template>
+
+<ng-template #worldRequirements let-row>
+                    @let gates = visiblePrerequisites(row.context);
+                    <div class="guide-objective-details">
+                        @if (gates.length) {
+                            <div class="guide-objective-requirements">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>
+                                <div class="guide-requirement-copy"><strong>Requirements:</strong>
+                                    @if (gates.length === 1) {
+                                        @if (gates[0].text.trim()) { <span>{{ gates[0].text }}</span> }
+                                        @if (requirementTarget(gates[0].targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }
+                                    } @else {
+                                        <span> {{ row.context?.requirementsOperator === 'anyOf' ? 'Meet any of the following:' : 'Meet all of the following:' }}</span>
+                                        <ul>
+                                            @for (gate of gates; track $index) {
+                                                <li>@if (gate.text.trim()) { <span>{{ gate.text }}</span> }@if (requirementTarget(gate.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                    </div>
 </ng-template>
 
 <ng-template #worldGroupsView>
     @for (group of visibleWorldGroups(); track group.id) {
             <section class="guide-content-section" [id]="'patch-group-' + entry().id + '-' + (group.id || 'overview')">
-                <header class="guide-section-heading">
-                    <button type="button" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-world-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
-                        <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
-                        <svg class="guide-group-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            @if (group.mode === 'questChain') { <path d="m9 15 6-6M8 12l-2 2a3 3 0 0 0 4 4l2-2m0-8 2-2a3 3 0 0 1 4 4l-2 2" /> }
-                            @else { <path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2V5Zm6-2v16m6-14v16" /> }
-                        </svg>
-                        <h4>{{ group.title }}<small>{{ group.mode === 'questChain' ? 'Quest chain' : 'Region / area' }}</small></h4>
-                        <span>{{ countDone(group.rows) }} / {{ count(group.rows) }}</span>
+                <header class="guide-section-heading patch-group-heading world-group-heading">
+                    <svg class="patch-type-icon" width="24" height="24" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                        @if (group.mode === 'questChain') { <path d="m9 15 6-6M8 12l-2 2a3 3 0 0 0 4 4l2-2m0-8 2-2a3 3 0 0 1 4 4l-2 2" /> }
+                        @else if (group.mode === 'collectionChecklist') { <path d="M9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 3h6v4H9zM8 12h8M8 16h8" /> }
+                        @else { <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z" /><circle cx="12" cy="10" r="2.5" /> }
+                    </svg>
+                    <h4>@if (httpUrl(group.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ group.title }}</a> } @else { {{ group.title }} }<small>{{ worldGroupName(group.mode) }}</small></h4>
+                    <span class="guide-group-progress" aria-label="Group completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: progressForRows(group.rows) }" /></span>
+                    <button type="button" [attr.aria-label]="'Toggle ' + group.title" [attr.aria-expanded]="!collapsed().includes(group.id)" [attr.aria-controls]="'guide-world-' + entry().id + '-' + group.id" (click)="toggleGroup(group.id)">
+                        <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsed().includes(group.id)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
                     </button>
                 </header>
                 <div class="guide-section-content" [class.collapsed]="collapsed().includes(group.id)" [id]="'guide-world-' + entry().id + '-' + group.id" [attr.inert]="collapsed().includes(group.id) ? '' : null" [attr.aria-hidden]="collapsed().includes(group.id)">
@@ -169,22 +199,13 @@
                                 <section class="guide-world-section">
                                     @if (section.heading; as heading) { <span class="story-search-target" [id]="worldAnchor(heading, group.id)" [attr.data-story-row]="heading.id" tabindex="-1"></span> }
                                     @if (section.title) {
-                                        @if (httpUrl(section.heading?.contentUrl || ''); as url) {
-                                        <div class="guide-section-heading guide-secondary-heading guide-linked-secondary-heading">
+                                        <div class="guide-section-heading guide-secondary-heading world-secondary-heading" [class.guide-linked-secondary-heading]="!!httpUrl(section.heading?.contentUrl || '')">
+                                            <h5>@if (httpUrl(section.heading?.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer">{{ section.title }}</a> } @else { {{ section.title }} }</h5>
+                                            <span class="guide-group-progress" aria-label="Section completion"><ng-container *ngTemplateOutlet="completionCount; context: { $implicit: progressForRows(section.rows) }" /></span>
                                             <button type="button" [attr.aria-label]="'Toggle ' + section.title" [attr.aria-expanded]="!collapsedSections().includes(sectionKey)" [attr.aria-controls]="'guide-secondary-' + entry().id + '-' + sectionKey" (click)="toggleSection(sectionKey)">
-                                                <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsedSections().includes(sectionKey)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
-                                            </button>
-                                            <h5><a [href]="url" target="_blank" rel="noopener noreferrer">{{ section.title }}</a></h5>
-                                            <span>{{ countDone(section.rows) }} / {{ count(section.rows) }}</span>
-                                        </div>
-                                        } @else {
-                                        <div class="guide-section-heading guide-secondary-heading">
-                                            <button type="button" [attr.aria-expanded]="!collapsedSections().includes(sectionKey)" [attr.aria-controls]="'guide-secondary-' + entry().id + '-' + sectionKey" (click)="toggleSection(sectionKey)">
-                                                <svg aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsedSections().includes(sectionKey)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
-                                                <h5>{{ section.title }}</h5><span>{{ countDone(section.rows) }} / {{ count(section.rows) }}</span>
+                                                <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" [class.expanded]="!collapsedSections().includes(sectionKey)" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
                                             </button>
                                         </div>
-                                        }
                                     }
                                     <div class="guide-section-content" [class.collapsed]="!!section.title && collapsedSections().includes(sectionKey)" [id]="'guide-secondary-' + entry().id + '-' + sectionKey" [attr.inert]="section.title && collapsedSections().includes(sectionKey) ? '' : null" [attr.aria-hidden]="!!section.title && collapsedSections().includes(sectionKey)">
                                         <div class="guide-section-clip guide-row-list">

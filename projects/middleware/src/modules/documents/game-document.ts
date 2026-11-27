@@ -1,10 +1,11 @@
+import { EVENT_SCHEDULES } from '@lib/constants/event-schedules.constants';
 import type { StoredGameDocument, StoredAchievementRow, StoredAchievement, StoredEvent, StoredStory } from './stored-document.types';
 type Document = Record<string, unknown>;
 type GameArrays = { story: StoredStory[]; achievements: StoredAchievement[]; events: StoredEvent[]; characters: CatalogEntry[]; inventory: CatalogEntry[]; plans: CatalogEntry[]; teams: CatalogEntry[] };
 import { createHash } from 'node:crypto';
-import { LEGACY_CATALOG_FIELDS } from "../../../../lib/constants/workspace.constants";
-import type { CatalogEntry, Kind } from "../../../../lib/types/workspace.type";
-import { validCatalog } from "../../../../common/workspace/workspace";
+import { LEGACY_CATALOG_FIELDS } from "@lib/constants/workspace.constants";
+import type { CatalogEntry, Kind } from "@lib/types/workspace.type";
+import { validCatalog } from "@common/workspace/workspace";
 import { decodeStory, encodeStory, mergeStory } from "./stories/story-document";
 
 function integerOrder(value: unknown): number {
@@ -114,6 +115,7 @@ function parsedEvent(value: StoredEvent, game: string, order: number): CatalogEn
         notes: '',
         category: value['eventType'] ?? '',
         eventType: value['eventType'] ?? '',
+        ...(['daily', 'weekly', 'weekly-linked', 'monthly', 'end-game'].includes(value['eventType'] ?? '') && EVENT_SCHEDULES[game] ? { eventSchedule: EVENT_SCHEDULES[game] } : {}),
         startDate,
         endDate,
         wikiUrl: typeof value['url'] === 'string' ? value['url'] : '',
@@ -177,7 +179,7 @@ export function mergeEntries(input: Document, entries: CatalogEntry[]): GameArra
             ...(document[field] ?? []).filter(
                 (entry: Document) => !(entry['kind'] === field && typeof entry['id'] === 'string'),
             ),
-            ...(arrays[field] as CatalogEntry[]).filter((entry: CatalogEntry) => !parsedIds.has(entry.id)),
+            ...(arrays[field] as CatalogEntry[]).filter((entry: CatalogEntry) => !parsedIds.has(entry.id) || !!entry.eventStory),
         ];
     }
     return arrays;

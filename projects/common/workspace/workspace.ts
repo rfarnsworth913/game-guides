@@ -1,8 +1,13 @@
-import { validPatchOverview, validRowCompletion } from '../quests/story-template';
-import { storyRowDone, storyTemplateFor } from '../quests/story-guide';
-import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '../characters/characters';
-import type { Entry, PlayerState, CatalogEntry } from '../../lib/types/workspace.type';
-import { GAMES } from '../../lib/constants/workspace.constants';
+import { validEventSchedule } from '@common/events/event-dates';
+import { validPatchOverview, validRowCompletion } from '@common/quests/story-template';
+import {validInventoryMetadata} from '@common/inventory/inventory-config';
+import { isStoryDivider, storyRowDone, storyTemplateFor } from '@common/quests/story-guide';
+import { validCharacterCollection, validCharacterDefinition, validCharacterRules } from '@common/characters/characters';
+import type { Entry, PlayerState, CatalogEntry } from '@lib/types/workspace.type';
+import { GAMES } from '@lib/constants/workspace.constants';
+import { REMOVABLE_STORY_FIELDS } from '@lib/constants/story-preservation.constants';
+import { validGameId } from '@common/workspace/game-overview';
+import {validEquipmentDefinition, validEquipmentInstances} from '@common/characters/character-equipment';
 
 /** Give legacy guide steps a stable parent without changing their player progress keys. */
 export function migrateStory(entries: Entry[]): Entry[] {
@@ -35,7 +40,7 @@ export function migrateStory(entries: Entry[]): Entry[] {
     return result;
 }
 
-export function validEntries(value: unknown): value is Entry[] {
+export function validEntries(value: unknown, gameIds: readonly string[] | null = GAMES.map(game => game.id)): value is Entry[] {
     return (
         Array.isArray(value) &&
         value.length <= 20000 &&
@@ -43,7 +48,7 @@ export function validEntries(value: unknown): value is Entry[] {
             (e: Entry) =>
                 e &&
                 typeof e.id === 'string' &&
-                GAMES.some((g) => g.id === e.game) &&
+                validGameId(e.game) && (gameIds === null || gameIds.includes(e.game)) &&
                 [
                     'inventory',
                     'characters',
@@ -62,6 +67,7 @@ export function validEntries(value: unknown): value is Entry[] {
                 typeof e.completed === 'boolean' &&
                 (e.region === globalThis.undefined || (e.kind === 'inventory' && typeof e.region === 'string' && e.region.length <= 160)) &&
                 (e.maxStack === globalThis.undefined || (e.kind === 'inventory' && Number.isSafeInteger(e.maxStack) && e.maxStack >= 1 && e.maxStack <= 1e9)) &&
+                (e.inventoryMetadata === globalThis.undefined || (e.kind === 'inventory' && validInventoryMetadata(e.inventoryMetadata))) &&
                 (e.kind !== 'inventory' || (Number.isSafeInteger(e.quantity) && e.quantity <= (e.maxStack ?? 1e9))) &&
                 [e.startDate, e.endDate, e.eventType].every((field) => typeof field === 'undefined' || (typeof field === 'string' && field.length <= 160)) &&
                 validPatchOverview(e.patchOverview) &&
@@ -71,9 +77,16 @@ export function validEntries(value: unknown): value is Entry[] {
                 validPatchOverview(e.worldQuests) &&
                 validPatchOverview(e.lore) &&
                 validPatchOverview(e.characterInformation) &&
+                (e.storyContent === globalThis.undefined || (e.kind === 'story' && validPatchOverview(e.storyContent))) &&
+                (e.removedPreservedFields === globalThis.undefined || (e.kind === 'story' && Array.isArray(e.removedPreservedFields) && e.removedPreservedFields.length <= REMOVABLE_STORY_FIELDS.length && new Set(e.removedPreservedFields).size === e.removedPreservedFields.length && e.removedPreservedFields.every(field => typeof field === 'string' && REMOVABLE_STORY_FIELDS.includes(field)))) &&
+                (e.characterId === globalThis.undefined || (e.kind === 'story' && typeof e.characterId === 'string' && !!e.characterId)) &&
+                (e.eventId === globalThis.undefined || (e.kind === 'story' && typeof e.eventId === 'string' && !!e.eventId)) &&
+                !(e.characterId && e.eventId) &&
                 validRowCompletion(e.storyRowCompletion) &&
                 (e.characterDefinition === globalThis.undefined || (e.kind === 'characters' && Number.isSafeInteger(e.rarity) && e.rarity >= 1 && e.rarity <= 20 && validCharacterDefinition(e.characterDefinition))) &&
                 (e.characterCollection === globalThis.undefined || (e.kind === 'characters' && validCharacterCollection(e.characterCollection))) &&
+                (e.equipmentDefinition === globalThis.undefined || (e.kind === 'inventory' && validEquipmentDefinition(e.equipmentDefinition))) &&
+                (e.equipmentInstances === globalThis.undefined || (e.kind === 'inventory' && validEquipmentInstances(e.equipmentInstances))) &&
                 [
                     e.icon,
                     e.sectionImageUrl,
@@ -103,13 +116,15 @@ export function validEntries(value: unknown): value is Entry[] {
 }
 
 
+/** Legacy combined editor projection; shared persistence must use catalog/player contracts separately. */
 export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
     const template = storyTemplateFor(entry);
-    const quests = template?.rows.filter((row) => !row.rowType || row.rowType === 'quest');
+    const sharedEvent = entry.kind === 'events' || (entry.kind === 'story' && !!entry.eventId);
+    const quests = template?.rows.filter((row) => (!row.rowType || row.rowType === 'quest') && (!sharedEvent || !row.optional));
     return {
         ...entry,
         completed:
-            entry.kind === 'story' && template
+            isStoryDivider(entry) ? false : sharedEvent && !quests?.length ? player?.completed ?? false : (entry.kind === 'story' || sharedEvent) && template
                 ? quests!.length > 0 &&
                   quests!.every(
                       (row) => storyRowDone({ ...entry, ...player } as Entry, row),
@@ -119,6 +134,7 @@ export function fromCatalog(entry: CatalogEntry, player?: PlayerState): Entry {
         target: player?.target ?? 90,
         ...(player?.storyRowCompletion ? { storyRowCompletion: player.storyRowCompletion } : {}),
         ...(player?.characterCollection ? { characterCollection: player.characterCollection } : {}),
+        ...(player?.equipmentInstances ? {equipmentInstances:player.equipmentInstances} : {}),
     };
 }
 /** Whitelist catalog fields to keep player state and arbitrary imported properties out of shared content. */
@@ -137,14 +153,21 @@ export function toCatalog(entry: Entry): CatalogEntry {
         day: entry.day,
         ...(entry.region !== globalThis.undefined ? { region: entry.region } : {}),
         ...(entry.maxStack !== globalThis.undefined ? { maxStack: entry.maxStack } : {}),
+        ...(entry.inventoryMetadata !== globalThis.undefined ? { inventoryMetadata: entry.inventoryMetadata } : {}),
         ...(entry.startDate !== globalThis.undefined ? { startDate: entry.startDate } : {}),
         ...(entry.endDate !== globalThis.undefined ? { endDate: entry.endDate } : {}),
         ...(entry.eventType !== globalThis.undefined ? { eventType: entry.eventType } : {}),
+        ...(entry.eventSchedule ? { eventSchedule: entry.eventSchedule } : {}),
         ...(entry.characterDefinition !== globalThis.undefined ? { characterDefinition: entry.characterDefinition } : {}),
-        ...(entry.characterInformation !== globalThis.undefined ? { characterInformation: entry.characterInformation } : {}),
+        ...(entry.equipmentDefinition !== globalThis.undefined ? {equipmentDefinition:entry.equipmentDefinition} : {}),
+        ...(entry.characterInformation !== globalThis.undefined && !(entry.kind === 'story' && entry.characterId) ? { characterInformation: entry.characterInformation } : {}),
+        ...(entry.characterId !== globalThis.undefined ? { characterId: entry.characterId } : {}),
+        ...(entry.storyContent !== globalThis.undefined && !entry.characterId && !entry.eventId ? { storyContent: entry.storyContent } : {}),
+        ...(entry.removedPreservedFields !== globalThis.undefined ? { removedPreservedFields: entry.removedPreservedFields } : {}),
+        ...(entry.eventId !== globalThis.undefined ? { eventId: entry.eventId } : {}),
         ...(entry.lore !== globalThis.undefined ? { lore: entry.lore } : {}),
         ...(entry.worldQuests !== globalThis.undefined ? { worldQuests: entry.worldQuests } : {}),
-        ...(entry.eventStory !== globalThis.undefined ? { eventStory: entry.eventStory } : {}),
+        ...(entry.eventStory !== globalThis.undefined && !(entry.kind === 'story' && entry.eventId) ? { eventStory: entry.eventStory } : {}),
         ...(entry.sideStories !== globalThis.undefined ? { sideStories: entry.sideStories } : {}),
         ...(entry.mainStory !== globalThis.undefined ? { mainStory: entry.mainStory } : {}),
         ...(entry.patchOverview !== globalThis.undefined ? { patchOverview: entry.patchOverview } : {}),
@@ -156,7 +179,7 @@ export function toCatalog(entry: Entry): CatalogEntry {
         ...(entry.rewardIcon !== globalThis.undefined ? { rewardIcon: entry.rewardIcon } : {}),
         ...(entry.description !== globalThis.undefined ? { description: entry.description } : {}),
         ...(entry.requirementText !== globalThis.undefined ? { requirementText: entry.requirementText } : {}),
-    };
+    } as CatalogEntry; // Legacy adapter preserves stored fields; new callers use discriminated contracts.
 }
 export function validCatalog(value: unknown, game: string): value is CatalogEntry[] {
     if (!Array.isArray(value)) {
@@ -176,9 +199,11 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'day',
         'region',
         'maxStack',
+        'inventoryMetadata',
         'startDate',
         'endDate',
         'eventType',
+        'eventSchedule',
         'icon',
         'sectionImageUrl',
         'wikiUrl',
@@ -194,7 +219,12 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
         'worldQuests',
         'lore',
         'characterInformation',
+        'characterId',
+        'storyContent',
+        'removedPreservedFields',
+        'eventId',
         'characterDefinition',
+        'equipmentDefinition',
     ]);
     if (
         !value.every(
@@ -206,11 +236,12 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
     ) {
         return false;
     }
+    if (!value.every((entry: unknown) => !!entry && typeof entry === 'object' && (!('eventSchedule' in entry) || validEventSchedule(entry.eventSchedule)))) {return false;}
     const entries = (value as CatalogEntry[]).map((e) => fromCatalog(e));
     if (entries.some((entry) => !Number.isSafeInteger(entry.order))) {
         return false;
     }
-    if (!validEntries(entries) || entries.some((e) => e.game !== game || !e.id || !e.name.trim())) {
+    if (!validGameId(game) || !validEntries(entries, [game]) || entries.some((e) => e.game !== game || !e.id || (!isStoryDivider(e) && !e.name.trim()))) {
         return false;
     }
     const ids = new Map(entries.map((e) => [e.id, e]));
@@ -220,12 +251,17 @@ export function validCatalog(value: unknown, game: string): value is CatalogEntr
             (e.kind !== 'story' ||
                 e.storySection === globalThis.undefined ||
                 ids.get(e.storySection)?.kind === 'story-category') &&
+            (!e.characterId || (ids.get(e.characterId)?.kind === 'characters' && ids.get(e.characterId)?.game === e.game && !e.characterInformation)) &&
+            (!e.eventId || (ids.get(e.eventId)?.kind === 'events' && ids.get(e.eventId)?.game === e.game && !e.eventStory)) &&
             e.members.every((id) => ids.get(id)?.kind === 'characters') &&
             (e.characterDefinition?.recipes ?? []).every(recipe => recipe.materials.every(cost => ids.get(cost.item)?.kind === 'inventory')) &&
+            (e.characterDefinition?.resources ?? []).every(resource => resource.sourceType !== 'internal' || (ids.get(resource.contentId!)?.kind === 'story' && ids.get(resource.contentId!)?.game === e.game)) &&
+            (e.characterDefinition?.progressionOverrides ?? []).every(track => (track.upgradeCosts ?? []).every(cost => cost.materials.every(material => ids.get(material.itemId)?.kind === 'inventory'))) &&
+            (e.equipmentDefinition?.progressionTracks ?? []).every(track => (track.upgradeCosts ?? []).every(cost => cost.materials.every(material => ids.get(material.itemId)?.kind === 'inventory'))) &&
             e.requirements.every((r) => ids.get(r.item)?.kind === 'inventory'),
     );
 }
-/** Preserve earlier standalone achievements by placing them into categories. */
+/** Legacy compatibility: preserve earlier standalone achievements by placing them into categories. */
 export function migrateAchievements(entries: Entry[]): Entry[] {
     const result = entries.map((e) => ({ ...e }));
     for (const achievement of result.filter((e) => e.kind === 'achievements')) {
@@ -265,7 +301,7 @@ export function migrateAchievements(entries: Entry[]): Entry[] {
     }
     return result;
 }
-export function parseBackup(raw: string): Entry[] {
+export function parseBackup(raw: string, gameIds: readonly string[] | null = GAMES.map(game => game.id)): Entry[] {
     const data: unknown = JSON.parse(raw);
     if (
         !data ||
@@ -273,9 +309,9 @@ export function parseBackup(raw: string): Entry[] {
         !('version' in data) ||
         data.version !== 1 ||
         !('entries' in data) ||
-        !validEntries(data.entries) ||
+        !validEntries(data.entries, gameIds) ||
         ('characterRules' in data && (!data.characterRules || typeof data.characterRules !== 'object' || Array.isArray(data.characterRules) ||
-            !Object.entries(data.characterRules).every(([game, rules]) => GAMES.some(item => item.id === game) && validCharacterRules(rules))))
+            !Object.entries(data.characterRules).every(([game, rules]) => validGameId(game) && (gameIds === null || gameIds.includes(game)) && validCharacterRules(rules))))
     ) {
         throw new Error('Invalid workspace backup');
     }

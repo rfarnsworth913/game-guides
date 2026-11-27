@@ -1,3 +1,4 @@
+import { gameContentPath, readGameContent } from '../../src/modules/documents/game-configuration-document';
 import { createDatabaseClient } from '../../src/core/database/connection';
 import { createHash, randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -60,15 +61,15 @@ try {
                 const current = await collection.findOne({ _id: plan.document['_id'] });
                 if (!current) {throw new Error('A backed-up game no longer exists. No changes started.');}
                 const revision = Number(plan.document['_revision'] ?? 0);
-                if (canonical(current['story']) === canonical(plan.story) && Number(current['_revision']) === revision + 1) {continue;}
-                if (canonical(current['story']) !== canonical(plan.document['story']) || Number(current['_revision'] ?? 0) !== revision) {throw new Error(`Game changed since backup: ${plan.document['name']}. Make a new backup before retrying.`);}
+                if (canonical(readGameContent(current, 'story')) === canonical(plan.story) && Number(current['_revision']) === revision + 1) {continue;}
+                if (canonical(readGameContent(current, 'story')) !== canonical(readGameContent(plan.document, 'story')) || Number(current['_revision'] ?? 0) !== revision) {throw new Error(`Game changed since backup: ${plan.document['name']}. Make a new backup before retrying.`);}
                 pending.push({ ...plan, revision });
             }
             for (const plan of pending) {
-                const result = await collection.updateOne({ _id: plan.document['_id'], _revision: plan.document['_revision'] ?? { $exists: false }, story: plan.document['story'] }, { $set: { story: plan.story, _revision: plan.revision + 1 } });
+                const result = await collection.updateOne({ _id: plan.document['_id'], _revision: plan.document['_revision'] ?? { $exists: false }, [gameContentPath(plan.document, 'story')]: readGameContent(plan.document, 'story') }, { $set: { [gameContentPath(plan.document, 'story')]: plan.story, _revision: plan.revision + 1 } });
                 if (result.matchedCount !== 1) {throw new Error(`Concurrent change prevented migration: ${plan.document['name']}. Earlier completed games are recorded in migration-journal.ndjson.`);}
                 const saved = await collection.findOne({ _id: plan.document['_id'] });
-                if (!saved || canonical(saved['story']) !== canonical(plan.story)) {throw new Error('Post-write verification failed. Keep the backup and journal for recovery.');}
+                if (!saved || canonical(readGameContent(saved, 'story')) !== canonical(plan.story)) {throw new Error('Post-write verification failed. Keep the backup and journal for recovery.');}
                 await appendFile(join(directory, 'migration-journal.ndjson'), JSON.stringify({ game: plan.document['name'], revision: plan.revision + 1, guides: plan.guides, at: new Date().toISOString() }) + '\n');
             }
             console.log(JSON.stringify({ verified: true, gamesUpdated: pending.length, guides: pending.reduce((sum, plan) => sum + plan.guides, 0), playerProgressChanged: false }));

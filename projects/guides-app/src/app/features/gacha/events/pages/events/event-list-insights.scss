@@ -1,0 +1,48 @@
+.event-list-overview { display: grid; grid-template-columns: minmax(240px, 2.2fr) repeat(5, minmax(80px, 1fr)); align-items: center; gap: 16px; margin: 16px 0; padding: 20px; border: 1px solid var(--line); border-left: 5px solid rgba(167, 139, 250, 1); border-radius: 12px; background: linear-gradient(110deg, rgba(139, 92, 246, .12), transparent 55%), var(--surface); }
+.event-overview-title { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.event-overview-title > svg { width: 42px; height: 42px; flex-shrink: 0; }
+.event-list-overview svg, .event-list-sidebar svg, .event-deadline svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.event-overview-title h2 { margin: 0 0 6px; font-size: 23px; }
+.event-overview-title p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.event-overview-stat { display: grid; gap: 5px; padding: 0 0 0 20px; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; text-align: left; color: var(--color-text-primary); min-height: 48px; }
+.event-overview-stat span { font-size: 12px; }
+.event-overview-stat strong { font-size: 26px; line-height: 1.1; }
+.event-overview-stat.is-success strong { color: var(--color-success, rgba(70, 183, 139, 1)); }
+.event-overview-stat.is-overdue strong { color: var(--color-danger, rgba(241, 138, 152, 1)); }
+.event-overview-progress { display: flex; align-items: center; gap: 12px; }
+.event-overview-progress > div { display: grid; gap: 5px; }
+.event-progress-ring { display: block; width: 42px; height: 42px; flex-shrink: 0; border-radius: 50%; background: conic-gradient(var(--color-success, rgba(70, 183, 139, 1)) var(--progress), var(--line) 0); mask: radial-gradient(farthest-side, transparent calc(100% - 7px), black calc(100% - 6px)); }
+.event-list-sidebar { display: grid; gap: 16px; min-width: 0; }
+.event-insight-panel { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: var(--surface); }
+.event-insight-panel h2 { display: flex; align-items: center; gap: 10px; font-size: 15px; margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.event-insight-panel h2 svg { width: 23px; height: 23px; flex-shrink: 0; }
+.event-type-options label { display: flex; align-items: center; gap: 12px; padding: 9px 0; margin: 0; border-bottom: 1px solid var(--line); font-size: 12px; cursor: pointer; }
+.event-type-options label:last-child { border: 0; }
+.event-type-options svg { width: 20px; height: 20px; flex-shrink: 0; color: rgba(167, 139, 250, 1); }
+.event-type-count { margin-left: auto; min-width: 24px; padding: 2px 6px; text-align: center; background: var(--color-bg-tertiary, var(--line)); border-radius: 20px; }
+.event-clear-types { margin-top: 12px; width: 100%; min-height: 30px; font-size: 12px; }
+.event-deadline-timeline { list-style: none; margin: 0; padding: 0 0 0 10px; }
+.event-deadline-timeline li { position: relative; display: grid; gap: 4px; border-left: 1px solid var(--line); padding: 0 0 20px 18px; font-size: 12px; }
+.event-deadline-timeline li:last-child { padding-bottom: 0; border-color: transparent; }
+.event-deadline-timeline li::before { content: ''; position: absolute; top: 4px; left: -5px; width: 8px; height: 8px; background: rgba(167, 139, 250, 1); border-radius: 50%; }
+.event-deadline-timeline li > span { color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; }
+.event-deadline-timeline .event-no-deadlines { color: var(--muted); padding-left: 0; }
+.event-deadline-timeline .event-no-deadlines::before { display: none; }
+
+@media (max-width: 1250px) {
+    .event-list-overview { grid-template-columns: minmax(220px, 2fr) repeat(5, 1fr); gap: 10px; padding: 16px; }
+    .event-overview-stat { padding-left: 12px; }
+    .event-overview-progress .event-progress-ring { display: none; }
+}
+@media (max-width: 1000px) {
+    .event-list-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .event-overview-title { grid-column: 1 / -1; }
+    .event-list-overview { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .event-list-overview { gap: 14px 8px; padding: 14px 10px; }
+    .event-overview-stat { padding-left: 6px; }
+    .event-overview-stat span { font-size: 10px; }
+    .event-overview-stat strong { font-size: 21px; }
+    .event-list-sidebar { grid-template-columns: minmax(0, 1fr); }
+}

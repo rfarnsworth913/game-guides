@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { PatchOverviewTemplate } from "./patch-overview";
 import { Entry, WorkspaceStore } from "../../../../../../core/state/workspace.store";
-import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "../../../../../../../../../common/quests/story-template";
-import { reworkMainQuestTemplate } from "../../../../../../../../../common/quests/main-quest";
+import { emptyPatchOverview, trimPatchOverviewText, validPatchOverview } from "@common/quests/story-template";
+import { reworkMainQuestTemplate } from "@common/quests/main-quest";
 
 describe('Patch Overview grouped row editor', () => {
+    afterEach(() => vi.unstubAllGlobals());
     it.each(['main-story', 'side-stories'])('allows regular cutscene groups within %s without creating or promoting a parent quest', category => {
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save, saving: () => false, loading: () => false } }] });
@@ -33,7 +34,7 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('editing', false);
         fixture.detectChanges();
         expect(root.querySelector('.guide-main-quest-heading')).toBeNull();
-        expect(root.querySelector('.guide-section-heading h4')?.textContent).toBe(group.title);
+        expect(root.querySelector('.guide-section-heading h4')?.textContent?.trim()).toBe(group.title);
         expect(root.querySelector('.guide-row-title a')?.getAttribute('href')).toBe('https://example.com/cutscene');
         component.promoteMainQuest(data.rows[0]);
         expect(group.mainQuest).toBeUndefined();
@@ -56,7 +57,7 @@ describe('Patch Overview grouped row editor', () => {
         const root = (fixture.nativeElement as HTMLElement) as HTMLElement;
         expect(root.textContent).toContain(label + ' Title');
         expect(root.textContent).toContain(label + ' Link');
-        expect(root.querySelector('.row-flags')?.textContent).not.toContain('Sub-quest');
+        expect(root.querySelector('.row-flags')).toBeNull();
         fixture.componentInstance.promoteMainQuest(child);
         expect(data.groups[0].mainQuest.id).toBe('child');
         expect(data.rows[0]).toMatchObject({ id: 'parent', notes: 'Original parent notes' });
@@ -64,7 +65,8 @@ describe('Patch Overview grouped row editor', () => {
         expect(data.rows.map(row => row.id).sort()).toEqual(['child', 'parent']);
         expect(save).not.toHaveBeenCalled();
     });
-    it('preserves collapsed drafts, inherits group patches and reorders rows without saving', () => {
+    it.each([true, false])('preserves drafts and centers reordered rows without saving (reduced motion: %s)', async reducedMotion => {
+        vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: reducedMotion }));
         const save = vi.fn();
         TestBed.configureTestingModule({ providers: [{ provide: WorkspaceStore, useValue: { save } }] });
         const fixture = TestBed.createComponent(PatchOverviewTemplate);
@@ -88,13 +90,27 @@ describe('Patch Overview grouped row editor', () => {
         expect(first).toMatchObject({ notes: 'Long draft notes', notesRight: 'Split draft', patch: '1.2' });
         component.addRow('b');
         const other = component.data().rows[2];
-        component.draggingRow.set(second.id);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const movedCard = root.querySelector<HTMLElement>(`[data-story-editor-row="${second.id}"]`)!;
+        const handle = movedCard.querySelector<HTMLButtonElement>('.row-drag-handle')!;
+        movedCard.scrollIntoView = vi.fn();
+        const focus = vi.spyOn(handle, 'focus');
+        component.startRowDrag({ preventDefault() {} } as DragEvent, second);
         component.rowDropAfter.set(false);
         component.dropRow({ preventDefault() {} } as DragEvent, first);
+        fixture.detectChanges();
+        await fixture.whenStable();
         expect(component.rowsForGroup('a').map((row) => row.id)).toEqual([second.id, first.id]);
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+        expect(movedCard.scrollIntoView).toHaveBeenCalledWith({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
+        vi.mocked(movedCard.scrollIntoView).mockClear();
         component.draggingRow.set(first.id);
         component.dropRow({ preventDefault() {} } as DragEvent, other);
+        fixture.detectChanges();
+        await fixture.whenStable();
         expect(component.rowsForGroup('a').map((row) => row.id)).toEqual([second.id, first.id]);
+        expect(movedCard.scrollIntoView).not.toHaveBeenCalled();
         expect(save).not.toHaveBeenCalled();
     });
     it('filters completed rows and empty groups while keeping global notes and headings', () => {
@@ -152,22 +168,21 @@ describe('Patch Overview grouped row editor', () => {
         fixture.componentRef.setInput('entry', entry);
         fixture.componentRef.setInput('editing', true);
         fixture.detectChanges();
-        if (category === 'events') {
-            expect((fixture.nativeElement as HTMLElement).textContent).toContain('Events Banner');
-            expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Patch Details');
-        }
+        const editorText = (fixture.nativeElement as HTMLElement).textContent;
+        expect(editorText?.includes('Events Banner')).toBe(category === 'events');
+        expect(editorText?.includes('Patch Details')).toBe(category === 'patch-overview');
         const groups = (fixture.nativeElement as HTMLElement).querySelectorAll('.patch-edit-group') as NodeListOf<HTMLElement>;
         expect(groups.length).toBe(2);
-        (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();
+        (groups[1].querySelector('.row-add-actions > button') as HTMLButtonElement).click();
         fixture.detectChanges();
         expect(data.rows[0].groupId).toBe('eps');
         expect(groups[0].querySelectorAll('.patch-row-editor').length).toBe(0);
         expect(groups[1].querySelectorAll('.patch-row-editor').length).toBe(1);
         const component = fixture.componentInstance;
         const first = data.rows[0];
-        (groups[0].querySelector('.patch-row-add button') as HTMLButtonElement).click();
+        (groups[0].querySelector('.row-add-actions > button') as HTMLButtonElement).click();
         fixture.detectChanges();
-        (groups[1].querySelector('.patch-row-add button') as HTMLButtonElement).click();
+        (groups[1].querySelector('.row-add-actions > button') as HTMLButtonElement).click();
         const last = data.rows[2];
         fixture.changeDetectorRef.markForCheck();
         fixture.detectChanges();

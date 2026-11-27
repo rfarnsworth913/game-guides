@@ -1,8 +1,72 @@
 @if (editing()) {
+    <div class="section-editor-workspace">
+        <nav class="section-editor-sidebar" aria-label="Content section editor">
+            <div class="section-editor-preview">
+                @if (imageUrl(data().imageUrl); as image) { @if (failedImage() !== image) { <img [src]="image" alt="" (error)="failedImage.set(image)" /> } }
+                <div>@if (data().patchVersion) { <small>Patch {{ data().patchVersion }}</small> }<strong>{{ entry().name || 'Untitled section' }}</strong></div>
+            </div>
+            <button type="button" class="editor-overview-link" [class.selected]="editorSelection() === null && !templateDetailsOpen()" [attr.aria-current]="editorSelection() === null && !templateDetailsOpen() ? 'page' : null" (click)="selectEditorPanel(null)">
+                <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 2H5v20h14V7Zm0 0v5h5M8 12h8M8 16h8" /></svg>Overview
+            </button>
+            <button type="button" class="editor-overview-link editor-template-details-link" [class.selected]="templateDetailsOpen()" [attr.aria-current]="templateDetailsOpen() ? 'page' : null" (click)="selectTemplateDetails()">
+                <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7v1" /></svg>Template Details
+            </button>
+            @if (preservedFields().length || legacyDrafts().length) { <button type="button" class="editor-overview-link" (click)="selectTemplateDetails()">Preserved Content <small>{{ preservedFields().length + legacyDrafts().length }}</small></button> }
+            <h3 class="editor-groups-label">Content Groups</h3>
+            <div class="editor-group-list">
+                @for (group of data().groups; track group.id; let index = $index) {
+                    <div class="editor-group-item" [class.selected]="editorSelection() === group.id" [class.dragging]="draggingGroup() === group.id" [class.drop-before]="groupDropTarget() === group.id && draggingGroup() !== group.id && !groupDropAfter()" [class.drop-after]="groupDropTarget() === group.id && draggingGroup() !== group.id && groupDropAfter()" [attr.data-editor-group]="group.id" (dragover)="allowGroupDrop($event, group)" (drop)="dropGroup($event, group)" (keydown)="groupKeydown($event, index)">
+                        <button type="button" class="editor-group-handle" draggable="true" [attr.aria-label]="'Drag to reorder ' + group.title" title="Drag to reorder, or use Alt + Up / Down" (dragstart)="startGroupDrag($event, group)" (dragend)="endGroupDrag()"><svg width="16" height="20" aria-hidden="true" viewBox="0 0 16 24" fill="currentColor"><circle cx="5" cy="5" r="1.5"/><circle cx="11" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="11" cy="19" r="1.5"/></svg></button>
+                        <button type="button" class="editor-group-link" [attr.aria-current]="editorSelection() === group.id ? 'page' : null" (click)="selectEditorPanel(group.id)"><span>{{ group.mainQuest?.content || group.title || 'Untitled group' }}</span><small>{{ rowsForGroup(group.id).length }}</small></button>
+                    </div>
+                }
+                @if (rowsForGroup('').length) { <button type="button" class="editor-ungrouped-link" [class.selected]="editorSelection() === ''" (click)="selectEditorPanel('')">Ungrouped content <small>{{ rowsForGroup('').length }}</small></button> }
+                @if (!data().groups?.length) { <p class="editor-sidebar-help">Add a content group to organize this section.</p> }
+            </div>
+            <div class="editor-sidebar-actions">
+                <button type="button" class="editor-add-group" (click)="addGroup(mainQuestTemplate() ? 'content' : 'quest')">+ Add Content Group</button>
+                @if (mainQuestTemplate()) { <button type="button" (click)="addGroup('quest')">+ Add {{ questEditorLabel() }}</button> }
+            </div>
+            <p class="editor-sidebar-help">Drag handles to reorder groups. Keyboard: Alt + Up / Down.</p>
+            <span class="editor-sr-only" aria-live="polite">{{ groupAnnouncement() }}</span>
+        </nav>
+        <div class="section-editor-main" [id]="'section-editor-pane-' + entry().id">
+            <div class="editor-panel-heading">
+                @if (editorSelection() !== null) { <svg class="editor-group-title-icon" width="28" height="28" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 10 5-10 5L2 8Zm-10 10 10 5 10-5M2 18l10 5 10-5" /></svg> }
+                <div><h3>{{ editorPanelTitle() }}</h3><p>{{ templateDetailsOpen() ? 'Settings and presentation specific to this template.' : editorSelection() === null ? 'Basic information for this story guide section.' : 'Edit this group and its content rows.' }}</p></div>
+                @if (editorSelection(); as groupId) { <button type="button" class="editor-delete-group" title="Delete this group and move its rows to Ungrouped content" (click)="removeGroup(groupId)">Delete Content Group</button> }
+            </div>
+            <div class="section-editor-overview" [hidden]="editorSelection() !== null || templateDetailsOpen()">
+                <ng-container *ngTemplateOutlet="overviewFields()" />
     <label>Guide summary<textarea [ngModelOptions]="standalone" [(ngModel)]="data().summary" rows="2" placeholder="Optional introduction or release summary (Markdown)"></textarea></label>
-    <gg-story-context-editor [context]="editorContext()" />
+            </div>
+            <div class="section-editor-template-details" [hidden]="!templateDetailsOpen()">
+    @if (preservedFields().length || legacyDrafts().length) {
+        <fieldset class="preserved-content"><legend>Preserved Content</legend><p>Retained data that this presentation does not display. Switching templates restores compatible fields.</p>
+            @for (key of preservedFields(); track key) {
+                <details><summary>{{ key }}</summary><pre>{{ preservedValue(key) | json }}</pre>
+                    <button type="button" (click)="copyPreservedToSummary(key)">Copy to summary</button>
+                    <button type="button" (click)="removingPreserved.set(key)">Remove field</button>
+                </details>
+            }
+            @for (draft of legacyDrafts(); track $index) { <details><summary>Previous {{ draft.template }} draft</summary><pre>{{ draft.content | json }}</pre><button type="button" (click)="restoreArchived($index)">Restore this content (keep current content in archive)</button><button type="button" (click)="removingArchive.set($index)">Remove archived draft</button></details> }
+            @if (removingArchive() !== null) { <p role="alert">Remove this archived draft? Its content will be removed when you save.</p><button type="button" (click)="removingArchive.set(null)">Keep draft</button><button type="button" (click)="removeArchive()">Confirm removal</button> }
+            @if (removingPreserved(); as key) { <p role="alert">Remove {{ key }} from this draft? This takes effect when you save.</p><button type="button" (click)="removingPreserved.set(null)">Keep field</button><button type="button" (click)="removePreserved()">Confirm removal</button> }
+        </fieldset>
+    }
+    @if (activity()) {
+        <fieldset><legend>Activity Details</legend>
+            <div class="patch-fields"><label>Subtitle<input [ngModelOptions]="standalone" [(ngModel)]="data().subtitle" /></label><label>Activity Type<input [ngModelOptions]="standalone" [(ngModel)]="editorContext().subtype" placeholder="e.g. Combat simulation" /></label><label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" /></label></div>
+        </fieldset>
+        <fieldset><legend>Supporting Artwork</legend><gg-game-image-picker [game]="entry().game" label="Supporting Artwork" imagePurpose="fullArt" [(value)]="data().imageUrl" [(description)]="data().imageAlt" [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl" /></fieldset>
+    }
     @if (eventTemplate()) {
         <fieldset><legend>Event Details</legend>
+            <label>Shared Event<select [ngModelOptions]="standalone" [ngModel]="entry().eventId || ''" (ngModelChange)="selectEvent($event)">
+                <option value="" [disabled]="!!entry().eventId">Create an event from this section on save</option>
+                @for (event of availableEvents(); track event.id) { <option [value]="event.id">{{ event.name }}@if (event.startDate) { ({{ event.startDate | date: 'MMM d, y' }}) }</option> }
+            </select></label>
+            <p class="guide-help">Event details and content groups are shared with the event catalog. Guide order and player completion remain separate.</p>
             <div class="patch-fields">
                 <label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" placeholder="e.g. 1.0" /></label>
                 <label>Subtitle<input [ngModelOptions]="standalone" [(ngModel)]="data().subtitle" placeholder="Event overview and progression" /></label>
@@ -11,9 +75,15 @@
     }
     @if (entry().category === 'character-information') {
         <fieldset>
-            <legend>Character Header</legend>
-            <gg-game-image-picker [game]="entry().game" label="Character image" [(value)]="data().imageUrl" />
+            <legend>Character Full Art</legend>
+            <label>Shared Character<select [ngModelOptions]="standalone" [ngModel]="entry().characterId || ''" (ngModelChange)="selectCharacter($event)">
+                <option value="" [disabled]="!!entry().characterId">Create a character from this section on save</option>
+                @for (character of availableCharacters(); track character.id) { <option [value]="character.id">{{ character.name }}</option> }
+            </select></label>
+            <p class="guide-help">Character details and content groups are shared with the character catalog and planner. Changes here update that character everywhere; guide order and completion remain separate.</p>
+            <gg-game-image-picker [game]="entry().game" label="Character image" imagePurpose="fullArt" [(value)]="data().imageUrl" />
             <label>Character Name<input [ngModelOptions]="standalone" [(ngModel)]="data().characterName" /></label>
+            <label>Introduced Patch<input [ngModelOptions]="standalone" [(ngModel)]="data().patchVersion" placeholder="e.g. 1.0" /></label>
             <div class="patch-fields character-metadata-fields">
                 <div class="character-metadata-field">
                     <label for="damage-type">Damage Type <small>Optional icon</small></label>
@@ -35,10 +105,18 @@
             <p>Icons are optional. Characters can be saved without them.</p>
         </fieldset>
     }
-    @if (!groupedTemplate()) {
+    @if (entry().category === 'world-quests') {
+        <fieldset class="world-header-image-editor">
+            <legend>Header Background</legend>
+            <p class="guide-help">Optional background for the compact header.</p>
+            <gg-game-image-picker [game]="entry().game" label="Header Background" [banner]="true" imagePurpose="header"
+                [(value)]="data().imageUrl" [(description)]="data().imageAlt"
+                [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl" />
+        </fieldset>
+    }
+    @if (!groupedTemplate() && !activity()) {
     <fieldset class="patch-image-editor">
         <legend>{{ storyBanner() ? storyTemplateName() + ' Banner' : 'Patch Overview Banner' }}</legend>
-        <p>Recommended size: 1200 &#215; 400 &middot; 3:1 aspect ratio</p>
         <gg-game-image-picker [game]="entry().game" label="Banner" [banner]="true"
             [(value)]="data().imageUrl" [(description)]="data().imageAlt"
             [(sourceName)]="data().sourceName" [(sourceUrl)]="data().sourceUrl"
@@ -73,35 +151,30 @@
     </fieldset>
     }
     }
-    <fieldset class="patch-group-editor">
-        <legend>{{ mainQuestTemplate() ? 'Story Groups' : groupedTemplate() ? 'Primary Sections' : 'Content Groups' }}</legend>
-        <p>Create the groups this guide needs. Removing a group keeps its rows in Overview.</p>
-        @for (group of data().groups; track group.id; let index = $index) {
-            <section class="patch-edit-group" [attr.aria-label]="group.title || 'New group'">
-            <div class="patch-group-edit-row compact-group-header">
-                <label>{{ isQuestGroup(group) ? questEditorLabel() + ' Title' : 'Group Name' }}<input #groupName [attr.name]="'groupTitle-' + group.id"
+    @if (entry().category !== 'patch-overview') {
+        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="editorContext()" [inline]="true" [showAvailabilityFields]="!['main-story', 'side-stories', 'character-information', 'world-quests', 'endgame-activity'].includes(entry().category)" [showRequirements]="entry().category !== 'character-information'" />
+    }
+            </div>
+    <fieldset class="patch-group-editor" aria-label="Content group details" [hidden]="editorSelection() === null || editorSelection() === ''">
+        @for (group of data().groups; track group.id) {
+            <section class="patch-edit-group" [hidden]="editorSelection() !== group.id" [attr.aria-label]="group.title || 'New group'">
+            <section class="group-settings-panel"><div class="editor-card-heading"><svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M9.79 4.31 10.72 1.58 13.28 1.58 14.21 4.31 15.88 5 18.46 3.73 20.27 5.54 19 8.12 19.69 9.79 22.42 10.72 22.42 13.28 19.69 14.21 19 15.88 20.27 18.46 18.46 20.27 15.88 19 14.21 19.69 13.28 22.42 10.72 22.42 9.79 19.69 8.12 19 5.54 20.27 3.73 18.46 5 15.88 4.31 14.21 1.58 13.28 1.58 10.72 4.31 9.79 5 8.12 3.73 5.54 5.54 3.73 8.12 5Z"/><circle cx="12" cy="12" r="3.25"/></svg><h4>Group Settings</h4></div><div class="group-settings-body">
+            <div class="patch-group-edit-row compact-group-header" [class.has-group-organization]="entry().category === 'world-quests'">
+                <label>{{ isQuestGroup(group) ? questEditorLabel() + ' Title' : 'Group Name' }}<input [attr.name]="'groupTitle-' + group.id"
                     [ngModelOptions]="standalone" [ngModel]="group.mainQuest?.content ?? group.title" (ngModelChange)="isQuestGroup(group) ? setMainQuestTitle(group, $event) : group.title = $event" [placeholder]="isQuestGroup(group) ? 'e.g. Everwinter Without Mercy' : 'e.g. Related Cutscenes'" /></label>
-                <label class="group-default-patch">Default Patch<input [ngModelOptions]="standalone" [(ngModel)]="group.defaultPatch" placeholder="e.g. 1.1" /></label>
+                <label class="group-default-patch">Default Patch<input [ngModelOptions]="standalone" [(ngModel)]="group.defaultPatch" placeholder="e.g. 1.1" [attr.list]="patchListId" /></label>
                 @if (entry().category === 'world-quests') {
-                    <label>Organize by<select [ngModelOptions]="standalone" [ngModel]="group.worldQuestMode || 'region'" (ngModelChange)="group.worldQuestMode = $event">
-                        <option value="region">Region / area</option><option value="questChain">Quest chain</option>
+                    <label>Group Type<select [ngModelOptions]="standalone" [ngModel]="group.worldQuestMode || 'region'" (ngModelChange)="group.worldQuestMode = $event">
+                        @for (type of worldGroupTypes; track type.id) { <option [value]="type.id">{{ type.label }}</option> }
                     </select></label>
                 }
-                <details #groupMenu class="group-overflow">
-                    <summary [attr.aria-label]="'Actions for ' + group.title">&#8943;</summary>
-                    <div>
-                        <button type="button" (click)="groupName.focus(); groupMenu.open = false">Rename</button>
-                        <button type="button" [disabled]="index === 0" (click)="moveGroup(index, -1)" [attr.aria-label]="'Move group ' + (index + 1) + ' up'">Move Up</button>
-                        <button type="button" [disabled]="index === (data().groups?.length ?? 0) - 1" (click)="moveGroup(index, 1)" [attr.aria-label]="'Move group ' + (index + 1) + ' down'">Move Down</button>
-                        <button type="button" class="row-remove" (click)="removeGroup(group.id)">Remove Group</button>
-                    </div>
-                </details>
             </div>
-            @if (eventTemplate()) {
+            @if (eventTemplate() || (['character-information', 'side-stories'].includes(entry().category) && !isQuestGroup(group))) {
                 <label>Group Title Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="group.contentUrl" placeholder="https://..." /></label>
             }
+            @if (activity()) { <label>Group Title Link<input type="url" [ngModelOptions]="standalone" [(ngModel)]="group.contentUrl" placeholder="https://..." /></label><label>Group Description<textarea [ngModelOptions]="standalone" [(ngModel)]="group.description" rows="2"></textarea></label> }
             @if (entry().category === 'world-quests') {
-                <p class="guide-help">Use secondary headings, or set each objective's Area (region mode) or Chapter / main quest (chain mode). Default Patch only prefills new rows; each objective keeps its own release version.</p>
+                <p class="guide-help">Use secondary headings to group objectives. Default Patch only prefills new rows; each objective keeps its own release version.</p>
                 <details class="guide-context-editor guide-membership-editor">
                     <summary>Include existing objectives</summary>
                     <label>Additional objectives from this guide<select multiple [ngModelOptions]="standalone" [ngModel]="group.objectiveIds || []" (ngModelChange)="group.objectiveIds = $event">
@@ -117,43 +190,51 @@
                 @if (group.mainQuest; as mainQuest) {
                     <details class="guide-context-editor">
                         <summary>{{ questEditorLabel() }} details</summary>
+                        <gg-story-subtype-editor [context]="rowContext(mainQuest)" />
                         <label>{{ questEditorLabel() }} Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="mainQuest.notes" rows="2"></textarea></label>
                         @if (mainQuest.notesRight !== undefined) { <label>Additional {{ questEditorLabel() }} Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="mainQuest.notesRight" rows="2"></textarea></label> }
-                        <gg-story-context-editor [context]="rowContext(mainQuest)" [row]="true" />
+                        <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="rowContext(mainQuest)" [row]="true" [showSubtype]="false" [panels]="true" />
                     </details>
                 }
             }
+            <p class="editor-settings-help">Default Patch prefills new rows; existing rows keep their own patch.</p></div></section>
             <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(group.id), groupId: group.id, questGroup: isQuestGroup(group) }" />
             </section>
         }
-        <button type="button" (click)="addGroup()">{{ mainQuestTemplate() ? '+ Add ' + questEditorLabel() : '+ Add group' }}</button>
-        @if (mainQuestTemplate()) { <button type="button" (click)="addGroup('content')">+ Add Content Group</button> }
+
+
     </fieldset>
     @if (!data().groups?.length || rowsForGroup('').length) {
-        <fieldset class="patch-group-editor">
+        <fieldset class="patch-group-editor" [hidden]="editorSelection() !== ''">
             <legend>Overview (ungrouped)</legend>
             <ng-container *ngTemplateOutlet="contentRows; context: { rows: rowsForGroup(''), groupId: '' }" />
         </fieldset>
     }
-    <ng-template #contentRows let-rows="rows" let-groupId="groupId" let-questGroup="questGroup">
-        <div class="patch-row-heading">
-            <h3>{{ questGroup ? 'Quests' : 'Content Rows' }} <small>{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}</small></h3>
-            <button type="button" (click)="addRow(groupId)">{{ questGroup ? '+ Add Quest' : '+ Add Row' }}</button>
         </div>
+    </div>
+    <datalist [id]="patchListId">@for (patch of availablePatches(); track patch) { <option [value]="patch"></option> }</datalist>
+    <ng-template #contentRows let-rows="rows" let-groupId="groupId" let-questGroup="questGroup">
+        <section class="group-rows-panel">
+        <div class="patch-row-heading editor-card-heading">
+            <svg width="20" height="20" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5h12M9 12h12M9 19h12"/><circle cx="3" cy="5" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="19" r="1"/></svg>
+            <h3>{{ questGroup ? 'Quests' : 'Content Rows' }}</h3><span class="editor-count-badge">{{ rows.length }} {{ rows.length === 1 ? 'item' : 'items' }}</span>
+            <div class="row-add-actions"><button type="button" (click)="addRow(groupId)">{{ questGroup ? '+ Add Quest' : '+ Add Row' }}</button><details #rowAddMenu class="row-add-menu" (focusout)="closeRowMenu($event)" (keydown.escape)="$event.stopPropagation(); rowAddMenu.open = false"><summary aria-label="More row types"><svg width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div><button type="button" (click)="addRow(groupId, 'heading'); rowAddMenu.open = false">+ Secondary Heading</button><button type="button" (click)="addRow(groupId, 'note'); rowAddMenu.open = false">+ Global Notes</button></div></details></div>
+        </div>
+        @if (rows.length) { <div class="editor-row-columns" aria-hidden="true"><span class="row-number">#</span><span class="row-summary-text">Title</span><span class="row-kind-badge">Type</span><span class="row-summary-patch">Patch</span></div> }
         @for (row of rows; track row.id; let index = $index) {
             <details class="patch-row-editor compact-row-card" [open]="expandedRow() === row.id && !draggingRow()"
+                [attr.data-story-editor-row]="row.id"
                 [class.row-dragging]="draggingRow() === row.id"
                 [class.row-drop-before]="rowDropTarget() === row.id && draggingRow() !== row.id && !rowDropAfter()"
                 [class.row-drop-after]="rowDropTarget() === row.id && draggingRow() !== row.id && rowDropAfter()"
                 (dragover)="allowRowDrop($event, row)" (drop)="dropRow($event, row)">
                 <summary (click)="toggleRow($event, row.id)">
-                    <button type="button" class="row-drag-handle" draggable="true"
-                        [attr.aria-label]="'Drag to reorder ' + rowTitle(row)" title="Drag to reorder; move buttons are inside the row"
-                        (click)="$event.stopPropagation()" (dragstart)="startRowDrag($event, row)" (dragend)="endRowDrag()">&#10303;</button>
-                    <span class="row-chevron" aria-hidden="true">&#8250;</span>
-                    <span class="row-summary-text"><strong>{{ rowTitle(row) }}</strong>
-                        <small>{{ row.rowType === 'heading' ? 'Secondary heading' : row.rowType === 'note' ? 'Global notes' : 'Patch ' + (row.patch || '?') + (row.contentUrl ? ' · Linked content' : '') }}{{ row.subQuest && !mainQuestTemplate() ? ' · Sub-quest' : '' }}</small>
-                    </span><small>#{{ index + 1 }}</small>
+                    <button type="button" class="row-drag-handle" draggable="true" [attr.aria-label]="'Drag to reorder ' + rowTitle(row)" title="Drag to reorder; move buttons are inside the row" (click)="$event.stopPropagation()" (dragstart)="startRowDrag($event, row)" (dragend)="endRowDrag()"><svg width="16" height="20" aria-hidden="true" viewBox="0 0 16 24" fill="currentColor"><circle cx="5" cy="5" r="1.5"/><circle cx="11" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="11" cy="19" r="1.5"/></svg></button>
+                    <svg class="row-chevron" width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7"/></svg><span class="row-number">{{ index + 1 }}</span>
+                    <span class="row-summary-text"><strong>{{ rowTitle(row) }}</strong><small>{{ row.rowType === 'heading' ? 'Secondary heading' : row.rowType === 'note' ? 'Global notes' : httpUrl(row.contentUrl || row.content) ? 'Linked content' : 'Text content' }}</small></span>
+                    <span class="row-kind-badge">{{ rowKind(row) }}</span><span class="row-summary-patch">{{ row.patch || '-' }}</span>
+                    <button type="button" class="row-icon-action" [attr.aria-label]="'Edit ' + rowTitle(row)" [attr.aria-expanded]="expandedRow() === row.id" (click)="$event.stopPropagation(); toggleRow($event, row.id)"><svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m15 4 5 5M4 16 16 4a2 2 0 0 1 4 4L8 20l-5 1Z"/></svg></button>
+                    <button type="button" class="row-icon-action row-remove" [attr.aria-label]="'Delete ' + rowTitle(row)" (click)="$event.preventDefault(); $event.stopPropagation(); removeRow(row.id)"><svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></svg></button>
                 </summary>
                 <div class="compact-row-fields">
                     @if (row.rowType === 'heading') {
@@ -164,54 +245,67 @@
                     } @else if (row.rowType === 'note') {
                         <label>Global Notes (Markdown)<textarea [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)"></textarea></label>
                     } @else {
-                        <label>Content
-                            @if (row.content.includes('\n') || multilineRows().includes(row.id)) {
-                                <textarea [attr.name]="'content-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.content" rows="2" (input)="resizeNotes($event)"></textarea>
-                            } @else { <input [attr.name]="'content-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.content" /> }
-                        </label>
-                        <button type="button" class="multiline-toggle" (click)="toggleMultiline(row.id)">{{ multilineRows().includes(row.id) ? 'Single line' : 'Multiline content' }}</button>
-                        <div class="row-link-patch">
-                            <label>Content Link<input type="url" [attr.name]="'link-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.contentUrl" placeholder="https://..." /></label>
-                            <label>Patch<input [attr.name]="'patch-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.patch" placeholder="e.g. 1.1" /></label>
+                        <div class="row-primary-fields">
+                            <div class="row-title-field"><label>Content Title
+                                @if (row.content.includes('\n') || multilineRows().includes(row.id)) { <textarea [attr.name]="'content-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.content" rows="2" (input)="resizeNotes($event)"></textarea> }
+                                @else { <input [attr.name]="'content-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.content" /> }
+                            </label><button type="button" class="multiline-toggle" (click)="toggleMultiline(row.id)">{{ multilineRows().includes(row.id) ? 'Single line' : 'Multiline content' }}</button></div>
+                            <gg-story-subtype-editor [context]="rowContext(row)" [worldQuest]="entry().category === 'world-quests'" />
+                            <label>Patch<input [attr.name]="'patch-' + row.id" [attr.list]="patchListId" [ngModelOptions]="standalone" [(ngModel)]="row.patch" placeholder="e.g. 1.1" /></label>
                         </div>
-                        <div [class.patch-fields]="row.notesRight !== undefined">
-                            <label>{{ row.notesRight === undefined ? 'Notes (Markdown)' : 'Notes ? left' }}<textarea [attr.name]="'notes-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)" placeholder="Optional notes"></textarea></label>
+                        <label class="row-content-link">Content Link<div class="row-link-control"><svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m9 15 6-6M8 12l-2 2a3 3 0 0 0 4 4l2-2m0-8 2-2a3 3 0 0 1 4 4l-2 2"/></svg><input type="url" [attr.name]="'link-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.contentUrl" placeholder="https://... (optional)" />@if (httpUrl(row.contentUrl || ''); as url) { <a [href]="url" target="_blank" rel="noopener noreferrer" aria-label="Open content link"><svg width="18" height="18" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 3h7v7m0-7L10 14M10 4H4v16h16v-6"/></svg></a> }</div></label>
+                        <div class="row-notes-fields">
+                            @if (eventTemplate()) { <label><input type="checkbox" [ngModelOptions]="standalone" [(ngModel)]="row.optional" /> Optional objective (excluded from event completion)</label> }
+                            <label>Notes (Markdown)<textarea [attr.name]="'notes-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.notes" rows="2" (input)="resizeNotes($event)" placeholder="Optional notes"></textarea></label>
                             @if (row.notesRight !== undefined) {
-                                <label>Notes ? right<textarea [attr.name]="'notesRight-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.notesRight" rows="2" (input)="resizeNotes($event)"></textarea></label>
+                                <label>Additional Notes (Markdown)<textarea [attr.name]="'notesRight-' + row.id" [ngModelOptions]="standalone" [(ngModel)]="row.notesRight" rows="2" (input)="resizeNotes($event)"></textarea></label>
                             }
                         </div>
-                        <div class="row-flags">
-                            @if (!mainQuestTemplate()) { <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [(ngModel)]="row.subQuest" />Sub-quest</label> }
-                            <label class="checkbox"><input type="checkbox" [ngModelOptions]="standalone" [ngModel]="row.notesRight !== undefined" (ngModelChange)="splitNotes(row, $event)" />Split Notes into two cells</label>
-                        </div>
                     }
+                    <gg-story-context-editor [game]="entry().game" [entries]="relatedEntries()" [context]="rowContext(row)" [row]="true" [showSubtype]="false" [panels]="true" [worldQuest]="entry().category === 'world-quests'" />
                     <div class="patch-row-actions">
                         @if (questGroup && row.groupId && (!row.rowType || row.rowType === 'quest')) { <button type="button" (click)="promoteMainQuest(row)">Use as {{ questEditorLabel() }}</button> }
                         <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), -1) < 0" (click)="moveRow(data().rows.indexOf(row), -1)" [attr.aria-label]="'Move row ' + (index + 1) + ' up'">&#8593;</button>
                         <button type="button" [disabled]="rowTarget(data().rows.indexOf(row), 1) < 0" (click)="moveRow(data().rows.indexOf(row), 1)" [attr.aria-label]="'Move row ' + (index + 1) + ' down'">&#8595;</button>
-                        <button type="button" class="row-remove" (click)="removeRow(row.id)">Remove Row</button>
+
                     </div>
-                    <gg-story-context-editor [context]="rowContext(row)" [row]="true" [worldQuest]="entry().category === 'world-quests'" />
                 </div>
             </details>
         } @empty { <p>Add content rows to this group.</p> }
-        <div class="patch-row-add">
+        <div class="patch-row-add" [hidden]="rows.length < 5">
             <button type="button" (click)="addRow(groupId)">{{ questGroup ? '+ Add Quest' : '+ Add Row' }}</button>
                 <button type="button" (click)="addRow(groupId, 'heading')">+ Secondary Heading</button>
                 <button type="button" (click)="addRow(groupId, 'note')">+ Global Notes</button>
         </div>
+        </section>
     </ng-template>
 
 } @else {
-    <div class="patch-overview-dashboard story-search-target" [attr.data-story-entry]="entry().id" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()">
+    <div class="patch-overview-dashboard story-search-target" [attr.data-story-entry]="entry().id" [id]="'story-template-' + entry().id" tabindex="-1" [attr.data-story-topic]="entry().category" [class.patch-overview-layout]="entry().category === 'patch-overview'" [class.main-story-template]="storyBanner()" [class.world-quest-template]="groupedTemplate()" [class.endgame-activity]="activity()" [class.with-artwork]="activity() && imageUrl(data().imageUrl) && failedImage() !== imageUrl(data().imageUrl)">
+        @if (activity()) {
+            <div class="endgame-content">
+            <header class="endgame-header">
+                <h3>{{ entry().name }}</h3><p class="endgame-type">{{ data().context?.subtype || 'End-Game Activity' }}</p>
+                @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
+                @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
+                <div class="endgame-facts">
+                    @if (data().patchVersion; as version) { <gg-patch-badge [version]="version" /> }
+                </div>
+                @for (gate of eventGates(); track $index) { <p class="guide-requirement"><strong>Requirements:</strong> {{ gate.text }} @if (requirementTarget(gate.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }</p> }
+                @for (item of eventNotes(); track $index) { <p>{{ item.text }}</p> }
+                @for (target of eventRelated(); track target.id) { <p><a [href]="eventRelatedUrl(target)">{{ target.name }}</a></p> }
+            </header>
+            @if (completionError()) { <p class="guide-completion-error" role="alert">{{ completionError() }}</p> }
+            <gg-story-content-list [entry]="entry()" [data]="data()" [disabled]="store.saving() || store.loading()" [incompleteOnly]="incompleteOnly()" [relatedEntries]="relatedEntries()" (toggled)="toggle($event)" />
+            </div>
+            @if (imageUrl(data().imageUrl); as artwork) { @if (failedImage() !== artwork) {
+                <figure class="endgame-art"><img [src]="artwork" [alt]="data().imageAlt" loading="lazy" referrerpolicy="no-referrer" (error)="failedImage.set(artwork)" />
+                    @if (data().sourceName || data().sourceUrl) { <figcaption class="patch-source">Source: @if (httpUrl(data().sourceUrl); as source) { <a [href]="source" target="_blank" rel="noopener noreferrer">{{ data().sourceName || 'Image source' }}</a> } @else { {{ data().sourceName }} }</figcaption> }
+                </figure>
+            } }
+        } @else {
         @if (entry().category === 'character-information') {
             <div class="character-info-header">
-                @if (imageUrl(data().imageUrl); as portrait) {
-                    @if (failedImage() !== portrait) {
-                        <img class="character-info-portrait" [src]="portrait" [alt]="data().characterName || entry().name" (error)="failedImage.set(portrait)" />
-                    }
-                }
-                <div>
                     <h3>{{ data().characterName || entry().name }}</h3>
                     <div class="character-info-subtitle">
                         @if (data().damageType) {
@@ -236,11 +330,36 @@
                             </span>
                         }
                     </div>
-                </div>
+                    @if (data().summary) { <div class="character-profile-summary notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
+                @if (data().patchVersion; as version) { <div class="character-introduced"><svg width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 3h-7L2 14l8 8L21 11V4Z"/><circle cx="17" cy="7" r="1"/></svg><span>Introduced in</span><gg-patch-badge [version]="version" /></div> }
             </div>
+            @if (imageUrl(data().imageUrl); as artwork) {
+                @if (failedImage() !== artwork) {
+                    <div class="character-profile-art">
+                        <img [src]="artwork" alt="" loading="lazy" referrerpolicy="no-referrer" (error)="failedImage.set(artwork)" />
+                        @if (data().sourceName || data().sourceUrl) {
+                            <div class="patch-source">Source: @if (httpUrl(data().sourceUrl); as source) { <a [href]="source" target="_blank" rel="noopener noreferrer">{{ data().sourceName || 'Image source' }}</a> } @else { {{ data().sourceName }} }</div>
+                        }
+                    </div>
+                }
+            }
         }
-        @if (!groupedTemplate()) {
-        <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate">
+        @if (entry().category === 'world-quests') {
+            <header class="world-quest-title" [class.has-background]="imageUrl(data().imageUrl) && failedImage() !== imageUrl(data().imageUrl)">
+                @if (imageUrl(data().imageUrl); as background) {
+                    @if (failedImage() !== background) { <img class="world-quest-background" [src]="background" alt="" width="1200" height="240" loading="lazy" referrerpolicy="no-referrer" [style.object-position]="(data().imagePositionX ?? 50) + '% ' + (data().imagePositionY ?? 50) + '%'" (error)="failedImage.set(background)" /> }
+                }
+                <span class="patch-game-name">{{ gameName() }}</span>
+                <div><h3>{{ entry().name }}</h3>@if (data().patchVersion; as version) { <gg-patch-badge [version]="version" /> }</div>
+                @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
+                @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
+            </header>
+            @if (imageUrl(data().imageUrl) && (data().sourceName || data().sourceUrl)) {
+                <div class="patch-source">Source: @if (httpUrl(data().sourceUrl); as source) { <a [href]="source" target="_blank" rel="noopener noreferrer">{{ data().sourceName || 'Image source' }}</a> } @else { {{ data().sourceName }} }</div>
+            }
+        }
+        @if (!groupedTemplate() && !activity()) {
+        <div class="patch-hero" [class.has-release-date]="!storyBanner() && data().releaseDate" [class.without-artwork]="!imageUrl(data().imageUrl) || failedImage() === imageUrl(data().imageUrl)">
             @if (imageUrl(data().imageUrl); as imageUrl) {
                 @if (failedImage() !== imageUrl) {
                     <img
@@ -257,12 +376,13 @@
                 }
             }
             <div class="patch-hero-copy">
-                <span class="patch-game-name">{{ storyBanner() ? (data().region || gameName()) : gameName() }}</span>
+                <span class="patch-game-name">{{ ['main-story', 'side-stories'].includes(entry().category) ? gameName() : storyBanner() ? (data().region || gameName()) : gameName() }}</span>
                 <h3>{{ entry().name }}</h3>
                 @if (storyBanner()) {
                     <p>{{ storyTemplateName() }}</p>
                     @if (data().subtitle) { <p>{{ data().subtitle }}</p> }
-                } @else { <p><gg-patch-badge [version]="data().patchVersion || data().rows[0]?.patch" /></p> }
+                    @if (['main-story', 'side-stories'].includes(entry().category) && (data().patchVersion || data().rows[0]?.patch); as version) { <gg-patch-badge class="quest-banner-patch" [version]="version" /> }
+                } @else { <div class="patch-hero-meta">@if (data().patchVersion || data().rows[0]?.patch; as version) { <span class="patch-version">Patch {{ version }}</span><span class="patch-meta-divider" aria-hidden="true"></span> }<span>Patch Overview</span></div><span class="patch-hero-rule" aria-hidden="true"></span> }
             </div>
             @if (!storyBanner() && data().releaseDate) {
                 <div class="patch-banner-release">
@@ -303,11 +423,11 @@
                 </dl>
                 @if (eventHasDetails()) {
                     <details class="guide-event-participation">
-                        <summary>Participation requirements and event details</summary>
+                        <summary><svg width="16" height="16" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>Participation requirements and event details</summary>
                         @if (data().summary) { <div class="notes-markdown" [innerHTML]="data().summary | ggMarkdown"></div> }
                         @for (gate of eventGates(); track $index) {
                             <p class="guide-requirement"><strong>{{ gate.type }}:</strong> {{ gate.text }}
-                                @for (target of eventRelated(gate.targetId); track target.id) { <a [href]="eventRelatedUrl(target)">{{ target.name }}</a> }
+                                @if (requirementTarget(gate.targetId); as target) { <a [href]="target.url">{{ target.name }}</a> }
                             </p>
                         }
                         @for (item of eventNotes(); track $index) { <p class="guide-requirement"><strong>{{ item.type }}:</strong> {{ item.text }}</p> }
@@ -318,5 +438,6 @@
         }
         @if (completionError()) { <p class="guide-completion-error" role="alert">{{ completionError() }}</p> }
         <gg-story-content-list [entry]="entry()" [data]="data()" [disabled]="store.saving() || store.loading()" [incompleteOnly]="incompleteOnly()" [relatedEntries]="relatedEntries()" (toggled)="toggle($event)" />
+        }
     </div>
 }

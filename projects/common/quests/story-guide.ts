@@ -1,7 +1,13 @@
-import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '../../lib/enums/story-tracking.enum';
-import type { Entry } from '../../lib/types/workspace.type';
-import type { StoryTableRow } from '../../lib/types/story-template.type';
-import type { StoryContext } from '../../lib/types/story-context.type';
+import { StoryAvailability, StoryRequirementType, StoryTrackingMode } from '@lib/enums/story-tracking.enum';
+import type { Entry } from '@lib/types/workspace.type';
+import type { StoryTableRow } from '@lib/types/story-template.type';
+import type { StoryContext } from '@lib/types/story-context.type';
+import {STORY_REQUIREMENT_TARGET_MAX_LENGTH} from '@lib/constants/story-requirements.constants';
+
+/** Decorative entries retain ordering IDs but are never tracked as quests. */
+export function isStoryDivider(entry: Pick<Entry, 'kind' | 'category'>): boolean {
+    return entry.kind === 'story' && entry.category === 'divider';
+}
 
 export function validStoryContext(value: unknown): value is StoryContext | undefined {
     if (value === globalThis.undefined) {return true;}
@@ -9,26 +15,29 @@ export function validStoryContext(value: unknown): value is StoryContext | undef
     const context = value as StoryContext;
     const textFields = ['startDate', 'endDate', 'cycleId', 'resetSchedule', 'chapter', 'region', 'area', 'chain', 'subtype', 'difficulty'] as const;
 // eslint-disable-next-line no-control-regex -- Reject ASCII control characters in untrusted identifiers.
-    const identifier = (id: unknown): id is string => typeof id === 'string' && id.length > 0 && id.length <= 100 && !/[.$\x00-\x1f]/.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id);
+    const identifier = (id: unknown, maxLength = 100): id is string => typeof id === 'string' && id.length > 0 && id.length <= maxLength && !/[.$\x00-\x1f]/.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id);
     const validRequirements = (items: unknown): boolean => Array.isArray(items) && items.length <= 100 && items.every((requirement: Record<string, unknown>) =>
         !!requirement && typeof requirement === 'object' && !Array.isArray(requirement) &&
         Object.keys(requirement).every(key => ['type', 'text', 'targetId'].includes(key)) &&
         Object.values(StoryRequirementType).some(type => type === requirement['type']) && typeof requirement['text'] === 'string' && requirement['text'].length <= 4000 &&
-        (requirement['targetId'] === globalThis.undefined || identifier(requirement['targetId'])));
+        (requirement['targetId'] === globalThis.undefined || identifier(requirement['targetId'],STORY_REQUIREMENT_TARGET_MAX_LENGTH)));
     return Object.keys(context).every(key => [...textFields, 'trackingMode', 'availability', 'requirements', 'prerequisites', 'requirementsOperator', 'relatedContentIds'].includes(key)) &&
         textFields.every(key => context[key] === globalThis.undefined || (typeof context[key] === 'string' && context[key]!.length <= 2000)) &&
         (context.trackingMode === globalThis.undefined || Object.values(StoryTrackingMode).includes(context.trackingMode)) &&
         (context.availability === globalThis.undefined || Object.values(StoryAvailability).includes(context.availability)) &&
-        [context.startDate, context.endDate].every(date => !date || (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date)))) &&
-        (!context.startDate || !context.endDate || context.startDate <= context.endDate) &&
+        [context.startDate, context.endDate].every(date => !date || (/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(date) && Number.isFinite(Date.parse(date)))) &&
+        (!context.startDate || !context.endDate || Date.parse(context.startDate) <= Date.parse(context.endDate)) &&
         (!context.cycleId || identifier(context.cycleId)) &&
-        (context.relatedContentIds === globalThis.undefined || (Array.isArray(context.relatedContentIds) && context.relatedContentIds.length <= 100 && context.relatedContentIds.every(identifier))) &&
+        (context.relatedContentIds === globalThis.undefined || (Array.isArray(context.relatedContentIds) && context.relatedContentIds.length <= 100 && context.relatedContentIds.every(id=>identifier(id)))) &&
         (context.requirements === globalThis.undefined || validRequirements(context.requirements)) &&
         ((context.prerequisites === null || context.prerequisites === globalThis.undefined) || validRequirements(context.prerequisites)) &&
         (context.requirementsOperator === globalThis.undefined || ['allOf', 'anyOf'].includes(context.requirementsOperator));
 }
 
-export function storyTemplateFor(entry: Pick<Entry, 'category' | 'patchOverview' | 'mainStory' | 'sideStories' | 'eventStory' | 'worldQuests' | 'lore' | 'characterInformation'>) {
+export function storyTemplateFor(entry: Pick<Entry, 'category' | 'patchOverview' | 'mainStory' | 'sideStories' | 'eventStory' | 'worldQuests' | 'lore' | 'characterInformation' | 'storyContent'> & { kind?: Entry['kind'] }) {
+    if (entry.kind === 'events') {return entry.eventStory;}
+    if (entry.category === 'divider') {return globalThis.undefined;}
+    if (entry.storyContent) {return entry.storyContent;}
     return entry.category === 'patch-overview' ? entry.patchOverview
         : entry.category === 'main-story' ? entry.mainStory
         : ['events', 'endgame-activity'].includes(entry.category) ? entry.eventStory

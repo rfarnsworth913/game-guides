@@ -6,11 +6,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AddressInfo } from 'node:net';
 import { createApi } from "../../app/server";
+import { ApiError } from '../../core/errors/app-error';
+import { GAMES } from '@lib/constants/workspace.constants';
+import sharp from 'sharp';
+import type { GameImage } from '@lib/types/game-image.type';
 
 await test('game image uploads persist, list per game, serve immediately and reject unsafe input', async (t) => {
     const root = await mkdtemp(join(tmpdir(), 'guides-images-'));
     const server = createApi({
-        async read() { throw new Error('Unexpected database call'); },
+        async read(id) {
+            const game = GAMES.find(item => item.id === id);
+            if (!game) {throw new ApiError(404, 'Unknown game.');}
+            return { id, name: game.name, revision: 0, entries: [] };
+        },
         async write() { throw new Error('Unexpected database call'); },
         async parsed() { throw new Error('Unexpected database call'); },
     }, ['http://localhost:4200'], async () => true, root, editorFixture);
@@ -28,13 +36,17 @@ await test('game image uploads persist, list per game, serve immediately and rej
     assert.deepEqual(await (await fetch(endpoint)).json(), { images: [] });
     const response = await upload();
     assert.equal(response.status, 201);
-    const image = await response.json() as { name: string; url: string };
+    const image = await response.json() as GameImage;
     assert.match(image.name, /^patch-artwork-[a-f0-9-]+\.png$/);
     assert.deepEqual(await readFile(join(root, 'arknights-endfield', image.name)), png);
     const served = await fetch(`${base}${image.url}`);
     assert.equal(served.headers.get('content-type'), 'image/png');
     assert.deepEqual(Buffer.from(await served.arrayBuffer()), png);
     assert.deepEqual(await (await fetch(endpoint)).json(), { images: [image] });
+    assert.equal(image.width, 1);
+    assert.equal(image.height, 1);
+    assert.equal(image.fileSize, png.length);
+    assert.equal(image.thumbnailUrl, `${image.url}?thumbnail=1`);
     const metadata = { title: 'The Red Knight', category: 'banner', tags: 'Endfield Laevatain', description: 'Banner artwork', sourceName: 'Official site', sourceUrl: 'https://example.com', width: 1200, height: 400 };
     const update = (body: unknown, origin?: string) => fetch(`${base}${image.url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) }, body: JSON.stringify(body) });
     assert.equal((await update(metadata)).status, 200);
@@ -43,8 +55,15 @@ await test('game image uploads persist, list per game, serve immediately and rej
 // eslint-disable-next-line no-script-url -- Intentional unsafe URL fixture verifies rejection.
     assert.equal((await update({ ...metadata, sourceUrl: 'javascript:alert(1)' })).status, 400);
     assert.equal((await update({ ...metadata, category: 'unsupported' })).status, 400);
+    assert.equal((await update({ ...metadata, categories: ['banner', 'unknown'] })).status, 400);
+    assert.equal((await update({ ...metadata, categories: ['headshot'] })).status, 400);
+    assert.equal((await update({ ...metadata, categories: ['banner', 'headshot'] })).status, 200);
+    assert.equal((await update(metadata)).status, 200);
+    const categorized = await (await fetch(endpoint)).json() as { images: GameImage[] };
+    assert.deepEqual(categorized.images[0].details?.categories, ['banner', 'headshot']);
     assert.equal((await update(metadata, 'https://unrelated.example')).status, 403);
     assert.equal((await update({ ...metadata, title: 'Updated' })).status, 200);
+    assert.equal((await update({ ...metadata, category: 'headshot' })).status, 200);
     assert.deepEqual(await (await fetch(`${base}/api/games/genshin/images`)).json(), { images: [] });
     assert.equal((await fetch(`${base}/api/games/genshin/images/${image.name}`)).status, 404);
     assert.notEqual(((await (await upload()).json()) as { name: string }).name, image.name);
@@ -57,6 +76,15 @@ await test('game image uploads persist, list per game, serve immediately and rej
     assert.equal((await fetch(`${base}${detected.url}`)).headers.get('content-type'), 'image/png');
     assert.equal((await upload(Buffer.alloc(10 * 1024 * 1024 + 1))).status, 413);
     assert.equal((await upload(png, 'image/png', 'https://unrelated.example')).status, 403);
+    const large = await sharp({ create: { width: 2400, height: 800, channels: 4, background: { r: 10, g: 20, b: 30, alpha: .5 } } }).png().toBuffer();
+    const largeImage = await (await upload(large)).json() as GameImage;
+    const preview = await fetch(`${base}${largeImage.thumbnailUrl}`);
+    assert.equal(preview.status, 200);
+    assert.equal(preview.headers.get('content-type'), 'image/webp');
+    const derivative = await sharp(Buffer.from(await preview.arrayBuffer())).metadata();
+    assert.equal(derivative.width, 480);
+    assert.equal(derivative.height, 160);
+    assert.deepEqual(Buffer.from(await (await fetch(`${base}${largeImage.url}`)).arrayBuffer()), large);
     assert.equal((await fetch(`${base}/api/games/unknown/images`)).status, 404);
     assert.equal((await fetch(`${endpoint}/%2e%2e%5csecret.png`)).status, 404);
 });

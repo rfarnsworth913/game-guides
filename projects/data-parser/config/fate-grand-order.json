@@ -1,9 +1,14 @@
 {
-  "id": "Fate Grand Order",
-  "sourceList": [
-    {
-      "id": "Events",
-      "url": "https://fategrandorder.fandom.com/wiki/Event_List_(US)"
-    }
-  ]
+    "id": "Fate Grand Order",
+    "sourceList": [
+        {
+            "id": "Version",
+            "url": "https://itunes.apple.com/lookup?id=1183802626&country=us"
+        },
+        {
+            "id": "Events",
+            "url": "https://fategrandorder.fandom.com/wiki/Event_List_(US)"
+        }
+    ],
+    "gameId": "fgo"
 }

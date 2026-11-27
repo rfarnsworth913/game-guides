@@ -1,456 +1,72 @@
-<section class="inventory-page" aria-label="Inventory materials and resources">
-    <div class="inventory-summary">
-        <article>
-            <span>Items owned</span><strong>{{ fullNumber.format(ownedCount()) }}</strong
-            ><small>Distinct materials with stock</small>
-        </article>
-        <article>
-            <span>Needed for plans</span><strong>{{ incompleteCharacters() && !neededCount() ? '?' : fullNumber.format(neededCount()) }}</strong
-            ><small>Material types in active plans</small>
-        </article>
-        <article title="Each plan is checked independently. Shared inventory is not reserved.">
-            <span>Plans ready</span><strong>{{ readyCount() }}</strong
-            ><small>Requirements covered individually</small>
-        </article>
+<section class="inventory-page material-inventory" [style.--inventory-accent]="accent()" aria-label="Inventory materials and resources">
+    <ng-template #inventoryIcon><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="m24 3 10 6v12l-10 6-10-6V9zM14 9l10 6 10-6M24 15v12M14 21l10 6v12l-10 6-10-6V27zM4 27l10 6 10-6M14 33v12M34 21l10 6v12l-10 6-10-6V27zM24 27l10 6 10-6M34 33v12"/></svg></ng-template>
+    <div class="material-page-heading"><div class="inventory-title-group"><span class="inventory-title-icon"><ng-container *ngTemplateOutlet="inventoryIcon" /></span><div><h1>Inventory</h1><p>Track materials, resources, and items.</p></div></div><div class="inventory-heading-actions">
+        @if (store.canEdit()) {
+            @if (editMode()) {<button type="button" class="primary inventory-create-item" (click)="add.emit()" [disabled]="busy()">+ Create Item</button>}
+            <label class="inventory-edit-toggle"><span>Edit Mode</span><input type="checkbox" role="switch" [ngModel]="editMode()" (ngModelChange)="editMode.set($event)" [disabled]="busy()" /></label>
+        }
+        <details #settings class="inventory-settings" (keydown.escape)="settings.open = false; settingsSummary.focus()"><summary #settingsSummary class="dropdown-toggle" aria-label="Inventory settings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M9.79 4.31 10.72 1.58 13.28 1.58 14.21 4.31 15.88 5 18.46 3.73 20.27 5.54 19 8.12 19.69 9.79 22.42 10.72 22.42 13.28 19.69 14.21 19 15.88 20.27 18.46 18.46 20.27 15.88 19 14.21 19.69 13.28 22.42 10.72 22.42 9.79 19.69 8.12 19 5.54 20.27 3.73 18.46 5 15.88 4.31 14.21 1.58 13.28 1.58 10.72 4.31 9.79 5 8.12 3.73 5.54 5.54 3.73 8.12 5Z"/><circle cx="12" cy="12" r="3.25"/></svg><svg class="inventory-menu-chevron" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></summary><div class="inventory-settings-menu dropdown-menu">
+            <button type="button" class="dropdown-item" (click)="settings.open = false; openCounts('import')" [disabled]="busy()">Import Counts</button>
+            <button type="button" class="dropdown-item inventory-reset-action" (click)="settings.open = false; openCounts('reset')" [disabled]="busy() || !items().length">Reset Inventory</button>
+            @if (store.canEdit()) {<hr class="dropdown-divider" /><button type="button" class="dropdown-item" (click)="settings.open = false; editRules('categories')" [disabled]="busy() || !rules()">Material Categories</button><button type="button" class="dropdown-item" (click)="settings.open = false; editRules('recipes')" [disabled]="busy() || !rules()">Crafting &amp; Conversion Recipes</button>}
+        </div></details>
+    </div></div>
+    <div class="material-search-summary">
+        <label class="material-search-box"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input type="search" aria-label="Search inventory" placeholder="Search materials..." [ngModel]="search()" (ngModelChange)="search.set($event)" /></label>
+        <div class="material-summary" aria-label="Summary of matching items">
+            <span aria-label="Total Items"><svg class="summary-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M8 4l9 5"/></svg><span class="summary-label">Total</span><strong>{{ summary().total }}</strong></span>
+            <span><svg class="summary-icon summary-sufficient" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/></svg><span class="summary-label">Sufficient</span><strong>{{ summary().sufficient }}</strong></span>
+            <span><svg class="summary-icon summary-partial" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg><span class="summary-label">Partial</span><strong>{{ summary().partial }}</strong></span>
+            <span><svg class="summary-icon summary-missing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 8 8 8M16 8l-8 8"/></svg><span class="summary-label">Missing</span><strong>{{ summary().missing }}</strong></span>
+        </div>
     </div>
-    <div class="inventory-toolbar">
-        <input
-            type="search"
-            aria-label="Search inventory"
-            placeholder="Search materials, items, categories…"
-            [ngModel]="search()"
-            (ngModelChange)="search.set($event)"
-        />
-        <button
-            type="button"
-            [attr.aria-expanded]="filtersOpen()"
-            aria-controls="inventory-filters"
-            (click)="filtersOpen.set(!filtersOpen())"
-        >
-            Filters
-        </button>
-        <select
-            aria-label="Inventory display"
-            [ngModel]="detailed()"
-            (ngModelChange)="detailed.set($event)"
-        >
-            <option [ngValue]="false">Compact grid</option>
-            <option [ngValue]="true">Detailed grid</option>
-        </select>
-    </div>
-    <div class="inventory-categories" aria-label="Inventory categories">
-        <button
-            type="button"
-            [class.active]="category() === null"
-            [attr.aria-pressed]="category() === null"
-            (click)="category.set(null)"
-        >
-            All items
-        </button>
-        @for (value of categories(); track value) {
-            <button
-                type="button"
-                [class.active]="category() === value"
-                [attr.aria-pressed]="category() === value"
-                (click)="category.set(value)"
-            >
-                {{ value || 'Uncategorized' }}
+    <nav class="inventory-categories" aria-label="Inventory categories"><button type="button" [class.active]="category() === null" [attr.aria-pressed]="category() === null" (click)="category.set(null)">All</button>
+        @for (item of categoryDefinitions(); track item.id) {
+            <button type="button" [class.active]="category() === item.id" [attr.aria-pressed]="category() === item.id" (click)="category.set(item.id)">
+                <span class="inventory-category-icon" aria-hidden="true">@if (categoryImage(item.icon || ''); as image) {<img [src]="image" alt="" (error)="categoryImageFailed(item.icon || '')" />} @else { {{ categorySymbol(item.icon || '') }} }</span>{{ item.label }}
             </button>
         }
-    </div>
-    @if (filtersOpen()) {
-        <div id="inventory-filters" class="inventory-filters">
-            <label
-                ><input
-                    type="checkbox"
-                    [ngModel]="ownedOnly()"
-                    (ngModelChange)="ownedOnly.set($event)"
-                />
-                Owned only</label
-            >
-            <label
-                ><input
-                    type="checkbox"
-                    [ngModel]="missingOnly()"
-                    (ngModelChange)="missingOnly.set($event)"
-                />
-                Missing for plans</label
-            >
-            <label
-                ><input
-                    type="checkbox"
-                    [ngModel]="coveredOnly()"
-                    (ngModelChange)="coveredOnly.set($event)"
-                />
-                Requirements covered</label
-            >
-            <label
-                >Rarity<select [ngModel]="rarity()" (ngModelChange)="rarity.set($event)">
-                    <option value="">All rarities</option>
-                    @for (value of rarities(); track value) {
-                        <option [value]="value">{{ value }} stars</option>
-                    }
-                </select></label
-            >
-            @if (regions().length) {
-                <label
-                    >Region<select [ngModel]="region()" (ngModelChange)="region.set($event)">
-                        <option value="">All regions</option>
-                        @for (value of regions(); track value) {
-                            <option [value]="value">{{ value }}</option>
-                        }
-                    </select></label
-                >
-            }
-            <button type="button" (click)="resetFilters()">Reset filters</button>
-        </div>
-    }
-    <div class="inventory-section-heading">
-        <h2>
-            Materials <small>{{ filtered().length }}</small>
-        </h2>
-        <div class="inventory-controls">
-            <label class="inventory-check"
-                ><input
-                    type="checkbox"
-                    [ngModel]="quickEdit()"
-                    (ngModelChange)="quickEdit.set($event)"
-                />
-                Quick edit</label
-            >
-            <select
-                aria-label="Sort inventory"
-                [ngModel]="sort()"
-                (ngModelChange)="sort.set($event)"
-            >
-                <option value="name">Name A–Z</option>
-                <option value="quantity">Quantity: high to low</option>
-                <option value="rarity">Rarity: high to low</option>
-                <option value="missing">Missing: high to low</option>
-            </select>
-            <button type="button" (click)="startBulk()" [disabled]="busy() || !visible().length">
-                Bulk entry
-            </button>
-        </div>
-    </div>
-    <details class="inventory-plan-info">
-        <summary>About plan requirements</summary>
-        <p class="inventory-help">
-            Quantities are shared across your plans for this game. Requirements use saved material
-            plans and configured character upgrade recipes. Incomplete recipes contribute only known costs.
-            Inventory is not reserved between plans.
-        </p>
-    </details>
-    @if (incompleteCharacters()) { <p class="inventory-help" role="status">{{ incompleteCharacters() }} character plans have incomplete upgrade recipes. Counts show known costs only; check the farming planner for missing data.</p> }
-    @if (error() && !selected() && !bulk) {
-        <p role="alert" class="alert">{{ error() }}</p>
-    }
-    @if (message()) {
-        <p role="status" class="inventory-message">{{ message() }}</p>
-    }
-    @if (store.loading()) {
-        <p role="status">Loading inventory…</p>
-    }
-    <div class="inventory-grid" [class.detailed]="detailed()">
-        @for (view of visible(); track view.item.id) {
-            <article
-                class="inventory-tile"
-                [class.is-needed]="view.missing > 0"
-                [class.is-covered]="view.required > 0 && view.missing === 0"
-                [attr.data-rarity]="view.item.rarity"
-            >
-                <button
-                    type="button"
-                    class="inventory-item-button"
-                    [disabled]="busy()"
-                    (click)="open(view)"
-                    [title]="label(view)"
-                    [attr.aria-label]="label(view)"
-                >
-                    <span class="inventory-artwork">
-                        @if (image(view.item); as icon) {
-                            <img
-                                [src]="icon"
-                                alt=""
-                                loading="lazy"
-                                (error)="imageFailed(view.item)"
-                            />
-                        } @else {
-                            <span class="inventory-initial" aria-hidden="true">{{
-                                view.item.name.slice(0, 2)
-                            }}</span>
-                        }
-                        <small class="inventory-rarity" aria-hidden="true"
-                            >{{ view.item.rarity }}★</small
-                        >
-                    </span>
-                    <span class="inventory-item-copy">
-                        <strong class="inventory-quantity">{{
-                            compactNumber.format(view.owned)
-                        }}</strong>
-                        @if (detailed() || !image(view.item)) {
-                            <span class="inventory-item-name">{{ view.item.name }}</span>
-                        }
-                        @if (detailed()) {
-                            <small>{{ view.item.category || 'Uncategorized' }}</small>
-                        }
-                        @if (view.required) {
-                            <small class="inventory-need"
-                                >Need {{ compactNumber.format(view.required) }}</small
-                            >
-                            @if (detailed()) {
-                                <small>{{
-                                    view.missing
-                                        ? compactNumber.format(view.missing) + ' missing'
-                                        : 'Requirement covered'
-                                }}</small
-                                ><progress
-                                    [max]="view.required"
-                                    [value]="view.owned"
-                                    [attr.aria-label]="view.item.name + ' collection progress'"
-                                ></progress>
-                            }
-                        }
-                    </span>
-                </button>
-                @if (quickEdit()) {
-                    <div class="inventory-quick-edit">
-                        <button
-                            type="button"
-                            (click)="quickAdjust(view, -1)"
-                            [disabled]="busy() || view.owned === 0"
-                            [attr.aria-label]="'Remove one ' + view.item.name"
-                        >
-                            −
-                        </button>
-                        <span [title]="fullNumber.format(view.owned)">{{
-                            compactNumber.format(view.owned)
-                        }}</span>
-                        <button
-                            type="button"
-                            (click)="quickAdjust(view, 1)"
-                            [disabled]="busy() || view.owned >= limit(view.item)"
-                            [attr.aria-label]="'Add one ' + view.item.name"
-                        >
-                            +
-                        </button>
-                    </div>
-                }
-            </article>
-        } @empty {
-            @if (!busy()) {
-                <div class="inventory-empty">
-                    <h3>
-                        {{ items().length ? 'No matching materials' : 'No inventory items yet' }}
-                    </h3>
-                    <p>
-                        {{
-                            items().length
-                                ? 'Try another category, search, or filter.'
-                                : 'An editor can add materials and their in-game artwork to the shared catalog. Your owned quantities stay personal.'
-                        }}
-                    </p>
-                    @if (items().length) {
-                        <button type="button" (click)="resetFilters()">Clear filters</button>
-                    }
+    </nav>
+    @if (editMode() && store.canEdit()) {<div class="inventory-edit-actions"><span>Shared catalog editing</span></div>}
+    @if (error()) {<div class="alert" role="alert">{{ error() }} @if (hasPendingQuantities()) {<button type="button" (click)="retryQuantities()" [disabled]="busy()">Retry quantity updates</button>}</div>}
+    @if (requirementIssues().length) {<details class="inventory-cost-warning"><summary>Some upgrade costs are unavailable. Needed totals include only known costs.</summary>@for (issue of requirementIssues();track issue) {<p>{{ issue }}</p>}</details>}
+    @if (store.loading()) {<p role="status">Loading inventory...</p>}
+    @for (group of groups(); track group.id) {
+        <section class="material-group"><button type="button" class="material-group-heading" [attr.aria-expanded]="!closedGroups().has(group.id)" (click)="toggleGroup(group.id)"><svg [class.expanded]="!closedGroups().has(group.id)" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 5 7 7-7 7"/></svg><strong>{{ group.label }}</strong><span>{{ group.items.length }}</span></button>
+        @if (!closedGroups().has(group.id)) {<div class="inventory-grid material-grid" [class.detailed]="detailed()">
+            @for (view of group.items; track view.item.id) {<article class="inventory-tile material-card" [attr.data-status]="status(view.owned,view.required)">
+                <div class="material-icon" [style.background-color]="rarityColor(view.item)">@if (image(view.item); as icon) {<img [src]="icon" alt="" loading="lazy" (error)="imageFailed(view.item)" />} @else {<span aria-hidden="true">{{ view.item.name.slice(0,2) }}</span>}</div>
+                <div class="material-copy"><button type="button" class="material-name" (click)="open(view)">{{ view.item.name }}</button><div class="material-owned">Owned<div class="inventory-quick-edit"><button type="button" [attr.aria-label]="'Remove one ' + view.item.name" (click)="quickAdjust(view,-1)" [disabled]="busy() || view.owned <= 0">−</button><input #ownedInput type="number" min="0" step="1" [max]="limit(view.item)" [attr.aria-label]="view.item.name + ' owned quantity'" [value]="draftValue(view)" (input)="updateDraft(view.item.id,ownedInput.value)" (blur)="commitQuantity(view)" (keydown.enter)="commitQuantity(view)" [disabled]="busy()" /><button type="button" [attr.aria-label]="'Add one ' + view.item.name" (click)="quickAdjust(view,1)" [disabled]="busy() || view.owned >= limit(view.item)">+</button></div></div>
+                    <small>Needed: {{ fullNumber.format(view.required) }}</small><span class="material-status">{{ view.required ? view.missing ? 'Missing ' + fullNumber.format(view.missing) : 'Sufficient' : 'No active requirement' }} @if (view.owned > view.required) {<small>Surplus {{ fullNumber.format(view.owned-view.required) }}</small>}</span>
+                    @if (hasRecipes(view.item.id)) {<button type="button" (click)="openCraft(view.item.id)" [disabled]="busy()">Craft / Convert</button>}
+                    @if (editMode() && store.canEdit()) {<div class="material-catalog-actions"><button type="button" (click)="edit.emit(view.item)" [disabled]="busy()">Edit</button><button type="button" (click)="remove.emit(view.item)" [disabled]="busy()">Remove</button></div>}
                 </div>
-            }
-        }
-    </div>
-    @if (visible().length < filtered().length) {
-        <button
-            type="button"
-            class="inventory-load-more"
-            (click)="visibleCount.set(visibleCount() + 96)"
-        >
-            Show more ({{ visible().length }} / {{ filtered().length }})
-        </button>
-    }
+            </article>}
+        </div>}
+        </section>
+    } @empty {@if (!busy()) {<div class="inventory-empty"><span class="inventory-empty-icon"><ng-container *ngTemplateOutlet="inventoryIcon" /></span><h3>{{ items().length ? 'No matching materials' : 'No inventory items yet' }}</h3><p>{{ items().length ? 'Try another category or search.' : 'An editor can add shared materials. Your quantities remain personal.' }}</p>@if (items().length) {<button type="button" (click)="resetFilters()">Clear search</button>}</div>}}
+    @if (visible().length < filtered().length) {<button type="button" class="inventory-load-more" (click)="visibleCount.set(visibleCount()+96)">Show more ({{ visible().length }} / {{ filtered().length }})</button>}
 </section>
-@if (selected(); as view) {
-    <div class="modal-backdrop">
-        <section
-            class="modal inventory-editor"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="inventory-item-title"
-            ggDialogFocus
-            (keydown.escape)="close()"
-        >
-            <div class="inventory-detail-heading">
-                @if (image(view.item); as icon) {
-                    <img [src]="icon" alt="" (error)="imageFailed(view.item)" />
-                }
-                <div>
-                    <h2 id="inventory-item-title">{{ view.item.name }}</h2>
-                    <p>
-                        {{ view.item.category || 'Material' }} · {{ view.item.rarity }}★
-                        @if (view.item.region) {
-                            · {{ view.item.region }}
-                        }
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    (click)="close()"
-                    [disabled]="busy()"
-                    aria-label="Close item details"
-                >
-                    ×
-                </button>
-            </div>
-            @if (error()) {
-                <p class="alert" role="alert">{{ error() }}</p>
-            }
-            <dl class="inventory-detail-stats">
-                <div>
-                    <dt>Owned</dt>
-                    <dd
-                        [title]="fullNumber.format(view.owned)"
-                        [attr.aria-label]="fullNumber.format(view.owned)"
-                    >
-                        {{ compactNumber.format(view.owned) }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Required</dt>
-                    <dd
-                        [title]="fullNumber.format(view.required)"
-                        [attr.aria-label]="fullNumber.format(view.required)"
-                    >
-                        {{ compactNumber.format(view.required) }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Missing</dt>
-                    <dd
-                        [title]="fullNumber.format(view.missing)"
-                        [attr.aria-label]="fullNumber.format(view.missing)"
-                    >
-                        {{ compactNumber.format(view.missing) }}
-                    </dd>
-                </div>
-            </dl>
-            <label class="inventory-exact"
-                >Set exact quantity<input
-                    type="number"
-                    min="0"
-                    step="1"
-                    [max]="limit(view.item)"
-                    [ngModel]="quantity()"
-                    (ngModelChange)="quantity.set($event)"
-                    [disabled]="busy()"
-            /></label>
-            <div class="inventory-detail-actions">
-                <button
-                    type="button"
-                    (click)="adjustDraft(-1)"
-                    [disabled]="busy() || (quantity() ?? 0) <= 0"
-                >
-                    − Remove</button
-                ><button
-                    type="button"
-                    (click)="adjustDraft(1)"
-                    [disabled]="busy() || (quantity() ?? 0) >= limit(view.item)"
-                >
-                    + Add</button
-                ><button
-                    type="button"
-                    class="primary"
-                    (click)="save()"
-                    [disabled]="
-                        busy() || !validQuantity(view.item, quantity()) || quantity() === view.owned
-                    "
-                >
-                    Save quantity
-                </button>
-            </div>
-            @if (message()) {
-                <p role="status" class="inventory-message">{{ message() }}</p>
-            }
-            <h3>Used by active plans</h3>
-            @for (usage of view.usages; track usage.id) {
-                <div class="inventory-usage">
-                    <span
-                        >{{ usage.name }}
-                        @if (usage.characters.length) {
-                            <small> · {{ usage.characters.join(', ') }}</small>
-                        }</span
-                    ><strong>{{ fullNumber.format(usage.quantity) }}</strong>
-                </div>
-            } @empty {
-                <p class="inventory-help">No saved material plans require this item.</p>
-            }
-            @if (wiki(view.item); as url) {
-                <p>
-                    <a [href]="url" target="_blank" rel="noopener noreferrer">Item reference ↗</a>
-                </p>
-            }
-            @if (store.canEdit()) {
-                <div class="inventory-detail-actions">
-                    <button
-                        type="button"
-                        (click)="close(); edit.emit(view.item)"
-                        [disabled]="busy()"
-                    >
-                        Edit catalog item</button
-                    ><button
-                        type="button"
-                        (click)="close(); remove.emit(view.item)"
-                        [disabled]="busy()"
-                    >
-                        Delete catalog item
-                    </button>
-                </div>
-            }
-        </section>
-    </div>
-}
-@if (bulk; as quantities) {
-    <div class="modal-backdrop">
-        <section
-            class="modal inventory-editor"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="inventory-bulk-title"
-            ggDialogFocus
-            (keydown.escape)="close()"
-        >
-            <div class="inventory-detail-heading">
-                <h2 id="inventory-bulk-title">Bulk quantity entry</h2>
-                <button
-                    type="button"
-                    (click)="close()"
-                    [disabled]="busy()"
-                    aria-label="Close bulk entry"
-                >
-                    ×
-                </button>
-            </div>
-            <p class="inventory-help">
-                Update the {{ bulkItems().length }} items displayed when you opened this panel. All
-                edited quantities save together.
-            </p>
-            @if (error()) {
-                <p class="alert" role="alert">{{ error() }}</p>
-            }
-            @for (view of bulkItems(); track view.item.id) {
-                <label class="inventory-bulk-row"
-                    ><span>{{ view.item.name }}</span
-                    ><input
-                        type="number"
-                        min="0"
-                        step="1"
-                        [max]="limit(view.item)"
-                        [(ngModel)]="quantities[view.item.id]"
-                        [disabled]="busy()"
-                /></label>
-            }
-            <div class="inventory-detail-actions">
-                <button type="button" class="primary" (click)="saveBulk()" [disabled]="busy()">
-                    Save quantities</button
-                ><button type="button" (click)="close()" [disabled]="busy()">Cancel</button>
-            </div>
-        </section>
-    </div>
+@if (selected(); as view) {<div class="modal-backdrop"><section class="modal inventory-editor" role="dialog" aria-modal="true" aria-labelledby="inventory-item-title" ggDialogFocus (keydown.escape)="close()"><div class="inventory-detail-heading"><h2 id="inventory-item-title">{{ view.item.name }}</h2><button type="button" aria-label="Close item details" (click)="close()">×</button></div><p>{{ view.item.description || view.item.notes }}</p><p>Owned {{ view.owned }} · Needed {{ view.required }} · Missing {{ view.missing }}</p><h3>Used by active plans</h3>@for (usage of view.usages; track usage.id) {<p>{{ usage.name }} <strong>{{ usage.quantity }}</strong></p>} @empty {<p>No active requirements.</p>}<button type="button" (click)="close()">Close</button></section></div>}
+@if (craftItem()) {<div class="modal-backdrop"><section class="modal inventory-editor inventory-crafting" role="dialog" aria-modal="true" aria-labelledby="craft-title" ggDialogFocus (keydown.escape)="!busy() && craftItem.set('')"><div class="inventory-detail-heading"><h2 id="craft-title">Craft / Convert Materials</h2><button type="button" [disabled]="busy()" aria-label="Close crafting" (click)="craftItem.set('')">×</button></div>
+    <p>Ingredients reserved for active upgrade plans are protected. Quantities change only after confirmation.</p><label>Recipe<select [ngModel]="recipeId()" (ngModelChange)="recipeId.set($event)"><option value="">Choose a recipe</option>@for (recipe of craftingOptions(); track recipe.id) {<option [value]="recipe.id">{{ recipe.id }} · {{ recipe.outputQuantity }} per craft</option>}</select></label><label>Number of crafts<input type="number" min="1" max="1000000000" [ngModel]="batches()" (ngModelChange)="batches.set($event)" /></label><p>Craftable: {{ craftable() }} batches</p><h3>Ingredients &amp; currency</h3>@for (cost of recipeCosts(); track cost.id) {<p>{{ cost.name }}: Need {{ cost.required }} · Owned {{ cost.owned }} · Reserved {{ cost.reserved }}</p>}<label><input type="checkbox" [ngModel]="chained()" (ngModelChange)="chained.set($event)" />Allow chained conversions</label>
+    @if (chained()) {@for (item of items(); track item.item.id) {@if (hasRecipes(item.item.id) && item.item.id !== craftItem()) {<label>Conversion for {{ item.item.name }}<select [ngModel]="choices()[item.item.id] || ''" (ngModelChange)="setChoice(item.item.id,$event)"><option value="">Use only if a single recipe is available</option>@for (recipe of config().recipes; track recipe.id) {@if (recipe.outputItemId === item.item.id && recipe.enabled) {<option [value]="recipe.id">{{ recipe.id }}</option>}}</select></label>}}}
+    @if (craftPreview().error) {<p role="status">{{ craftPreview().error }}</p>} @else {<h3>Resulting inventory</h3>@for (change of changes(); track change.id) {<p>{{ change.name }}: {{ change.before }} → {{ change.quantity }}</p>}}
+    @if (error()) {<p role="alert" class="alert">{{ error() }}</p>}<div class="inventory-detail-actions"><button type="button" class="primary" [disabled]="busy() || !!craftPreview().error" (click)="confirmCraft()">Confirm Craft</button><button type="button" [disabled]="busy()" (click)="craftItem.set('')">Cancel</button></div>
+</section></div>}
+@if (ruleDraft(); as draft) {<gg-game-rules-editor initialTab="Inventory" [inventorySection]="ruleSection()" [draft]="draft" [game]="game()" [gameName]="gameName()" [original]="rules()" [entries]="store.entries()" [busy]="busy()" [error]="error()" (save)="saveRules()" (dismissed)="ruleDraft.set(null)" />}
+@if (countDialog(); as mode) {
+    <div class="modal-backdrop"><section class="modal inventory-editor inventory-count-dialog" role="dialog" aria-modal="true" aria-labelledby="inventory-count-title" ggDialogFocus (keydown.escape)="closeCounts()">
+        <div class="inventory-detail-heading"><h2 id="inventory-count-title">{{ mode === 'import' ? 'Import Counts' : 'Reset Inventory' }}</h2><button type="button" aria-label="Close inventory counts" [disabled]="busy()" (click)="closeCounts()">×</button></div>
+        @if (mode === 'import') {
+            <p>Import counts for {{ gameName() }} using stable item IDs. Omitted items keep their counts. Changes apply together after review.</p>
+            <p>JSON object: <code>{{ '{"item-id": 25}' }}</code>, or CSV with <code>itemId,quantity</code> columns.</p>
+            <input #countsFile type="file" accept=".json,.csv,application/json,text/csv" hidden (change)="readCountsFile($event)" />
+            <button type="button" (click)="countsFile.click()" [disabled]="busy()">Choose JSON / CSV File</button>
+            <label>Counts<textarea rows="8" maxlength="1000000" [ngModel]="importText()" (ngModelChange)="importText.set($event)" [disabled]="busy()" placeholder="itemId,quantity"></textarea></label>
+            @if (importText().trim()) {@if (importPreview().error) {<p role="alert">{{ importPreview().error }}</p>} @else {<div class="inventory-import-preview"><strong>{{ importRows().length }} item counts to update</strong>@for (row of importRows();track row.id) {<p>{{ row.name }}: {{ fullNumber.format(row.quantity) }}</p>}</div>}}
+        } @else {<p>Set every inventory count for {{ gameName() }} to zero, including items outside the current search or category.</p><p>Shared item definitions and upgrade goals are preserved.</p>}
+        @if (error()) {<p role="alert" class="alert">{{ error() }}</p>}
+        <div class="inventory-detail-actions"><button type="button" [class.primary]="mode === 'import'" [class.inventory-reset-action]="mode === 'reset'" [disabled]="busy() || (mode === 'import' && !!importPreview().error)" (click)="mode === 'import' ? importCounts() : resetInventory()">{{ mode === 'import' ? 'Import Counts' : 'Reset Counts to Zero' }}</button><button type="button" (click)="closeCounts()" [disabled]="busy()">Cancel</button></div>
+    </section></div>
 }

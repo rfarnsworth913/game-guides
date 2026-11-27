@@ -1,4 +1,5 @@
-import type { StoryTableRow } from './story-template.type';
+import type { StoryTableRow } from '@lib/types/story-template.type';
+export type WorldQuestGroupType = 'region' | 'questChain' | 'collectionChecklist';
 
 export type WorldQuestSection = {
     id: string;
@@ -11,7 +12,7 @@ export type WorldQuestGroup = {
     id: string;
     title: string;
     contentUrl?: string;
-    mode: "region" | "questChain";
+    mode: WorldQuestGroupType;
     sections: Array<WorldQuestSection>;
     rows: Array<StoryTableRow>;
 };

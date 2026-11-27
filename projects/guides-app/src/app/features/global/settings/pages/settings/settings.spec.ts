@@ -6,7 +6,7 @@ import { ThemeService } from '../../../../../core/theme/theme.service';
 
 describe('Settings feature', () => {
     it('preserves the data tab and backup import notification', async () => {
-        const store = { entries: signal([]), replace: vi.fn(async () => true), restoreTeams: vi.fn(async () => true) };
+        const store = { entries: signal([]), games: signal([]), replace: vi.fn(async () => true), restoreTeams: vi.fn(async () => true) };
         TestBed.configureTestingModule({ providers: [
             { provide: WorkspaceStore, useValue: store },
             { provide: ThemeService, useValue: { preference: signal('dark'), setPreference: vi.fn() } },

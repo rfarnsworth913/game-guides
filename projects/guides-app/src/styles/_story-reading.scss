@@ -65,9 +65,7 @@ gg-story {
     .guide-row-body { flex: 1; min-width: 0; }
     .guide-row-title { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
     .guide-row-title a { color: var(--story-content-link); text-decoration: underline; text-underline-offset: 3px; }
-    .guide-row-done .guide-row-title > strong, .guide-row-done .guide-row-title > a { color: var(--guide-muted); }
-    .guide-subquest { padding-inline-start: 44px; }
-    .guide-row-heading { background: var(--guide-nested); border-inline-start: 2px solid var(--story-topic-accent); }
+    .guide-row-done .guide-row-title > strong, .guide-row-done .guide-row-title > a { color: var(--guide-muted); }    .guide-row-heading { background: var(--guide-nested); border-inline-start: 2px solid var(--story-topic-accent); }
     .guide-row-details { margin-top: 8px; color: var(--guide-muted); font-size: 13px; }
     .guide-row-details summary { cursor: pointer; font-size: 12px; width: fit-content; }
     .guide-row-details[open] > summary { margin-bottom: 12px; }
@@ -101,7 +99,7 @@ gg-story {
         a { color: var(--story-content-link); }
         .guide-event-participation > :last-child { margin-bottom: 0; }
     }
-    .guide-world-quests {
+    .guide-world-quests, .primary-quest-reading {
         .guide-section-heading h4 small { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; color: var(--guide-muted); }
         .guide-section-heading .guide-group-icon { width: 20px; height: 20px; flex-basis: 20px; }
         .guide-secondary-heading { background: var(--guide-nested); border-inline-start: 0; border-top: 1px solid var(--guide-border); }
@@ -134,9 +132,6 @@ gg-story {
         .guide-objective-notes .notes-markdown > :last-child { margin-bottom: 0; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     }
-    .guide-activity .guide-row-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; padding: 12px; }
-    .guide-activity .guide-content-row { border: 1px solid var(--guide-border); border-radius: 8px; background: var(--guide-nested); }
-    .guide-activity .guide-row-heading, .guide-activity .guide-content-row:has(.guide-global-note) { grid-column: 1 / -1; }
     @media (prefers-reduced-motion: reduce) {
         .guide-section-content, .guide-section-heading svg, .guide-world-quests .guide-notes-toggle svg { transition: none; }
     }
@@ -144,12 +139,6 @@ gg-story {
     .guide-context-editor summary { cursor: pointer; font-weight: 600; }
     .guide-membership-editor select[multiple] { min-height: 120px; }
     .guide-requirement-editor { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 14px; margin-bottom: 16px; align-items: end; }
-    .guide-directories { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--guide-border); }
-    .guide-directories details { margin-bottom: 8px; }
-    .guide-directories summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; padding-block: 6px; }
-    .guide-directories small { margin-inline-start: auto; color: var(--guide-muted); }
-    .guide-directories button { display: block; text-align: start; width: 100%; font-size: 12px; border: 0; background: transparent; padding: 8px; }
-    .story-outline a.active { background: color-mix(in srgb, var(--story-topic-accent) 15%, var(--guide-card)); box-shadow: inset 3px 0 0 var(--story-topic-accent); }
     :is(button, a, input, select, summary):focus-visible { outline: 2px solid var(--story-content-link); outline-offset: 2px; }
     gg-patch-overview .patch-groups { border-color: var(--guide-border); background: var(--guide-card); }
     gg-patch-overview .patch-groups .patch-group-heading { background: color-mix(in srgb, var(--story-topic-accent) 8%, var(--guide-card)); color: var(--guide-text); border-inline-start: 3px solid var(--story-topic-accent); }
@@ -157,9 +146,7 @@ gg-story {
     gg-patch-overview .patch-table input[type='checkbox'] { accent-color: var(--guide-complete); }
     @media (max-width: 650px) {
         .guide-content-row { padding: 12px; gap: 10px; flex-wrap: wrap; }
-        .guide-row-body { flex-basis: calc(100% - 40px); }
-        .guide-subquest { padding-inline-start: 28px; }
-        .guide-split-notes, .guide-requirement-editor { grid-template-columns: minmax(0, 1fr); }
+        .guide-row-body { flex-basis: calc(100% - 40px); }        .guide-split-notes, .guide-requirement-editor { grid-template-columns: minmax(0, 1fr); }
     }
 }
 :root.theme-light gg-story, [data-theme='light'] gg-story {

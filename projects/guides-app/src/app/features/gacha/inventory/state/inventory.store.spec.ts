@@ -2,7 +2,7 @@ import { Injector, runInInjectionContext, signal } from '@angular/core';
 
 import { WorkspaceStore, GAMES } from "../../../../core/state/workspace.store";
 import { AuthStore } from "../../../../core/auth/auth.store";
-import type { CatalogEntry, PlayerState } from "../../../../../../../lib/types/workspace.type";
+import type { CatalogEntry, PlayerState } from "@lib/types/workspace.type";
 
 const item: CatalogEntry = {
     id: 'book',

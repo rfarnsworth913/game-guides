@@ -1,1 +1,14 @@
 :host { display: block; }
+
+// Desktop dashboards use the available screen; long widgets own their scrolling.
+@media (min-width:1100px) and (min-height:700px) {
+    main.dashboard-page {
+        height:calc(100dvh - 77px); padding-block:18px 10px;
+        display:flex; flex-direction:column; gap:12px;
+    }
+    .dashboard-page > .page-heading {margin:0;gap:20px;flex-shrink:0;align-items:center}
+    .dashboard-page > .page-heading h1 {font-size:26px;margin:5px 0 4px}
+    .dashboard-page > .page-heading p {font-size:12px}
+    .dashboard-page > gg-dashboard {flex:1;min-height:0}
+    .dashboard-page > footer {flex-shrink:0;margin:0;padding-top:8px}
+}

@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main, dev, ai]
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +17,8 @@ concurrency:
 
 jobs:
   browser-integration:
-    runs-on: ubuntu-latest
+    # Playwright 1.59.1 supports Ubuntu 24.04; avoid OS changes from ubuntu-latest.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       mongodb:
@@ -29,54 +32,30 @@ jobs:
           --health-retries 10
     env:
       E2E_MONGODB_URI: mongodb://127.0.0.1:27017
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Install Chrome
-        run: npx puppeteer browsers install chrome
-      - name: Install Linux browser libraries
-        shell: bash
-        run: |
-          deps_file="$(node --input-type=module -e 'import puppeteer from "puppeteer"; import { dirname, join } from "node:path"; console.log(join(dirname(await puppeteer.executablePath()), "deb.deps"));')"
-          test -f "$deps_file"
-          sudo apt-get update
-          sudo apt-get satisfy -y --no-install-recommends "$(tr '\n' ',' < "$deps_file")"
-      - name: Allow Chrome sandbox user namespaces
-        shell: bash
-        run: |
-          if [[ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]] && [[ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" == "1" ]]; then
-            chrome_path="$(node --input-type=module -e 'import puppeteer from "puppeteer"; console.log(await puppeteer.executablePath());')"
-            sudo tee /etc/apparmor.d/puppeteer-chrome >/dev/null <<EOF
-          abi <abi/4.0>,
-          include <tunables/global>
-          profile puppeteer-chrome "$chrome_path" flags=(unconfined) {
-            userns,
-          }
-          EOF
-            sudo apparmor_parser --replace /etc/apparmor.d/puppeteer-chrome
-          fi
-      - name: Verify Chrome can launch
-        run: |
-          node --input-type=module <<'JS'
-          import puppeteer from 'puppeteer';
-          const browser = await puppeteer.launch({ headless: true });
-          try {
-            const page = await browser.newPage();
-            await page.goto('about:blank');
-            console.log('Chrome launch verified:', await browser.version());
-          } finally {
-            await browser.close();
-          }
-          JS
+      - name: Prepare diagnostic directory
+        run: mkdir -p tmp/e2e-artifacts
+      - name: Install Playwright Chromium and Linux libraries
+        run: npx playwright install --with-deps chromium 2>&1 | tee tmp/e2e-artifacts/browser-install.log
+      - name: Parser browser fixtures
+        run: npm run parser:browser-test 2>&1 | tee tmp/e2e-artifacts/parser-browser.log
       - name: Browser integration
-        run: npm run ui:e2e
-      - name: Failure screenshots
+        run: npm run ui:e2e 2>&1 | tee tmp/e2e-artifacts/browser-integration.log
+      - name: Failure screenshots and diagnostic logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: browser-integration-failures
           path: tmp/e2e-artifacts/
