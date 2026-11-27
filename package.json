@@ -62,7 +62,7 @@
     "openid-client": "6.8.8",
     "playwright": "1.59.1",
     "puppeteer": "25.11.0",
-    "rxjs": "7.8.1",
+    "rxjs": "7.8.2",
     "sharp": "0.35.5",
     "tslib": "2.6.2"
   },
